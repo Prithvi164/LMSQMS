@@ -4368,6 +4368,222 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  async getAllParameterScores(organizationId: number, filters?: {
+    qaIds?: number[];
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<{
+    totalEvaluations: number;
+    averageScore: number;
+    parameterScores: Record<number, { 
+      totalScore: number;
+      count: number;
+      average: number;
+      parameterName: string;
+      pillarName: string;
+      qaScores?: Record<number, {
+        totalScore: number;
+        count: number;
+        average: number;
+      }>;
+    }>;
+    qaAnalysts?: Record<number, {
+      id: number;
+      name: string;
+      totalEvaluations: number;
+      averageScore: number;
+    }>;
+  }> {
+    try {
+      // Build the where clause dynamically
+      let whereClause = and(
+        eq(evaluations.organizationId, organizationId),
+        eq(evaluations.evaluationType, 'audio')
+      );
+      
+      // Add date filters if provided
+      if (filters?.startDate && filters?.endDate) {
+        whereClause = and(
+          whereClause,
+          gte(evaluations.createdAt, filters.startDate),
+          lte(evaluations.createdAt, filters.endDate)
+        );
+      }
+      
+      // Add QA filters if provided
+      if (filters?.qaIds && filters.qaIds.length > 0) {
+        whereClause = and(
+          whereClause,
+          inArray(evaluations.evaluatorId, filters.qaIds)
+        );
+      }
+      
+      // Get all audio evaluations based on filters
+      const audioFileEvaluations = await db
+        .select({
+          id: evaluations.id,
+          finalScore: evaluations.finalScore,
+          evaluatorId: evaluations.evaluatorId,
+          createdAt: evaluations.createdAt
+        })
+        .from(evaluations)
+        .where(whereClause);
+      
+      // Get scores for all these evaluations
+      const evaluationIds = audioFileEvaluations.map(evalItem => evalItem.id);
+      
+      let parameterScores: Record<number, { 
+        totalScore: number; 
+        count: number; 
+        average: number;
+        parameterName: string;
+        pillarName: string;
+        qaScores: Record<number, {
+          totalScore: number;
+          count: number;
+          average: number;
+        }>;
+      }> = {};
+      
+      let qaStats: Record<number, {
+        id: number;
+        name: string;
+        totalEvaluations: number;
+        totalScore: number;
+        averageScore: number;
+      }> = {};
+      
+      let totalScore = 0;
+      
+      if (evaluationIds.length > 0) {
+        // Get all scores with evaluation details
+        const scores = await db
+          .select({
+            evaluationId: evaluationScores.evaluationId,
+            parameterId: evaluationScores.parameterId,
+            score: evaluationScores.score,
+            parameterName: evaluationParameters.name,
+            pillarName: evaluationPillars.name,
+            evaluatorId: evaluations.evaluatorId
+          })
+          .from(evaluationScores)
+          .leftJoin(
+            evaluationParameters,
+            eq(evaluationScores.parameterId, evaluationParameters.id)
+          )
+          .leftJoin(
+            evaluationPillars,
+            eq(evaluationParameters.pillarId, evaluationPillars.id)
+          )
+          .leftJoin(
+            evaluations,
+            eq(evaluationScores.evaluationId, evaluations.id)
+          )
+          .where(inArray(evaluationScores.evaluationId, evaluationIds));
+        
+        // Get QA user details for names
+        const qaIds = [...new Set(audioFileEvaluations.map(evalItem => evalItem.evaluatorId))];
+        const qaUsers = await db
+          .select({
+            id: users.id,
+            fullName: users.fullName
+          })
+          .from(users)
+          .where(inArray(users.id, qaIds));
+        
+        // Initialize QA stats
+        qaUsers.forEach(qa => {
+          qaStats[qa.id] = {
+            id: qa.id,
+            name: qa.fullName || `QA ${qa.id}`,
+            totalEvaluations: 0,
+            totalScore: 0,
+            averageScore: 0
+          };
+        });
+        
+        // Count evaluations by QA
+        audioFileEvaluations.forEach(evalItem => {
+          if (qaStats[evalItem.evaluatorId]) {
+            qaStats[evalItem.evaluatorId].totalEvaluations++;
+            qaStats[evalItem.evaluatorId].totalScore += parseFloat(evalItem.finalScore.toString());
+          }
+        });
+        
+        // Calculate average scores for QAs
+        Object.keys(qaStats).forEach(qaId => {
+          const qa = qaStats[parseInt(qaId)];
+          qa.averageScore = qa.totalEvaluations > 0 
+            ? Math.round(qa.totalScore / qa.totalEvaluations) 
+            : 0;
+        });
+        
+        // Aggregate scores by parameter and QA
+        scores.forEach(score => {
+          const scoreValue = parseInt(score.score);
+          if (!isNaN(scoreValue)) {
+            if (!parameterScores[score.parameterId]) {
+              parameterScores[score.parameterId] = { 
+                totalScore: 0, 
+                count: 0, 
+                average: 0,
+                parameterName: score.parameterName || `Parameter ${score.parameterId}`,
+                pillarName: score.pillarName || 'Unknown Pillar',
+                qaScores: {}
+              };
+            }
+            
+            // Add overall parameter score
+            parameterScores[score.parameterId].totalScore += scoreValue;
+            parameterScores[score.parameterId].count++;
+            
+            // Add QA-specific parameter score
+            if (score.evaluatorId) {
+              if (!parameterScores[score.parameterId].qaScores[score.evaluatorId]) {
+                parameterScores[score.parameterId].qaScores[score.evaluatorId] = {
+                  totalScore: 0,
+                  count: 0,
+                  average: 0
+                };
+              }
+              
+              parameterScores[score.parameterId].qaScores[score.evaluatorId].totalScore += scoreValue;
+              parameterScores[score.parameterId].qaScores[score.evaluatorId].count++;
+            }
+          }
+        });
+        
+        // Calculate averages for each parameter
+        Object.keys(parameterScores).forEach(paramId => {
+          const param = parameterScores[parseInt(paramId)];
+          param.average = param.count > 0 ? Math.round(param.totalScore / param.count) : 0;
+          
+          // Calculate QA-specific averages
+          Object.keys(param.qaScores).forEach(qaId => {
+            const qaScore = param.qaScores[parseInt(qaId)];
+            qaScore.average = qaScore.count > 0 ? Math.round(qaScore.totalScore / qaScore.count) : 0;
+          });
+        });
+        
+        // Calculate total average score
+        totalScore = audioFileEvaluations.reduce((sum, evalItem) => 
+          sum + parseFloat(evalItem.finalScore.toString()), 0);
+      }
+      
+      return {
+        totalEvaluations: audioFileEvaluations.length,
+        averageScore: audioFileEvaluations.length > 0 
+          ? Math.round(totalScore / audioFileEvaluations.length) 
+          : 0,
+        parameterScores,
+        qaAnalysts: qaStats
+      };
+    } catch (error) {
+      console.error('Error getting parameter scores:', error);
+      throw error;
+    }
+  }
+
   async getQualityAnalystEvaluationStats(qualityAnalystId: number, organizationId: number): Promise<{
     totalEvaluations: number;
     averageScore: number;

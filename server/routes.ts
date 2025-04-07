@@ -7323,6 +7323,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get evaluation statistics for a quality analyst
+  // Get parameter scores for all evaluations with filters
+  app.get("/api/organizations/:organizationId/parameter-scores", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      
+      if (!orgId || req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if the user can view assignments (quality analysts or managers)
+      const canAccessAudio = ['quality_analyst', 'team_lead', 'manager', 'admin', 'owner'].includes(req.user.role);
+      if (!canAccessAudio) {
+        return res.status(403).json({ message: "Access denied. Only quality analysts and managers can access this endpoint." });
+      }
+      
+      // Parse filters
+      const filters: {
+        qaIds?: number[];
+        startDate?: Date;
+        endDate?: Date;
+      } = {};
+      
+      // Parse quality analyst filter
+      if (req.query.qaIds) {
+        try {
+          const qaIds = JSON.parse(req.query.qaIds as string);
+          if (Array.isArray(qaIds) && qaIds.length > 0) {
+            filters.qaIds = qaIds.map(id => parseInt(id));
+          }
+        } catch (error) {
+          console.error("Error parsing qaIds:", error);
+        }
+      }
+      
+      // Parse date range filters
+      if (req.query.startDate && req.query.endDate) {
+        filters.startDate = new Date(req.query.startDate as string);
+        filters.endDate = new Date(req.query.endDate as string);
+      }
+      
+      const parameterScores = await storage.getAllParameterScores(orgId, filters);
+      res.json(parameterScores);
+    } catch (error: any) {
+      console.error("Error fetching parameter scores:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/users/:id/quality-analyst-stats", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
