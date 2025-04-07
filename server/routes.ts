@@ -796,26 +796,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const evaluation = req.body;
-      console.log("Received evaluation:", evaluation);
       
-      // Check if this is an audio evaluation or standard evaluation
-      const isAudioEvaluation = !!evaluation.audioFileId;
-      
-      // Validate required fields based on evaluation type
-      if (isAudioEvaluation) {
-        // Audio evaluations require templateId, audioFileId, and scores
-        if (!evaluation.templateId || !evaluation.audioFileId || !evaluation.scores) {
-          return res.status(400).json({
-            message: "Missing required fields: templateId, audioFileId, and scores are required for audio evaluations"
-          });
-        }
-      } else {
-        // Standard evaluations require templateId, traineeId, batchId, and scores
-        if (!evaluation.templateId || !evaluation.traineeId || !evaluation.batchId || !evaluation.scores) {
-          return res.status(400).json({
-            message: "Missing required fields: templateId, traineeId, batchId, and scores are required for standard evaluations"
-          });
-        }
+      // Validate required fields
+      if (!evaluation.templateId || !evaluation.traineeId || !evaluation.batchId || !evaluation.scores) {
+        return res.status(400).json({
+          message: "Missing required fields: templateId, traineeId, batchId, and scores are required"
+        });
       }
 
       // Parse and validate the final score
@@ -826,9 +812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create evaluation record with appropriate fields based on type
-      const baseEvaluation = {
+      // Create evaluation record
+      const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
+        traineeId: evaluation.traineeId,
+        batchId: evaluation.batchId,
         evaluatorId: req.user.id,
         organizationId: req.user.organizationId,
         finalScore,
@@ -839,25 +827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           comment: score.comment,
           noReason: score.noReason
         }))
-      };
-      
-      // Add type-specific fields
-      const evaluationData = isAudioEvaluation 
-        ? {
-            ...baseEvaluation,
-            audioFileId: evaluation.audioFileId,
-            // For audio evaluations, set traineeId and batchId to 0 or null if schema requires them
-            traineeId: 0,
-            batchId: 0
-          } 
-        : {
-            ...baseEvaluation,
-            traineeId: evaluation.traineeId,
-            batchId: evaluation.batchId
-          };
-      
-      console.log("Creating evaluation with data:", evaluationData);
-      const result = await storage.createEvaluation(evaluationData);
+      });
 
       res.status(201).json(result);
     } catch (error: any) {
@@ -6931,23 +6901,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // For quality analysts, check if the file is allocated to them
-      if (req.user.role === 'quality_analyst') {
-        // Check if this file is allocated to this quality analyst
-        const allocations = await storage.listAudioFileAllocations({
-          organizationId: req.user.organizationId,
-          qualityAnalystId: req.user.id,
-          audioFileId: audioFileId
-        });
-        
-        if (allocations.length === 0) {
-          console.log(`Access denied: Quality analyst ${req.user.id} attempted to access unallocated file ${audioFileId}`);
-          return res.status(403).json({ 
-            message: "Access denied. This audio file is not allocated to you."
-          });
-        }
-      }
-      
       res.json(audioFile);
     } catch (error: any) {
       console.error(`Error fetching audio file ${req.params.id} in org ${req.params.organizationId}:`, error);
@@ -6971,23 +6924,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // For quality analysts, check if the file is allocated to them
-      if (req.user.role === 'quality_analyst') {
-        // Check if this file is allocated to this quality analyst
-        const allocations = await storage.listAudioFileAllocations({
-          organizationId: req.user.organizationId,
-          qualityAnalystId: req.user.id,
-          audioFileId: audioFileId
-        });
-        
-        if (allocations.length === 0) {
-          console.log(`Access denied: Quality analyst ${req.user.id} attempted to access unallocated file ${audioFileId}`);
-          return res.status(403).json({ 
-            message: "Access denied. This audio file is not allocated to you."
-          });
-        }
-      }
-      
       res.json(audioFile);
     } catch (error: any) {
       console.error("Error fetching audio file:", error);
@@ -6995,79 +6931,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint to update just the status of an audio file
-  app.patch("/api/audio-files/:id/status", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    
-    try {
-      const audioFileId = parseInt(req.params.id);
-      const { status, evaluationId } = req.body;
-      
-      if (!status) {
-        return res.status(400).json({ message: "Status is required" });
-      }
-      
-      const audioFile = await storage.getAudioFile(audioFileId);
-      
-      if (!audioFile) {
-        return res.status(404).json({ message: "Audio file not found" });
-      }
-      
-      // Check organization access
-      if (audioFile.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // For quality analysts, check if the file is allocated to them
-      if (req.user.role === 'quality_analyst') {
-        // Check if this file is allocated to this quality analyst
-        const allocations = await storage.listAudioFileAllocations({
-          organizationId: req.user.organizationId,
-          qualityAnalystId: req.user.id,
-          audioFileId: audioFileId
-        });
-        
-        if (allocations.length === 0) {
-          console.log(`Access denied: Quality analyst ${req.user.id} attempted to update status of unallocated file ${audioFileId}`);
-          return res.status(403).json({ 
-            message: "Access denied. This audio file is not allocated to you."
-          });
-        }
-      }
-      
-      // Update the audio file status
-      // In schema.ts, audioFiles.evaluationId refers to evaluations.id
-      const updatedAudioFile = await storage.updateAudioFile(audioFileId, { 
-        status: status,
-        evaluationId: evaluationId // Link the evaluation to the audio file
-      });
-      
-      // Update all allocations for this audio file to the same status
-      if (status === 'evaluated') {
-        const allocations = await storage.listAudioFileAllocations({
-          organizationId: req.user.organizationId,
-          audioFileId: audioFileId
-        });
-        
-        // For allocations, the evaluationId is actually referring to the template ID
-        // It's important we don't try to set this to the evaluation ID as they're different tables
-        for (const allocation of allocations) {
-          await storage.updateAudioFileAllocation(allocation.id, {
-            status: 'evaluated',
-            // Don't update evaluationId since it refers to evaluation templates, not evaluations
-          });
-        }
-      }
-      
-      return res.status(200).json(updatedAudioFile);
-    } catch (error: any) {
-      console.error("Error updating audio file status:", error);
-      return res.status(500).json({ 
-        message: error.message || "Failed to update audio file status" 
-      });
-    }
-  });
-
   app.patch("/api/audio-files/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
@@ -7082,23 +6945,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check organization access
       if (audioFile.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // For quality analysts, check if the file is allocated to them
-      if (req.user.role === 'quality_analyst') {
-        // Check if this file is allocated to this quality analyst
-        const allocations = await storage.listAudioFileAllocations({
-          organizationId: req.user.organizationId,
-          qualityAnalystId: req.user.id,
-          audioFileId: audioFileId
-        });
-        
-        if (allocations.length === 0) {
-          console.log(`Access denied: Quality analyst ${req.user.id} attempted to update unallocated file ${audioFileId}`);
-          return res.status(403).json({ 
-            message: "Access denied. This audio file is not allocated to you."
-          });
-        }
       }
       
       const updatedFile = await storage.updateAudioFile(audioFileId, req.body);

@@ -141,8 +141,6 @@ export const audioFiles = pgTable("audio_files", {
     .notNull(),
   batchId: integer("batch_id")
     .references(() => organizationBatches.id),
-  evaluationId: integer("evaluation_id")
-    .references(() => evaluations.id),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

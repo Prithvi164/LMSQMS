@@ -452,26 +452,7 @@ export class DatabaseStorage implements IStorage {
   async getAudioFile(id: number): Promise<AudioFile | undefined> {
     try {
       const [audioFile] = await db
-        .select({
-          id: audioFiles.id,
-          filename: audioFiles.filename,
-          originalFilename: audioFiles.originalFilename,
-          fileUrl: audioFiles.fileUrl,
-          fileSize: audioFiles.fileSize,
-          duration: audioFiles.duration,
-          language: audioFiles.language,
-          version: audioFiles.version,
-          uploadedAt: audioFiles.uploadedAt,
-          uploadedBy: audioFiles.uploadedBy,
-          organizationId: audioFiles.organizationId,
-          status: audioFiles.status,
-          processId: audioFiles.processId,
-          batchId: audioFiles.batchId,
-          call_date: audioFiles.call_date,
-          callMetrics: audioFiles.callMetrics,
-          updatedAt: audioFiles.updatedAt
-          // Not selecting evaluationId to avoid db schema mismatch
-        })
+        .select()
         .from(audioFiles)
         .where(eq(audioFiles.id, id)) as AudioFile[];
       return audioFile;
@@ -643,17 +624,7 @@ export class DatabaseStorage implements IStorage {
   async getAudioFileAllocation(id: number): Promise<AudioFileAllocation | undefined> {
     try {
       const [allocation] = await db
-        .select({
-          id: audioFileAllocations.id,
-          audioFileId: audioFileAllocations.audioFileId,
-          qualityAnalystId: audioFileAllocations.qualityAnalystId,
-          createdAt: audioFileAllocations.createdAt,
-          updatedAt: audioFileAllocations.updatedAt,
-          status: audioFileAllocations.status,
-          allocatedBy: audioFileAllocations.allocatedBy,
-          organizationId: audioFileAllocations.organizationId,
-          // Omitting evaluationId since it's causing issues with the actual DB
-        })
+        .select()
         .from(audioFileAllocations)
         .where(eq(audioFileAllocations.id, id)) as AudioFileAllocation[];
       return allocation;
@@ -671,19 +642,8 @@ export class DatabaseStorage implements IStorage {
   }): Promise<any[]> {
     try {
       // Get the basic allocation data
-      // Explicitly select columns instead of select() to avoid issues with schema/db mismatch
       let query = db
-        .select({
-          id: audioFileAllocations.id,
-          audioFileId: audioFileAllocations.audioFileId,
-          qualityAnalystId: audioFileAllocations.qualityAnalystId,
-          createdAt: audioFileAllocations.createdAt,
-          updatedAt: audioFileAllocations.updatedAt,
-          status: audioFileAllocations.status,
-          allocatedBy: audioFileAllocations.allocatedBy,
-          organizationId: audioFileAllocations.organizationId,
-          // Omitting evaluationId since it's causing issues with the actual DB
-        })
+        .select()
         .from(audioFileAllocations)
         .where(eq(audioFileAllocations.organizationId, filters.organizationId));
 
@@ -711,28 +671,9 @@ export class DatabaseStorage implements IStorage {
         ...allocations.map(a => a.allocatedBy)
       ])];
       
-      // Fetch related data - explicitly select columns to avoid schema/db mismatch
+      // Fetch related data
       const audioFilesData = await db
-        .select({
-          id: audioFiles.id,
-          filename: audioFiles.filename,
-          originalFilename: audioFiles.originalFilename,
-          fileUrl: audioFiles.fileUrl,
-          fileSize: audioFiles.fileSize,
-          duration: audioFiles.duration,
-          language: audioFiles.language,
-          version: audioFiles.version,
-          uploadedAt: audioFiles.uploadedAt,
-          uploadedBy: audioFiles.uploadedBy,
-          organizationId: audioFiles.organizationId,
-          status: audioFiles.status,
-          processId: audioFiles.processId,
-          batchId: audioFiles.batchId,
-          call_date: audioFiles.call_date,
-          callMetrics: audioFiles.callMetrics,
-          updatedAt: audioFiles.updatedAt
-          // Not selecting evaluationId to avoid db schema mismatch
-        })
+        .select()
         .from(audioFiles)
         .where(inArray(audioFiles.id, audioFileIds)) as AudioFile[];
       
@@ -883,26 +824,7 @@ export class DatabaseStorage implements IStorage {
         // If specific file IDs are provided
         if (batchAllocation.audioFileIds && batchAllocation.audioFileIds.length > 0) {
           audioFilesToAllocate = await tx
-            .select({
-              id: audioFiles.id,
-              filename: audioFiles.filename,
-              originalFilename: audioFiles.originalFilename,
-              fileUrl: audioFiles.fileUrl,
-              fileSize: audioFiles.fileSize,
-              duration: audioFiles.duration,
-              language: audioFiles.language,
-              version: audioFiles.version,
-              call_date: audioFiles.call_date,
-              callMetrics: audioFiles.callMetrics,
-              status: audioFiles.status,
-              uploadedBy: audioFiles.uploadedBy,
-              uploadedAt: audioFiles.uploadedAt,
-              processId: audioFiles.processId,
-              organizationId: audioFiles.organizationId,
-              batchId: audioFiles.batchId,
-              updatedAt: audioFiles.updatedAt
-              // Not selecting evaluationId to avoid db schema mismatch
-            })
+            .select()
             .from(audioFiles)
             .where(and(
               eq(audioFiles.organizationId, batchAllocation.organizationId),
@@ -913,26 +835,7 @@ export class DatabaseStorage implements IStorage {
         // Otherwise, apply filters to find files
         else if (batchAllocation.filters) {
           let query = tx
-            .select({
-              id: audioFiles.id,
-              filename: audioFiles.filename,
-              originalFilename: audioFiles.originalFilename,
-              fileUrl: audioFiles.fileUrl,
-              fileSize: audioFiles.fileSize,
-              duration: audioFiles.duration,
-              language: audioFiles.language,
-              version: audioFiles.version,
-              call_date: audioFiles.call_date,
-              callMetrics: audioFiles.callMetrics,
-              status: audioFiles.status,
-              uploadedBy: audioFiles.uploadedBy,
-              uploadedAt: audioFiles.uploadedAt,
-              processId: audioFiles.processId,
-              organizationId: audioFiles.organizationId,
-              batchId: audioFiles.batchId,
-              updatedAt: audioFiles.updatedAt
-              // Not selecting evaluationId to avoid db schema mismatch
-            })
+            .select()
             .from(audioFiles)
             .where(and(
               eq(audioFiles.organizationId, batchAllocation.organizationId),
@@ -1060,10 +963,10 @@ export class DatabaseStorage implements IStorage {
                   .values({
                     audioFileId: audioFile.id,
                     qualityAnalystId: qaId,
+                    dueDate: batchAllocation.dueDate,
                     status: 'allocated',
                     allocatedBy: batchAllocation.allocatedBy,
                     organizationId: batchAllocation.organizationId,
-                    // Omitting dueDate and evaluationId since they're causing issues with the actual DB
                   })
                   .returning() as AudioFileAllocation[];
                 
@@ -1125,10 +1028,10 @@ export class DatabaseStorage implements IStorage {
                 .values({
                   audioFileId: audioFile.id,
                   qualityAnalystId: qaId,
+                  dueDate: batchAllocation.dueDate,
                   status: 'allocated',
                   allocatedBy: batchAllocation.allocatedBy,
                   organizationId: batchAllocation.organizationId,
-                  // Omitting dueDate and evaluationId since they're causing issues with the actual DB
                 })
                 .returning() as AudioFileAllocation[];
               
