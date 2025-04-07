@@ -1088,26 +1088,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all parameters and pillars to enrich the scores
       if (evaluationWithScores.scores.length > 0) {
+        // Use the storage methods to get parameters and pillars
         const parameterIds = evaluationWithScores.scores.map(score => score.parameterId);
         
-        // Get parameters
-        const parameters = await db
-          .select()
-          .from(evaluationParameters)
-          .where(inArray(evaluationParameters.id, parameterIds)) as EvaluationParameter[];
+        // Get parameters for all scores
+        const parameters = [];
+        for (const parameterId of parameterIds) {
+          const parameter = await storage.getEvaluationParameterById(parameterId);
+          if (parameter) {
+            parameters.push(parameter);
+          }
+        }
         
         // Get pillars for these parameters
-        const pillarIds = [...new Set(parameters.map(param => param.pillarId))];
+        const pillarIds = [...new Set(parameters
+          .filter(param => param && param.pillarId)
+          .map(param => param.pillarId))];
         
-        const pillars = await db
-          .select()
-          .from(evaluationPillars)
-          .where(inArray(evaluationPillars.id, pillarIds)) as EvaluationPillar[];
+        const pillars = [];
+        for (const pillarId of pillarIds) {
+          const pillar = await storage.getEvaluationPillarById(pillarId);
+          if (pillar) {
+            pillars.push(pillar);
+          }
+        }
         
         // Enrich the scores with parameter and pillar information
         const enrichedScores = evaluationWithScores.scores.map(score => {
           const parameter = parameters.find(p => p.id === score.parameterId);
-          const pillar = parameter ? pillars.find(p => p.id === parameter.pillarId) : undefined;
+          const pillar = parameter && parameter.pillarId 
+            ? pillars.find(p => p.id === parameter.pillarId) 
+            : undefined;
           
           return {
             ...score,
@@ -1119,13 +1130,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Group by pillar
         const groupedScores = pillarIds.map(pillarId => {
           const pillar = pillars.find(p => p.id === pillarId);
-          const pillarScores = enrichedScores.filter(score => score.pillar?.id === pillarId);
+          const pillarScores = enrichedScores.filter(score => 
+            score.parameter && score.parameter.pillarId === pillarId
+          );
           
           return {
             pillar,
             scores: pillarScores
           };
         });
+        
+        // Add scores without pillars
+        const unassignedScores = enrichedScores.filter(score => 
+          !score.parameter || !score.parameter.pillarId
+        );
+        
+        if (unassignedScores.length > 0) {
+          groupedScores.push({
+            scores: unassignedScores
+          });
+        }
         
         res.json({
           evaluation: evaluationWithScores,
