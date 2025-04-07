@@ -341,6 +341,8 @@ export default function ConductEvaluation() {
   // Submit evaluation
   const submitEvaluationMutation = useMutation({
     mutationFn: async (evaluation: any) => {
+      console.log("Submitting evaluation:", evaluation);
+      
       const response = await fetch("/api/evaluations", {
         method: "POST",
         headers: {
@@ -351,14 +353,21 @@ export default function ConductEvaluation() {
 
       if (!response.ok) {
         const error = await response.json();
+        console.error("Evaluation submission failed:", error);
         throw new Error(error.message || "Failed to submit evaluation");
       }
 
-      return response.json();
+      const responseData = await response.json();
+      console.log("Evaluation submission successful, server response:", responseData);
+      return responseData;
     },
     onSuccess: (data) => {
+      console.log("Evaluation successfully submitted with ID:", data.id);
+      
       // If we're evaluating an audio file, update its status to 'evaluated'
       if (evaluationType === "audio" && selectedAudioFile) {
+        console.log("Updating audio file status for file ID:", selectedAudioFile);
+        
         updateAudioFileStatusMutation.mutate({
           audioFileId: selectedAudioFile,
           status: "evaluated",
@@ -366,6 +375,8 @@ export default function ConductEvaluation() {
         });
       } else {
         // For standard evaluations
+        console.log("Standard evaluation completed, refreshing queries");
+        
         queryClient.invalidateQueries({
           queryKey: [`/api/organizations/${user?.organizationId}/evaluations`],
         });
@@ -380,6 +391,8 @@ export default function ConductEvaluation() {
       }
     },
     onError: (error: Error) => {
+      console.error("Error submitting evaluation:", error);
+      
       toast({
         variant: "destructive",
         title: "Error",
@@ -399,6 +412,8 @@ export default function ConductEvaluation() {
       status: string;
       evaluationId: number;
     }) => {
+      console.log(`Updating audio file ${audioFileId} status to ${status} with evaluation ID ${evaluationId}`);
+      
       const response = await fetch(`/api/audio-files/${audioFileId}/status`, {
         method: "PATCH",
         headers: {
@@ -409,12 +424,19 @@ export default function ConductEvaluation() {
 
       if (!response.ok) {
         const error = await response.json();
+        console.error("Audio file status update failed:", error);
         throw new Error(error.message || "Failed to update audio file status");
       }
 
-      return response.json();
+      const responseData = await response.json();
+      console.log("Audio file status update successful:", responseData);
+      return responseData;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Audio file status successfully updated:", data);
+      
+      // Refresh the relevant queries
+      console.log("Refreshing audio file allocation and file queries");
       queryClient.invalidateQueries({
         queryKey: [
           `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
@@ -423,16 +445,22 @@ export default function ConductEvaluation() {
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/audio-files`],
       });
+      
       toast({
         title: "Success",
         description: "Audio evaluation submitted successfully",
       });
+      
+      // Reset UI state
+      console.log("Resetting UI state after successful audio evaluation");
       setScores({});
       setSelectedAudioFile(null);
       setSelectedTemplate(null);
       setAudioUrl(null);
     },
     onError: (error: Error) => {
+      console.error("Error updating audio file status:", error);
+      
       toast({
         variant: "destructive",
         title: "Error",
@@ -506,6 +534,8 @@ export default function ConductEvaluation() {
       return;
     }
 
+    console.log("Standard evaluation submission started");
+    
     const evaluation = {
       templateId: selectedTemplate,
       traineeId: selectedTrainee,
@@ -518,6 +548,7 @@ export default function ConductEvaluation() {
       finalScore: calculateScore(),
     };
 
+    console.log("Standard evaluation data prepared:", evaluation);
     submitEvaluationMutation.mutate(evaluation);
   };
 
@@ -848,6 +879,8 @@ export default function ConductEvaluation() {
       return;
     }
 
+    console.log("Audio evaluation submission started for audio file ID:", selectedAudioFile);
+    
     const evaluation = {
       templateId: selectedTemplate,
       audioFileId: selectedAudioFile,
@@ -859,6 +892,7 @@ export default function ConductEvaluation() {
       finalScore: calculateScore(),
     };
 
+    console.log("Audio evaluation data prepared:", evaluation);
     submitEvaluationMutation.mutate(evaluation);
   };
 
