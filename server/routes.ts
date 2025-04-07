@@ -6985,6 +6985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update the audio file status
+      // In schema.ts, audioFiles.evaluationId refers to evaluations.id
       const updatedAudioFile = await storage.updateAudioFile(audioFileId, { 
         status: status,
         evaluationId: evaluationId // Link the evaluation to the audio file
@@ -6997,10 +6998,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           audioFileId: audioFileId
         });
         
+        // For allocations, the evaluationId is actually referring to the template ID
+        // It's important we don't try to set this to the evaluation ID as they're different tables
         for (const allocation of allocations) {
           await storage.updateAudioFileAllocation(allocation.id, {
             status: 'evaluated',
-            evaluationId: evaluationId
+            // Don't update evaluationId since it refers to evaluation templates, not evaluations
           });
         }
       }
