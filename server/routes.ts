@@ -6931,6 +6931,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // For quality analysts, check if the file is allocated to them
+      if (req.user.role === 'quality_analyst') {
+        // Check if this file is allocated to this quality analyst
+        const allocations = await storage.listAudioFileAllocations({
+          organizationId: req.user.organizationId,
+          qualityAnalystId: req.user.id,
+          audioFileId: audioFileId
+        });
+        
+        if (allocations.length === 0) {
+          console.log(`Access denied: Quality analyst ${req.user.id} attempted to access unallocated file ${audioFileId}`);
+          return res.status(403).json({ 
+            message: "Access denied. This audio file is not allocated to you."
+          });
+        }
+      }
+      
       res.json(audioFile);
     } catch (error: any) {
       console.error(`Error fetching audio file ${req.params.id} in org ${req.params.organizationId}:`, error);
@@ -6952,6 +6969,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check organization access
       if (audioFile.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For quality analysts, check if the file is allocated to them
+      if (req.user.role === 'quality_analyst') {
+        // Check if this file is allocated to this quality analyst
+        const allocations = await storage.listAudioFileAllocations({
+          organizationId: req.user.organizationId,
+          qualityAnalystId: req.user.id,
+          audioFileId: audioFileId
+        });
+        
+        if (allocations.length === 0) {
+          console.log(`Access denied: Quality analyst ${req.user.id} attempted to access unallocated file ${audioFileId}`);
+          return res.status(403).json({ 
+            message: "Access denied. This audio file is not allocated to you."
+          });
+        }
       }
       
       res.json(audioFile);
@@ -6982,6 +7016,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check organization access
       if (audioFile.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For quality analysts, check if the file is allocated to them
+      if (req.user.role === 'quality_analyst') {
+        // Check if this file is allocated to this quality analyst
+        const allocations = await storage.listAudioFileAllocations({
+          organizationId: req.user.organizationId,
+          qualityAnalystId: req.user.id,
+          audioFileId: audioFileId
+        });
+        
+        if (allocations.length === 0) {
+          console.log(`Access denied: Quality analyst ${req.user.id} attempted to update status of unallocated file ${audioFileId}`);
+          return res.status(403).json({ 
+            message: "Access denied. This audio file is not allocated to you."
+          });
+        }
       }
       
       // Update the audio file status
@@ -7031,6 +7082,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check organization access
       if (audioFile.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For quality analysts, check if the file is allocated to them
+      if (req.user.role === 'quality_analyst') {
+        // Check if this file is allocated to this quality analyst
+        const allocations = await storage.listAudioFileAllocations({
+          organizationId: req.user.organizationId,
+          qualityAnalystId: req.user.id,
+          audioFileId: audioFileId
+        });
+        
+        if (allocations.length === 0) {
+          console.log(`Access denied: Quality analyst ${req.user.id} attempted to update unallocated file ${audioFileId}`);
+          return res.status(403).json({ 
+            message: "Access denied. This audio file is not allocated to you."
+          });
+        }
       }
       
       const updatedFile = await storage.updateAudioFile(audioFileId, req.body);

@@ -452,7 +452,26 @@ export class DatabaseStorage implements IStorage {
   async getAudioFile(id: number): Promise<AudioFile | undefined> {
     try {
       const [audioFile] = await db
-        .select()
+        .select({
+          id: audioFiles.id,
+          filename: audioFiles.filename,
+          originalFilename: audioFiles.originalFilename,
+          fileUrl: audioFiles.fileUrl,
+          fileSize: audioFiles.fileSize,
+          duration: audioFiles.duration,
+          language: audioFiles.language,
+          version: audioFiles.version,
+          uploadedAt: audioFiles.uploadedAt,
+          uploadedBy: audioFiles.uploadedBy,
+          organizationId: audioFiles.organizationId,
+          status: audioFiles.status,
+          processId: audioFiles.processId,
+          batchId: audioFiles.batchId,
+          call_date: audioFiles.call_date,
+          callMetrics: audioFiles.callMetrics,
+          updatedAt: audioFiles.updatedAt
+          // Not selecting evaluationId to avoid db schema mismatch
+        })
         .from(audioFiles)
         .where(eq(audioFiles.id, id)) as AudioFile[];
       return audioFile;
