@@ -15,7 +15,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
@@ -64,6 +65,7 @@ export function SidebarNav() {
   const qmsFeatures = [
     { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
+    { href: '/evaluation-feedback', label: 'Evaluation Feedback', icon: MessageSquare },
     { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays },
     { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
   ];
