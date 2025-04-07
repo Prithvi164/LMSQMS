@@ -7114,50 +7114,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get audio files allocated to the current user
+  // Get audio files allocated to the current user or their subordinates
   app.get("/api/organizations/:organizationId/audio-file-allocations/assigned-to-me", async (req, res) => {
     console.log('Endpoint called: audio-file-allocations/assigned-to-me');
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
     try {
       const orgId = parseInt(req.params.organizationId);
+      const assignedToFilter = req.query.assignedTo as string || 'all';
+      console.log('Assignment filter:', assignedToFilter);
+      
       if (!orgId || req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Only quality analysts can access this endpoint
-      if (req.user.role !== 'quality_analyst') {
-        return res.status(403).json({ message: "Access denied. Only quality analysts can access this endpoint." });
+      // Check if the user can view assignments (quality analysts or managers)
+      const canAccessAudio = ['quality_analyst', 'team_lead', 'manager', 'admin', 'owner'].includes(req.user.role);
+      if (!canAccessAudio) {
+        return res.status(403).json({ message: "Access denied. Only quality analysts and managers can access this endpoint." });
       }
       
-      console.log(`Fetching audio files allocated to user ${req.user.id} in organization ${orgId}`);
-      console.log(`User details: ${JSON.stringify({
-        id: req.user.id,
-        username: req.user.username,
-        role: req.user.role,
-        organization: req.user.organizationId
-      })}`);
+      // Get user IDs based on role and filter
+      let qualityAnalystIds: number[] = [];
       
-      // Check if we have allocations in the database for this user
-      const checkQuery = await db.execute(sql`
-        SELECT COUNT(*) FROM audio_file_allocations 
-        WHERE quality_analyst_id = ${req.user.id} 
-        AND organization_id = ${orgId}
-      `);
-      console.log(`Database check: ${JSON.stringify(checkQuery.rows[0])}`);
-      
-      const allocations = await storage.listAudioFileAllocations({
-        organizationId: orgId,
-        qualityAnalystId: req.user.id
-        // Removed status filter to show all files allocated to this user
-      });
-      
-      console.log(`Found ${allocations.length} allocated audio files for user ${req.user.id}`);
-      
-      // If allocations query returned empty but we know allocations exist
-      if (allocations.length === 0 && checkQuery.rows[0].count > 0) {
-        console.log("Warning: Allocation query inconsistency - DB shows allocations exist but none returned");
+      // For QAs, only return their own assignments
+      if (req.user.role === 'quality_analyst') {
+        qualityAnalystIds = [req.user.id];
       }
+      // For managers, team leads, admins, and owners, get all subordinates who are QAs
+      else {
+        // First, get all users who report to this manager (directly or indirectly)
+        const allUsers = await storage.listUsers({ organizationId: orgId });
+        
+        // Find all subordinates recursively
+        const isSubordinate = (managerId: number, userId: number): boolean => {
+          const user = allUsers.find(u => u.id === userId);
+          if (!user || user.managerId === null) return false;
+          if (user.managerId === managerId) return true;
+          return isSubordinate(managerId, user.managerId);
+        };
+        
+        // Filter for quality analysts who are subordinates
+        const qaSubordinates = allUsers.filter(user => 
+          user.role === 'quality_analyst' && isSubordinate(req.user.id, user.id)
+        );
+        
+        // If user is admin or owner, include all QAs
+        if (req.user.role === 'admin' || req.user.role === 'owner') {
+          qualityAnalystIds = allUsers
+            .filter(user => user.role === 'quality_analyst')
+            .map(user => user.id);
+        } else {
+          // For team leads and managers, only include subordinates
+          qualityAnalystIds = qaSubordinates.map(user => user.id);
+          
+          // If the current user is also a QA (rare dual role), include themselves
+          if (req.user.role === 'quality_analyst') {
+            qualityAnalystIds.push(req.user.id);
+          }
+        }
+      }
+      
+      console.log(`Fetching audio files for user ${req.user.id} (${req.user.role}) and subordinates in organization ${orgId}`);
+      console.log(`Quality Analyst IDs to fetch: ${qualityAnalystIds.join(', ')}`);
+      
+      let allocations: any[] = [];
+      
+      // If there are QAs to fetch (either self or subordinates)
+      if (qualityAnalystIds.length > 0) {
+        // For each QA, fetch their allocations
+        const allocationPromises = qualityAnalystIds.map(async (qaId) => {
+          return await storage.listAudioFileAllocations({
+            organizationId: orgId,
+            qualityAnalystId: qaId
+          });
+        });
+        
+        const allocationResults = await Promise.all(allocationPromises);
+        allocations = allocationResults.flat();
+        
+        // Add a field to indicate if this allocation belongs to the current user
+        allocations = allocations.map(allocation => ({
+          ...allocation,
+          isCurrentUser: allocation.qualityAnalystId === req.user!.id
+        }));
+      }
+      
+      console.log(`Found ${allocations.length} allocated audio files for user ${req.user.id} and subordinates`);
       
       res.json(allocations);
     } catch (error: any) {

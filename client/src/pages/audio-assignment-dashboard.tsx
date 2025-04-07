@@ -19,7 +19,7 @@ type AudioFileAllocation = {
   id: number;
   allocationDate: string;
   dueDate: string | null;
-  status: 'pending' | 'allocated' | 'evaluated' | 'archived';
+  status: 'allocated' | 'evaluated' | 'archived';
   allocatedBy: number;
   allocatedByName: string;
   qualityAnalystId: number;
@@ -28,6 +28,12 @@ type AudioFileAllocation = {
   audioFileName: string;
   createdAt: string;
   organizationId: number;
+  isCurrentUser?: boolean; // Flag to indicate if allocation belongs to current user
+  audioFile?: {
+    status: 'allocated' | 'evaluated' | 'archived';
+    id: number;
+    filename: string;
+  };
 };
 
 // Status color mapping
@@ -68,14 +74,15 @@ const AudioAssignmentDashboard = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [analyticFilter, setAnalyticFilter] = useState('all');
+  const [assignedToFilter, setAssignedToFilter] = useState('all'); // 'all', 'me', 'team'
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [selectedAllocation, setSelectedAllocation] = useState<AudioFileAllocation | null>(null);
 
-  // Query for fetching allocations assigned to the current user only
+  // Query for fetching allocations assigned to the current user or to their subordinates
   const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery<AudioFileAllocation[]>({
-    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations/assigned-to-me', user?.id, dateFilter, statusFilter, analyticFilter],
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations/assigned-to-me', user?.id, dateFilter, statusFilter, analyticFilter, assignedToFilter],
     enabled: !!user?.organizationId && !!user?.id,
     onSuccess: (data) => {
       console.log("Raw allocation data:", data);
@@ -199,6 +206,22 @@ const AudioAssignmentDashboard = () => {
               
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
+                  <Label htmlFor="filter-assigned-to">Assigned To</Label>
+                  <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by assignment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignments</SelectItem>
+                      <SelectItem value="me">My Assignments</SelectItem>
+                      {user?.role !== 'quality_analyst' && (
+                        <SelectItem value="team">My Team's Assignments</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="filter-status">Status</Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
@@ -250,6 +273,7 @@ const AudioAssignmentDashboard = () => {
                     setStatusFilter('all');
                     setDateFilter('all');
                     setAnalyticFilter('all');
+                    setAssignedToFilter('all');
                   }}
                 >
                   Reset Filters
@@ -356,7 +380,10 @@ const AudioAssignmentDashboard = () => {
                     </TableHeader>
                     <TableBody>
                       {groupedAllocations[date].map((allocation: AudioFileAllocation) => (
-                        <TableRow key={allocation.id}>
+                        <TableRow 
+                          key={allocation.id}
+                          className={allocation.isCurrentUser === false ? "bg-blue-50" : ""}
+                        >
                           <TableCell>
                             <div>
                               <p className="font-medium">ID: {allocation.audioFileId}</p>
@@ -368,6 +395,9 @@ const AudioAssignmentDashboard = () => {
                           <TableCell>
                             <div>
                               <p>{allocation.qualityAnalystName}</p>
+                              {allocation.isCurrentUser === false && (
+                                <Badge variant="outline" className="text-xs bg-blue-50 border-blue-300 text-blue-800">Team Member</Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
