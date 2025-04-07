@@ -2013,11 +2013,9 @@ export const evaluations = pgTable("evaluations", {
     .references(() => evaluationTemplates.id)
     .notNull(),
   traineeId: integer("trainee_id")
-    .references(() => users.id)
-    .notNull(),
+    .references(() => users.id),
   batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
+    .references(() => organizationBatches.id),
   evaluatorId: integer("evaluator_id")
     .references(() => users.id)
     .notNull(),
@@ -2057,8 +2055,8 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
   })
   .extend({
     templateId: z.number().int().positive("Template ID is required"),
-    traineeId: z.number().int().positive("Trainee ID is required"),
-    batchId: z.number().int().positive("Batch ID is required"),
+    traineeId: z.number().int().positive("Trainee ID is required").optional(),
+    batchId: z.number().int().positive("Batch ID is required").optional(),
     evaluatorId: z.number().int().positive("Evaluator ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
     finalScore: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))),
