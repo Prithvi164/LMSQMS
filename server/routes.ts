@@ -7134,7 +7134,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const allocations = await storage.listAudioFileAllocations({
         organizationId: orgId,
-        qualityAnalystId: req.user.id
+        qualityAnalystId: req.user.id,
+        status: 'allocated' // Only show files with 'allocated' status
       });
       
       console.log(`Found ${allocations.length} allocated audio files for user ${req.user.id}`);
