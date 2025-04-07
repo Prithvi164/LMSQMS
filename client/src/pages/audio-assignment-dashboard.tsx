@@ -115,8 +115,35 @@ const AudioAssignmentDashboard = () => {
         return false;
       }
       
-      // Apply additional filters
+      // Apply date range filter
+      if (dateFilter === 'today' && !isSameDay(allocationDate, new Date())) {
+        return false;
+      } else if (dateFilter === 'thisWeek' && !isThisWeek(allocationDate)) {
+        return false;
+      } else if (dateFilter === 'thisMonth' && !isThisMonth(allocationDate)) {
+        return false;
+      } else if (dateFilter === 'lastMonth') {
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        if (!isSameDay(allocationDate, lastMonth) && !isThisMonth(allocationDate)) {
+          return false;
+        }
+      }
+      
+      // Apply status filter
       if (statusFilter !== 'all' && allocation.status !== statusFilter) {
+        return false;
+      }
+      
+      // Apply analyst filter
+      if (analyticFilter !== 'all' && allocation.qualityAnalystId.toString() !== analyticFilter) {
+        return false;
+      }
+      
+      // Apply assigned to filter
+      if (assignedToFilter === 'me' && !allocation.isCurrentUser) {
+        return false;
+      } else if (assignedToFilter === 'team' && allocation.isCurrentUser) {
         return false;
       }
       
