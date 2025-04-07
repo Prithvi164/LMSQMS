@@ -1054,33 +1054,6 @@ const AzureStorageBrowser = () => {
                         </div>
                       </DropdownMenuItem>
                       
-                      {/* Minimal Template */}
-                      <DropdownMenuItem onClick={handleDownloadMinimalTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        <div>
-                          <div className="font-medium">Minimal Template</div>
-                          <div className="text-xs text-muted-foreground">Essential fields only</div>
-                        </div>
-                      </DropdownMenuItem>
-                      
-                      {/* Custom Template (with actual filenames) */}
-                      <DropdownMenuItem onClick={handleDownloadCustomTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        <div>
-                          <div className="font-medium">Custom Template</div>
-                          <div className="text-xs text-muted-foreground">With your actual filenames</div>
-                        </div>
-                      </DropdownMenuItem>
-                      
-                      {/* Ultra-Simple Template (static) */}
-                      <DropdownMenuItem onClick={handleDownloadStaticTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        <div>
-                          <div className="font-medium">Ultra-Simple Template</div>
-                          <div className="text-xs text-muted-foreground">Pre-generated basic template</div>
-                        </div>
-                      </DropdownMenuItem>
-                      
                       <DropdownMenuSeparator />
                       
                       <DropdownMenuItem onClick={handleDownloadFilenames}>
@@ -1088,16 +1061,6 @@ const AzureStorageBrowser = () => {
                         <div>
                           <div className="font-medium">Download Filenames</div>
                           <div className="text-xs text-muted-foreground">Text list of current files</div>
-                        </div>
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuSeparator />
-                      
-                      <DropdownMenuItem onClick={handleDownloadGuide}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        <div>
-                          <div className="font-medium">Template Guide</div>
-                          <div className="text-xs text-muted-foreground">Usage instructions</div>
                         </div>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
