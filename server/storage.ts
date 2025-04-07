@@ -351,7 +351,8 @@ export interface IStorage {
   
   // Evaluation Feedback operations
   createEvaluationFeedback(feedback: InsertEvaluationFeedback): Promise<EvaluationFeedback>;
-  getEvaluationFeedback(evaluationId: number): Promise<EvaluationFeedback | undefined>;
+  getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback | undefined>;
+  getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined>;
   updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback>;
   getPendingEvaluationFeedback(agentId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
   getPendingApprovalEvaluationFeedback(reportingHeadId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
@@ -1493,7 +1494,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getEvaluationFeedback(evaluationId: number): Promise<EvaluationFeedback | undefined> {
+  async getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback | undefined> {
     try {
       const [feedback] = await db
         .select()
@@ -1502,7 +1503,21 @@ export class DatabaseStorage implements IStorage {
       
       return feedback;
     } catch (error) {
-      console.error('Error getting evaluation feedback:', error);
+      console.error('Error getting evaluation feedback by evaluation ID:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined> {
+    try {
+      const [feedback] = await db
+        .select()
+        .from(evaluationFeedback)
+        .where(eq(evaluationFeedback.id, id)) as EvaluationFeedback[];
+      
+      return feedback;
+    } catch (error) {
+      console.error('Error getting evaluation feedback by ID:', error);
       throw error;
     }
   }

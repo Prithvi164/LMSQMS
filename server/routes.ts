@@ -3,7 +3,28 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, organizationBatches, attendance, insertOrganizationSettingsSchema, organizationSettings, insertOrganizationHolidaySchema, organizationHolidays } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  users, 
+  userBatchProcesses, 
+  organizationProcesses, 
+  userProcesses, 
+  quizzes, 
+  insertMockCallScenarioSchema, 
+  insertMockCallAttemptSchema, 
+  mockCallScenarios, 
+  mockCallAttempts, 
+  organizationBatches, 
+  attendance, 
+  insertOrganizationSettingsSchema, 
+  organizationSettings, 
+  insertOrganizationHolidaySchema, 
+  organizationHolidays,
+  evaluationParameters,
+  evaluationPillars,
+  EvaluationParameter,
+  EvaluationPillar
+} from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -1094,7 +1115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get parameters for all scores
         const parameters = [];
         for (const parameterId of parameterIds) {
-          const parameter = await storage.getEvaluationParameterById(parameterId);
+          const parameter = await storage.getEvaluationParameter(parameterId);
           if (parameter) {
             parameters.push(parameter);
           }
@@ -1107,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const pillars = [];
         for (const pillarId of pillarIds) {
-          const pillar = await storage.getEvaluationPillarById(pillarId);
+          const pillar = await storage.getEvaluationPillar(pillarId);
           if (pillar) {
             pillars.push(pillar);
           }
