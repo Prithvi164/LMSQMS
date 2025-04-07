@@ -695,9 +695,19 @@ export class DatabaseStorage implements IStorage {
         const qualityAnalyst = userMap.get(allocation.qualityAnalystId);
         const allocator = userMap.get(allocation.allocatedBy);
         
+        // Create a safe version of the allocation object that handles null evaluationId
         return {
           ...allocation,
+          // Add a safe evaluationId property (if it's null, it won't cause issues)
+          evaluationId: allocation.evaluationId || null,
           allocationDate: allocation.createdAt,
+          audioFile: audioFile ? {
+            id: audioFile.id,
+            originalFilename: audioFile.originalFilename || audioFile.filename || `Audio File #${allocation.audioFileId}`,
+            duration: audioFile.duration,
+            language: audioFile.language,
+            status: audioFile.status
+          } : null,
           audioFileName: audioFile?.originalFilename || audioFile?.filename || `Audio File #${allocation.audioFileId}`,
           qualityAnalystName: qualityAnalyst?.fullName || `QA #${allocation.qualityAnalystId}`,
           allocatedByName: allocator?.fullName || `User #${allocation.allocatedBy}`,
