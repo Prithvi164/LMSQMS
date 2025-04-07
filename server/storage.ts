@@ -1343,17 +1343,21 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
-          // Create feedback record
-          await tx
-            .insert(evaluationFeedback)
-            .values({
-              evaluationId: newEvaluation.id,
-              agentId: evaluation.traineeId as number,
-              reportingHeadId,
-              status: 'pending',
-            });
-            
-          console.log('Created evaluation feedback record');
+          // Create feedback record only if we have a trainee (for audio evaluations, there may not be a trainee)
+          if (evaluation.traineeId) {
+            await tx
+              .insert(evaluationFeedback)
+              .values({
+                evaluationId: newEvaluation.id,
+                agentId: evaluation.traineeId as number,
+                reportingHeadId,
+                status: 'pending',
+              });
+              
+            console.log('Created evaluation feedback record');
+          } else {
+            console.log('Skipping feedback record creation: no traineeId for evaluation');
+          }
         }
 
         return newEvaluation;
