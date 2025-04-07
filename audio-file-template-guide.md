@@ -45,7 +45,7 @@ All templates must include these essential fields:
 | Field | Description | Example |
 |-------|-------------|---------|
 | filename | Exact filename as stored in Azure (case-sensitive) | agent-261-17027502083-444.mp3 |
-| language | Language of the audio recording | english |  
+| language | Language of the audio recording (english, hindi, tamil, bengali, telugu, etc.) | english |  
 | version | Version identifier | 1.0 |
 | call_date | Date the call was recorded | 2025-04-03 |
 

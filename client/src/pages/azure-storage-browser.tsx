@@ -1258,7 +1258,7 @@ const AzureStorageBrowser = () => {
                                 <Label htmlFor="languageFilter">Languages (Enter multiple values separated by commas)</Label>
                                 <Input
                                   id="languageFilter"
-                                  placeholder="E.g. english, hindi, tamil, bengali"
+                                  placeholder="E.g. english, hindi, tamil, bengali, telugu"
                                   value={selectedLanguages.join(', ')}
                                   onChange={(e) => {
                                     // Improved handling for more intuitive user input
