@@ -135,7 +135,6 @@ const AudioAssignmentDashboard = () => {
     counts[allocation.status] = (counts[allocation.status] || 0) + 1;
     return counts;
   }, {
-    'pending': 0,
     'allocated': 0,
     'evaluated': 0,
     'archived': 0
@@ -156,7 +155,6 @@ const AudioAssignmentDashboard = () => {
       counts[allocation.status] = (counts[allocation.status] || 0) + 1;
       return counts;
     }, {
-      'pending': 0,
       'allocated': 0,
       'evaluated': 0,
       'archived': 0
@@ -208,7 +206,6 @@ const AudioAssignmentDashboard = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="allocated">Allocated</SelectItem>
                       <SelectItem value="evaluated">Evaluated</SelectItem>
                       <SelectItem value="archived">Archived</SelectItem>
@@ -276,20 +273,12 @@ const AudioAssignmentDashboard = () => {
       
       {/* Overall Statistics Summary */}
       {!loadingAllocations && filteredAllocations.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-6">
               <ClipboardList className="h-8 w-8 text-primary mb-2" />
               <p className="text-2xl font-bold">{totalAssignments}</p>
               <p className="text-sm text-muted-foreground">Total Assignments</p>
-            </CardContent>
-          </Card>
-          
-          <Card className={getStatusBgColor('pending')}>
-            <CardContent className="flex flex-col items-center justify-center py-6">
-              <Badge className={getStatusColor('pending')}>Pending</Badge>
-              <p className="text-2xl font-bold mt-2">{statusCounts['pending'] || 0}</p>
-              <p className="text-sm text-muted-foreground">Pending Assignments</p>
             </CardContent>
           </Card>
           
