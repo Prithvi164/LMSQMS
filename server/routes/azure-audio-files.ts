@@ -1252,6 +1252,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                   .values({
                     audioFileId: audioFile.id,
                     qualityAnalystId: qaId,
+                    evaluationTemplateId, // Add evaluation template ID
                     status: 'allocated',
                     allocatedBy: req.user.id,
                     organizationId: req.user.organizationId
@@ -1953,6 +1954,7 @@ router.post('/azure-audio-allocate', async (req, res) => {
             .set({
               qualityAnalystId,
               status: 'allocated',
+              evaluationTemplateId, // Add the evaluationTemplateId
               updatedAt: new Date()
               // Removed evaluationId to fix schema mismatch
               // evaluationId will be set when the evaluation is submitted
@@ -1967,6 +1969,7 @@ router.post('/azure-audio-allocate', async (req, res) => {
           const allocation = {
             audioFileId: file.id,
             qualityAnalystId: qualityAnalystId,
+            evaluationTemplateId, // Add the evaluationTemplateId
             dueDate: dueDate ? new Date(dueDate) : undefined,
             status: 'allocated',
             allocatedBy: req.user.id,

@@ -166,6 +166,8 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  evaluationTemplateId: integer("evaluation_template_id")
+    .references(() => evaluationTemplates.id),  // Nullable - the template to use for evaluation
   evaluationId: integer("evaluation_id")
     .references(() => evaluations.id),  // Nullable - will be set after evaluation is submitted
 });
@@ -573,6 +575,7 @@ export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAlloc
     status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
+    evaluationTemplateId: z.number().int().positive("Evaluation template is required").optional(),
     evaluationId: z.number().int().positive("Evaluation is required").optional(),
   });
 
@@ -633,6 +636,10 @@ export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ 
   organization: one(organizations, {
     fields: [audioFileAllocations.organizationId],
     references: [organizations.id],
+  }),
+  evaluationTemplate: one(evaluationTemplates, {
+    fields: [audioFileAllocations.evaluationTemplateId],
+    references: [evaluationTemplates.id],
   }),
   evaluation: one(evaluations, {
     fields: [audioFileAllocations.evaluationId],
