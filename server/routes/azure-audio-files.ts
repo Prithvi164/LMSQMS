@@ -1254,8 +1254,9 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                     qualityAnalystId: qaId,
                     status: 'allocated',
                     allocatedBy: req.user.id,
-                    organizationId: req.user.organizationId,
-                    evaluationId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
+                    organizationId: req.user.organizationId
+                    // Removed evaluationId to fix the database schema mismatch
+                    // evaluationId will be added when the evaluation is submitted
                   })
                   .returning();
                 
@@ -1952,8 +1953,9 @@ router.post('/azure-audio-allocate', async (req, res) => {
             .set({
               qualityAnalystId,
               status: 'allocated',
-              updatedAt: new Date(),
-              evaluationId: evaluationTemplateId || null
+              updatedAt: new Date()
+              // Removed evaluationId to fix schema mismatch
+              // evaluationId will be set when the evaluation is submitted
             })
             .where(eq(audioFileAllocations.audioFileId, file.id))
             .returning();
@@ -1968,8 +1970,9 @@ router.post('/azure-audio-allocate', async (req, res) => {
             dueDate: dueDate ? new Date(dueDate) : undefined,
             status: 'allocated',
             allocatedBy: req.user.id,
-            organizationId: req.user.organizationId,
-            evaluationId: evaluationTemplateId || null
+            organizationId: req.user.organizationId
+            // Removed evaluationId to fix schema mismatch
+            // evaluationId will be set when the evaluation is submitted
           };
           
           console.log('📌 Insertion data:', allocation);
