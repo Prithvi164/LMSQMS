@@ -1375,20 +1375,20 @@ export class DatabaseStorage implements IStorage {
                 // If not found, try to search by pbxId if it exists in our user schema
                 if (!agent) {
                   console.log(`No user found with ID ${agentIdStr}, skipping feedback creation`);
-                  return;
+                  // Don't return early, just skip this section
+                } else {
+                  // Create feedback with the agent ID from call_metrics only if agent was found
+                  await tx
+                    .insert(evaluationFeedback)
+                    .values({
+                      evaluationId: newEvaluation.id,
+                      agentId: agent.id,
+                      reportingHeadId,
+                      status: 'pending',
+                    });
+                    
+                  console.log(`Created evaluation feedback record using agentId ${agent.id} from call_metrics`);
                 }
-                
-                // Create feedback with the agent ID from call_metrics
-                await tx
-                  .insert(evaluationFeedback)
-                  .values({
-                    evaluationId: newEvaluation.id,
-                    agentId: agent.id,
-                    reportingHeadId,
-                    status: 'pending',
-                  });
-                  
-                console.log(`Created evaluation feedback record using agentId ${agent.id} from call_metrics`);
               } else {
                 console.log('No valid agentId found in audio file call_metrics, skipping feedback creation');
               }
