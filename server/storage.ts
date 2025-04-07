@@ -624,7 +624,17 @@ export class DatabaseStorage implements IStorage {
   async getAudioFileAllocation(id: number): Promise<AudioFileAllocation | undefined> {
     try {
       const [allocation] = await db
-        .select()
+        .select({
+          id: audioFileAllocations.id,
+          audioFileId: audioFileAllocations.audioFileId,
+          qualityAnalystId: audioFileAllocations.qualityAnalystId,
+          createdAt: audioFileAllocations.createdAt,
+          updatedAt: audioFileAllocations.updatedAt,
+          status: audioFileAllocations.status,
+          allocatedBy: audioFileAllocations.allocatedBy,
+          organizationId: audioFileAllocations.organizationId,
+          // Omitting evaluationId since it's causing issues with the actual DB
+        })
         .from(audioFileAllocations)
         .where(eq(audioFileAllocations.id, id)) as AudioFileAllocation[];
       return allocation;
@@ -642,8 +652,19 @@ export class DatabaseStorage implements IStorage {
   }): Promise<any[]> {
     try {
       // Get the basic allocation data
+      // Explicitly select columns instead of select() to avoid issues with schema/db mismatch
       let query = db
-        .select()
+        .select({
+          id: audioFileAllocations.id,
+          audioFileId: audioFileAllocations.audioFileId,
+          qualityAnalystId: audioFileAllocations.qualityAnalystId,
+          createdAt: audioFileAllocations.createdAt,
+          updatedAt: audioFileAllocations.updatedAt,
+          status: audioFileAllocations.status,
+          allocatedBy: audioFileAllocations.allocatedBy,
+          organizationId: audioFileAllocations.organizationId,
+          // Omitting evaluationId since it's causing issues with the actual DB
+        })
         .from(audioFileAllocations)
         .where(eq(audioFileAllocations.organizationId, filters.organizationId));
 
@@ -963,10 +984,10 @@ export class DatabaseStorage implements IStorage {
                   .values({
                     audioFileId: audioFile.id,
                     qualityAnalystId: qaId,
-                    dueDate: batchAllocation.dueDate,
                     status: 'allocated',
                     allocatedBy: batchAllocation.allocatedBy,
                     organizationId: batchAllocation.organizationId,
+                    // Omitting dueDate and evaluationId since they're causing issues with the actual DB
                   })
                   .returning() as AudioFileAllocation[];
                 
@@ -1028,10 +1049,10 @@ export class DatabaseStorage implements IStorage {
                 .values({
                   audioFileId: audioFile.id,
                   qualityAnalystId: qaId,
-                  dueDate: batchAllocation.dueDate,
                   status: 'allocated',
                   allocatedBy: batchAllocation.allocatedBy,
                   organizationId: batchAllocation.organizationId,
+                  // Omitting dueDate and evaluationId since they're causing issues with the actual DB
                 })
                 .returning() as AudioFileAllocation[];
               
