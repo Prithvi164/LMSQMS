@@ -129,11 +129,15 @@ export default function ConductEvaluation() {
       `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
     ],
     enabled: !!user?.organizationId && user?.role === "quality_analyst",
-    // Filter out any audio files that have status "evaluated" to prevent re-evaluation
+    // The backend now returns all files (allocated, evaluated, archived), so we need to filter here
     select: (data) => {
       if (!data) return [];
-      // Only show files with status "allocated" (not "evaluated", "archived", etc.)
-      return data.filter((file: any) => file.status === "allocated");
+      // Only show files with status "allocated" for evaluation in the dropdown
+      // Files with status "evaluated" or "archived" are filtered out here
+      return data.filter((file: any) => 
+        file.status === "allocated" || 
+        (file.audioFile && file.audioFile.status === "allocated")
+      );
     }
   });
 
