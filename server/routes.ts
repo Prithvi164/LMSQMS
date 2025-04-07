@@ -7232,6 +7232,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get detailed evaluation scores for an audio file
+  app.get("/api/audio-files/:id/evaluation-scores", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const audioFileId = parseInt(req.params.id);
+      if (!audioFileId) {
+        return res.status(400).json({ message: "Invalid audio file ID" });
+      }
+      
+      // Get the audio file to check for permission
+      const audioFile = await storage.getAudioFile(audioFileId);
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Check organization access
+      if (audioFile.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get evaluation with scores and parameters
+      const evaluationDetails = await storage.getAudioFileEvaluationWithScores(audioFileId);
+      
+      if (!evaluationDetails) {
+        return res.status(404).json({ message: "No evaluation found for this audio file" });
+      }
+      
+      res.json(evaluationDetails);
+    } catch (error: any) {
+      console.error("Error fetching audio file evaluation scores:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
   app.patch("/api/audio-file-allocations/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
@@ -7283,6 +7318,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(qualityAnalysts);
     } catch (error: any) {
       console.error("Error fetching quality analysts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Get evaluation statistics for a quality analyst
+  app.get("/api/users/:id/quality-analyst-stats", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const qaId = parseInt(req.params.id);
+      if (!qaId) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      // Only allow if the user is requesting their own stats or has appropriate role
+      if (qaId !== req.user.id && !['admin', 'manager', 'team_lead'].includes(req.user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const stats = await storage.getQualityAnalystEvaluationStats(qaId, req.user.organizationId);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching quality analyst stats:", error);
       res.status(500).json({ message: error.message });
     }
   });

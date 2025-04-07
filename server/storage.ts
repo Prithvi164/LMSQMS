@@ -4287,6 +4287,185 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  // Audio File Evaluation with Parameter Scores
+  async getAudioFileEvaluation(audioFileId: number): Promise<Evaluation | undefined> {
+    try {
+      const [audioFile] = await db
+        .select()
+        .from(audioFiles)
+        .where(eq(audioFiles.id, audioFileId))
+        .where(isNotNull(audioFiles.evaluationId)) as AudioFile[];
+      
+      if (!audioFile || !audioFile.evaluationId) {
+        return undefined;
+      }
+      
+      const [evaluation] = await db
+        .select()
+        .from(evaluations)
+        .where(eq(evaluations.id, audioFile.evaluationId)) as Evaluation[];
+      
+      return evaluation;
+    } catch (error) {
+      console.error('Error getting audio file evaluation:', error);
+      throw error;
+    }
+  }
+  
+  async getAudioFileEvaluationWithScores(audioFileId: number): Promise<{
+    evaluation: Evaluation;
+    scores: EvaluationScore[];
+    parametersDetails: Array<{
+      parameter: EvaluationParameter;
+      pillar: EvaluationPillar;
+    }>;
+  } | undefined> {
+    try {
+      // First get the evaluation
+      const audioFileEval = await this.getAudioFileEvaluation(audioFileId);
+      if (!audioFileEval) {
+        return undefined;
+      }
+      
+      // Get the scores for this evaluation
+      const scores = await db
+        .select()
+        .from(evaluationScores)
+        .where(eq(evaluationScores.evaluationId, audioFileEval.id)) as EvaluationScore[];
+      
+      // Get parameter details for all scored parameters
+      const parameterIds = scores.map(score => score.parameterId);
+      
+      // Get parameters
+      const parameters = await db
+        .select()
+        .from(evaluationParameters)
+        .where(inArray(evaluationParameters.id, parameterIds)) as EvaluationParameter[];
+      
+      // Get pillars for these parameters
+      const pillarIds = [...new Set(parameters.map(param => param.pillarId))];
+      
+      const pillars = await db
+        .select()
+        .from(evaluationPillars)
+        .where(inArray(evaluationPillars.id, pillarIds)) as EvaluationPillar[];
+      
+      // Map parameters to their pillars
+      const parametersDetails = parameters.map(parameter => ({
+        parameter,
+        pillar: pillars.find(pillar => pillar.id === parameter.pillarId)!
+      }));
+      
+      return {
+        evaluation: audioFileEval,
+        scores,
+        parametersDetails
+      };
+    } catch (error) {
+      console.error('Error getting audio file evaluation with scores:', error);
+      throw error;
+    }
+  }
+  
+  async getQualityAnalystEvaluationStats(qualityAnalystId: number, organizationId: number): Promise<{
+    totalEvaluations: number;
+    averageScore: number;
+    parameterScores: Record<number, { 
+      totalScore: number;
+      count: number;
+      average: number;
+      parameterName: string;
+      pillarName: string;
+    }>;
+  }> {
+    try {
+      // Get all evaluations done by this QA
+      const audioFileEvaluations = await db
+        .select()
+        .from(evaluations)
+        .where(and(
+          eq(evaluations.evaluatorId, qualityAnalystId),
+          eq(evaluations.organizationId, organizationId),
+          eq(evaluations.evaluationType, 'audio')
+        )) as Evaluation[];
+      
+      // Get scores for all these evaluations
+      const evaluationIds = audioFileEvaluations.map(evalItem => evalItem.id);
+      
+      let parameterScores: Record<number, { 
+        totalScore: number; 
+        count: number; 
+        average: number;
+        parameterName: string;
+        pillarName: string;
+      }> = {};
+      
+      let totalScore = 0;
+      
+      if (evaluationIds.length > 0) {
+        // Get all scores
+        const scores = await db
+          .select({
+            evaluationId: evaluationScores.evaluationId,
+            parameterId: evaluationScores.parameterId,
+            score: evaluationScores.score,
+            parameterName: evaluationParameters.name,
+            pillarName: evaluationPillars.name
+          })
+          .from(evaluationScores)
+          .leftJoin(
+            evaluationParameters,
+            eq(evaluationScores.parameterId, evaluationParameters.id)
+          )
+          .leftJoin(
+            evaluationPillars,
+            eq(evaluationParameters.pillarId, evaluationPillars.id)
+          )
+          .where(inArray(evaluationScores.evaluationId, evaluationIds));
+        
+        // Aggregate scores by parameter
+        scores.forEach(score => {
+          const scoreValue = parseInt(score.score);
+          if (!isNaN(scoreValue)) {
+            if (!parameterScores[score.parameterId]) {
+              parameterScores[score.parameterId] = { 
+                totalScore: 0, 
+                count: 0, 
+                average: 0,
+                parameterName: score.parameterName || `Parameter ${score.parameterId}`,
+                pillarName: score.pillarName || 'Unknown Pillar'
+              };
+            }
+            
+            parameterScores[score.parameterId].totalScore += scoreValue;
+            parameterScores[score.parameterId].count++;
+          }
+        });
+        
+        // Calculate averages for each parameter
+        Object.keys(parameterScores).forEach(paramId => {
+          const param = parameterScores[parseInt(paramId)];
+          param.average = param.count > 0 ? Math.round(param.totalScore / param.count) : 0;
+        });
+        
+        // Calculate total average score
+        totalScore = audioFileEvaluations.reduce((sum, evalItem) => 
+          sum + parseFloat(evalItem.finalScore.toString()), 0);
+      }
+      
+      return {
+        totalEvaluations: audioFileEvaluations.length,
+        averageScore: audioFileEvaluations.length > 0 
+          ? Math.round(totalScore / audioFileEvaluations.length) 
+          : 0,
+        parameterScores
+      };
+    } catch (error) {
+      console.error('Error getting quality analyst evaluation stats:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

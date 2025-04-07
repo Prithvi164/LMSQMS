@@ -15,6 +15,42 @@ import { BarChart3, ChevronDown, ChevronRight, FileAudio, Filter, Info, PieChart
 import { format, isSameDay, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 
 // Define types for the components
+type EvaluationParameter = {
+  id: number;
+  name: string;
+  description: string;
+  weightage: number;
+  pillarId: number;
+}
+
+type EvaluationPillar = {
+  id: number;
+  name: string;
+  description: string;
+  weightage: number;
+}
+
+type EvaluationScore = {
+  id: number;
+  evaluationId: number;
+  parameterId: number;
+  score: number;
+  comment?: string;
+  noReason?: string;
+}
+
+type Evaluation = {
+  id: number;
+  templateId: number;
+  evaluationType: 'standard' | 'audio';
+  traineeId: number | null;
+  evaluatorId: number;
+  finalScore: number;
+  status: 'completed';
+  createdAt: string;
+  organizationId: number;
+}
+
 type AudioFileAllocation = {
   id: number;
   allocationDate: string;
@@ -33,7 +69,15 @@ type AudioFileAllocation = {
     status: 'allocated' | 'evaluated' | 'archived';
     id: number;
     filename: string;
+    evaluationId?: number;
   };
+  evaluation?: Evaluation;
+  evaluationScore?: number;
+  parameterScores?: Record<number, { 
+    score: number;
+    parameterName: string;
+    pillarName: string;
+  }>;
 };
 
 // Status color mapping
@@ -84,6 +128,33 @@ const AudioAssignmentDashboard = () => {
   const { data: qualityAnalysts = [] } = useQuery({
     queryKey: ['/api/organizations/' + user?.organizationId + '/quality-analysts'],
     enabled: !!user?.organizationId,
+  });
+  
+  // Query to fetch evaluation scores when viewing details
+  const { data: evaluationDetails, isLoading: loadingEvaluationDetails } = useQuery({
+    queryKey: [`/api/audio-files/${selectedAllocation?.audioFileId}/evaluation-scores`],
+    enabled: !!selectedAllocation?.audioFileId && selectedAllocation.status === 'evaluated',
+    onSuccess: (data) => {
+      console.log("Evaluation Details:", data);
+      if (data && selectedAllocation) {
+        setSelectedAllocation({
+          ...selectedAllocation,
+          evaluation: data.evaluation,
+          evaluationScore: data.evaluation.finalScore,
+          parameterScores: data.parametersDetails.reduce((acc: Record<number, any>, param) => {
+            const score = data.scores.find((s: any) => s.parameterId === param.parameter.id);
+            if (score) {
+              acc[param.parameter.id] = {
+                score: score.score,
+                parameterName: param.parameter.name,
+                pillarName: param.pillar.name
+              };
+            }
+            return acc;
+          }, {})
+        });
+      }
+    }
   });
 
   // Query for fetching allocations assigned to the current user or to their subordinates
@@ -500,6 +571,15 @@ const AudioAssignmentDashboard = () => {
                         {selectedAllocation.status.charAt(0).toUpperCase() + selectedAllocation.status.slice(1)}
                       </Badge>
                     </div>
+                    
+                    {selectedAllocation.status === 'evaluated' && selectedAllocation.evaluationScore !== undefined && (
+                      <>
+                        <div className="text-sm text-muted-foreground">Final Score:</div>
+                        <div className="text-sm font-bold text-primary">
+                          {selectedAllocation.evaluationScore}%
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
                 
@@ -528,6 +608,48 @@ const AudioAssignmentDashboard = () => {
                   </div>
                 </div>
               </div>
+              
+              {/* Parameter-wise Scores Section */}
+              {selectedAllocation.status === 'evaluated' && selectedAllocation.parameterScores && Object.keys(selectedAllocation.parameterScores).length > 0 && (
+                <div className="mt-4">
+                  <h3 className="font-semibold mb-2">Parameter Scores</h3>
+                  <div className="border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pillar</TableHead>
+                          <TableHead>Parameter</TableHead>
+                          <TableHead className="text-right">Score</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.values(selectedAllocation.parameterScores).map((param, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{param.pillarName}</TableCell>
+                            <TableCell>{param.parameterName}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge className={
+                                param.score >= 80 ? 'bg-green-100 text-green-800' :
+                                param.score >= 60 ? 'bg-yellow-100 text-yellow-800' : 
+                                'bg-red-100 text-red-800'
+                              }>
+                                {param.score}%
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {loadingEvaluationDetails && (
+            <div className="flex justify-center py-4">
+              <Spinner className="h-6 w-6" />
+              <span className="ml-2 text-sm">Loading evaluation details...</span>
             </div>
           )}
           
