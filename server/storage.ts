@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { batchStatusEnum, attendance } from "@shared/schema";
