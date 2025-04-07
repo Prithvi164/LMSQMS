@@ -76,12 +76,15 @@ import {
   evaluationTemplates,
   evaluationPillars,
   evaluationParameters,
+  evaluationFeedbacks,
   type EvaluationTemplate,
   type InsertEvaluationTemplate,
   type EvaluationPillar,
   type InsertEvaluationPillar,
   type EvaluationParameter,
   type InsertEvaluationParameter,
+  type EvaluationFeedback,
+  type InsertEvaluationFeedback,
   evaluations,
   evaluationScores,
   type Evaluation,
@@ -342,6 +345,15 @@ export interface IStorage {
 
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation>;
+  getEvaluation(id: number): Promise<Evaluation | undefined>;
+  
+  // Evaluation Feedback operations
+  createEvaluationFeedback(feedback: InsertEvaluationFeedback): Promise<EvaluationFeedback>;
+  updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback>;
+  getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined>;
+  getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback[]>;
+  getEvaluationFeedbackByAgentId(agentId: number): Promise<EvaluationFeedback[]>;
+  getPendingEvaluationFeedbacksByManagerId(managerId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
 
   // Organization Settings operations
   getOrganizationSettings(organizationId: number): Promise<OrganizationSettings | undefined>;
@@ -1306,10 +1318,179 @@ export class DatabaseStorage implements IStorage {
 
         console.log('Created evaluation scores');
 
+        // Check if we need to create a feedback request based on threshold
+        if (evaluation.traineeId && evaluation.status === 'completed') {
+          try {
+            // Get organization settings to check threshold
+            const [settings] = await tx
+              .select()
+              .from(organizationSettings)
+              .where(eq(organizationSettings.organizationId, evaluation.organizationId)) as OrganizationSettings[];
+
+            // If no settings, use default threshold of 70
+            const threshold = settings?.evaluationFeedbackThreshold || 70;
+            
+            // If score is below threshold, create feedback request
+            if (finalScore < threshold) {
+              console.log(`Evaluation score ${finalScore} is below threshold ${threshold}, creating feedback request`);
+              
+              // Get the trainee/agent to find their manager
+              const [trainee] = await tx
+                .select()
+                .from(users)
+                .where(eq(users.id, evaluation.traineeId as number)) as User[];
+              
+              if (trainee.managerId) {
+                // Create feedback request
+                await tx
+                  .insert(evaluationFeedbacks)
+                  .values({
+                    evaluationId: newEvaluation.id,
+                    providedById: 0, // Will be updated when feedback is provided
+                    agentId: evaluation.traineeId as number,
+                    managerId: trainee.managerId,
+                    status: 'pending',
+                    organizationId: evaluation.organizationId
+                  });
+                
+                console.log('Created feedback request for low score evaluation');
+              } else {
+                console.log('No manager assigned to trainee, skipping feedback request');
+              }
+            }
+          } catch (settingsError) {
+            console.error('Error checking evaluation threshold:', settingsError);
+            // Continue with evaluation creation even if feedback request fails
+          }
+        }
+
         return newEvaluation;
       });
     } catch (error) {
       console.error('Error creating evaluation:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluation(id: number): Promise<Evaluation | undefined> {
+    try {
+      const [evaluation] = await db
+        .select()
+        .from(evaluations)
+        .where(eq(evaluations.id, id)) as Evaluation[];
+      
+      return evaluation;
+    } catch (error) {
+      console.error('Error fetching evaluation:', error);
+      throw error;
+    }
+  }
+  
+  // Evaluation Feedback operations
+  async createEvaluationFeedback(feedback: InsertEvaluationFeedback): Promise<EvaluationFeedback> {
+    try {
+      console.log('Creating evaluation feedback:', feedback);
+      
+      const [newFeedback] = await db
+        .insert(evaluationFeedbacks)
+        .values(feedback)
+        .returning() as EvaluationFeedback[];
+      
+      return newFeedback;
+    } catch (error) {
+      console.error('Error creating evaluation feedback:', error);
+      throw error;
+    }
+  }
+  
+  async updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback> {
+    try {
+      console.log('Updating evaluation feedback:', id, feedback);
+      
+      const [updatedFeedback] = await db
+        .update(evaluationFeedbacks)
+        .set({
+          ...feedback,
+          updatedAt: new Date()
+        })
+        .where(eq(evaluationFeedbacks.id, id))
+        .returning() as EvaluationFeedback[];
+      
+      if (!updatedFeedback) {
+        throw new Error('Evaluation feedback not found');
+      }
+      
+      return updatedFeedback;
+    } catch (error) {
+      console.error('Error updating evaluation feedback:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined> {
+    try {
+      const [feedback] = await db
+        .select()
+        .from(evaluationFeedbacks)
+        .where(eq(evaluationFeedbacks.id, id)) as EvaluationFeedback[];
+      
+      return feedback;
+    } catch (error) {
+      console.error('Error fetching evaluation feedback:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback[]> {
+    try {
+      return await db
+        .select()
+        .from(evaluationFeedbacks)
+        .where(eq(evaluationFeedbacks.evaluationId, evaluationId)) as EvaluationFeedback[];
+    } catch (error) {
+      console.error('Error fetching evaluation feedback by evaluation ID:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationFeedbackByAgentId(agentId: number): Promise<EvaluationFeedback[]> {
+    try {
+      return await db
+        .select()
+        .from(evaluationFeedbacks)
+        .where(eq(evaluationFeedbacks.agentId, agentId)) as EvaluationFeedback[];
+    } catch (error) {
+      console.error('Error fetching evaluation feedback by agent ID:', error);
+      throw error;
+    }
+  }
+  
+  async getPendingEvaluationFeedbacksByManagerId(managerId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]> {
+    try {
+      // Get all pending feedback items for this manager
+      const feedbacks = await db
+        .select({
+          feedback: evaluationFeedbacks,
+          evaluation: evaluations
+        })
+        .from(evaluationFeedbacks)
+        .innerJoin(
+          evaluations,
+          eq(evaluationFeedbacks.evaluationId, evaluations.id)
+        )
+        .where(eq(evaluationFeedbacks.managerId, managerId))
+        .where(eq(evaluationFeedbacks.status, 'pending')) as {
+          feedback: EvaluationFeedback;
+          evaluation: Evaluation;
+        }[];
+      
+      // Format the results
+      return feedbacks.map(item => ({
+        ...item.feedback,
+        evaluation: item.evaluation
+      }));
+    } catch (error) {
+      console.error('Error fetching pending evaluation feedback by manager ID:', error);
       throw error;
     }
   }

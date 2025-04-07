@@ -76,6 +76,7 @@ type OrganizationSettings = {
   organizationId: number;
   featureType: 'LMS' | 'QMS' | 'BOTH';
   weeklyOffDays: string[];
+  evaluationFeedbackThreshold: number;
   createdAt?: string;
   updatedAt?: string;
 };
