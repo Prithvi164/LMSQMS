@@ -79,6 +79,12 @@ const AudioAssignmentDashboard = () => {
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [selectedAllocation, setSelectedAllocation] = useState<AudioFileAllocation | null>(null);
+  
+  // Query to fetch quality analysts
+  const { data: qualityAnalysts = [] } = useQuery({
+    queryKey: ['/api/organizations/' + user?.organizationId + '/quality-analysts'],
+    enabled: !!user?.organizationId,
+  });
 
   // Query for fetching allocations assigned to the current user or to their subordinates
   const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery<AudioFileAllocation[]>({
@@ -260,7 +266,11 @@ const AudioAssignmentDashboard = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Analysts</SelectItem>
-                      {/* Dynamically populate with analysts - would need to fetch from API */}
+                      {qualityAnalysts && qualityAnalysts.map((analyst: any) => (
+                        <SelectItem key={analyst.id} value={analyst.id.toString()}>
+                          {analyst.fullName}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
