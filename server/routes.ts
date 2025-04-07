@@ -837,6 +837,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Add endpoint for audio file evaluations
+  app.post("/api/audio-evaluations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const evaluation = req.body;
+      
+      // Validate required fields for audio evaluations
+      if (!evaluation.templateId || !evaluation.audioFileId || !evaluation.scores) {
+        return res.status(400).json({
+          message: "Missing required fields: templateId, audioFileId, and scores are required"
+        });
+      }
+
+      // Get the audio file to verify access and get organizationId
+      const audioFile = await storage.getAudioFile(evaluation.audioFileId);
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Check organization access
+      if (audioFile.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Parse and validate the final score
+      const finalScore = Number(parseFloat(evaluation.finalScore.toString()).toFixed(2));
+      if (isNaN(finalScore) || finalScore < 0 || finalScore > 100) {
+        return res.status(400).json({
+          message: "Final score must be a number between 0 and 100"
+        });
+      }
+
+      // Create evaluation record
+      const result = await storage.createEvaluation({
+        templateId: evaluation.templateId,
+        traineeId: evaluation.traineeId || null, // Optional for audio evaluations
+        batchId: audioFile.batchId || null, // Use the batch from the audio file if available
+        evaluatorId: req.user.id,
+        organizationId: req.user.organizationId,
+        finalScore,
+        status: 'completed',
+        scores: evaluation.scores.map((score: any) => ({
+          parameterId: score.parameterId,
+          score: score.score,
+          comment: score.comment,
+          noReason: score.noReason
+        }))
+      });
+
+      // Update the audio file status to 'evaluated'
+      await storage.updateAudioFile(evaluation.audioFileId, { 
+        status: 'evaluated',
+        evaluationId: result.id // Store the evaluation ID with the audio file
+      });
+
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Error creating audio evaluation:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to create audio evaluation" 
+      });
+    }
+  });
 
   // Add route to get template with all its components 
   app.get("/api/evaluation-templates/:templateId", async (req, res) => {

@@ -141,6 +141,8 @@ export const audioFiles = pgTable("audio_files", {
     .notNull(),
   batchId: integer("batch_id")
     .references(() => organizationBatches.id),
+  evaluationId: integer("evaluation_id")
+    .references(() => evaluations.id),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -165,7 +167,7 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
     .references(() => organizations.id)
     .notNull(),
   evaluationId: integer("evaluation_id")
-    .references(() => evaluationTemplates.id),
+    .references(() => evaluations.id),
 });
 
 // Audio file batch allocation
@@ -608,6 +610,10 @@ export const audioFilesRelations = relations(audioFiles, ({ one, many }) => ({
     fields: [audioFiles.batchId],
     references: [organizationBatches.id],
   }),
+  evaluation: one(evaluations, {
+    fields: [audioFiles.evaluationId],
+    references: [evaluations.id],
+  }),
   allocations: many(audioFileAllocations),
 }));
 
@@ -628,9 +634,9 @@ export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ 
     fields: [audioFileAllocations.organizationId],
     references: [organizations.id],
   }),
-  evaluationTemplate: one(evaluationTemplates, {
+  evaluation: one(evaluations, {
     fields: [audioFileAllocations.evaluationId],
-    references: [evaluationTemplates.id],
+    references: [evaluations.id],
   }),
 }));
 
@@ -2068,7 +2074,7 @@ export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
 export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
 
 // Relations
-export const evaluationsRelations = relations(evaluations, ({ one}) => ({
+export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   template: one(evaluationTemplates, {
     fields: [evaluations.templateId],
     references: [evaluationTemplates.id],
@@ -2089,6 +2095,8 @@ export const evaluationsRelations = relations(evaluations, ({ one}) => ({
     fields: [evaluations.organizationId],
     references: [organizations.id],
   }),
+  audioFiles: many(audioFiles),
+  audioFileAllocations: many(audioFileAllocations),
 }));
 
 export const evaluationScoresRelations = relations(evaluationScores, ({ one }) => ({
