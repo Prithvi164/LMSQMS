@@ -1063,6 +1063,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed evaluation by ID
+  app.get("/api/evaluations/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const evaluationId = parseInt(req.params.id);
+      if (!evaluationId) {
+        return res.status(400).json({ message: "Invalid evaluation ID" });
+      }
+
+      // Get evaluation with scores
+      const evaluationWithScores = await storage.getEvaluationWithScores(evaluationId);
+      if (!evaluationWithScores) {
+        return res.status(404).json({ message: "Evaluation not found" });
+      }
+
+      // Check organization access
+      if (evaluationWithScores.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Get all parameters and pillars to enrich the scores
+      if (evaluationWithScores.scores.length > 0) {
+        const parameterIds = evaluationWithScores.scores.map(score => score.parameterId);
+        
+        // Get parameters
+        const parameters = await db
+          .select()
+          .from(evaluationParameters)
+          .where(inArray(evaluationParameters.id, parameterIds)) as EvaluationParameter[];
+        
+        // Get pillars for these parameters
+        const pillarIds = [...new Set(parameters.map(param => param.pillarId))];
+        
+        const pillars = await db
+          .select()
+          .from(evaluationPillars)
+          .where(inArray(evaluationPillars.id, pillarIds)) as EvaluationPillar[];
+        
+        // Enrich the scores with parameter and pillar information
+        const enrichedScores = evaluationWithScores.scores.map(score => {
+          const parameter = parameters.find(p => p.id === score.parameterId);
+          const pillar = parameter ? pillars.find(p => p.id === parameter.pillarId) : undefined;
+          
+          return {
+            ...score,
+            parameter,
+            pillar
+          };
+        });
+        
+        // Group by pillar
+        const groupedScores = pillarIds.map(pillarId => {
+          const pillar = pillars.find(p => p.id === pillarId);
+          const pillarScores = enrichedScores.filter(score => score.pillar?.id === pillarId);
+          
+          return {
+            pillar,
+            scores: pillarScores
+          };
+        });
+        
+        res.json({
+          evaluation: evaluationWithScores,
+          groupedScores
+        });
+      } else {
+        res.json({
+          evaluation: evaluationWithScores,
+          groupedScores: []
+        });
+      }
+    } catch (error: any) {
+      console.error("Error fetching evaluation details:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add route to get template with all its components 
   app.get("/api/evaluation-templates/:templateId", async (req, res) => {
     if (!req.user) {
