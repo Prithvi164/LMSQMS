@@ -1364,9 +1364,11 @@ export class DatabaseStorage implements IStorage {
               // Get the audio file to access its metadata
               const audioFile = await tx.select().from(audioFiles).where(eq(audioFiles.id, evaluation.audioFileId)).then(res => res[0]);
               
-              if (audioFile && audioFile.callMetrics && audioFile.callMetrics.agentId) {
-                // Try to find the user with this agentId in our system
-                const agentIdStr = audioFile.callMetrics.agentId;
+              // Check for agent ID in different possible field names (case-insensitive)
+              const callMetrics = audioFile?.callMetrics || {};
+              const agentIdStr = callMetrics.agentId || callMetrics.agentid || callMetrics.agent_id || null;
+              
+              if (agentIdStr) {
                 console.log(`Found agentId ${agentIdStr} in call_metrics, looking for matching user`);
                 
                 // First try to find by exact ID match
