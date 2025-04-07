@@ -655,6 +655,7 @@ export default function EvaluationTemplatesPage() {
                             </DialogHeader>
                             <form
                               className="space-y-4"
+                              id={`threshold-form-${template.id}`}
                               onSubmit={(e) => {
                                 e.preventDefault();
                                 const formData = new FormData(e.currentTarget);
@@ -681,7 +682,9 @@ export default function EvaluationTemplatesPage() {
                                       title: "Success",
                                       description: "Feedback threshold updated",
                                     });
-                                    e.currentTarget.reset();
+                                    // Use the DOM API to find and reset the form
+                                    const form = document.getElementById(`threshold-form-${template.id}`) as HTMLFormElement;
+                                    if (form) form.reset();
                                   })
                                   .catch(error => {
                                     toast({
