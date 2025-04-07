@@ -1343,8 +1343,9 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
-          // Create feedback record only if we have a trainee (for audio evaluations, there may not be a trainee)
+          // For audio evaluations, we need to create a feedback record either using the traineeId or the agentId from call_metrics
           if (evaluation.traineeId) {
+            // If we have a traineeId, use it directly
             await tx
               .insert(evaluationFeedback)
               .values({
@@ -1354,9 +1355,46 @@ export class DatabaseStorage implements IStorage {
                 status: 'pending',
               });
               
-            console.log('Created evaluation feedback record');
+            console.log('Created evaluation feedback record using traineeId');
+          } else if (evaluation.evaluationType === 'audio' && evaluation.audioFileId) {
+            // For audio evaluations without traineeId, try to get the agent ID from the audio file's call_metrics
+            try {
+              // Get the audio file to access its metadata
+              const audioFile = await tx.select().from(audioFiles).where(eq(audioFiles.id, evaluation.audioFileId)).then(res => res[0]);
+              
+              if (audioFile && audioFile.callMetrics && audioFile.callMetrics.agentId) {
+                // Try to find the user with this agentId in our system
+                const agentIdStr = audioFile.callMetrics.agentId;
+                console.log(`Found agentId ${agentIdStr} in call_metrics, looking for matching user`);
+                
+                // First try to find by exact ID match
+                let agent = await tx.select().from(users).where(eq(users.id, parseInt(agentIdStr))).then(res => res[0] || null);
+                
+                // If not found, try to search by pbxId if it exists in our user schema
+                if (!agent) {
+                  console.log(`No user found with ID ${agentIdStr}, skipping feedback creation`);
+                  return;
+                }
+                
+                // Create feedback with the agent ID from call_metrics
+                await tx
+                  .insert(evaluationFeedback)
+                  .values({
+                    evaluationId: newEvaluation.id,
+                    agentId: agent.id,
+                    reportingHeadId,
+                    status: 'pending',
+                  });
+                  
+                console.log(`Created evaluation feedback record using agentId ${agent.id} from call_metrics`);
+              } else {
+                console.log('No valid agentId found in audio file call_metrics, skipping feedback creation');
+              }
+            } catch (err) {
+              console.error('Error creating feedback from audio file metadata:', err);
+            }
           } else {
-            console.log('Skipping feedback record creation: no traineeId for evaluation');
+            console.log('Skipping feedback record creation: no traineeId or valid audio file metadata');
           }
         }
 
