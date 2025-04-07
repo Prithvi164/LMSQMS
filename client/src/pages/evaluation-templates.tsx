@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -53,7 +55,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
-import { Trash2, Copy, Archive, Check } from "lucide-react";
+import { Trash2, Copy, Archive, Check, Edit, Percent } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 
@@ -629,7 +631,90 @@ export default function EvaluationTemplatesPage() {
                       {template.status}
                     </Badge>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Percent className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          Feedback Threshold: {template.feedbackThreshold !== null ? `${template.feedbackThreshold}%` : "Not Set"}
+                        </span>
+                      </div>
+                      {template.status === "active" && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Edit Feedback Threshold</DialogTitle>
+                              <DialogDescription>
+                                Set the score threshold below which feedback is automatically requested.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <form
+                              className="space-y-4"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const threshold = formData.get("threshold");
+                                
+                                fetch(`/api/evaluation-templates/${template.id}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ 
+                                    feedbackThreshold: threshold === "" ? null : Number(threshold) 
+                                  }),
+                                })
+                                  .then(response => {
+                                    if (!response.ok) {
+                                      throw new Error("Failed to update threshold");
+                                    }
+                                    return response.json();
+                                  })
+                                  .then(() => {
+                                    queryClient.invalidateQueries({
+                                      queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+                                    });
+                                    toast({
+                                      title: "Success",
+                                      description: "Feedback threshold updated",
+                                    });
+                                    e.currentTarget.reset();
+                                  })
+                                  .catch(error => {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Error",
+                                      description: error.message,
+                                    });
+                                  });
+                              }}
+                            >
+                              <div className="grid gap-2">
+                                <Label htmlFor="threshold">Threshold Percentage</Label>
+                                <Input
+                                  id="threshold"
+                                  name="threshold"
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  placeholder={template.feedbackThreshold !== null ? template.feedbackThreshold.toString() : "E.g., 75"}
+                                  defaultValue={template.feedbackThreshold !== null ? template.feedbackThreshold : ""}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
+                                </p>
+                              </div>
+                              <DialogFooter>
+                                <Button type="submit">Save Changes</Button>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
                     <Button className="w-full" onClick={() => setSelectedTemplateId(template.id)}>
                       {selectedTemplateId === template.id
                         ? "Currently Selected"
