@@ -126,7 +126,12 @@ const AudioAssignmentDashboard = () => {
   const statusCounts = filteredAllocations.reduce((counts: Record<string, number>, allocation) => {
     counts[allocation.status] = (counts[allocation.status] || 0) + 1;
     return counts;
-  }, {});
+  }, {
+    'pending': 0,
+    'allocated': 0,
+    'evaluated': 0,
+    'archived': 0
+  });
 
   // Toggle expanded date view
   const toggleDateExpansion = (date: string) => {
@@ -142,7 +147,12 @@ const AudioAssignmentDashboard = () => {
     const statusCounts = allocations.reduce((counts: Record<string, number>, allocation) => {
       counts[allocation.status] = (counts[allocation.status] || 0) + 1;
       return counts;
-    }, {});
+    }, {
+      'pending': 0,
+      'allocated': 0,
+      'evaluated': 0,
+      'archived': 0
+    });
 
     return (
       <div className="flex space-x-2 mt-1">
@@ -352,7 +362,10 @@ const AudioAssignmentDashboard = () => {
                         <TableRow key={allocation.id}>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{allocation.audioFileName || `File #${allocation.audioFileId}`}</p>
+                              <p className="font-medium">ID: {allocation.audioFileId}</p>
+                              {allocation.audioFileName && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{allocation.audioFileName}</p>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
