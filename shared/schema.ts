@@ -2006,12 +2006,16 @@ export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReason
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
 
+// Evaluation type enum
+export const evaluationTypeEnum = pgEnum('evaluation_type', ['audio', 'standard']);
+
 // Evaluation-related tables
 export const evaluations = pgTable("evaluations", {
   id: serial("id").primaryKey(),
   templateId: integer("template_id")
     .references(() => evaluationTemplates.id)
     .notNull(),
+  evaluationType: evaluationTypeEnum("evaluation_type").default('standard').notNull(),
   traineeId: integer("trainee_id")
     .references(() => users.id),
   batchId: integer("batch_id")
@@ -2055,6 +2059,7 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
   })
   .extend({
     templateId: z.number().int().positive("Template ID is required"),
+    evaluationType: z.enum(['audio', 'standard']).default('standard'),
     traineeId: z.number().int().positive("Trainee ID is required").optional(),
     batchId: z.number().int().positive("Batch ID is required").optional(),
     evaluatorId: z.number().int().positive("Evaluator ID is required"),

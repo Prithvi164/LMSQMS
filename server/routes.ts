@@ -815,6 +815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create evaluation record
       const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
+        evaluationType: 'standard', // Set type to standard for trainee evaluations
         traineeId: evaluation.traineeId,
         batchId: evaluation.batchId,
         evaluatorId: req.user.id,
@@ -876,6 +877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create evaluation record
       const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
+        evaluationType: 'audio', // Set type to audio for this endpoint
         traineeId: evaluation.traineeId || null, // Optional for audio evaluations
         batchId: audioFile.batchId || null, // Use the batch from the audio file if available
         evaluatorId: req.user.id,
