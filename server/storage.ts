@@ -692,9 +692,28 @@ export class DatabaseStorage implements IStorage {
         ...allocations.map(a => a.allocatedBy)
       ])];
       
-      // Fetch related data
+      // Fetch related data - explicitly select columns to avoid schema/db mismatch
       const audioFilesData = await db
-        .select()
+        .select({
+          id: audioFiles.id,
+          filename: audioFiles.filename,
+          originalFilename: audioFiles.originalFilename,
+          fileUrl: audioFiles.fileUrl,
+          fileSize: audioFiles.fileSize,
+          duration: audioFiles.duration,
+          language: audioFiles.language,
+          version: audioFiles.version,
+          uploadedAt: audioFiles.uploadedAt,
+          uploadedBy: audioFiles.uploadedBy,
+          organizationId: audioFiles.organizationId,
+          status: audioFiles.status,
+          processId: audioFiles.processId,
+          batchId: audioFiles.batchId,
+          call_date: audioFiles.call_date,
+          callMetrics: audioFiles.callMetrics,
+          updatedAt: audioFiles.updatedAt
+          // Not selecting evaluationId to avoid db schema mismatch
+        })
         .from(audioFiles)
         .where(inArray(audioFiles.id, audioFileIds)) as AudioFile[];
       
@@ -845,7 +864,26 @@ export class DatabaseStorage implements IStorage {
         // If specific file IDs are provided
         if (batchAllocation.audioFileIds && batchAllocation.audioFileIds.length > 0) {
           audioFilesToAllocate = await tx
-            .select()
+            .select({
+              id: audioFiles.id,
+              filename: audioFiles.filename,
+              originalFilename: audioFiles.originalFilename,
+              fileUrl: audioFiles.fileUrl,
+              fileSize: audioFiles.fileSize,
+              duration: audioFiles.duration,
+              language: audioFiles.language,
+              version: audioFiles.version,
+              call_date: audioFiles.call_date,
+              callMetrics: audioFiles.callMetrics,
+              status: audioFiles.status,
+              uploadedBy: audioFiles.uploadedBy,
+              uploadedAt: audioFiles.uploadedAt,
+              processId: audioFiles.processId,
+              organizationId: audioFiles.organizationId,
+              batchId: audioFiles.batchId,
+              updatedAt: audioFiles.updatedAt
+              // Not selecting evaluationId to avoid db schema mismatch
+            })
             .from(audioFiles)
             .where(and(
               eq(audioFiles.organizationId, batchAllocation.organizationId),
@@ -856,7 +894,26 @@ export class DatabaseStorage implements IStorage {
         // Otherwise, apply filters to find files
         else if (batchAllocation.filters) {
           let query = tx
-            .select()
+            .select({
+              id: audioFiles.id,
+              filename: audioFiles.filename,
+              originalFilename: audioFiles.originalFilename,
+              fileUrl: audioFiles.fileUrl,
+              fileSize: audioFiles.fileSize,
+              duration: audioFiles.duration,
+              language: audioFiles.language,
+              version: audioFiles.version,
+              call_date: audioFiles.call_date,
+              callMetrics: audioFiles.callMetrics,
+              status: audioFiles.status,
+              uploadedBy: audioFiles.uploadedBy,
+              uploadedAt: audioFiles.uploadedAt,
+              processId: audioFiles.processId,
+              organizationId: audioFiles.organizationId,
+              batchId: audioFiles.batchId,
+              updatedAt: audioFiles.updatedAt
+              // Not selecting evaluationId to avoid db schema mismatch
+            })
             .from(audioFiles)
             .where(and(
               eq(audioFiles.organizationId, batchAllocation.organizationId),
