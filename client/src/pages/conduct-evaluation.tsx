@@ -960,7 +960,8 @@ export default function ConductEvaluation() {
                           {file.audioFile?.originalFilename ||
                             file.originalFilename ||
                             file.filename ||
-                            `Audio File #${file.audioFileId || file.id}`}
+                            (file.audioFile?.filename ? `File: ${file.audioFile.filename}` : 
+                            `Audio File #${file.audioFileId || file.id}`)}
                         </SelectItem>
                       ))
                     ) : (
@@ -1014,7 +1015,9 @@ export default function ConductEvaluation() {
                       <span className="truncate">
                         {selectedAudioFileDetails.originalFilename ||
                           selectedAudioFileDetails.filename ||
-                          `Audio File #${selectedAudioFileDetails.id}`}
+                          (selectedAudioFileDetails.audioFile?.filename ? 
+                            `File: ${selectedAudioFileDetails.audioFile.filename}` : 
+                            `Audio File #${selectedAudioFileDetails.id}`)}
                       </span>
                     </CardTitle>
                     <CardDescription className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
