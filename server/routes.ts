@@ -963,15 +963,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organizationId = req.user.organizationId;
       const role = req.user.role;
       
+      // Get status filter from query parameters if present
+      const statusFilter = req.query.status as string | undefined;
+      
       let feedbackItems;
       
-      // Depending on the role, fetch different feedback lists
-      if (['quality_analyst', 'manager', 'admin', 'owner'].includes(role)) {
-        // Get all feedback for reporting heads in the organization
-        feedbackItems = await storage.getPendingApprovalEvaluationFeedback(userId);
+      // Check if we're getting all feedback records (regardless of status)
+      const getAll = req.query.all === 'true';
+      
+      if (getAll) {
+        // Get all feedback filtered by role access level
+        feedbackItems = await storage.getAllEvaluationFeedback(userId, organizationId, role);
+        
+        // Filter by status if requested
+        if (statusFilter) {
+          feedbackItems = feedbackItems.filter(item => item.status === statusFilter);
+        }
       } else {
-        // For agents/trainees, get only their feedback
-        feedbackItems = await storage.getPendingEvaluationFeedback(userId);
+        // Using the original pending-only functionality when not explicitly requesting all
+        if (['quality_analyst', 'manager', 'admin', 'owner'].includes(role)) {
+          // Get pending feedback for reporting heads
+          feedbackItems = await storage.getPendingApprovalEvaluationFeedback(userId);
+        } else {
+          // For agents/trainees, get only their pending feedback
+          feedbackItems = await storage.getPendingEvaluationFeedback(userId);
+        }
       }
       
       res.json(feedbackItems);

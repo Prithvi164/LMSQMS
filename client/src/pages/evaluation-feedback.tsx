@@ -6,22 +6,39 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
 import { Loader2 } from 'lucide-react';
+
+// Define a type for feedback items
+type FeedbackItem = {
+  id: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  evaluation: {
+    id: number;
+    finalScore: number;
+    createdAt: string;
+  };
+  rejectionReason?: string;
+  agentResponse?: string;
+  reportingHeadResponse?: string;
+};
 
 export default function EvaluationFeedbackPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('pending');
   const [rejectionReason, setRejectionReason] = useState('');
-  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Fetch feedback items
+  // Fetch ALL feedback items regardless of status
   const { data: feedbackItems = [], isLoading } = useQuery({
-    queryKey: ['/api/evaluation-feedback'],
-    queryFn: () => apiRequest('/api/evaluation-feedback'),
+    queryKey: ['/api/evaluation-feedback', 'all'],
+    queryFn: async () => {
+      return fetch('/api/evaluation-feedback?all=true')
+        .then(res => res.json());
+    },
   });
 
   // Update feedback mutation
@@ -33,13 +50,18 @@ export default function EvaluationFeedbackPage() {
       reportingHeadResponse?: string;
       rejectionReason?: string;
     }) => {
-      return apiRequest(`/api/evaluation-feedback/${data.feedbackId}`, {
+      const url = `/api/evaluation-feedback/${data.feedbackId}`;
+      const options = {
         method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(data)
-      });
+      };
+      return fetch(url, options).then(res => res.json());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/evaluation-feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluation-feedback', 'all'] });
       setIsDialogOpen(false);
       toast({
         title: 'Feedback updated',
@@ -56,7 +78,7 @@ export default function EvaluationFeedbackPage() {
   });
 
   // Handle accept feedback
-  const handleAccept = (feedback: any) => {
+  const handleAccept = (feedback: FeedbackItem) => {
     updateFeedbackMutation.mutate({
       feedbackId: feedback.id,
       status: 'accepted',
@@ -64,7 +86,7 @@ export default function EvaluationFeedbackPage() {
   };
 
   // Handle reject feedback dialog
-  const openRejectDialog = (feedback: any) => {
+  const openRejectDialog = (feedback: FeedbackItem) => {
     setSelectedFeedback(feedback);
     setRejectionReason('');
     setIsDialogOpen(true);
@@ -72,6 +94,8 @@ export default function EvaluationFeedbackPage() {
 
   // Handle submit rejection
   const handleReject = () => {
+    if (!selectedFeedback) return;
+    
     if (!rejectionReason.trim()) {
       toast({
         title: 'Error',
@@ -89,12 +113,13 @@ export default function EvaluationFeedbackPage() {
   };
 
   // Filter feedback items based on the active tab
-  const filteredFeedback = feedbackItems.filter((item: any) => {
-    if (activeTab === 'pending') return item.status === 'pending';
-    if (activeTab === 'accepted') return item.status === 'accepted';
-    if (activeTab === 'rejected') return item.status === 'rejected';
-    return true;
-  });
+  const filteredFeedback = (Array.isArray(feedbackItems) ? feedbackItems : [])
+    .filter((item: FeedbackItem) => {
+      if (activeTab === 'pending') return item.status === 'pending';
+      if (activeTab === 'accepted') return item.status === 'accepted';
+      if (activeTab === 'rejected') return item.status === 'rejected';
+      return true;
+    });
 
   // Format date to readable format
   const formatDate = (dateString: string) => {
@@ -142,7 +167,7 @@ export default function EvaluationFeedbackPage() {
               No {activeTab} feedback items found
             </div>
           ) : (
-            filteredFeedback.map((feedback: any) => (
+            filteredFeedback.map((feedback: FeedbackItem) => (
               <Card key={feedback.id} className="mb-4">
                 <CardHeader>
                   <div className="flex justify-between items-start">

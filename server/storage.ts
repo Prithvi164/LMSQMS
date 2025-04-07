@@ -1577,6 +1577,48 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  async getAllEvaluationFeedback(userId: number, organizationId: number, role: string): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]> {
+    try {
+      let query = db
+        .select({
+          feedback: evaluationFeedback,
+          evaluation: evaluations
+        })
+        .from(evaluationFeedback)
+        .innerJoin(evaluations, eq(evaluationFeedback.evaluationId, evaluations.id))
+        .where(eq(evaluations.organizationId, organizationId));
+      
+      // For quality analysts, show both feedback where they are the reporting head
+      // and where they are the evaluator
+      if (role === 'quality_analyst') {
+        query = query.where(
+          or(
+            eq(evaluationFeedback.reportingHeadId, userId),
+            and(
+              eq(evaluations.evaluatorId, userId),
+              ne(evaluationFeedback.reportingHeadId, userId) // Don't duplicate entries
+            )
+          )
+        );
+      } 
+      // For agents/trainees, show only their feedback
+      else if (role === 'trainee' || role === 'advisor') {
+        query = query.where(eq(evaluationFeedback.agentId, userId));
+      }
+      // For admin/owner/managers, show all feedback in the organization
+      
+      const feedbackList = await query;
+      
+      return feedbackList.map(item => ({
+        ...item.feedback,
+        evaluation: item.evaluation
+      }));
+    } catch (error) {
+      console.error('Error getting all evaluation feedback:', error);
+      throw error;
+    }
+  }
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
