@@ -897,6 +897,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'evaluated',
         evaluationId: result.id // Store the evaluation ID with the audio file
       });
+      
+      // Also update the allocation status to 'evaluated'
+      // First, find the allocation for this quality analyst and audio file
+      const allocations = await storage.getAudioFileAllocations({
+        audioFileId: evaluation.audioFileId,
+        qualityAnalystId: req.user.id
+      });
+      
+      // Update the allocation status if found
+      if (allocations && allocations.length > 0) {
+        await storage.updateAudioFileAllocation(allocations[0].id, { 
+          status: 'evaluated' 
+        });
+      }
 
       res.status(201).json(result);
     } catch (error: any) {
