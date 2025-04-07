@@ -1300,6 +1300,8 @@ export class DatabaseStorage implements IStorage {
             finalScore,
             status: evaluation.status,
             feedbackThreshold: evaluation.feedbackThreshold,
+            audioFileId: evaluation.audioFileId,
+            evaluationType: evaluation.evaluationType || 'standard',
           })
           .returning() as Evaluation[];
 

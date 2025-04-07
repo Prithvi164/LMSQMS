@@ -913,6 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalScore,
         status: 'completed',
         feedbackThreshold: template.feedbackThreshold, // Pass the template's feedback threshold
+        audioFileId: evaluation.audioFileId, // Pass the audio file ID for feedback creation
         scores: evaluation.scores.map((score: any) => ({
           parameterId: score.parameterId,
           score: score.score,

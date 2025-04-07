@@ -2038,6 +2038,8 @@ export const evaluations = pgTable("evaluations", {
   finalScore: numeric("final_score", { precision: 5, scale: 2 }).notNull(),
   status: text("status").notNull(),
   feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered
+  audioFileId: integer("audio_file_id")
+    .references(() => audioFiles.id),  // Reference to audio file for audio evaluations
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2077,6 +2079,7 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
     finalScore: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))),
     status: z.string().min(1, "Status is required"),
     feedbackThreshold: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))).optional(),
+    audioFileId: z.number().int().positive("Audio File ID is required").optional(),
   });
 
 export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
