@@ -129,6 +129,12 @@ export default function ConductEvaluation() {
       `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
     ],
     enabled: !!user?.organizationId && user?.role === "quality_analyst",
+    // Filter out any audio files that have status "evaluated" to prevent re-evaluation
+    select: (data) => {
+      if (!data) return [];
+      // Only show files with status "allocated" (not "evaluated", "archived", etc.)
+      return data.filter((file: any) => file.status === "allocated");
+    }
   });
 
   // Log the assigned audio files to help with debugging
@@ -365,8 +371,21 @@ export default function ConductEvaluation() {
     },
     onSuccess: (data) => {
       if (evaluationType === "audio") {
-        // For audio evaluations, the endpoint already updates the audio file status
-        // Just invalidate the queries
+        // For audio evaluations, immediately update the local cache to remove the submitted file
+        // This prevents the need to wait for a server roundtrip to see the update
+        queryClient.setQueryData(
+          [`/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`],
+          (oldData: any) => {
+            if (!oldData) return [];
+            
+            // Filter out the file that was just evaluated
+            return oldData.filter((file: any) => 
+              (file.audioFileId || file.id) !== selectedAudioFile
+            );
+          }
+        );
+        
+        // Also invalidate the queries to ensure data consistency with the server
         queryClient.invalidateQueries({
           queryKey: [
             `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
@@ -375,6 +394,7 @@ export default function ConductEvaluation() {
         queryClient.invalidateQueries({
           queryKey: [`/api/organizations/${user?.organizationId}/audio-files`],
         });
+        
         toast({
           title: "Success",
           description: "Audio evaluation submitted successfully",
