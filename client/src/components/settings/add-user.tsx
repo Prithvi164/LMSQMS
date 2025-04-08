@@ -260,7 +260,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         fullName: "John Smith",
         email: "jsmith@example.com",
         role: "advisor", // owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee
-        category: "active", // active, trainee
         reportingManager: "manager_username", // Username of the manager
         location: "Mumbai", // Must match existing location name in the system
         employeeId: "EMP001",
@@ -283,7 +282,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Field: "fullName", Description: "User's full name (required)", Example: "John Smith" },
       { Field: "email", Description: "Valid email address (required)", Example: "john.smith@example.com" },
       { Field: "role", Description: "User role (required). Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee", Example: "advisor" },
-      { Field: "category", Description: "User category. Valid values: active, trainee", Example: "active" },
       { Field: "reportingManager", Description: "Username of the manager (respects role hierarchy)", Example: "jane.manager" },
       { Field: "location", Description: "Location name (must match existing location in the system)", Example: "Mumbai" },
       { Field: "employeeId", Description: "Employee ID (optional)", Example: "EMP001" },

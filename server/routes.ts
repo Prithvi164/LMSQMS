@@ -1966,6 +1966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
         role: userData.role.toLowerCase(),
         organizationId: req.user.organizationId as number,
+        category: "active", // Always default to active
       };
 
       console.log('Creating user with data:', {
