@@ -945,9 +945,6 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Manage Users</h1>
-      </div>
 
       <Card>
         <CardContent className="pt-6">
