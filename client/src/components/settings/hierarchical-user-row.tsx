@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Trash2, User as UserRound, MapPin } from "lucide-react";
 import { User } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,17 +52,45 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
   // Determine if this entry is directly matched by filters
   const isFilterMatch = users.some(u => u.id === user.id);
   
+  // Role colors using style instead of variant
+  const getRoleStyle = (role: string): string => {
+    switch (role) {
+      case 'owner': return 'bg-destructive text-destructive-foreground';
+      case 'admin': return 'bg-primary text-primary-foreground';
+      case 'manager': return 'bg-purple-500 text-white';
+      case 'team_lead': return 'bg-indigo-500 text-white';
+      case 'trainer': return 'bg-amber-500 text-white';
+      case 'advisor': return 'bg-teal-500 text-white';
+      case 'trainee': return 'bg-secondary text-secondary-foreground';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+  
   return (
     <>
       <TableRow 
         key={user.id} 
         className={cn(
+          "transition-all duration-200 hover:bg-muted/40",
           !user.active && "opacity-50",
           !isFilterMatch && "opacity-70"
         )}
       >
         <TableCell>
-          <div className="flex items-center" style={{ paddingLeft: `${indentPadding}px` }}>
+          <div className="relative flex items-center" style={{ paddingLeft: `${indentPadding}px` }}>
+            {/* Hierarchy connector lines */}
+            {level > 0 && (
+              <div 
+                className="absolute left-0 top-0 bottom-0 border-l-2 border-muted-foreground/20" 
+                style={{ left: `${(level-1) * 20 + 10}px`, height: "100%" }}
+              />
+            )}
+            {level > 0 && (
+              <div 
+                className="absolute border-t-2 border-muted-foreground/20" 
+                style={{ left: `${(level-1) * 20 + 10}px`, width: "10px", top: "50%" }}
+              />
+            )}
             {/* Expand/collapse button for users with direct reports */}
             {hasDirectReports && (
               <Button 
@@ -87,13 +115,36 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
             <span className="font-medium">{user.username}</span>
           </div>
         </TableCell>
-        <TableCell>{user.email}</TableCell>
-        <TableCell>{user.fullName}</TableCell>
         <TableCell>
-          <Badge>{user.role}</Badge>
+          <span className={cn(
+            "text-sm",
+            !isFilterMatch && "text-muted-foreground"
+          )}>{user.email}</span>
         </TableCell>
         <TableCell>
-          <Badge variant={user.category === 'trainee' ? 'secondary' : 'outline'}>
+          <span className={cn(
+            "font-medium",
+            !isFilterMatch && "text-muted-foreground"
+          )}>{user.fullName}</span>
+        </TableCell>
+        <TableCell>
+          <div className={cn(
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize",
+            getRoleStyle(user.role)
+          )}>
+            {user.role}
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge 
+            variant={user.category === 'trainee' ? 'secondary' : 'outline'}
+            className={cn(
+              "capitalize",
+              isFilterMatch && "ring-1 ring-offset-1",
+              user.category === 'trainee' && isFilterMatch && "ring-secondary/30",
+              user.category === 'active' && isFilterMatch && "ring-primary/30"
+            )}
+          >
             {user.category || 'active'}
           </Badge>
         </TableCell>
@@ -101,17 +152,36 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="cursor-help underline decoration-dotted">
-                  {getManagerName(user.managerId)}
-                </span>
+                <div className={cn(
+                  "cursor-help flex items-center w-fit px-1.5 py-0.5 rounded text-sm border border-muted",
+                  user.managerId ? "bg-muted/40" : "italic text-muted-foreground"
+                )}>
+                  {user.managerId && <UserRound className="h-3 w-3 mr-1.5 opacity-70" />}
+                  <span className={!user.managerId ? "text-xs" : ""}>
+                    {getManagerName(user.managerId)}
+                  </span>
+                </div>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Reporting Path: {getFormattedReportingPath(user.id, users)}</p>
+              <TooltipContent className="max-w-[250px]">
+                <div className="space-y-1">
+                  <p className="font-medium">Reporting Path:</p>
+                  <p className="text-sm">{getFormattedReportingPath(user.id, users)}</p>
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </TableCell>
-        <TableCell>{getLocationName(user.locationId)}</TableCell>
+        <TableCell>
+          <div className={cn(
+            "w-fit px-1.5 py-0.5 rounded text-sm border border-muted flex items-center",
+            user.locationId ? "bg-muted/40" : "italic text-muted-foreground"
+          )}>
+            {user.locationId && <MapPin className="h-3 w-3 mr-1.5 opacity-70" />}
+            <span className={!user.locationId ? "text-xs" : ""}>
+              {getLocationName(user.locationId)}
+            </span>
+          </div>
+        </TableCell>
         <TableCell>
           <div className="max-w-[200px]">
             {getProcessNames(user.id) ? (
