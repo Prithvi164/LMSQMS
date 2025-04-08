@@ -66,7 +66,21 @@ export const permissionEnum = pgEnum('permission', [
   'view_performance',
   'manage_performance',
   'export_reports',
-  'manage_batches'
+  'manage_batches',
+  // Quiz management permissions
+  'manage_quiz',         // Create, edit, delete quizzes
+  'edit_quiz',           // Edit quizzes
+  'delete_quiz',         // Delete quizzes
+  'create_quiz',         // Create quizzes
+  'take_quiz',           // Take quizzes
+  // Evaluation form permissions
+  'manage_evaluation_form',    // Create, edit, delete evaluation forms
+  'edit_evaluation_form',      // Edit evaluation forms
+  'delete_evaluation_form',    // Delete evaluation forms
+  'create_evaluation_form',    // Create evaluation forms
+  // Allocation and feedback permissions
+  'manage_allocation',         // Manage allocations
+  'manage_feedback'            // Manage feedback
 ]);
 
 export const processStatusEnum = pgEnum('process_status', [

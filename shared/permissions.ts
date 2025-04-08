@@ -11,7 +11,21 @@ export const defaultPermissions = {
     'upload_users',
     'manage_organization',
     'manage_performance',
-    'export_reports'
+    'export_reports',
+    // Quiz permissions
+    'manage_quiz',
+    'edit_quiz',
+    'delete_quiz',
+    'create_quiz',
+    'take_quiz',
+    // Evaluation form permissions
+    'manage_evaluation_form',
+    'edit_evaluation_form',
+    'delete_evaluation_form',
+    'create_evaluation_form',
+    // Allocation and feedback permissions
+    'manage_allocation',
+    'manage_feedback'
   ],
   manager: [
     'view_users',
@@ -19,32 +33,74 @@ export const defaultPermissions = {
     'view_organization',
     'manage_performance',
     'manage_processes',
-    'manage_batches'
+    'manage_batches',
+    // Quiz permissions
+    'manage_quiz',
+    'edit_quiz',
+    'delete_quiz',
+    'create_quiz',
+    'take_quiz',
+    // Evaluation form permissions
+    'manage_evaluation_form',
+    'edit_evaluation_form',
+    'delete_evaluation_form',
+    'create_evaluation_form',
+    // Feedback permissions
+    'manage_feedback'
   ],
   team_lead: [
     'view_users',
     'edit_users',
     'manage_performance',
-    'view_organization'
+    'view_organization',
+    // Feedback permissions
+    'manage_feedback'
   ],
-  qualityassurance: [
+  quality_analyst: [
     'view_users',
     'manage_performance',
     'export_reports',
-    'view_organization'
+    'view_organization',
+    // Evaluation form permissions
+    'manage_evaluation_form',
+    'edit_evaluation_form',
+    'delete_evaluation_form',
+    'create_evaluation_form',
+    // Feedback permissions
+    'manage_feedback'
   ],
   trainer: [
     'view_users',
-    'view_performance'
+    'view_performance',
+    // Quiz permissions
+    'manage_quiz',
+    'edit_quiz',
+    'delete_quiz',
+    'create_quiz',
+    'take_quiz'
   ],
   advisor: [
     'view_users',
     'view_performance',
-    'export_reports'
+    'export_reports',
+    // Quiz permissions for active advisors
+    'take_quiz',
+    // Feedback permissions for active advisors
+    'manage_feedback'
+  ],
+  trainee: [
+    // Quiz permissions for trainees
+    'take_quiz',
+    // Feedback permissions for trainees
+    'manage_feedback'
   ]
 } as const;
 
 // Function to get default permissions for a role
 export function getDefaultPermissions(role: string): string[] {
-  return [...defaultPermissions[role as keyof typeof defaultPermissions] || []];
+  // Handle specific role mapping to ensure backward compatibility
+  const mappedRole = role === 'quality_analyst' ? 'quality_analyst' : 
+                     role === 'qualityassurance' ? 'quality_analyst' : role;
+                     
+  return [...defaultPermissions[mappedRole as keyof typeof defaultPermissions] || []];
 }
