@@ -132,7 +132,7 @@ export default function OrganizationSettings() {
     defaultValues: {
       name: "",
       date: "",
-      locationId: null as unknown as string, // this will be transformed by the schema
+      locationId: null as unknown as number, // this will be transformed by the schema
       isRecurring: false
     }
   });

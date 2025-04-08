@@ -33,18 +33,18 @@ const getInitials = (name: string) => {
 
 // Helper function to get a random color based on name
 const getAvatarColor = (name: string) => {
-  // Using darker, more vibrant colors for better visibility
+  // Using vibrant gradient colors for better visibility (similar to reference image)
   const colors = [
-    'bg-blue-600',
-    'bg-indigo-600',
-    'bg-purple-600',
-    'bg-pink-600',
-    'bg-red-600',
-    'bg-orange-600',
-    'bg-yellow-600',
-    'bg-emerald-600',
-    'bg-teal-600',
-    'bg-cyan-600'
+    'bg-gradient-to-br from-purple-500 to-purple-700',
+    'bg-gradient-to-br from-pink-500 to-pink-700',
+    'bg-gradient-to-br from-blue-500 to-blue-700',
+    'bg-gradient-to-br from-cyan-500 to-cyan-700',
+    'bg-gradient-to-br from-teal-500 to-teal-700',
+    'bg-gradient-to-br from-green-500 to-green-700',
+    'bg-gradient-to-br from-yellow-500 to-yellow-700',
+    'bg-gradient-to-br from-orange-500 to-orange-700',
+    'bg-gradient-to-br from-red-500 to-red-700',
+    'bg-gradient-to-br from-rose-500 to-rose-700',
   ];
   
   // Generate a hash from the name
@@ -116,21 +116,22 @@ const UserCard = ({
   expanded = false
 }: UserCardProps) => {
   const avatarColor = color || getAvatarColor(user.fullName || user.username);
-  const roleColor = user.role === "owner" ? "bg-primary" : 
-                   user.role === "admin" ? "bg-indigo-600" : 
-                   user.role === "manager" ? "bg-emerald-600" : 
-                   user.role === "trainer" ? "bg-orange-600" : 
-                   "bg-blue-600";
+  // Enhanced gradients for the role-based header (similar to reference image)
+  const roleColor = user.role === "owner" ? "bg-gradient-to-r from-primary to-primary-600" : 
+                    user.role === "admin" ? "bg-gradient-to-r from-indigo-500 to-indigo-700" : 
+                    user.role === "manager" ? "bg-gradient-to-r from-emerald-500 to-emerald-700" : 
+                    user.role === "trainer" ? "bg-gradient-to-r from-orange-500 to-orange-700" : 
+                    "bg-gradient-to-r from-blue-500 to-blue-700";
   
   return (
-    <Card className={`min-w-[260px] max-w-[260px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 ${expanded ? 'border-primary' : 'border-muted'}`}>
-      {/* Colored header based on role */}
-      <div className={`${roleColor} h-2 w-full`}></div>
+    <Card className={`min-w-[280px] max-w-[280px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 ${expanded ? 'border-primary/70' : 'border-muted'}`}>
+      {/* Gradient colored header based on role */}
+      <div className={`${roleColor} h-3 w-full`}></div>
       
       <div className="p-4">
         <div className="flex flex-col items-center text-center mb-3">
-          <Avatar className={`h-16 w-16 ${avatarColor} text-white mb-3 ring-4 ring-background shadow-md`}>
-            <AvatarFallback className="text-xl font-bold">
+          <Avatar className={`h-20 w-20 ${avatarColor} text-white mb-3 ring-4 ring-background shadow-lg`}>
+            <AvatarFallback className="text-2xl font-bold">
               {getInitials(user.fullName || user.username)}
             </AvatarFallback>
           </Avatar>
@@ -141,48 +142,56 @@ const UserCard = ({
         </div>
         
         <div className="flex justify-center mb-3">
-          <Badge variant={user.role === "owner" ? "default" : "outline"} 
-                 className={`capitalize ${user.role === "owner" ? "bg-primary-600" : ""} px-3 py-1`}>
+          <Badge 
+            variant={user.role === "owner" ? "default" : "outline"} 
+            className={`capitalize ${
+              user.role === "owner" ? "bg-gradient-to-r from-primary to-primary-600 border-0 shadow-md" : 
+              user.role === "admin" ? "border-indigo-500 text-indigo-600 shadow-sm" :
+              user.role === "manager" ? "border-emerald-500 text-emerald-600 shadow-sm" :
+              user.role === "trainer" ? "border-orange-500 text-orange-600 shadow-sm" :
+              "border-blue-500 text-blue-600 shadow-sm"
+            } px-3 py-1 font-medium`}
+          >
             {user.role}
           </Badge>
         </div>
         
         <div className="space-y-2 mt-2">
-          {/* Department */}
+          {/* Department - Enhanced with gradient border */}
           {department && (
-            <div className="flex items-center gap-2 bg-muted/30 py-1.5 px-2 rounded text-sm">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-muted/20 to-muted/40 py-2 px-3 rounded-md text-sm shadow-sm border-l-[3px] border-primary/70">
               <Building className="h-4 w-4 text-primary" />
               <span className="truncate font-medium">{department}</span>
             </div>
           )}
           
-          {/* Location - More Prominent */}
+          {/* Location - Enhanced with gradient */}
           {location && (
-            <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-blue-500 shadow-sm">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-blue-100/80 dark:from-blue-900/20 dark:to-blue-900/40 py-2 px-3 rounded-md text-sm border-l-[3px] border-blue-500 shadow-sm my-2">
               <Map className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span className="truncate font-medium">{location}</span>
             </div>
           )}
           
-          {/* Process Name - More Prominent */}
+          {/* Process Name - Enhanced with gradient */}
           {processName && (
-            <div className="flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-emerald-500 shadow-sm mt-2">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-emerald-100/80 dark:from-emerald-900/20 dark:to-emerald-900/40 py-2 px-3 rounded-md text-sm border-l-[3px] border-emerald-500 shadow-sm my-2">
               <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="truncate font-medium">{processName}</span>
             </div>
           )}
           
-          {/* Batch Info - More Prominent */}
+          {/* Batch Info - Enhanced with gradient */}
           {batchInfo && (
-            <div className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-amber-500 shadow-sm mt-2">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-100/80 dark:from-amber-900/20 dark:to-amber-900/40 py-2 px-3 rounded-md text-sm border-l-[3px] border-amber-500 shadow-sm my-2">
               <GraduationCap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <div className="flex items-center justify-between w-full">
                 <span className="truncate font-medium">{batchInfo.name}</span>
                 <span className={`ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
-                  batchInfo.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 
-                  batchInfo.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 
-                  batchInfo.status === 'on_hold' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : 
-                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                  batchInfo.status === 'active' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 dark:from-green-900/40 dark:to-green-900/60 dark:text-green-300' : 
+                  batchInfo.status === 'completed' ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 dark:from-blue-900/40 dark:to-blue-900/60 dark:text-blue-300' : 
+                  batchInfo.status === 'on_hold' ? 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 dark:from-amber-900/40 dark:to-amber-900/60 dark:text-amber-300' : 
+                  'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 dark:from-gray-800/40 dark:to-gray-800/60 dark:text-gray-300'
                 }`}>
                   {batchInfo.status}
                 </span>
@@ -194,8 +203,12 @@ const UserCard = ({
         {reportCount > 0 && (
           <div className="mt-3 pt-2 border-t border-border flex justify-center">
             <Badge 
-              variant="secondary" 
-              className="text-xs px-2 py-1 bg-muted/50 hover:bg-muted cursor-pointer transition-colors flex items-center gap-1"
+              variant={expanded ? "default" : "secondary"}
+              className={`text-sm px-3 py-1.5 ${
+                expanded 
+                  ? "bg-gradient-to-r from-primary/80 to-primary shadow-md text-primary-foreground" 
+                  : "bg-gradient-to-r from-muted/30 to-muted/60 shadow-sm hover:shadow-md"
+              } cursor-pointer transition-all flex items-center gap-1.5 font-medium`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (typeof onClick === 'function') onClick();
@@ -204,7 +217,7 @@ const UserCard = ({
               {reportCount} direct {reportCount === 1 ? 'report' : 'reports'}
               {onClick && (
                 <ChevronDown 
-                  className={`h-3 w-3 ml-1 transition-transform ${expanded ? 'rotate-180' : ''}`} 
+                  className={`h-4 w-4 ml-1 transition-transform ${expanded ? 'rotate-180' : ''}`} 
                 />
               )}
             </Badge>
@@ -401,27 +414,27 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
       
       {/* Connector line to children - only show when expanded */}
       {hasChildren && expanded && (
-        <div className="w-[2px] h-10 bg-primary/30" />
+        <div className="w-[3px] h-12 bg-gradient-to-b from-primary/60 to-primary/30 rounded-full" />
       )}
       
       {/* Children - only show when expanded */}
       {hasChildren && expanded && (
         <div className="relative">
           {/* Horizontal connecting line */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[2px] bg-primary/30" />
+          <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[3px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
           
           {/* Horizontal line above children */}
           <div 
-            className={`absolute h-[2px] bg-primary/30 ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} 
+            className={`absolute h-[3px] bg-gradient-to-r from-primary/30 via-primary/60 to-primary/30 rounded-full ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} 
             style={{ top: '-6px' }} 
           />
           
-          <div className="flex gap-8 mt-4">
+          <div className="flex gap-10 mt-4">
             {node.children.map((child, index) => (
               <div key={child.user.id} className="relative">
                 {/* Vertical connecting line to parent */}
                 {node.children.length > 1 && index > 0 && (
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[2px] bg-primary/30" />
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[3px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
                 )}
                 <OrgNode node={child} level={level + 1} />
               </div>
