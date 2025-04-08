@@ -554,7 +554,7 @@ export function UserProfile() {
                                   <p className="text-sm font-medium flex items-center gap-1">
                                     <MapPin className="h-3 w-3 text-primary" /> 
                                     {managerData.locationId ? 
-                                      locations.find(loc => loc.id === managerData.locationId)?.name || 'Unknown location' 
+                                      locations.find(loc => loc.id === managerData.locationId)?.name || 'Not specified' 
                                       : 'Not specified'}
                                   </p>
                                 </div>
@@ -593,8 +593,8 @@ export function UserProfile() {
                             
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
                               <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground">Batch Name</p>
-                                <p className="text-sm font-medium">Training Batch #1</p>
+                                <p className="text-xs text-muted-foreground">Name</p>
+                                <p className="text-sm font-medium">{user.username}</p>
                               </div>
                               <div className="space-y-1">
                                 <p className="text-xs text-muted-foreground">Location</p>
@@ -604,17 +604,17 @@ export function UserProfile() {
                                 </p>
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground">Trainer</p>
+                                <p className="text-xs text-muted-foreground">Email</p>
                                 <p className="text-sm font-medium flex items-center gap-1">
-                                  <UserCircle className="h-3 w-3 text-primary" /> 
-                                  {managerData ? managerData.fullName || managerData.username : 'Not assigned'}
+                                  <Mail className="h-3 w-3 text-primary" /> 
+                                  {user.email}
                                 </p>
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground">Members</p>
+                                <p className="text-xs text-muted-foreground">Phone</p>
                                 <p className="text-sm font-medium flex items-center gap-1">
-                                  <Users className="h-3 w-3 text-primary" /> 
-                                  12 Members
+                                  <Phone className="h-3 w-3 text-primary" /> 
+                                  {user.phoneNumber || 'Not specified'}
                                 </p>
                               </div>
                             </div>
@@ -637,8 +637,8 @@ export function UserProfile() {
                               
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Team Name</p>
-                                  <p className="text-sm font-medium">Core Operations</p>
+                                  <p className="text-xs text-muted-foreground">Name</p>
+                                  <p className="text-sm font-medium">{user.fullName || user.username}</p>
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-xs text-muted-foreground">Location</p>
@@ -648,18 +648,17 @@ export function UserProfile() {
                                   </p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Team Lead</p>
+                                  <p className="text-xs text-muted-foreground">Email</p>
                                   <p className="text-sm font-medium flex items-center gap-1">
-                                    <UserCircle className="h-3 w-3 text-primary" /> 
-                                    {user.role === 'team_lead' ? 'You' : 
-                                      (managerData ? managerData.fullName || managerData.username : 'Not assigned')}
+                                    <Mail className="h-3 w-3 text-primary" /> 
+                                    {user.email}
                                   </p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Members</p>
+                                  <p className="text-xs text-muted-foreground">Phone</p>
                                   <p className="text-sm font-medium flex items-center gap-1">
-                                    <Users className="h-3 w-3 text-primary" /> 
-                                    8 Members
+                                    <Phone className="h-3 w-3 text-primary" /> 
+                                    {user.phoneNumber || 'Not specified'}
                                   </p>
                                 </div>
                               </div>
@@ -682,28 +681,28 @@ export function UserProfile() {
                               
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Project Name</p>
-                                  <p className="text-sm font-medium">Analytics Dashboard</p>
+                                  <p className="text-xs text-muted-foreground">Name</p>
+                                  <p className="text-sm font-medium">{user.fullName || user.username}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Department</p>
+                                  <p className="text-xs text-muted-foreground">Location</p>
                                   <p className="text-sm font-medium flex items-center gap-1">
-                                    <Building className="h-3 w-3 text-blue-500" /> 
-                                    IT Development
+                                    <MapPin className="h-3 w-3 text-primary" /> 
+                                    {locationName}
                                   </p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Project Lead</p>
+                                  <p className="text-xs text-muted-foreground">Email</p>
                                   <p className="text-sm font-medium flex items-center gap-1">
-                                    <UserCircle className="h-3 w-3 text-blue-500" /> 
-                                    Project Manager
+                                    <Mail className="h-3 w-3 text-primary" /> 
+                                    {user.email}
                                   </p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Team Size</p>
+                                  <p className="text-xs text-muted-foreground">Phone</p>
                                   <p className="text-sm font-medium flex items-center gap-1">
-                                    <Users className="h-3 w-3 text-blue-500" /> 
-                                    5 Members
+                                    <Phone className="h-3 w-3 text-primary" /> 
+                                    {user.phoneNumber || 'Not specified'}
                                   </p>
                                 </div>
                               </div>
