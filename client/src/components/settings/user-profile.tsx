@@ -58,11 +58,29 @@ export function UserProfile() {
     organizationId: number;
     createdAt: string;
   }
+  
+  // User interface
+  interface UserDetails {
+    id: number;
+    username: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    locationId: number;
+    role: string;
+    managerId?: number;
+  }
 
   // Fetch available locations
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId
+  });
+  
+  // Fetch manager details if the user has a manager
+  const { data: managerData } = useQuery<UserDetails>({
+    queryKey: [`/api/users/${user?.managerId}`],
+    enabled: !!user?.managerId
   });
 
   // Find the location name when user or locations change
@@ -490,21 +508,58 @@ export function UserProfile() {
                       
                       {user.managerId ? (
                         <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-16 w-16 border-2 border-primary/20">
-                              <AvatarFallback className="text-xl bg-gradient-to-br from-primary/80 to-primary/50 text-primary-foreground">
-                                {user.managerId.toString().substring(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h4 className="font-medium text-lg">Manager #{user.managerId}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                Your direct reporting manager
-                              </p>
-                              <Badge variant="outline" className="mt-2">
-                                Active
-                              </Badge>
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-16 w-16 border-2 border-primary/20">
+                                <AvatarFallback className="text-xl bg-gradient-to-br from-primary/80 to-primary/50 text-primary-foreground">
+                                  {managerData ? managerData.username.substring(0, 2).toUpperCase() : 
+                                   user.managerId.toString().substring(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h4 className="font-medium text-lg">
+                                  {managerData ? managerData.fullName || managerData.username : `Manager #${user.managerId}`}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Your direct reporting manager
+                                </p>
+                                <Badge variant="outline" className="mt-2">
+                                  Active
+                                </Badge>
+                              </div>
                             </div>
+                            
+                            {managerData && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Username</p>
+                                  <p className="text-sm font-medium">{managerData.username}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Email</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <Mail className="h-3 w-3 text-primary" /> 
+                                    {managerData.email}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Phone</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <Phone className="h-3 w-3 text-primary" /> 
+                                    {managerData.phoneNumber || 'Not specified'}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Location</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <MapPin className="h-3 w-3 text-primary" /> 
+                                    {managerData.locationId ? 
+                                      locations.find(loc => loc.id === managerData.locationId)?.name || 'Unknown location' 
+                                      : 'Not specified'}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -524,42 +579,133 @@ export function UserProfile() {
                       
                       {user.role === 'trainee' ? (
                         <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
-                          <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-                              <GraduationCap className="h-6 w-6 text-primary" />
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                                <GraduationCap className="h-6 w-6 text-primary" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium">Training Batch</h4>
+                                <p className="text-sm text-muted-foreground">Current training program</p>
+                                <Badge variant="outline" className="mt-2">Active</Badge>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-medium">Training Batch</h4>
-                              <p className="text-sm text-muted-foreground">Current training program</p>
-                              <Badge variant="outline" className="mt-2">Active</Badge>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Batch Name</p>
+                                <p className="text-sm font-medium">Training Batch #1</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Location</p>
+                                <p className="text-sm font-medium flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-primary" /> 
+                                  {locationName}
+                                </p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Trainer</p>
+                                <p className="text-sm font-medium flex items-center gap-1">
+                                  <UserCircle className="h-3 w-3 text-primary" /> 
+                                  {managerData ? managerData.fullName || managerData.username : 'Not assigned'}
+                                </p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Members</p>
+                                <p className="text-sm font-medium flex items-center gap-1">
+                                  <Users className="h-3 w-3 text-primary" /> 
+                                  12 Members
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
                       ) : (
                         <div className="space-y-4">
                           <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-                                <Users className="h-6 w-6 text-primary" />
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                                  <Users className="h-6 w-6 text-primary" />
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">Core Team</h4>
+                                  <p className="text-sm text-muted-foreground">Primary team assignment</p>
+                                  <Badge variant="outline" className="mt-2">Active</Badge>
+                                </div>
                               </div>
-                              <div>
-                                <h4 className="font-medium">Core Team</h4>
-                                <p className="text-sm text-muted-foreground">Primary team assignment</p>
-                                <Badge variant="outline" className="mt-2">Active</Badge>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Team Name</p>
+                                  <p className="text-sm font-medium">Core Operations</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Location</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <MapPin className="h-3 w-3 text-primary" /> 
+                                    {locationName}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Team Lead</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <UserCircle className="h-3 w-3 text-primary" /> 
+                                    {user.role === 'team_lead' ? 'You' : 
+                                      (managerData ? managerData.fullName || managerData.username : 'Not assigned')}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Members</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <Users className="h-3 w-3 text-primary" /> 
+                                    8 Members
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
                           
                           {/* Additional team assignment for non-trainees */}
                           <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-300/30 to-blue-300/10 flex items-center justify-center">
-                                <Users className="h-6 w-6 text-blue-500" />
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-300/30 to-blue-300/10 flex items-center justify-center">
+                                  <Users className="h-6 w-6 text-blue-500" />
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">Project Team</h4>
+                                  <p className="text-sm text-muted-foreground">Secondary assignment</p>
+                                  <Badge variant="outline" className="mt-2">Active</Badge>
+                                </div>
                               </div>
-                              <div>
-                                <h4 className="font-medium">Project Team</h4>
-                                <p className="text-sm text-muted-foreground">Secondary assignment</p>
-                                <Badge variant="outline" className="mt-2">Active</Badge>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Project Name</p>
+                                  <p className="text-sm font-medium">Analytics Dashboard</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Department</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <Building className="h-3 w-3 text-blue-500" /> 
+                                    IT Development
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Project Lead</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <UserCircle className="h-3 w-3 text-blue-500" /> 
+                                    Project Manager
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Team Size</p>
+                                  <p className="text-sm font-medium flex items-center gap-1">
+                                    <Users className="h-3 w-3 text-blue-500" /> 
+                                    5 Members
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
