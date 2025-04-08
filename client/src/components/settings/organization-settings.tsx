@@ -102,7 +102,13 @@ const holidaySchema = z.object({
   date: z.string().refine(val => isValid(parseISO(val)), {
     message: "Please select a valid date"
   }),
-  locationId: z.string().optional().transform(val => val === "all-locations" || val === "" ? null : parseInt(val)),
+  locationId: z.union([
+    z.string().transform(val => {
+      if (val === "all-locations" || val === "") return null;
+      return parseInt(val);
+    }),
+    z.literal(null)
+  ]).nullable(),
   isRecurring: z.boolean().default(false)
 });
 
@@ -126,7 +132,7 @@ export default function OrganizationSettings() {
     defaultValues: {
       name: "",
       date: "",
-      locationId: "",
+      locationId: null as unknown as string, // this will be transformed by the schema
       isRecurring: false
     }
   });
@@ -139,30 +145,41 @@ export default function OrganizationSettings() {
     }
   });
 
+  // Define type for API responses
+  type SettingsResponse = {
+    featureType: 'LMS' | 'QMS' | 'BOTH';
+    weeklyOffDays: string[];
+    locations?: Location[];
+  };
+
+  type LocationsResponse = Location[];
+  
+  type HolidaysResponse = Holiday[];
+
   // Query organization settings
   const {
-    data: settings,
+    data: settings = {} as SettingsResponse,
     isLoading: isLoadingSettings,
     error: settingsError
-  } = useQuery({
+  } = useQuery<SettingsResponse>({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
     enabled: !!user?.organizationId
   });
 
   // Query organization locations
   const {
-    data: locations,
+    data: locations = [] as LocationsResponse,
     isLoading: isLoadingLocations
-  } = useQuery({
+  } = useQuery<LocationsResponse>({
     queryKey: ['/api/organizations', user?.organizationId, 'locations'],
     enabled: !!user?.organizationId
   });
 
   // Query organization holidays
   const {
-    data: holidays,
+    data: holidays = [] as HolidaysResponse,
     isLoading: isLoadingHolidays
-  } = useQuery({
+  } = useQuery<HolidaysResponse>({
     queryKey: [`/api/organizations/${user?.organizationId}/holidays`],
     enabled: !!user?.organizationId
   });
@@ -273,22 +290,24 @@ export default function OrganizationSettings() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between border-b pb-4 mb-2">
+      <div className="flex items-center justify-between border-b pb-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Organization Settings</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-3xl font-bold tracking-tight">Organization Settings</h2>
+          <p className="text-muted-foreground mt-1">
             Configure your organization's appearance and scheduling preferences.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card className="w-full shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="bg-primary/5 rounded-t-lg">
-            <div className="flex items-center space-x-2">
-              <Settings className="h-5 w-5 text-primary" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg border-b">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-primary/15 rounded-full">
+                <Settings className="h-5 w-5 text-primary" />
+              </div>
               <div>
-                <CardTitle>Activated Features</CardTitle>
+                <CardTitle className="text-xl">Activated Features</CardTitle>
                 <CardDescription>
                   Your current subscription features
                 </CardDescription>
@@ -298,27 +317,27 @@ export default function OrganizationSettings() {
           <CardContent className="pt-6">
             {isLoadingSettings ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="flex items-center p-5 border rounded-lg bg-card shadow-sm">
-                  <div className="flex-shrink-0 mr-4 bg-primary/10 p-3 rounded-full">
+                <div className="flex items-center p-6 border rounded-xl bg-card shadow-sm hover:shadow transition-shadow duration-200">
+                  <div className="flex-shrink-0 mr-5 bg-primary/10 p-4 rounded-full">
                     {settings?.featureType === 'LMS' ? (
-                      <BookOpen className="h-7 w-7 text-blue-500" />
+                      <BookOpen className="h-8 w-8 text-blue-500" />
                     ) : settings?.featureType === 'QMS' ? (
-                      <BarChart className="h-7 w-7 text-green-500" />
+                      <BarChart className="h-8 w-8 text-green-500" />
                     ) : (
-                      <AppWindow className="h-7 w-7 text-purple-500" />
+                      <AppWindow className="h-8 w-8 text-purple-500" />
                     )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium">
+                    <h3 className="text-xl font-semibold">
                       {settings?.featureType === 'LMS' ? 'Learning Management System' : 
                         settings?.featureType === 'QMS' ? 'Quality Management System' : 
                         'Complete Platform (LMS + QMS)'}
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1.5">
                       {settings?.featureType === 'LMS' ? 
                         'Access to trainee management, course materials, batch monitoring, and learning resources.' : 
                         settings?.featureType === 'QMS' ? 
@@ -328,8 +347,8 @@ export default function OrganizationSettings() {
                   </div>
                 </div>
                 
-                <div className="flex items-start space-x-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-900">
-                  <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div className="flex items-start space-x-2.5 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
+                  <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-blue-700 dark:text-blue-400">
                       Feature access is controlled by your subscription plan. To change your active features, please contact our customer support.
@@ -341,12 +360,14 @@ export default function OrganizationSettings() {
           </CardContent>
         </Card>
         
-        <Card className="w-full shadow-sm hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="bg-primary/5 rounded-t-lg">
-            <div className="flex items-center space-x-2">
-              <CalendarIcon2 className="h-5 w-5 text-primary" />
+        <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg border-b">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-primary/15 rounded-full">
+                <CalendarIcon2 className="h-5 w-5 text-primary" />
+              </div>
               <div>
-                <CardTitle>Holiday Management</CardTitle>
+                <CardTitle className="text-xl">Holiday Management</CardTitle>
                 <CardDescription>
                   Configure holidays and non-working days
                 </CardDescription>
@@ -354,13 +375,16 @@ export default function OrganizationSettings() {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-5">
               <p className="text-sm text-muted-foreground">
                 Holidays are excluded when calculating training phase durations.
               </p>
               <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
                 <DialogTrigger asChild>
-                  <Button>Add Holiday</Button>
+                  <Button className="gap-1.5">
+                    <CalendarIcon className="h-4 w-4" />
+                    Add Holiday
+                  </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
@@ -486,59 +510,98 @@ export default function OrganizationSettings() {
             </div>
 
             {isLoadingHolidays ? (
-              <div className="text-center py-4">Loading holidays...</div>
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
             ) : holidays?.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <AlertCircle className="h-10 w-10 mx-auto mb-2" />
-                <p>No holidays have been added yet.</p>
-                <p className="text-sm">Click the "Add Holiday" button to get started.</p>
+              <div className="text-center py-8 space-y-2 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/20">
+                <CalendarIcon2 className="h-12 w-12 mx-auto mb-2 text-muted-foreground/60" />
+                <p className="font-medium text-muted-foreground">No holidays have been added yet</p>
+                <p className="text-sm text-muted-foreground/70">Click the "Add Holiday" button to get started</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {holidays?.map((holiday: Holiday) => (
-                  <div key={holiday.id} className="flex items-center justify-between gap-4 p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{holiday.name}</h4>
-                        {holiday.isRecurring && (
-                          <Badge variant="outline" className="ml-2">Yearly</Badge>
+                  <div 
+                    key={holiday.id} 
+                    className="flex items-center justify-between gap-4 p-4 border rounded-lg hover:shadow-sm transition-all duration-200 bg-card hover:bg-card/80"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="bg-primary/10 p-2.5 rounded-full">
+                        <CalendarIcon2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-base">{holiday.name}</h4>
+                          {holiday.isRecurring && (
+                            <Badge variant="secondary" className="font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                              Yearly
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {format(new Date(holiday.date), "PPP")}
+                        </p>
+                        {holiday.locationId && locations?.find((l: Location) => l.id === holiday.locationId) && (
+                          <Badge variant="outline" className="mt-2 px-2 py-0.5 font-normal">
+                            {locations.find((l: Location) => l.id === holiday.locationId)?.name}
+                          </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(holiday.date), "PPP")}
-                      </p>
-                      {holiday.locationId && locations?.find((l: Location) => l.id === holiday.locationId) && (
-                        <Badge variant="secondary" className="mt-1">
-                          {locations.find((l: Location) => l.id === holiday.locationId)?.name}
-                        </Badge>
-                      )}
                     </div>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button 
                           variant="ghost" 
-                          size="sm"
+                          size="icon"
+                          className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
                           onClick={() => handleDeleteHoliday(holiday)}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Holiday</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{holidayToDelete?.name}"? This action cannot be undone.
+                          <AlertDialogTitle className="text-xl font-semibold flex items-center gap-2">
+                            <Trash2 className="h-5 w-5 text-destructive" />
+                            Delete Holiday
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="pt-2">
+                            <div className="mb-4 p-4 border rounded-lg bg-muted/50">
+                              <p className="font-medium text-base mb-1">{holidayToDelete?.name}</p>
+                              {holidayToDelete?.date && (
+                                <p className="text-sm text-muted-foreground">
+                                  {format(new Date(holidayToDelete.date), "PPP")}
+                                </p>
+                              )}
+                              {holidayToDelete?.isRecurring && (
+                                <Badge variant="outline" className="mt-2 font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                                  Yearly Holiday
+                                </Badge>
+                              )}
+                            </div>
+                            <p>Are you sure you want to delete this holiday? This action cannot be undone and will affect scheduling calculations.</p>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setHolidayToDelete(null)}>
+                        <AlertDialogFooter className="gap-2">
+                          <AlertDialogCancel 
+                            onClick={() => setHolidayToDelete(null)}
+                            className="mt-0"
+                          >
                             Cancel
                           </AlertDialogCancel>
                           <AlertDialogAction 
                             onClick={confirmDeleteHoliday}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 mt-0"
                           >
-                            Delete
+                            {deleteHolidayMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>Delete Holiday</>
+                            )}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
