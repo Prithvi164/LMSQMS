@@ -605,8 +605,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Add New User</CardTitle>
-            <CardDescription>Create new user account</CardDescription>
+            <CardDescription>Complete the form below to create a new user account</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasPermission("upload_users") && (
