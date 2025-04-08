@@ -6,8 +6,18 @@ let transporter: nodemailer.Transporter;
 // Initialize the email service with configuration
 export async function initializeEmailService() {
   try {
+    // Debug environment variables
+    console.log('Email Environment Variables:');
+    console.log('- EMAIL_HOST:', process.env.EMAIL_HOST || 'Not set');
+    console.log('- EMAIL_PORT:', process.env.EMAIL_PORT || 'Not set');
+    console.log('- EMAIL_USER:', process.env.EMAIL_USER ? '*** Set ***' : 'Not set');
+    console.log('- EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '*** Set ***' : 'Not set');
+    console.log('- EMAIL_SECURE:', process.env.EMAIL_SECURE || 'Not set');
+    console.log('- EMAIL_FROM:', process.env.EMAIL_FROM || 'Not set');
+    
     // Check if we have environment variables for email configuration
     if (process.env.EMAIL_HOST && process.env.EMAIL_PORT) {
+      console.log('Using configured email settings');
       // Use production configuration
       transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
@@ -54,6 +64,12 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string, us
       throw new Error('Email service not initialized');
     }
     
+    // Log email configuration
+    console.log('Sending password reset email with config:');
+    console.log('- From:', process.env.EMAIL_FROM || '"CloudLMS" <noreply@cloudlms.com>');
+    console.log('- To:', email);
+    console.log('- Using transport:', transporter.transporter?.options?.host || 'Unknown host');
+    
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"CloudLMS" <noreply@cloudlms.com>',
       to: email,
@@ -75,17 +91,35 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string, us
       `,
     };
     
+    console.log('Attempting to send email...');
     const info = await transporter.sendMail(mailOptions);
+    
     console.log('Password reset email sent successfully');
-    console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+    
+    // Only get preview URL for Ethereal test accounts
+    const previewUrl = transporter.options?.host?.includes('ethereal.email') 
+      ? nodemailer.getTestMessageUrl(info) 
+      : null;
+    
+    if (previewUrl) {
+      console.log('Preview URL:', previewUrl);
+    } else {
+      console.log('Email sent via production email service (no preview available)');
+    }
     
     return {
       success: true,
       messageId: info.messageId,
-      previewUrl: nodemailer.getTestMessageUrl(info),
+      previewUrl: previewUrl,
     };
   } catch (error) {
     console.error('Failed to send password reset email:', error);
+    // Output more detailed error information
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
