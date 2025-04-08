@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
+  Check,
+  ChevronDown,
   User, 
   Mail, 
   Phone, 
@@ -29,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function UserProfile() {
   const { user } = useAuth();
@@ -37,9 +40,26 @@ export function UserProfile() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [editedUser, setEditedUser] = useState({
     fullName: user?.fullName || "",
-    location: "",
+    locationId: user?.locationId || null,
     phoneNumber: user?.phoneNumber || "",
   });
+  const [locationName, setLocationName] = useState<string>("Not specified");
+
+  // Fetch available locations
+  const { data: locations = [] } = useQuery({
+    queryKey: ["/api/organizations", user?.organizationId, "locations"],
+    enabled: !!user?.organizationId
+  });
+
+  // Find the location name when user or locations change
+  useEffect(() => {
+    if (user?.locationId && locations.length > 0) {
+      const location = locations.find((loc: any) => loc.id === user.locationId);
+      if (location) {
+        setLocationName(location.name);
+      }
+    }
+  }, [user?.locationId, locations]);
 
   if (!user) return null;
 
@@ -150,7 +170,7 @@ export function UserProfile() {
                   <MapPin className="h-4 w-4 text-primary" />
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{editedUser.location || 'Not specified'}</p>
+                    <p className="font-medium">{locationName}</p>
                   </div>
                 </div>
                 
@@ -254,18 +274,37 @@ export function UserProfile() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="location">Location</Label>
-                          <div className="relative">
-                            <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="location"
-                              className="pl-9"
-                              value={editedUser.location}
-                              onChange={(e) => setEditedUser(prev => ({
+                          <Select
+                            value={editedUser.locationId?.toString() || ""}
+                            onValueChange={(value) => {
+                              setEditedUser(prev => ({
                                 ...prev,
-                                location: e.target.value
-                              }))}
-                            />
-                          </div>
+                                locationId: value ? parseInt(value) : null
+                              }));
+                              
+                              // Update location name for immediate display
+                              const selectedLocation = locations.find((loc: any) => loc.id.toString() === value);
+                              if (selectedLocation) {
+                                setLocationName(selectedLocation.name);
+                              } else {
+                                setLocationName("Not specified");
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Select a location" />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {locations.map((location: any) => (
+                                <SelectItem key={location.id} value={location.id.toString()}>
+                                  {location.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="phoneNumber">Phone Number</Label>
@@ -327,7 +366,7 @@ export function UserProfile() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground">Location</Label>
-                        <p className="font-medium">{editedUser.location || 'Not specified'}</p>
+                        <p className="font-medium">{locationName}</p>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground">Phone Number</Label>
