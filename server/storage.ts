@@ -105,6 +105,11 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
   
+  // Password reset operations
+  createPasswordResetToken(email: string, token: string): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  resetPassword(token: string, hashedPassword: string): Promise<boolean>;
+  
   // Audio file operations
   createAudioFile(file: InsertAudioFile): Promise<AudioFile>;
   getAudioFile(id: number): Promise<AudioFile | undefined>;
@@ -1701,6 +1706,97 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ password: hashedPassword })
       .where(eq(users.email, email));
+  }
+  
+  async createPasswordResetToken(email: string, token: string): Promise<User | undefined> {
+    try {
+      console.log(`Creating password reset token for email: ${email}`);
+      
+      // Set token expiration to 1 hour from now
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1);
+      
+      const [updatedUser] = await db
+        .update(users)
+        .set({ 
+          resetPasswordToken: token,
+          resetPasswordExpires: expiresAt
+        })
+        .where(eq(users.email, email))
+        .returning() as User[];
+      
+      if (!updatedUser) {
+        console.log(`No user found with email: ${email}`);
+        return undefined;
+      }
+      
+      console.log(`Password reset token created for user: ${updatedUser.username}`);
+      return updatedUser;
+    } catch (error) {
+      console.error('Error creating password reset token:', error);
+      throw error;
+    }
+  }
+  
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    try {
+      console.log(`Looking up user by reset token: ${token}`);
+      
+      const now = new Date();
+      const users = await db
+        .select()
+        .from(schema.users)
+        .where(
+          and(
+            eq(schema.users.resetPasswordToken, token),
+            gt(schema.users.resetPasswordExpires, now)
+          )
+        );
+      
+      if (users.length === 0) {
+        console.log('No valid user found with the provided reset token');
+        return undefined;
+      }
+      
+      console.log(`Found user by reset token: ${users[0].username}`);
+      return users[0];
+    } catch (error) {
+      console.error('Error getting user by reset token:', error);
+      throw error;
+    }
+  }
+  
+  async resetPassword(token: string, hashedPassword: string): Promise<boolean> {
+    try {
+      console.log('Attempting to reset password with token');
+      
+      const now = new Date();
+      const [updatedUser] = await db
+        .update(schema.users)
+        .set({ 
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordExpires: null
+        })
+        .where(
+          and(
+            eq(schema.users.resetPasswordToken, token),
+            gt(schema.users.resetPasswordExpires, now)
+          )
+        )
+        .returning() as User[];
+      
+      if (!updatedUser) {
+        console.log('No user found with valid reset token');
+        return false;
+      }
+      
+      console.log(`Password reset successful for user: ${updatedUser.username}`);
+      return true;
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    }
   }
 
   async deleteUser(id: number): Promise<void> {

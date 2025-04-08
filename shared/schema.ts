@@ -982,6 +982,8 @@ export const users = pgTable("users", {
   certified: boolean("certified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  resetPasswordToken: text("reset_password_token"),
+  resetPasswordExpires: timestamp("reset_password_expires"),
 });
 
 export type User = InferSelectModel<typeof users>;

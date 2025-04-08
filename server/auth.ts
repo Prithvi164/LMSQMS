@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response } from "express";
 import session from "express-session";
 import memorystore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -9,6 +9,7 @@ import { storage } from "./storage";
 import { User as SelectUser, permissionEnum } from "@shared/schema";
 import connectPg from "connect-pg-simple";
 import { z } from "zod";
+import { and, gt } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
@@ -21,6 +22,21 @@ const registrationSchema = z.object({
   organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
 });
 
+// Forgot password validation schema
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email format"),
+});
+
+// Reset password validation schema
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Confirm password is required"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
 declare global {
   namespace Express {
     interface User extends SelectUser {}
@@ -31,6 +47,11 @@ async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
+}
+
+// Generate a password reset token
+function generateResetToken(): string {
+  return randomBytes(32).toString("hex");
 }
 
 async function comparePasswords(supplied: string, stored: string) {
@@ -289,5 +310,113 @@ export function setupAuth(app: Express) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     res.json(req.user);
+  });
+  
+  // Forgot Password route
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      // Validate the request data
+      const data = forgotPasswordSchema.parse(req.body);
+      const { email } = data;
+      
+      console.log(`Forgot password request for email: ${email}`);
+      
+      // Check if user exists
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // For security reasons, don't reveal that the email doesn't exist
+        return res.status(200).json({
+          message: "If your email exists in our system, you will receive a password reset link."
+        });
+      }
+      
+      // Generate a reset token
+      const resetToken = generateResetToken();
+      
+      // Save the reset token and expiration in the database
+      await storage.createPasswordResetToken(email, resetToken);
+      
+      // Generate reset URL (in a real app, this would be a frontend URL)
+      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${resetToken}`;
+      
+      console.log(`Password reset link for ${email}: ${resetUrl}`);
+      
+      // In a real application, send an email with the reset link
+      // For this implementation, we'll just log it and return it in the response
+      // (normally you wouldn't return the actual token in the response)
+      
+      return res.status(200).json({
+        message: "If your email exists in our system, you will receive a password reset link.",
+        // For testing purposes only - would be removed in production:
+        resetUrl: resetUrl
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      return res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+  
+  // Reset Password route
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      // Validate the request data
+      const data = resetPasswordSchema.parse(req.body);
+      const { token, password } = data;
+      
+      console.log(`Password reset attempt for token: ${token.substring(0, 10)}...`);
+      
+      // Find user by reset token
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+      
+      // Hash the new password
+      const hashedPassword = await hashPassword(password);
+      
+      // Update the user's password and clear the reset token
+      const success = await storage.resetPassword(token, hashedPassword);
+      
+      if (!success) {
+        return res.status(400).json({ message: "Password reset failed" });
+      }
+      
+      console.log(`Password reset successful for user: ${user.username}`);
+      
+      return res.status(200).json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      return res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  
+  // Validate Reset Token route
+  app.get("/api/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "No token provided" });
+      }
+      
+      // Check if token exists and is valid
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+      
+      return res.status(200).json({ message: "Token is valid", valid: true });
+    } catch (error) {
+      console.error("Token validation error:", error);
+      return res.status(500).json({ message: "Failed to validate token" });
+    }
   });
 }

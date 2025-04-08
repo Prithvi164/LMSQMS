@@ -7,6 +7,8 @@ import { PermissionsProvider } from "@/hooks/use-permissions";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
@@ -58,6 +60,8 @@ function Router() {
         )}
         <Switch>
           <Route path="/auth" component={AuthPage} />
+          <Route path="/forgot-password" component={ForgotPasswordPage} />
+          <Route path="/reset-password" component={ResetPasswordPage} />
           <ProtectedRoute path="/" component={Dashboard} />
 
           <ProtectedRoute path="/trainee-management" component={TraineeManagement} />

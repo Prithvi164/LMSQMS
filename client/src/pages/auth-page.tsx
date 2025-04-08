@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { 
   Card,
   CardContent,
@@ -139,7 +139,14 @@ export default function AuthPage() {
                 >
                   {isLogin ? "Login" : "Register"}
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
+                {isLogin && (
+                  <div className="text-center mt-2">
+                    <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                      Forgot your password?
+                    </Link>
+                  </div>
+                )}
+                <p className="text-center text-sm text-muted-foreground mt-2">
                   {isLogin ? "Don't have an account? " : "Already have an account? "}
                   <button
                     type="button"
