@@ -10,6 +10,7 @@ import { User as SelectUser, permissionEnum } from "@shared/schema";
 import connectPg from "connect-pg-simple";
 import { z } from "zod";
 import { and, gt } from "drizzle-orm";
+import { initializeEmailService, sendPasswordResetEmail } from "./email-service";
 
 const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
@@ -83,6 +84,19 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSecret = randomBytes(32).toString("hex");
+  
+  // Initialize email service
+  initializeEmailService()
+    .then(success => {
+      if (success) {
+        console.log("Email service initialized successfully");
+      } else {
+        console.warn("Email service initialization failed, emails will not be sent");
+      }
+    })
+    .catch(error => {
+      console.error("Error initializing email service:", error);
+    });
   
   // Use a memory store initially to allow the app to start even if DB connection fails
   const MemoryStore = memorystore(session);
@@ -336,19 +350,24 @@ export function setupAuth(app: Express) {
       // Save the reset token and expiration in the database
       await storage.createPasswordResetToken(email, resetToken);
       
-      // Generate reset URL (in a real app, this would be a frontend URL)
+      // Generate reset URL for the frontend
       const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${resetToken}`;
       
       console.log(`Password reset link for ${email}: ${resetUrl}`);
       
-      // In a real application, send an email with the reset link
-      // For this implementation, we'll just log it and return it in the response
-      // (normally you wouldn't return the actual token in the response)
+      // Send the password reset email
+      const emailResult = await sendPasswordResetEmail(email, resetUrl, user.username);
+      console.log("Email sending result:", emailResult);
+      
+      if (emailResult.previewUrl) {
+        console.log("Preview URL for email:", emailResult.previewUrl);
+      }
       
       return res.status(200).json({
         message: "If your email exists in our system, you will receive a password reset link.",
         // For testing purposes only - would be removed in production:
-        resetUrl: resetUrl
+        resetUrl: resetUrl,
+        emailPreviewUrl: emailResult.previewUrl
       });
     } catch (error) {
       console.error("Forgot password error:", error);

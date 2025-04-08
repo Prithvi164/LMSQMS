@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import rateLimit from 'express-rate-limit';
 import { startBatchStatusCron } from './cron/batch-status-cron';
+import { initializeEmailService } from './email-service';
 
 // Add debug logging
 const DEBUG = true;
