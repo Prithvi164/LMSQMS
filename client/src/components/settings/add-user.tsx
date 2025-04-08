@@ -253,28 +253,51 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     // Create a workbook
     const wb = XLSX.utils.book_new();
     
-    // Create a sheet with example data
+    // Create a sheet with comprehensive user data template
     const exampleData = [
       {
         username: "jsmith",
         fullName: "John Smith",
         email: "jsmith@example.com",
-        role: "advisor", // advisor, trainer, quality_analyst, team_lead, manager, admin
+        role: "advisor", // owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee
+        category: "active", // active, trainee
         reportingManager: "manager_username", // Username of the manager
-        location: "New York",
+        location: "Mumbai", // Must match existing location name in the system
         employeeId: "EMP001",
         password: "securepassword123",
         phoneNumber: "123-456-7890",
-        dateOfJoining: "2023-01-15",
-        dateOfBirth: "1990-05-20",
+        dateOfJoining: "2023-01-15", // yyyy-MM-dd format
+        dateOfBirth: "1990-05-20", // yyyy-MM-dd format
         education: "Bachelor's in Business",
-        lineOfBusiness: "Sales",
-        process: "Lead Generation"
+        lineOfBusiness: "Sales", // Must match existing LOB name in the system
+        process: "Lead Generation" // Must match existing process name in the system
       }
     ];
     
     const ws = XLSX.utils.json_to_sheet(exampleData);
-    XLSX.utils.book_append_sheet(wb, ws, "Users");
+    XLSX.utils.book_append_sheet(wb, ws, "Users Template");
+    
+    // Create a sheet with field explanations
+    const fieldInfo = [
+      { Field: "username", Description: "Unique username (required), no spaces allowed", Example: "john.smith" },
+      { Field: "fullName", Description: "User's full name (required)", Example: "John Smith" },
+      { Field: "email", Description: "Valid email address (required)", Example: "john.smith@example.com" },
+      { Field: "role", Description: "User role (required). Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee", Example: "advisor" },
+      { Field: "category", Description: "User category. Valid values: active, trainee", Example: "active" },
+      { Field: "reportingManager", Description: "Username of the manager (respects role hierarchy)", Example: "jane.manager" },
+      { Field: "location", Description: "Location name (must match existing location in the system)", Example: "Mumbai" },
+      { Field: "employeeId", Description: "Employee ID (optional)", Example: "EMP001" },
+      { Field: "password", Description: "Initial password (required)", Example: "securepassword123" },
+      { Field: "phoneNumber", Description: "Phone number (optional)", Example: "123-456-7890" },
+      { Field: "dateOfJoining", Description: "Date of joining in YYYY-MM-DD format (optional)", Example: "2023-01-15" },
+      { Field: "dateOfBirth", Description: "Date of birth in YYYY-MM-DD format (optional)", Example: "1990-05-20" },
+      { Field: "education", Description: "Educational background (optional)", Example: "Bachelor's in Business" },
+      { Field: "lineOfBusiness", Description: "Line of Business name (must match existing LOB in the system)", Example: "Sales" },
+      { Field: "process", Description: "Process name (must match existing process in the system)", Example: "Lead Generation" }
+    ];
+    
+    const fieldInfoSheet = XLSX.utils.json_to_sheet(fieldInfo);
+    XLSX.utils.book_append_sheet(wb, fieldInfoSheet, "Field Descriptions");
     
     // Add Role hierarchy information in another sheet
     const roleInfo = [
@@ -284,11 +307,51 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Role: "Team Lead", "Reports To": "Owner, Admin, or Manager" },
       { Role: "Quality Analyst", "Reports To": "Owner, Admin, Manager, or Team Lead" },
       { Role: "Trainer", "Reports To": "Owner, Admin, Manager, or Team Lead" },
-      { Role: "Advisor", "Reports To": "Any higher role" }
+      { Role: "Advisor", "Reports To": "Any higher role" },
+      { Role: "Trainee", "Reports To": "Any higher role, typically assigned to a Trainer" }
     ];
     
     const roleSheet = XLSX.utils.json_to_sheet(roleInfo);
     XLSX.utils.book_append_sheet(wb, roleSheet, "Role Hierarchy");
+    
+    // Add location information
+    const locationInfo = locations.map(loc => ({
+      "Location ID": loc.id,
+      "Location Name": loc.name,
+      "City": loc.city,
+      "State": loc.state,
+      "Country": loc.country
+    }));
+    
+    if (locationInfo.length > 0) {
+      const locationSheet = XLSX.utils.json_to_sheet(locationInfo);
+      XLSX.utils.book_append_sheet(wb, locationSheet, "Available Locations");
+    }
+    
+    // Add Line of Business information
+    const lobInfo = lineOfBusinesses.map(lob => ({
+      "LOB ID": lob.id,
+      "Line of Business Name": lob.name,
+      "Description": lob.description
+    }));
+    
+    if (lobInfo.length > 0) {
+      const lobSheet = XLSX.utils.json_to_sheet(lobInfo);
+      XLSX.utils.book_append_sheet(wb, lobSheet, "Lines of Business");
+    }
+    
+    // Add Process information
+    const processInfo = processes.map(proc => ({
+      "Process ID": proc.id,
+      "Process Name": proc.name,
+      "Line of Business": lineOfBusinesses.find(lob => lob.id === proc.lineOfBusinessId)?.name || "Unknown",
+      "Description": proc.description
+    }));
+    
+    if (processInfo.length > 0) {
+      const processSheet = XLSX.utils.json_to_sheet(processInfo);
+      XLSX.utils.book_append_sheet(wb, processSheet, "Available Processes");
+    }
     
     // Generate Excel file
     XLSX.writeFile(wb, "user-upload-template.xlsx");
