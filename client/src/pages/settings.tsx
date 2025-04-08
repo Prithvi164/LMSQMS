@@ -175,12 +175,14 @@ export default function Settings(): React.JSX.Element {
                     <>
                       {activeUserTab === "manage" && <UserManagement />}
                       {activeUserTab === "add" && (
-                        <AddUser
-                          users={users}
-                          user={user}
-                          organization={organization}
-                          potentialManagers={potentialManagers}
-                        />
+                        <div className="space-y-4">
+                          <AddUser
+                            users={users}
+                            user={user}
+                            organization={organization}
+                            potentialManagers={potentialManagers}
+                          />
+                        </div>
                       )}
                     </>
                   )}

@@ -307,7 +307,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     <Card className="border-t-4 border-t-primary/70 shadow-md">
       <CardHeader className="pb-4 bg-gradient-to-r from-muted/50 to-background">
         <CardTitle className="flex justify-between items-center">
-          <span className="text-xl font-semibold">Add New User</span>
+          <span className="text-xl font-semibold"></span>
           <div className="flex items-center gap-2">
             {hasPermission("upload_users") && (
               <>
