@@ -104,10 +104,19 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
-      return apiRequest('POST', '/api/users', {
+      // If processes are selected, include the lineOfBusinessId from the first selected LOB
+      const payload = {
         ...data,
         organizationId: organization?.id,
-      });
+      };
+      
+      // Only include lineOfBusinessId if processes are selected and we have LOBs selected
+      if (data.processes.length > 0 && selectedLOBs.length > 0) {
+        // Using the first selected LOB as the lineOfBusinessId
+        payload.lineOfBusinessId = selectedLOBs[0];
+      }
+      
+      return apiRequest('POST', '/api/users', payload);
     },
     onSuccess: () => {
       toast({
