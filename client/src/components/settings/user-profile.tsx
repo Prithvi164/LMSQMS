@@ -25,7 +25,9 @@ import {
   BriefcaseBusiness,
   GraduationCap,
   Save,
-  UsersRound as Users
+  UsersRound as Users,
+  UserCircle,
+  Info
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -478,7 +480,7 @@ export function UserProfile() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {user.role === 'trainee' ? (
                       <div className="bg-muted/30 rounded-lg p-4">
                         <div className="flex items-center justify-between">
@@ -527,6 +529,38 @@ export function UserProfile() {
                         </div>
                       </div>
                     )}
+                    
+                    {/* Reporting Profile Section */}
+                    <Card className="border border-muted-foreground/10 shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center">
+                          <UserCircle className="h-5 w-5 mr-2 text-primary" />
+                          Reporting Manager
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-2">
+                        {user.managerId ? (
+                          <div className="flex items-center gap-3 p-2">
+                            <Avatar className="h-12 w-12 border-2 border-primary/20">
+                              <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary/50 text-primary-foreground">
+                                {user.managerId.toString().substring(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h4 className="font-medium">Manager #{user.managerId}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                Your direct reporting manager
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center p-4 text-muted-foreground">
+                            <Info className="h-4 w-4 mr-2" />
+                            <span>No reporting manager assigned</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                 </CardContent>
               </Card>
