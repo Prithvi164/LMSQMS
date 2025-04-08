@@ -500,24 +500,19 @@ export function UserProfile() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="space-y-6">
-                    <div className="relative pl-5 border-l-2 border-gray-200 pb-8">
-                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-primary"></div>
-                      <h4 className="text-sm font-medium">Profile updated</h4>
-                      <p className="text-xs text-muted-foreground">Today</p>
-                    </div>
-                    <div className="relative pl-5 border-l-2 border-gray-200 pb-8">
-                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-blue-500"></div>
-                      <h4 className="text-sm font-medium">Password changed</h4>
-                      <p className="text-xs text-muted-foreground">2 weeks ago</p>
-                    </div>
+                    {/* Account creation is the only real data point we have */}
                     <div className="relative pl-5 pb-0">
-                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-gray-300"></div>
+                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-primary"></div>
                       <h4 className="text-sm font-medium">Account created</h4>
                       <p className="text-xs text-muted-foreground">
                         {user.createdAt 
                           ? new Date(user.createdAt).toLocaleDateString() 
                           : 'Date not available'}
                       </p>
+                    </div>
+                    <div className="text-center text-sm text-muted-foreground pt-4">
+                      <Info className="h-4 w-4 inline-block mr-2" />
+                      Activity history will be shown here when available
                     </div>
                   </div>
                 </CardContent>
