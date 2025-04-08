@@ -290,10 +290,9 @@ export default function OrganizationSettings() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between border-b pb-4 mb-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Organization Settings</h2>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground">
             Configure your organization's appearance and scheduling preferences.
           </p>
         </div>
