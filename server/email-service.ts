@@ -22,11 +22,17 @@ export async function initializeEmailService() {
       transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
         port: parseInt(process.env.EMAIL_PORT),
-        secure: process.env.EMAIL_SECURE === 'true',
+        secure: process.env.EMAIL_PORT === '465', // Force secure=true for port 465, false otherwise
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD,
         },
+        tls: {
+          // Do not fail on invalid certs
+          rejectUnauthorized: false
+        },
+        debug: true, // Show debug output
+        logger: true // Log information about the mail
       });
     } else {
       // For development/testing - create a test account using Ethereal
@@ -68,7 +74,7 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string, us
     console.log('Sending password reset email with config:');
     console.log('- From:', process.env.EMAIL_FROM || '"CloudLMS" <noreply@cloudlms.com>');
     console.log('- To:', email);
-    console.log('- Using transport:', transporter.transporter?.options?.host || 'Unknown host');
+    console.log('- Using transport:', process.env.EMAIL_HOST || 'Unknown host');
     
     const mailOptions = {
       from: process.env.EMAIL_FROM || '"CloudLMS" <noreply@cloudlms.com>',
@@ -97,9 +103,10 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string, us
     console.log('Password reset email sent successfully');
     
     // Only get preview URL for Ethereal test accounts
-    const previewUrl = transporter.options?.host?.includes('ethereal.email') 
-      ? nodemailer.getTestMessageUrl(info) 
-      : null;
+    let previewUrl = null;
+    if (process.env.EMAIL_HOST?.includes('ethereal.email')) {
+      previewUrl = nodemailer.getTestMessageUrl(info);
+    }
     
     if (previewUrl) {
       console.log('Preview URL:', previewUrl);
