@@ -338,7 +338,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
-        {showBulkUpload && (
+        {/* Bulk Upload Section */}
+        <div className={showBulkUpload ? "block" : "hidden"}>
           <PermissionGuard permission="upload_users">
             <div className="space-y-4 mb-6">
               <div>
@@ -429,7 +430,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               )}
             </div>
           </PermissionGuard>
-        )}
+        </div>
 
         {/* Add User Form */}
         <form
