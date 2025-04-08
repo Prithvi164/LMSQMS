@@ -45,16 +45,28 @@ export function UserProfile() {
   });
   const [locationName, setLocationName] = useState<string>("Not specified");
 
+  // Define interface for location
+  interface Location {
+    id: number;
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    organizationId: number;
+    createdAt: string;
+  }
+
   // Fetch available locations
-  const { data: locations = [] } = useQuery({
-    queryKey: ["/api/organizations", user?.organizationId, "locations"],
+  const { data: locations = [] } = useQuery<Location[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId
   });
 
   // Find the location name when user or locations change
   useEffect(() => {
     if (user?.locationId && locations.length > 0) {
-      const location = locations.find((loc: any) => loc.id === user.locationId);
+      const location = locations.find((loc: Location) => loc.id === user.locationId);
       if (location) {
         setLocationName(location.name);
       }
@@ -283,7 +295,7 @@ export function UserProfile() {
                               }));
                               
                               // Update location name for immediate display
-                              const selectedLocation = locations.find((loc: any) => loc.id.toString() === value);
+                              const selectedLocation = locations.find((loc: Location) => loc.id.toString() === value);
                               if (selectedLocation) {
                                 setLocationName(selectedLocation.name);
                               } else {
@@ -298,7 +310,7 @@ export function UserProfile() {
                               </div>
                             </SelectTrigger>
                             <SelectContent>
-                              {locations.map((location: any) => (
+                              {locations.map((location: Location) => (
                                 <SelectItem key={location.id} value={location.id.toString()}>
                                   {location.name}
                                 </SelectItem>
