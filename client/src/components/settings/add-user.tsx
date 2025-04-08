@@ -104,12 +104,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
-      return apiRequest('/api/users', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...data,
-          organizationId: organization?.id,
-        }),
+      return apiRequest('POST', '/api/users', {
+        ...data,
+        organizationId: organization?.id,
       });
     },
     onSuccess: () => {
@@ -147,12 +144,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const bulkUploadMutation = useMutation({
     mutationFn: async (data: BulkUserUpload[]) => {
-      return apiRequest('/api/users/bulk', {
-        method: 'POST',
-        body: JSON.stringify({
-          users: data,
-          organizationId: organization?.id,
-        }),
+      return apiRequest('POST', '/api/users/bulk', {
+        users: data,
+        organizationId: organization?.id,
       });
     },
     onSuccess: () => {
