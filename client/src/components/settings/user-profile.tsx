@@ -402,31 +402,45 @@ export function UserProfile() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="space-y-6">
-                    {/* Skills Section */}
+                    {/* Personal Details Section */}
                     <div>
-                      <h3 className="text-sm font-semibold mb-3">Professional Skills</h3>
+                      <h3 className="text-sm font-semibold mb-3">Personal Information</h3>
                       <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between">
-                            <Label className="text-xs">Customer Service</Label>
-                            <span className="text-xs font-medium">85%</span>
+                        {user.dateOfBirth && (
+                          <div className="bg-muted/30 rounded-lg p-3">
+                            <div className="flex flex-col">
+                              <div className="flex items-center">
+                                <Calendar className="h-4 w-4 text-primary mr-2" />
+                                <h4 className="font-medium">Date of Birth</h4>
+                              </div>
+                              <p className="text-sm mt-1">
+                                {new Date(user.dateOfBirth).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
                           </div>
-                          <Progress value={85} className="h-2" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between">
-                            <Label className="text-xs">Communication</Label>
-                            <span className="text-xs font-medium">90%</span>
+                        )}
+                        
+                        {user.dateOfJoining && (
+                          <div className="bg-muted/30 rounded-lg p-3">
+                            <div className="flex flex-col">
+                              <div className="flex items-center">
+                                <BriefcaseBusiness className="h-4 w-4 text-primary mr-2" />
+                                <h4 className="font-medium">Date of Joining</h4>
+                              </div>
+                              <p className="text-sm mt-1">
+                                {new Date(user.dateOfJoining).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
                           </div>
-                          <Progress value={90} className="h-2" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between">
-                            <Label className="text-xs">Problem Solving</Label>
-                            <span className="text-xs font-medium">75%</span>
-                          </div>
-                          <Progress value={75} className="h-2" />
-                        </div>
+                        )}
                       </div>
                     </div>
                     
@@ -437,14 +451,12 @@ export function UserProfile() {
                       <h3 className="text-sm font-semibold mb-3">Education</h3>
                       <div className="space-y-4">
                         <div className="bg-muted/30 rounded-lg p-3">
-                          <div className="flex justify-between">
-                            <h4 className="font-medium">{user.education || 'Degree not specified'}</h4>
-                            <Badge variant="outline" className="text-xs">
-                              {user.dateOfBirth ? new Date(user.dateOfBirth).getFullYear() : 'Year N/A'}
-                            </Badge>
+                          <div className="flex items-center mb-1">
+                            <GraduationCap className="h-4 w-4 text-primary mr-2" />
+                            <h4 className="font-medium">Qualification</h4>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {user.education ? 'University details not available' : 'Education details not provided'}
+                          <p className="text-sm">
+                            {user.education || 'Education details not provided'}
                           </p>
                         </div>
                       </div>
