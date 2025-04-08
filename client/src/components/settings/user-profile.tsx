@@ -22,7 +22,8 @@ import {
   Loader2,
   BriefcaseBusiness,
   GraduationCap,
-  Save
+  Save,
+  UsersRound as Users
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
