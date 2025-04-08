@@ -84,6 +84,11 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
           <Badge>{user.role}</Badge>
         </TableCell>
         <TableCell>
+          <Badge variant={user.category === 'trainee' ? 'secondary' : 'outline'}>
+            {user.category || 'active'}
+          </Badge>
+        </TableCell>
+        <TableCell>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

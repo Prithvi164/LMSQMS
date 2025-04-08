@@ -70,6 +70,7 @@ export function UserManagement() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -354,6 +355,10 @@ export function UserManagement() {
       (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    
+    // Add category filter
+    const matchesCategory = categoryFilter === "all" || 
+      (u.category || "active") === categoryFilter;
 
     // Enhanced manager filter to include hierarchical filtering
     const matchesManager = managerFilter === "all" ||
@@ -362,7 +367,7 @@ export function UserManagement() {
       (managerFilter === "team" && isSubordinate(user?.id || 0, u.id, users)) ||
       (u.managerId?.toString() === managerFilter);
 
-    return matchesSearch && matchesRole && matchesManager;
+    return matchesSearch && matchesRole && matchesManager && matchesCategory;
   });
 
   // Pagination calculations
@@ -980,6 +985,22 @@ export function UserManagement() {
                 </SelectContent>
               </Select>
               <Select
+                value={categoryFilter}
+                onValueChange={(value) => {
+                  setCategoryFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="trainee">Trainee</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
                 value={managerFilter}
                 onValueChange={(value) => {
                   setManagerFilter(value);
@@ -1035,13 +1056,14 @@ export function UserManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[13%]">Username</TableHead>
-                  <TableHead className="w-[15%]">Email</TableHead>
-                  <TableHead className="w-[13%]">Full Name</TableHead>
-                  <TableHead className="w-[8%]">Role</TableHead>
-                  <TableHead className="w-[10%]">Manager</TableHead>
-                  <TableHead className="w-[10%]">Location</TableHead>
-                  <TableHead className="w-[18%]">Processes</TableHead>
+                  <TableHead className="w-[12%]">Username</TableHead>
+                  <TableHead className="w-[14%]">Email</TableHead>
+                  <TableHead className="w-[12%]">Full Name</TableHead>
+                  <TableHead className="w-[7%]">Role</TableHead>
+                  <TableHead className="w-[7%]">Category</TableHead>
+                  <TableHead className="w-[9%]">Manager</TableHead>
+                  <TableHead className="w-[9%]">Location</TableHead>
+                  <TableHead className="w-[17%]">Processes</TableHead>
                   <TableHead className="w-[5%]">Active</TableHead>
                   {canManageUsers && (
                     <TableHead className="w-[8%] text-right">Actions</TableHead>
@@ -1058,6 +1080,11 @@ export function UserManagement() {
                       <TableCell>{user.fullName}</TableCell>
                       <TableCell>
                         <Badge>{user.role}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.category === 'trainee' ? 'secondary' : 'outline'}>
+                          {user.category || 'active'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
