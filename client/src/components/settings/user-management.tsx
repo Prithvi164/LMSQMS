@@ -1172,15 +1172,62 @@ export function UserManagement() {
                 ) : (
                   // Hierarchical view - tree structure based on current user and visible permissions
                   (() => {
+                    // If no users match the filters, don't show anything
+                    if (filteredUsers.length === 0) {
+                      return null;
+                    }
+
+                    // Filter logic for specific category
+                    const showTraineeOnly = categoryFilter === 'trainee';
+                    const showActiveOnly = categoryFilter === 'active';
+                    
+                    // For hierarchy view, we need to include parents even if they don't match the filter
+                    // This preserves the hierarchy while still highlighting the matched users
+                    const hierarchyUsers = users.filter(u => {
+                      // This is a direct match to our filters
+                      const directMatch = filteredUsers.some(filtered => filtered.id === u.id);
+                      
+                      // If this is a direct match, include it
+                      if (directMatch) return true;
+                      
+                      // Otherwise, check if any of this user's subordinates match our filters
+                      // If so, we need to include this user to maintain the hierarchy
+                      const hasMatchingSubordinate = filteredUsers.some(filtered => 
+                        isSubordinate(u.id, filtered.id, users)
+                      );
+                      
+                      return hasMatchingSubordinate;
+                    });
+                    
+                    // Auto-expand managers that have matching subordinates
+                    // This ensures that filtered results are visible in the hierarchy
+                    if (categoryFilter !== 'all' || roleFilter !== 'all' || searchTerm || managerFilter !== 'all') {
+                      // Identify managers who have subordinates that match the filter
+                      const managersWithMatchingSubordinates = hierarchyUsers.filter(u => {
+                        // Check if any direct reports of this user match the filter
+                        return users.some(potentialReport => 
+                          potentialReport.managerId === u.id && 
+                          filteredUsers.some(filtered => filtered.id === potentialReport.id)
+                        );
+                      });
+                      
+                      // Add these managers to expanded list if not already there
+                      managersWithMatchingSubordinates.forEach(manager => {
+                        if (!expandedManagers.includes(manager.id)) {
+                          setExpandedManagers(prev => [...prev, manager.id]);
+                        }
+                      });
+                    }
+                    
                     // If owner or admin, show the entire org hierarchy from root users
                     if (user?.role === 'owner' || user?.role === 'admin') {
-                      return filteredUsers
+                      return hierarchyUsers
                         .filter(u => !u.managerId) // Only root users (no manager)
                         .map(rootUser => (
                           <HierarchicalUserRow
                             key={rootUser.id}
                             user={rootUser}
-                            users={filteredUsers}
+                            users={hierarchyUsers}
                             level={0}
                             expandedManagers={expandedManagers}
                             toggleExpanded={toggleManagerExpanded}
@@ -1198,11 +1245,16 @@ export function UserManagement() {
                     } 
                     // For managers and other roles, show only their own hierarchy
                     else {
+                      // Ensure current user is in the filtered list for hierarchy
+                      if (!hierarchyUsers.some(u => u.id === user?.id)) {
+                        return <div className="p-4 text-center text-muted-foreground">No matching users in your team</div>;
+                      }
+                      
                       return (
                         <HierarchicalUserRow
                           key={user?.id}
                           user={user as User}
-                          users={filteredUsers}
+                          users={hierarchyUsers}
                           level={0}
                           expandedManagers={expandedManagers}
                           toggleExpanded={toggleManagerExpanded}

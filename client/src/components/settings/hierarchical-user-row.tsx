@@ -49,9 +49,18 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
   // Calculate indentation based on hierarchy level
   const indentPadding = level * 20; // 20px per level
   
+  // Determine if this entry is directly matched by filters
+  const isFilterMatch = users.some(u => u.id === user.id);
+  
   return (
     <>
-      <TableRow key={user.id} className={cn(!user.active && "opacity-50")}>
+      <TableRow 
+        key={user.id} 
+        className={cn(
+          !user.active && "opacity-50",
+          !isFilterMatch && "opacity-70"
+        )}
+      >
         <TableCell>
           <div className="flex items-center" style={{ paddingLeft: `${indentPadding}px` }}>
             {/* Expand/collapse button for users with direct reports */}
