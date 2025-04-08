@@ -472,95 +472,100 @@ export function UserProfile() {
               <Card className="border-t-4 border-t-primary/70 shadow-md">
                 <CardHeader className="pb-2 bg-gradient-to-r from-muted/50 to-background">
                   <CardTitle className="flex items-center">
-                    <Users className="h-5 w-5 mr-2 text-primary" />
-                    <span>My Teams</span>
+                    <UserCircle className="h-5 w-5 mr-2 text-primary" />
+                    <span>Reporting & Team Structure</span>
                   </CardTitle>
                   <CardDescription>
-                    Teams you are a member of
+                    Your organizational structure and team relationships
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="space-y-5">
-                    {user.role === 'trainee' ? (
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-                              <GraduationCap className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium">Training Batch</h3>
-                              <p className="text-sm text-muted-foreground">Current training program</p>
-                            </div>
-                          </div>
-                          <Badge variant="outline">Active</Badge>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="bg-muted/30 rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <h3 className="font-medium">Core Team</h3>
-                                <p className="text-sm text-muted-foreground">Primary team</p>
-                              </div>
-                            </div>
-                            <Badge variant="outline">Active</Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-muted/30 rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <h3 className="font-medium">Project Team</h3>
-                                <p className="text-sm text-muted-foreground">Secondary assignment</p>
-                              </div>
-                            </div>
-                            <Badge variant="outline">Active</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Reporting Profile Section */}
-                    <Card className="border border-muted-foreground/10 shadow-sm">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center">
-                          <UserCircle className="h-5 w-5 mr-2 text-primary" />
-                          Reporting Manager
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-2">
-                        {user.managerId ? (
-                          <div className="flex items-center gap-3 p-2">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20">
-                              <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary/50 text-primary-foreground">
+                  <div className="space-y-6">
+                    {/* Reporting Manager Section with improved UI */}
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 flex items-center">
+                        <UserCircle className="h-4 w-4 mr-2 text-primary" />
+                        Reporting Manager
+                      </h3>
+                      
+                      {user.managerId ? (
+                        <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-16 w-16 border-2 border-primary/20">
+                              <AvatarFallback className="text-xl bg-gradient-to-br from-primary/80 to-primary/50 text-primary-foreground">
                                 {user.managerId.toString().substring(0, 2)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <h4 className="font-medium">Manager #{user.managerId}</h4>
+                              <h4 className="font-medium text-lg">Manager #{user.managerId}</h4>
                               <p className="text-sm text-muted-foreground">
                                 Your direct reporting manager
                               </p>
+                              <Badge variant="outline" className="mt-2">
+                                Active
+                              </Badge>
                             </div>
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-center p-4 text-muted-foreground">
-                            <Info className="h-4 w-4 mr-2" />
-                            <span>No reporting manager assigned</span>
+                        </div>
+                      ) : (
+                        <div className="bg-muted/30 rounded-lg p-4 flex items-center justify-center text-muted-foreground">
+                          <Info className="h-4 w-4 mr-2" />
+                          <span>No reporting manager assigned</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Team Assignment Section with improved UI */}
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 flex items-center">
+                        <Users className="h-4 w-4 mr-2 text-primary" />
+                        Team Assignments
+                      </h3>
+                      
+                      {user.role === 'trainee' ? (
+                        <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                              <GraduationCap className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">Training Batch</h4>
+                              <p className="text-sm text-muted-foreground">Current training program</p>
+                              <Badge variant="outline" className="mt-2">Active</Badge>
+                            </div>
                           </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                                <Users className="h-6 w-6 text-primary" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium">Core Team</h4>
+                                <p className="text-sm text-muted-foreground">Primary team assignment</p>
+                                <Badge variant="outline" className="mt-2">Active</Badge>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Additional team assignment for non-trainees */}
+                          <div className="bg-muted/30 rounded-lg p-4 border border-primary/10">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-300/30 to-blue-300/10 flex items-center justify-center">
+                                <Users className="h-6 w-6 text-blue-500" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium">Project Team</h4>
+                                <p className="text-sm text-muted-foreground">Secondary assignment</p>
+                                <Badge variant="outline" className="mt-2">Active</Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
