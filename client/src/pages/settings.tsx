@@ -6,6 +6,7 @@ import type { User, Organization } from "@shared/schema";
 import { Users, UserCircle, Shield, ChevronLeft, Network, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { usePermissions, PermissionGuard } from "@/hooks/use-permissions";
 
 // Import existing components
 import { UserManagement } from "@/components/settings/user-management";
@@ -22,6 +23,7 @@ type UsersSubTab = "add" | "manage";
 export default function Settings(): React.JSX.Element {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [activeUserTab, setActiveUserTab] = useState<UsersSubTab>("manage");
 
@@ -151,13 +153,15 @@ export default function Settings(): React.JSX.Element {
               Organization Tree
             </NavTab>
 
-            <NavTab
-              active={activeTab === "organization-settings"}
-              icon={CalendarDays}
-              onClick={() => setActiveTab("organization-settings")}
-            >
-              Organization Settings
-            </NavTab>
+            {hasPermission("manage_organization_settings") && (
+              <NavTab
+                active={activeTab === "organization-settings"}
+                icon={CalendarDays}
+                onClick={() => setActiveTab("organization-settings")}
+              >
+                Organization Settings
+              </NavTab>
+            )}
           </div>
         </div>
 
@@ -193,7 +197,15 @@ export default function Settings(): React.JSX.Element {
                     </div>
                   )}
                   {activeTab === "organization-tree" && <OrganizationTree />}
-                  {activeTab === "organization-settings" && <OrganizationSettings />}
+                  {activeTab === "organization-settings" && hasPermission("manage_organization_settings") && (
+                    <OrganizationSettings />
+                  )}
+                  {activeTab === "organization-settings" && !hasPermission("manage_organization_settings") && (
+                    <div className="p-4 border rounded-md bg-yellow-50 text-yellow-800">
+                      <h3 className="text-lg font-medium mb-2">Permission Required</h3>
+                      <p>You do not have permission to view or manage organization settings.</p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
