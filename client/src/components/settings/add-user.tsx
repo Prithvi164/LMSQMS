@@ -253,7 +253,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         username: "jsmith",
         fullName: "John Smith",
         email: "jsmith@example.com",
-        role: "advisor", // owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee
+        role: "advisor", // Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee
         reportingManager: "manager_username", // Username of the manager
         location: "Mumbai", // Must match existing location name in the system
         employeeId: "EMP001",
@@ -293,14 +293,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     
     // Add Role hierarchy information in another sheet
     const roleInfo = [
-      { Role: "Owner", "Reports To": "No one" },
-      { Role: "Admin", "Reports To": "Owner only" },
-      { Role: "Manager", "Reports To": "Owner or Admin" },
-      { Role: "Team Lead", "Reports To": "Owner, Admin, or Manager" },
-      { Role: "Quality Analyst", "Reports To": "Owner, Admin, Manager, or Team Lead" },
-      { Role: "Trainer", "Reports To": "Owner, Admin, Manager, or Team Lead" },
-      { Role: "Advisor", "Reports To": "Any higher role" },
-      { Role: "Trainee", "Reports To": "Any higher role, typically assigned to a Trainer" }
+      { Role: "owner", "Reports To": "No one", "Display Name": "Owner" },
+      { Role: "admin", "Reports To": "Owner only", "Display Name": "Admin" },
+      { Role: "manager", "Reports To": "Owner or Admin", "Display Name": "Manager" },
+      { Role: "team_lead", "Reports To": "Owner, Admin, or Manager", "Display Name": "Team Lead" },
+      { Role: "quality_analyst", "Reports To": "Owner, Admin, Manager, or Team Lead", "Display Name": "Quality Analyst" },
+      { Role: "trainer", "Reports To": "Owner, Admin, Manager, or Team Lead", "Display Name": "Trainer" },
+      { Role: "advisor", "Reports To": "Any higher role", "Display Name": "Advisor" },
+      { Role: "trainee", "Reports To": "Any higher role, typically assigned to a Trainer", "Display Name": "Trainee" }
     ];
     
     const roleSheet = XLSX.utils.json_to_sheet(roleInfo);
