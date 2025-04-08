@@ -532,8 +532,8 @@ export function UserProfile() {
                             {managerData && (
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-muted-foreground/10">
                                 <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Username</p>
-                                  <p className="text-sm font-medium">{managerData.username}</p>
+                                  <p className="text-xs text-muted-foreground">Name</p>
+                                  <p className="text-sm font-medium">{managerData.fullName || managerData.username}</p>
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-xs text-muted-foreground">Email</p>
