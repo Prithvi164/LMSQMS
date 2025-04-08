@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -8,11 +8,32 @@ import { Label } from "@/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar, 
+  Award, 
+  Building, 
+  BookOpen,
+  Edit, 
+  Loader2,
+  BriefcaseBusiness,
+  GraduationCap,
+  Save
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export function UserProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState("overview");
   const [editedUser, setEditedUser] = useState({
     fullName: user?.fullName || "",
     location: user?.location || "",
@@ -50,148 +71,439 @@ export function UserProfile() {
     },
   });
 
+  // Get color based on user role
+  const getRoleColor = (role: string) => {
+    const roleColors = {
+      owner: "bg-purple-100 text-purple-800",
+      admin: "bg-blue-100 text-blue-800",
+      manager: "bg-green-100 text-green-800", 
+      team_lead: "bg-yellow-100 text-yellow-800",
+      quality_analyst: "bg-cyan-100 text-cyan-800",
+      trainer: "bg-indigo-100 text-indigo-800",
+      advisor: "bg-orange-100 text-orange-800",
+      trainee: "bg-gray-100 text-gray-800"
+    };
+    
+    return roleColors[role as keyof typeof roleColors] || "bg-gray-100 text-gray-800";
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Profile Settings</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h1 className="text-3xl font-bold">Profile Settings</h1>
+        <Tabs 
+          value={selectedTab} 
+          onValueChange={setSelectedTab}
+          className="w-full md:w-auto"
+        >
+          <TabsList className="w-full md:w-auto">
+            <TabsTrigger value="overview" className="flex-1 md:flex-none">Overview</TabsTrigger>
+            <TabsTrigger value="teams" className="flex-1 md:flex-none">Teams</TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1 md:flex-none">Activity</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-6">
-            <Avatar className="h-24 w-24">
-              {user.avatarUrl ? (
-                <AvatarImage 
-                  src={`${user.avatarUrl}?${Date.now()}`}
-                  onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                    const img = e.target as HTMLImageElement;
-                    img.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <AvatarFallback className="text-2xl bg-[#E9D5FF] text-[#6B21A8]">
-                  {displayName.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Profile Card */}
+        <Card className="md:col-span-1 border-t-4 border-t-primary">
+          <CardHeader className="bg-gradient-to-r from-muted/50 to-background pb-2">
+            <div className="flex justify-center -mt-12">
+              <Avatar className="h-24 w-24 ring-4 ring-background">
+                {user.avatarUrl ? (
+                  <AvatarImage 
+                    src={`${user.avatarUrl}?${Date.now()}`}
+                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/80 to-primary/50 text-primary-foreground">
+                    {displayName.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+            </div>
+            <div className="text-center mt-3">
+              <CardTitle className="text-xl font-bold">{displayName}</CardTitle>
+              <CardDescription className="flex justify-center items-center gap-1 mt-1">
+                <Mail className="h-3 w-3" /> {user.email}
+              </CardDescription>
+              <div className="flex justify-center mt-3">
+                <Badge className={cn("text-xs px-2 py-1 rounded-full", getRoleColor(user.role))}>
+                  {user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <User className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Full Name</p>
+                  <p className="font-medium">{user.fullName || user.username}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Phone</p>
+                  <p className="font-medium">{editedUser.phoneNumber || 'Not specified'}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <MapPin className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Location</p>
+                  <p className="font-medium">{editedUser.location || 'Not specified'}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Award className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Experience Level</p>
+                  <p className="font-medium">{user.role === 'trainee' ? 'Entry Level' : 'Professional'}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <BriefcaseBusiness className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Employee ID</p>
+                  <p className="font-medium">{user.employeeId || 'Not assigned'}</p>
+                </div>
+              </div>
+              
+              {user.dateOfJoining && (
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date Joined</p>
+                    <p className="font-medium">{new Date(user.dateOfJoining).toLocaleDateString()}</p>
+                  </div>
+                </div>
               )}
-            </Avatar>
-
-            <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">{displayName}</h2>
-              <p className="text-muted-foreground">{user.email}</p>
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditing(!isEditing)}
-                >
-                  {isEditing ? "Cancel" : "Edit Profile"}
-                </Button>
-              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isEditing ? (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                updateProfileMutation.mutate(editedUser);
-              }}
+          </CardContent>
+          <CardFooter className="flex justify-center border-t bg-muted/20 p-3">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="w-full"
+              onClick={() => setIsEditing(!isEditing)}
             >
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    value={editedUser.fullName}
-                    onChange={(e) => setEditedUser(prev => ({
-                      ...prev,
-                      fullName: e.target.value
-                    }))}
-                  />
+              <Edit className="h-4 w-4 mr-2" />
+              {isEditing ? "Cancel Editing" : "Edit Profile"}
+            </Button>
+          </CardFooter>
+        </Card>
+
+        {/* Main Content Area */}
+        <div className="md:col-span-2 space-y-6">
+          <TabsContent value="overview" className="m-0 space-y-6">
+            {/* Personal Information Card */}
+            <Card className="border-t-4 border-t-primary/70 shadow-md">
+              <CardHeader className="pb-2 bg-gradient-to-r from-muted/50 to-background">
+                <CardTitle className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <User className="h-5 w-5 mr-2 text-primary" />
+                    <span>Personal Information</span>
+                  </div>
+                  {isEditing ? (
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                      Editing
+                    </Badge>
+                  ) : null}
+                </CardTitle>
+                <CardDescription>
+                  Your personal details and preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {isEditing ? (
+                  <form
+                    className="space-y-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      updateProfileMutation.mutate(editedUser);
+                    }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="fullName"
+                            className="pl-9"
+                            value={editedUser.fullName}
+                            onChange={(e) => setEditedUser(prev => ({
+                              ...prev,
+                              fullName: e.target.value
+                            }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="email"
+                            className="pl-9 bg-muted"
+                            value={user.email}
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="location">Location</Label>
+                        <div className="relative">
+                          <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="location"
+                            className="pl-9"
+                            value={editedUser.location}
+                            onChange={(e) => setEditedUser(prev => ({
+                              ...prev,
+                              location: e.target.value
+                            }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phoneNumber">Phone Number</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="phoneNumber"
+                            className="pl-9"
+                            value={editedUser.phoneNumber}
+                            onChange={(e) => setEditedUser(prev => ({
+                              ...prev,
+                              phoneNumber: e.target.value
+                            }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsEditing(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updateProfileMutation.isPending}
+                        className="gap-1.5"
+                      >
+                        {updateProfileMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-1" />
+                        )}
+                        Save Changes
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">First Name</Label>
+                      <p className="font-medium">{firstName}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Last Name</Label>
+                      <p className="font-medium">{lastName || '-'}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Email Address</Label>
+                      <p className="font-medium text-primary">{user.email}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Role</Label>
+                      <Badge className={cn("rounded-md px-2 py-1", getRoleColor(user.role))}>
+                        {user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Location</Label>
+                      <p className="font-medium">{editedUser.location || 'Not specified'}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Phone Number</Label>
+                      <p className="font-medium">{editedUser.phoneNumber || 'Not specified'}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Skills & Education Card */}
+            <Card className="border-t-4 border-t-primary/70 shadow-md">
+              <CardHeader className="pb-2 bg-gradient-to-r from-muted/50 to-background">
+                <CardTitle className="flex items-center">
+                  <GraduationCap className="h-5 w-5 mr-2 text-primary" />
+                  <span>Skills & Education</span>
+                </CardTitle>
+                <CardDescription>
+                  Your qualifications and professional skills
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="space-y-6">
+                  {/* Skills Section */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3">Professional Skills</h3>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <Label className="text-xs">Customer Service</Label>
+                          <span className="text-xs font-medium">85%</span>
+                        </div>
+                        <Progress value={85} className="h-2" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <Label className="text-xs">Communication</Label>
+                          <span className="text-xs font-medium">90%</span>
+                        </div>
+                        <Progress value={90} className="h-2" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <Label className="text-xs">Problem Solving</Label>
+                          <span className="text-xs font-medium">75%</span>
+                        </div>
+                        <Progress value={75} className="h-2" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Education Section */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3">Education</h3>
+                    <div className="space-y-4">
+                      <div className="bg-muted/30 rounded-lg p-3">
+                        <div className="flex justify-between">
+                          <h4 className="font-medium">{user.education || 'Degree not specified'}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {user.dateOfBirth ? new Date(user.dateOfBirth).getFullYear() : 'Year N/A'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {user.education ? 'University details not available' : 'Education details not provided'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="email">Email ID</Label>
-                  <Input
-                    id="email"
-                    value={user.email}
-                    disabled
-                    className="bg-muted"
-                  />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="teams" className="m-0 space-y-6">
+            <Card className="border-t-4 border-t-primary/70 shadow-md">
+              <CardHeader className="pb-2 bg-gradient-to-r from-muted/50 to-background">
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-primary" />
+                  <span>My Teams</span>
+                </CardTitle>
+                <CardDescription>
+                  Teams you are a member of
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="space-y-4">
+                  {user.role === 'trainee' ? (
+                    <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                            <GraduationCap className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">Training Batch</h3>
+                            <p className="text-sm text-muted-foreground">Current training program</p>
+                          </div>
+                        </div>
+                        <Badge>Active</Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                            <Building className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">Management Team</h3>
+                            <p className="text-sm text-muted-foreground">Organizational management</p>
+                          </div>
+                        </div>
+                        <Badge>Active</Badge>
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-center py-3 text-muted-foreground text-sm">
+                    No other teams to display
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={editedUser.location}
-                    onChange={(e) => setEditedUser(prev => ({
-                      ...prev,
-                      location: e.target.value
-                    }))}
-                  />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="activity" className="m-0 space-y-6">
+            <Card className="border-t-4 border-t-primary/70 shadow-md">
+              <CardHeader className="pb-2 bg-gradient-to-r from-muted/50 to-background">
+                <CardTitle className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-primary" />
+                  <span>Recent Activity</span>
+                </CardTitle>
+                <CardDescription>
+                  Your recent system activities
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="relative pl-5 pb-4 border-l-2 border-muted">
+                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-green-500"></div>
+                      <h4 className="text-sm font-medium">Profile updated</h4>
+                      <p className="text-xs text-muted-foreground">Today, {new Date().toLocaleTimeString()}</p>
+                    </div>
+                    <div className="relative pl-5 pb-4 border-l-2 border-muted">
+                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-blue-500"></div>
+                      <h4 className="text-sm font-medium">Logged in</h4>
+                      <p className="text-xs text-muted-foreground">Today, {new Date().toLocaleTimeString()}</p>
+                    </div>
+                    <div className="relative pl-5 pb-0">
+                      <div className="absolute top-0 left-[-7px] h-3 w-3 rounded-full bg-gray-300"></div>
+                      <h4 className="text-sm font-medium">Account created</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {user.createdAt 
+                          ? new Date(user.createdAt).toLocaleDateString() 
+                          : 'Date not available'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    value={editedUser.phoneNumber}
-                    onChange={(e) => setEditedUser(prev => ({
-                      ...prev,
-                      phoneNumber: e.target.value
-                    }))}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditing(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateProfileMutation.isPending}
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-              <div>
-                <Label className="text-sm text-muted-foreground">First Name</Label>
-                <p className="text-lg">{firstName}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Last Name</Label>
-                <p className="text-lg">{lastName || '-'}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Email ID</Label>
-                <p className="text-lg">{user.email}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Role</Label>
-                <p className="text-lg capitalize">{user.role}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Location</Label>
-                <p className="text-lg">{editedUser.location || 'Not specified'}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Phone Number</Label>
-                <p className="text-lg">{editedUser.phoneNumber || 'Not specified'}</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </div>
+      </div>
     </div>
   );
 }
