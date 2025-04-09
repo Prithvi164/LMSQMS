@@ -941,24 +941,48 @@ export function QuizManagement() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditQuestion(question)}
-                          >
-                            <Pencil className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditQuestion(question)}
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          )}
                           
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => setDeletingQuestionId(question.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600"
+                              onClick={() => setDeletingQuestionId(question.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -1072,7 +1096,14 @@ export function QuizManagement() {
                       }
                     }}>
                       <DialogTrigger asChild>
-                        <Button>Create Quiz Template</Button>
+                        {hasPermission('manage_quiz') ? (
+                          <Button>Create Quiz Template</Button>
+                        ) : (
+                          <Button variant="outline" disabled className="flex items-center gap-1">
+                            <ShieldAlert className="h-4 w-4" />
+                            <span>Create Quiz Template</span>
+                          </Button>
+                        )}
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
@@ -1449,21 +1480,43 @@ export function QuizManagement() {
                             <Eye className="h-4 w-4" />
                             <span className="ml-2">Preview</span>
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditTemplate(template)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                            </Button>
+                          )}
                           
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeletingTemplateId(template.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeletingTemplateId(template.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
