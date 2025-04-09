@@ -197,8 +197,8 @@ export function RolePermissions() {
       // Feedback & Allocation
       view_feedback: "View feedback data",
       manage_feedback: "Control feedback systems",
-      view_allocation: "View allocation information",
-      manage_allocation: "Control allocation systems",
+      view_allocation: "Display Azure storage for audio files",
+      manage_allocation: "Enable import button for audio files",
       
       // Billing & Subscription
       manage_billing: "Control payment and billing settings",
