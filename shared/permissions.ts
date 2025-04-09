@@ -10,6 +10,8 @@ export const defaultPermissions = {
     'delete_users',
     'upload_users',
     'manage_organization',
+    'edit_organization',
+    'view_organization',
     'manage_performance',
     'export_reports',
     // Quiz permissions
@@ -36,6 +38,7 @@ export const defaultPermissions = {
     'view_users',
     'edit_users',
     'view_organization',
+    'edit_organization',
     'manage_performance',
     'manage_processes',
     'manage_batches',
