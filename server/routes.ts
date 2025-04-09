@@ -3623,8 +3623,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Permissions must be an array" });
       }
 
+      console.log("Incoming permissions:", permissions);
+      console.log("Valid permission values:", permissionEnum.enumValues);
+      
       // Validate that all permissions are valid enum values
       const invalidPermissions = permissions.filter(p => !permissionEnum.enumValues.includes(p));
+      console.log("Invalid permissions found:", invalidPermissions);
+      
       if (invalidPermissions.length > 0) {
         return res.status(400).json({
           message: "Invalid permissions provided",

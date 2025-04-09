@@ -123,7 +123,7 @@ export function RolePermissions() {
       name: "Reporting & Analytics",
       icon: <FileText className="h-5 w-5" />,
       description: "Access to reports and analytics data",
-      permissions: ['view_reports', 'export_reports']
+      permissions: ['export_reports']
     },
     {
       name: "Feedback & Communication",
@@ -162,7 +162,6 @@ export function RolePermissions() {
       // Performance
       manage_performance: "Access and manage performance metrics",
       view_performance: "View performance metrics",
-      view_reports: "Access system reports",
       export_reports: "Generate and download reports",
       
       // Training Management
