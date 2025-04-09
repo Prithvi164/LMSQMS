@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { SiReact } from "react-icons/si";
 import { Label } from "@/components/ui/label";
 
@@ -86,7 +87,11 @@ export function ProcessDetail() {
 
   const { toast } = useToast();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
+  
+  // Check if user has permission to manage processes
+  const canManageProcesses = hasPermission("manage_processes");
 
   // Fetch organization with optimized caching
   const { data: organization } = useQuery({
@@ -335,10 +340,12 @@ export function ProcessDetail() {
                 }}
               />
             </div>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Process
-            </Button>
+            {canManageProcesses && (
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Process
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -399,21 +406,25 @@ export function ProcessDetail() {
                         <TableCell className="text-center">{process.ojtDays}</TableCell>
                         <TableCell className="text-center">{process.ojtCertificationDays}</TableCell>
                         <TableCell className="text-right space-x-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleEdit(process)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleDelete(process)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          {canManageProcesses && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleEdit(process)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canManageProcesses && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDelete(process)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -790,16 +801,22 @@ export function ProcessDetail() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateProcessMutation.isPending}>
-                  {updateProcessMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update Process"
-                  )}
-                </Button>
+                {canManageProcesses ? (
+                  <Button type="submit" disabled={updateProcessMutation.isPending}>
+                    {updateProcessMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Update Process"
+                    )}
+                  </Button>
+                ) : (
+                  <Button type="button" disabled>
+                    Insufficient Permissions
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </Form>
