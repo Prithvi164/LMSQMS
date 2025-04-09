@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  MessageSquare
+  MessageSquare,
+  FileAudio
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -77,8 +78,10 @@ export function SidebarNav() {
       permission: 'view_feedback' },
     { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays,
       permission: 'view_allocation' },
+    { href: '/audio-file-management', label: 'Audio File Management', icon: FileAudio,
+      permission: 'view_allocation' },
     { href: '/azure-storage', label: 'Azure Storage', icon: Cloud,
-      permission: 'view_organization' },
+      permission: 'view_allocation' },
   ];
 
   // Define the type for navigation items
