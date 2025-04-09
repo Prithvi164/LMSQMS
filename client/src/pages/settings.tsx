@@ -143,7 +143,7 @@ export default function Settings(): React.JSX.Element {
                     !hasPermission("add_users") ? "opacity-60" : ""
                   )}
                 >
-                  Add User {!hasPermission("add_users") && <Lock className="inline-block h-3 w-3 ml-1" />}
+                  Add User {!hasPermission("add_users") && <span className="inline-flex items-center"><Lock size={12} className="ml-1" /></span>}
                 </button>
               </div>
             )}
