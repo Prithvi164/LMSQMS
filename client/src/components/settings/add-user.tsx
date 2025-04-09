@@ -55,6 +55,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   
+  // Check if user has permission to add users
+  const canAddUsers = hasPermission("add_users") || hasPermission("manage_users");
+  
   // Reset bulk upload UI if permission is revoked
   useEffect(() => {
     if (!hasPermission("upload_users")) {
@@ -398,7 +401,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           </div>
         </CardTitle>
         <CardDescription className="text-sm mt-1">
-          Complete the form below to create a new user account
+          {canAddUsers 
+            ? "Complete the form below to create a new user account" 
+            : "You need 'Add Users' permission to create user accounts"}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -498,10 +503,18 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
         {/* Add User Form */}
         <form
-          className="space-y-6"
+          className={`space-y-6 ${!canAddUsers ? 'opacity-70 pointer-events-none' : ''}`}
           onSubmit={(e) => {
             e.preventDefault();
-            createUserMutation.mutate(newUserData);
+            if (canAddUsers) {
+              createUserMutation.mutate(newUserData);
+            } else {
+              toast({
+                title: "Permission Denied",
+                description: "You don't have permission to add users",
+                variant: "destructive",
+              });
+            }
           }}
         >
           {/* Account Information Section */}
@@ -969,7 +982,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           <Button
             type="submit"
             className="w-full mt-6"
-            disabled={createUserMutation.isPending}
+            disabled={createUserMutation.isPending || !canAddUsers}
           >
             {createUserMutation.isPending ? (
               <div className="flex items-center">

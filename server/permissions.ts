@@ -12,6 +12,7 @@ export const defaultPermissions = {
     'edit_users',
     'delete_users',
     'upload_users',
+    'add_users',
     'manage_organization',
     'manage_performance',
     'export_reports'
@@ -19,6 +20,7 @@ export const defaultPermissions = {
   manager: [
     'view_users',
     'edit_users',
+    'add_users',
     'view_organization',
     'manage_performance',
     'manage_processes',

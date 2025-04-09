@@ -99,7 +99,7 @@ export function RolePermissions() {
       name: "User Management",
       icon: <Users className="h-5 w-5" />,
       description: "Control user accounts and access",
-      permissions: ['view_users', 'edit_users', 'delete_users', 'upload_users', 'manage_users']
+      permissions: ['view_users', 'edit_users', 'delete_users', 'upload_users', 'manage_users', 'add_users']
     },
     {
       name: "Organization Settings",
@@ -148,6 +148,7 @@ export function RolePermissions() {
       edit_users: "Modify user account details",
       delete_users: "Remove user accounts",
       upload_users: "Bulk import user data",
+      add_users: "Create new user accounts",
       
       // Organization Settings
       manage_organization_settings: "Configure organization-wide parameters",

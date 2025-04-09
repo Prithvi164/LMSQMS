@@ -58,6 +58,7 @@ export const permissionEnum = pgEnum('permission', [
   'edit_users',
   'delete_users',
   'upload_users',
+  'add_users',               // Create new user accounts
   'manage_organization',
   'view_organization',
   'edit_organization',

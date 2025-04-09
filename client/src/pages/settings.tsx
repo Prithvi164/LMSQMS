@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Organization } from "@shared/schema";
-import { Users, UserCircle, Shield, ChevronLeft, Network, CalendarDays } from "lucide-react";
+import { Users, UserCircle, Shield, ChevronLeft, Network, CalendarDays, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { usePermissions, PermissionGuard } from "@/hooks/use-permissions";
@@ -126,13 +126,24 @@ export default function Settings(): React.JSX.Element {
                   Manage Users
                 </button>
                 <button
-                  onClick={() => setActiveUserTab("add")}
+                  onClick={() => {
+                    if (hasPermission("add_users")) {
+                      setActiveUserTab("add");
+                    } else {
+                      toast({
+                        title: "Permission Denied",
+                        description: "You don't have permission to add new users",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                   className={cn(
                     "w-full text-left p-2 rounded-lg transition-colors",
-                    activeUserTab === "add" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                    activeUserTab === "add" && hasPermission("add_users") ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground",
+                    !hasPermission("add_users") ? "opacity-60" : ""
                   )}
                 >
-                  Add User
+                  Add User {!hasPermission("add_users") && <Lock className="inline-block h-3 w-3 ml-1" />}
                 </button>
               </div>
             )}
@@ -178,7 +189,7 @@ export default function Settings(): React.JSX.Element {
                   {activeTab === "users" && (
                     <>
                       {activeUserTab === "manage" && <UserManagement />}
-                      {activeUserTab === "add" && (
+                      {activeUserTab === "add" && hasPermission("add_users") && (
                         <div className="space-y-4">
                           <AddUser
                             users={users}
@@ -186,6 +197,12 @@ export default function Settings(): React.JSX.Element {
                             organization={organization}
                             potentialManagers={potentialManagers}
                           />
+                        </div>
+                      )}
+                      {activeUserTab === "add" && !hasPermission("add_users") && (
+                        <div className="p-4 border rounded-md bg-yellow-50 text-yellow-800">
+                          <h3 className="text-lg font-medium mb-2">Permission Required</h3>
+                          <p>You do not have permission to add new users to the system.</p>
                         </div>
                       )}
                     </>
