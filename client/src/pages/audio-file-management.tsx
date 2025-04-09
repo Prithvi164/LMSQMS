@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ const statusColors: Record<AudioFileStatus, string> = {
 const AudioFileManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [batchUploadDialogOpen, setBatchUploadDialogOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -562,7 +564,7 @@ const AudioFileManagement = () => {
         <div className="flex space-x-2">
           <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button disabled={!hasPermission('manage_allocation')}>
                 <UploadCloud className="mr-2 h-4 w-4" />
                 Upload Audio File
               </Button>
@@ -1006,7 +1008,7 @@ const AudioFileManagement = () => {
           
           <Dialog open={batchUploadDialogOpen} onOpenChange={setBatchUploadDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="secondary">
+              <Button variant="secondary" disabled={!hasPermission('manage_allocation')}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Batch Upload
               </Button>
@@ -1082,12 +1084,14 @@ const AudioFileManagement = () => {
             </DialogContent>
           </Dialog>
           
-          <Button variant="outline" asChild>
-            <a href="/azure-storage-browser">
-              <FilePlus className="mr-2 h-4 w-4" />
-              Import from Azure
-            </a>
-          </Button>
+          {hasPermission('manage_allocation') && (
+            <Button variant="outline" asChild>
+              <a href="/azure-storage-browser">
+                <FilePlus className="mr-2 h-4 w-4" />
+                Import from Azure
+              </a>
+            </Button>
+          )}
         </div>
         
         <Collapsible className="w-[320px]">
@@ -1552,4 +1556,24 @@ const AudioFileManagement = () => {
   );
 };
 
-export default AudioFileManagement;
+const PermissionGuardedAudioFileManagement = () => {
+  const { hasPermission } = usePermissions();
+  
+  if (!hasPermission('view_allocation')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
+        <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
+        <p className="text-muted-foreground mb-4">
+          You do not have permission to access the Audio File Management.
+        </p>
+        <Button asChild variant="outline">
+          <a href="/">Return to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+  
+  return <AudioFileManagement />;
+};
+
+export default PermissionGuardedAudioFileManagement;

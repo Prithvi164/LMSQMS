@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { usePermissions } from '@/hooks/use-permissions';
 import { 
   Loader2, 
   RefreshCw, 
@@ -99,6 +100,7 @@ interface QualityAnalyst {
 }
 
 const AzureStorageBrowser = () => {
+  const { hasPermission } = usePermissions();
   const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
   const [selectedBlobItems, setSelectedBlobItems] = useState<string[]>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -1080,7 +1082,7 @@ const AzureStorageBrowser = () => {
                   
                   <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button disabled={!hasPermission('manage_allocation')}>
                         <Upload className="h-4 w-4 mr-2" />
                         Import
                       </Button>
@@ -1500,7 +1502,7 @@ const AzureStorageBrowser = () => {
                         </Button>
                         <Button 
                           onClick={handleImport}
-                          disabled={importAudioMutation.isPending}
+                          disabled={importAudioMutation.isPending || !hasPermission('manage_allocation')}
                         >
                           {importAudioMutation.isPending && (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1595,4 +1597,24 @@ const AzureStorageBrowser = () => {
   );
 };
 
-export default AzureStorageBrowser;
+const PermissionGuardedAzureStorageBrowser = () => {
+  const { hasPermission } = usePermissions();
+  
+  if (!hasPermission('view_allocation')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
+        <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
+        <p className="text-muted-foreground mb-4">
+          You do not have permission to access the Azure Storage Browser.
+        </p>
+        <Button asChild variant="outline">
+          <a href="/">Return to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+  
+  return <AzureStorageBrowser />;
+};
+
+export default PermissionGuardedAzureStorageBrowser;
