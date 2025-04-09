@@ -16,6 +16,10 @@ export const defaultPermissions = {
     'manage_lineofbusiness',
     'manage_performance',
     'export_reports',
+    // Batch management permissions
+    'manage_batches',
+    'manage_batch_trainees',
+    'view_batch_insights',
     // Quiz permissions
     'manage_quiz',
     'edit_quiz',
@@ -46,6 +50,8 @@ export const defaultPermissions = {
     'manage_lineofbusiness',
     'manage_performance',
     'manage_batches',
+    'manage_batch_trainees',
+    'view_batch_insights',
     // Quiz permissions
     'manage_quiz',
     'edit_quiz',
@@ -68,6 +74,7 @@ export const defaultPermissions = {
     'view_users',
     'manage_performance',
     'view_organization',
+    'view_batch_insights',
     // Feedback permissions
     'manage_feedback',
     'view_feedback'
@@ -91,6 +98,8 @@ export const defaultPermissions = {
     'view_users',
     'view_performance',
     'manage_batches',
+    'manage_batch_trainees',
+    'view_batch_insights',
     // Quiz permissions
     'manage_quiz',
     'edit_quiz',

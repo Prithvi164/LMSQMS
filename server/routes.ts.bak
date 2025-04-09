@@ -4334,13 +4334,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    // Check if user has the required permission
-    const userPermissions = await storage.getUserPermissions(req.user.role, req.user.organizationId);
-    if (!userPermissions.includes('manage_batch_trainees')) {
-      console.log('Permission denied: User lacks manage_batch_trainees permission');
-      return res.status(403).json({ message: "You don't have permission to bulk upload trainees to batches" });
-    }
-    
     if (!req.file) {
       console.log('No file received in request');
       return res.status(400).json({ message: "No file uploaded" });

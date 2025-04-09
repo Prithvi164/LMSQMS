@@ -1,0 +1,11 @@
+  app.delete("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    // Check if user has the required permission
+    const userPermissions = await storage.getUserPermissions(req.user.role, req.user.organizationId);
+    if (!userPermissions.includes('manage_batch_trainees')) {
+      console.log('Permission denied: User lacks manage_batch_trainees permission');
+      return res.status(403).json({ message: "You don't have permission to remove trainees from batches" });
+    }
+
+    try {
