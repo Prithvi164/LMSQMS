@@ -524,15 +524,21 @@ export function LineOfBusinessDetail() {
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={updateLOBMutation.isPending}
-                >
-                  {updateLOBMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Update
-                </Button>
+                {canManageLineOfBusiness ? (
+                  <Button 
+                    type="submit"
+                    disabled={updateLOBMutation.isPending}
+                  >
+                    {updateLOBMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Update
+                  </Button>
+                ) : (
+                  <Button type="button" disabled>
+                    Insufficient Permissions
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </Form>
@@ -563,16 +569,22 @@ export function LineOfBusinessDetail() {
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteLOBMutation.isPending}
-            >
-              {deleteLOBMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Delete
-            </Button>
+            {canManageLineOfBusiness ? (
+              <Button 
+                variant="destructive"
+                onClick={handleDeleteConfirm}
+                disabled={deleteLOBMutation.isPending}
+              >
+                {deleteLOBMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Delete
+              </Button>
+            ) : (
+              <Button variant="destructive" disabled>
+                Insufficient Permissions
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
