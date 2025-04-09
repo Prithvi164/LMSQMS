@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePermissions } from "@/hooks/use-permissions";
 import {
   Table,
   TableBody,
@@ -423,45 +422,38 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    {usePermissions().hasPermission("manage_batch_trainees") && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedTrainee(trainee);
-                            setIsTransferDialogOpen(true);
-                          }}
-                        >
-                          <ArrowRightLeft className="h-4 w-4" />
-                          <span className="sr-only">Transfer Trainee</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            toast({
-                              title: "Coming Soon",
-                              description: "Edit functionality will be available soon",
-                            });
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Edit Trainee</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedTrainee(trainee);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Remove Trainee</span>
-                        </Button>
-                      </>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
+                        setIsTransferDialogOpen(true);
+                      }}
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        toast({
+                          title: "Coming Soon",
+                          description: "Edit functionality will be available soon",
+                        });
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

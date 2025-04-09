@@ -771,17 +771,15 @@ export function BatchesTab() {
                     <Eye className="h-4 w-4" />
                     <span className="sr-only">View Dashboard</span>
                   </Button>
-                  {hasPermission("manage_batch_trainees") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleAddTraineeClick(batch)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span className="sr-only">Add Trainee</span>
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAddTraineeClick(batch)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span className="sr-only">Add Trainee</span>
+                  </Button>
                   {canManageBatches && batch.status === 'planned' && (
                     <>
                       <Button

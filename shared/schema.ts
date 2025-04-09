@@ -70,9 +70,6 @@ export const permissionEnum = pgEnum('permission', [
   'manage_performance',
   'export_reports',
   'manage_batches',
-  // Batch management permissions
-  'manage_batch_trainees',   // Ability to add/remove trainees from batches
-  'view_batch_insights',     // Access to batch performance metrics and insights
   // Quiz management permissions
   'manage_quiz',         // Create, edit, delete quizzes
   'edit_quiz',           // Edit quizzes
