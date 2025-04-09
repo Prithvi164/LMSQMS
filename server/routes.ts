@@ -3644,10 +3644,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log("Incoming permissions:", permissions);
-      console.log("Valid permission values:", permissionEnum.enumValues);
       
-      // Validate that all permissions are valid enum values
-      const invalidPermissions = permissions.filter(p => !permissionEnum.enumValues.includes(p));
+      // Define valid permissions including the new batch user management permissions
+      const validPermissions = [
+        ...permissionEnum.enumValues,
+        'manage_batch_users_add',
+        'manage_batch_users_remove'
+      ];
+      
+      console.log("Valid permission values:", validPermissions);
+      
+      // Validate that all permissions are valid values
+      const invalidPermissions = permissions.filter(p => !validPermissions.includes(p));
       console.log("Invalid permissions found:", invalidPermissions);
       
       if (invalidPermissions.length > 0) {

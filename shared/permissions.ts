@@ -16,6 +16,9 @@ export const defaultPermissions = {
     'manage_lineofbusiness',
     'manage_performance',
     'export_reports',
+    'manage_batches',
+    'manage_batch_users_add',
+    'manage_batch_users_remove',
     // Quiz permissions
     'manage_quiz',
     'edit_quiz',
