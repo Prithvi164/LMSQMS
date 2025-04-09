@@ -19,6 +19,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { usePermissions } from '@/hooks/use-permissions';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
@@ -54,36 +55,67 @@ export function SidebarNav() {
 
   const isTrainee = user?.category === 'trainee';
   const isQualityAnalyst = user?.role === 'quality_analyst';
+  const { hasPermission } = usePermissions();
 
-  // Define which features belong to which category
+  // Define which features belong to which category with permission checks
   const lmsFeatures = [
-    { href: '/batch-management', label: 'Batch Management', icon: Users },
-    { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
-    { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
+    { href: '/batch-management', label: 'Batch Management', icon: Users, 
+      permission: 'view_batches' }, // Most users need at least view access
+    { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck, 
+      permission: 'view_users' },
+    { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen, 
+      permission: 'view_quiz' }, // Only show if user has view_quiz permission
   ];
   
+  // Define QMS features with permission checks
   const qmsFeatures = [
-    { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
-    { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
-    { href: '/evaluation-feedback', label: 'Evaluation Feedback', icon: MessageSquare },
-    { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays },
-    { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
+    { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare,
+      permission: 'view_evaluation_form' },
+    { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet,
+      permission: 'view_performance' },
+    { href: '/evaluation-feedback', label: 'Evaluation Feedback', icon: MessageSquare,
+      permission: 'view_feedback' },
+    { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays,
+      permission: 'view_allocation' },
+    { href: '/azure-storage', label: 'Azure Storage', icon: Cloud,
+      permission: 'view_organization' },
   ];
 
-  // Filter non-trainee navigation items based on feature type setting
-  const getNonTraineeItems = () => {
-    switch (featureType) {
-      case 'LMS': 
-        return lmsFeatures;
-      case 'QMS': 
-        return qmsFeatures;
-      case 'BOTH':
-      default:
-        return [...lmsFeatures, ...qmsFeatures];
-    }
+  // Define the type for navigation items
+  type NavItem = {
+    href: string;
+    label: string;
+    icon: React.ComponentType<any>;
+    permission?: string;
   };
 
-  const navItems = [
+  // Filter non-trainee navigation items based on feature type setting AND permissions
+  const getNonTraineeItems = () => {
+    // First get the features based on feature type
+    let features: NavItem[] = [];
+    switch (featureType) {
+      case 'LMS': 
+        features = lmsFeatures;
+        break;
+      case 'QMS': 
+        features = qmsFeatures;
+        break;
+      case 'BOTH':
+      default:
+        features = [...lmsFeatures, ...qmsFeatures];
+        break;
+    }
+    
+    // Then filter based on permissions
+    return features.filter(item => {
+      // If no permission specified, always show
+      if (!item.permission) return true;
+      // Otherwise, only show if user has the permission
+      return hasPermission(item.permission);
+    });
+  };
+
+  const navItems: NavItem[] = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     ...(isTrainee ? [
       { href: '/my-quizzes', label: 'My Quizzes', icon: FileCheck }
