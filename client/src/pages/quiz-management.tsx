@@ -13,12 +13,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import type { Question, QuizTemplate, OrganizationBatch } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye } from "lucide-react";
+import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye, ShieldAlert } from "lucide-react";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -79,6 +80,7 @@ export function QuizManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -703,21 +705,28 @@ export function QuizManagement() {
                       }
                     }}>
                       <DialogTrigger asChild>
-                        <Button onClick={() => {
-                          // Reset form before opening dialog
-                          questionForm.reset({
-                            question: "",
-                            type: "multiple_choice",
-                            options: ["", ""],
-                            correctAnswer: "",
-                            explanation: "",
-                            difficultyLevel: 1,
-                            category: "",
-                            processId: undefined
-                          });
-                          setEditingQuestion(null);
-                          setIsAddQuestionOpen(true);
-                        }}>Add Question</Button>
+                        {hasPermission('manage_quiz') ? (
+                          <Button onClick={() => {
+                            // Reset form before opening dialog
+                            questionForm.reset({
+                              question: "",
+                              type: "multiple_choice",
+                              options: ["", ""],
+                              correctAnswer: "",
+                              explanation: "",
+                              difficultyLevel: 1,
+                              category: "",
+                              processId: undefined
+                            });
+                            setEditingQuestion(null);
+                            setIsAddQuestionOpen(true);
+                          }}>Add Question</Button>
+                        ) : (
+                          <Button variant="outline" disabled className="flex items-center gap-1">
+                            <ShieldAlert className="h-4 w-4" />
+                            <span>Add Question</span>
+                          </Button>
+                        )}
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
@@ -932,23 +941,48 @@ export function QuizManagement() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditQuestion(question)}
-                          >
-                            <Pencil className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => setDeletingQuestionId(question.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditQuestion(question)}
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                          
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600"
+                              onClick={() => setDeletingQuestionId(question.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -1062,7 +1096,14 @@ export function QuizManagement() {
                       }
                     }}>
                       <DialogTrigger asChild>
-                        <Button>Create Quiz Template</Button>
+                        {hasPermission('manage_quiz') ? (
+                          <Button>Create Quiz Template</Button>
+                        ) : (
+                          <Button variant="outline" disabled className="flex items-center gap-1">
+                            <ShieldAlert className="h-4 w-4" />
+                            <span>Create Quiz Template</span>
+                          </Button>
+                        )}
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
@@ -1439,20 +1480,43 @@ export function QuizManagement() {
                             <Eye className="h-4 w-4" />
                             <span className="ml-2">Preview</span>
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeletingTemplateId(template.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditTemplate(template)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeletingTemplateId(template.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
