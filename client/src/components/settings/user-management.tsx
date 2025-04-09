@@ -472,6 +472,7 @@ export function UserManagement() {
   const canManageUsers = hasPermission("manage_users");
   const canViewUsers = hasPermission("view_users");
   const canDeleteUsers = hasPermission("delete_users");
+  const canExportReports = hasPermission("export_reports");
 
   // If user can't even view users, show restricted access message
   if (!canViewUsers) {
@@ -1040,7 +1041,7 @@ export function UserManagement() {
                   </>
                 )}
               </Button>
-              {canManageUsers && (
+              {canExportReports && (
                 <Button onClick={exportToExcel} variant="outline" className="gap-2">
                   <Download className="h-4 w-4" />
                   Export
