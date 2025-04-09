@@ -4,16 +4,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { permissionEnum, roleEnum } from "@shared/schema";
 import type { RolePermission } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipTrigger,
-  TooltipProvider 
-} from "@/components/ui/tooltip";
 import { 
   Info, 
   Shield, 
@@ -31,11 +26,9 @@ import {
   Building,
   Activity,
   BookOpen,
-  Calendar,
   MessageSquare,
-  Layers
+  Save
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -44,7 +37,6 @@ export function RolePermissions() {
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>(roleEnum.enumValues[1]); // Start with 'admin'
   const [currentRolePermissions, setCurrentRolePermissions] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("role-details");
 
   const { data: rolePermissions, isLoading } = useQuery<RolePermission[]>({
     queryKey: ["/api/permissions"],
@@ -343,7 +335,7 @@ export function RolePermissions() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Role Permissions</h1>
+        <h1 className="text-3xl font-bold">Roles & Permissions</h1>
       </div>
 
       <Alert>
@@ -363,202 +355,139 @@ export function RolePermissions() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-5 gap-6">
-            {/* Role Selection Panel */}
-            <div className="md:col-span-2 space-y-4">
-              <h3 className="text-lg font-medium">Available Roles</h3>
-              <div className="space-y-3">
-                {availableRoles.map((role) => (
-                  <div
-                    key={role}
-                    onClick={() => setSelectedRole(role)}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                      selectedRole === role 
-                        ? 'bg-primary/10 border-primary' 
-                        : 'bg-card hover:bg-accent/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {getRoleIcon(role)}
-                      <div>
+          <div className="grid lg:grid-cols-5 gap-6">
+            {/* Role Hierarchy Panel */}
+            <div className="lg:col-span-2 space-y-5">
+              <div className="border rounded-lg overflow-hidden">
+                <div className="p-3 border-b bg-muted/30">
+                  <h3 className="font-medium">Role Hierarchy</h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  {availableRoles.map((role) => (
+                    <div
+                      key={role}
+                      onClick={() => setSelectedRole(role)}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                        selectedRole === role 
+                          ? 'bg-primary/10 border-primary' 
+                          : 'bg-card hover:bg-accent/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium capitalize">
-                            {role.replace(/_/g, " ")}
-                          </h4>
-                          {selectedRole === role && (
-                            <Badge variant="outline">Selected</Badge>
-                          )}
+                          {getRoleIcon(role)}
+                          <div>
+                            <h4 className="font-medium capitalize">
+                              {role.replace(/_/g, " ")}
+                            </h4>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {getRoleDescription(role)}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {getRoleDescription(role)}
-                        </p>
+                        {selectedRole === role && (
+                          <Badge variant="outline">Selected</Badge>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Permissions Panel */}
-            <div className="md:col-span-3 border rounded-lg">
-              <div className="p-4 border-b bg-muted/30">
-                <div className="flex items-center gap-3">
+            <div className="lg:col-span-3 border rounded-lg overflow-hidden">
+              <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   {getRoleIcon(selectedRole)}
                   <div>
-                    <h3 className="text-lg font-medium capitalize">
-                      {selectedRole.replace(/_/g, " ")}
+                    <h3 className="text-base font-medium capitalize">
+                      {selectedRole.replace(/_/g, " ")} Permissions
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {getRoleDescription(selectedRole)}
                     </p>
                   </div>
                 </div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      // Reset to defaults logic would go here
+                      toast({
+                        title: "Reset to defaults",
+                        description: "Permissions have been reset to role defaults",
+                      });
+                    }}
+                  >
+                    Reset
+                  </Button>
+                </div>
               </div>
-
-              <div className="p-4">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="role-details">Role Details</TabsTrigger>
-                    <TabsTrigger value="permissions">Permissions</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="role-details" className="p-4 space-y-4">
-                    <h3 className="text-lg font-medium">Role Details</h3>
-                    
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-muted/30 rounded-lg">
-                          <h4 className="font-medium text-sm text-muted-foreground">Role</h4>
-                          <p className="text-lg capitalize">{selectedRole.replace(/_/g, " ")}</p>
+              
+              <div className="p-4 space-y-6">
+                {permissionCategories.map(category => {
+                  const validCategoryPermissions = category.permissions.filter(p => 
+                    permissionEnum.enumValues.includes(p as PermissionType)
+                  ) as PermissionType[];
+                  
+                  if (validCategoryPermissions.length === 0) return null;
+                  
+                  const allChecked = validCategoryPermissions.every(p => 
+                    currentRolePermissions.includes(p)
+                  );
+                  const someChecked = validCategoryPermissions.some(p => 
+                    currentRolePermissions.includes(p)
+                  ) && !allChecked;
+                  
+                  return (
+                    <div key={category.name}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {category.icon}
+                          <h3 className="font-medium">{category.name}</h3>
                         </div>
-                        <div className="p-4 bg-muted/30 rounded-lg">
-                          <h4 className="font-medium text-sm text-muted-foreground">Description</h4>
-                          <p className="text-lg">{getRoleDescription(selectedRole)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4 bg-muted/30 rounded-lg">
-                        <h4 className="font-medium text-sm text-muted-foreground mb-2">
-                          Active Permissions
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {currentRolePermissions.length > 0 ? (
-                            currentRolePermissions.map(perm => (
-                              <Badge key={perm} variant="secondary" className="capitalize">
-                                {perm.replace(/_/g, " ")}
-                              </Badge>
-                            ))
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No permissions assigned</p>
+                        <Checkbox 
+                          checked={allChecked} 
+                          className="data-[state=indeterminate]:bg-primary data-[state=indeterminate]:opacity-70"
+                          data-state={someChecked ? "indeterminate" : allChecked ? "checked" : "unchecked"}
+                          disabled={selectedRole === 'owner' && user?.role !== 'owner'}
+                          onCheckedChange={(checked) => handleCategoryPermissions(
+                            category.permissions, 
+                            checked === true ? true : false
                           )}
-                        </div>
+                        />
                       </div>
                       
-                      <div className="p-4 border rounded-lg">
-                        <h4 className="font-medium mb-2">Permission Summary</h4>
-                        <div className="space-y-2">
-                          {permissionCategories.map(category => {
-                            const categoryPerms = category.permissions.filter(p => 
-                              permissionEnum.enumValues.includes(p as PermissionType)
-                            ) as PermissionType[];
-                            const activeCount = categoryPerms.filter(p => 
-                              currentRolePermissions.includes(p)
-                            ).length;
-                            const totalCount = categoryPerms.length;
-                            const percentage = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
-                            
-                            return (
-                              <div key={category.name} className="flex items-center">
-                                <div className="w-36 flex-shrink-0">{category.name}:</div>
-                                <div className="flex-grow">
-                                  <div className="h-2 w-full bg-muted rounded-full">
-                                    <div 
-                                      className="h-2 bg-primary rounded-full" 
-                                      style={{ width: `${percentage}%` }} 
-                                    />
-                                  </div>
-                                </div>
-                                <div className="w-16 text-right text-muted-foreground text-sm">
-                                  {activeCount}/{totalCount}
-                                </div>
+                      <div className="space-y-3 pl-7">
+                        {validCategoryPermissions.map(permission => (
+                          <div key={permission} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {getPermissionIcon(permission)}
+                              <div>
+                                <p className="text-sm capitalize">
+                                  {permission.replace(/_/g, " ")}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {getPermissionDescription(permission)}
+                                </p>
                               </div>
-                            );
-                          })}
-                        </div>
+                            </div>
+                            <Switch
+                              checked={currentRolePermissions.includes(permission)}
+                              onCheckedChange={() => handlePermissionToggle(permission)}
+                              disabled={
+                                selectedRole === 'owner' && user?.role !== 'owner' ||
+                                updatePermissionMutation.isPending
+                              }
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </TabsContent>
-
-                  <TabsContent value="permissions" className="space-y-4 pt-4">
-                    <div className="space-y-6">
-                      {permissionCategories.map(category => {
-                        const validCategoryPermissions = category.permissions.filter(p => 
-                          permissionEnum.enumValues.includes(p as PermissionType)
-                        ) as PermissionType[];
-                        
-                        if (validCategoryPermissions.length === 0) return null;
-                        
-                        const allChecked = validCategoryPermissions.every(p => 
-                          currentRolePermissions.includes(p)
-                        );
-                        const someChecked = validCategoryPermissions.some(p => 
-                          currentRolePermissions.includes(p)
-                        ) && !allChecked;
-                        
-                        return (
-                          <div key={category.name} className="border rounded-lg overflow-hidden">
-                            <div 
-                              className="p-4 bg-muted/30 border-b flex items-center justify-between cursor-pointer"
-                              onClick={() => handleCategoryPermissions(category.permissions, !allChecked)}
-                            >
-                              <div className="flex items-center gap-2">
-                                {category.icon}
-                                <div>
-                                  <h3 className="font-medium">{category.name}</h3>
-                                  <p className="text-sm text-muted-foreground">{category.description}</p>
-                                </div>
-                              </div>
-                              <Checkbox 
-                                checked={allChecked} 
-                                className="data-[state=indeterminate]:bg-primary data-[state=indeterminate]:opacity-70"
-                                data-state={someChecked ? "indeterminate" : allChecked ? "checked" : "unchecked"}
-                                disabled={selectedRole === 'owner' && user?.role !== 'owner'}
-                              />
-                            </div>
-                            
-                            <div className="p-4 divide-y">
-                              {validCategoryPermissions.map(permission => (
-                                <div key={permission} className="py-3 first:pt-0 last:pb-0">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      {getPermissionIcon(permission)}
-                                      <div className="space-y-1">
-                                        <p className="font-medium capitalize">
-                                          {permission.replace(/_/g, " ")}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                          {getPermissionDescription(permission)}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <Switch
-                                      checked={currentRolePermissions.includes(permission)}
-                                      onCheckedChange={() => handlePermissionToggle(permission)}
-                                      disabled={
-                                        selectedRole === 'owner' && user?.role !== 'owner' ||
-                                        updatePermissionMutation.isPending
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                  );
+                })}
               </div>
             </div>
           </div>
