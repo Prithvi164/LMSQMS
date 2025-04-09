@@ -226,9 +226,14 @@ export function RolePermissions() {
       role: string;
       permissions: string[];
     }) => {
-      console.log('Updating permissions for role:', role, 'New permissions:', permissions);
+      // Filter out any obsolete quiz-specific permissions that have been consolidated under 'manage_quiz'
+      const obsoletePermissions = ['edit_quiz', 'delete_quiz', 'create_quiz'];
+      const validPermissions = permissions.filter(p => !obsoletePermissions.includes(p));
+      
+      console.log('Updating permissions for role:', role, 'New permissions:', validPermissions);
+      
       const res = await apiRequest("PATCH", `/api/permissions/${role}`, {
-        permissions,
+        permissions: validPermissions,
       });
       if (!res.ok) {
         const error = await res.json();
@@ -283,10 +288,14 @@ export function RolePermissions() {
     // Update local state immediately for a responsive UI
     setCurrentRolePermissions(newPermissions);
 
+    // Filter out any obsolete quiz-specific permissions that have been consolidated under 'manage_quiz'
+    const obsoletePermissions = ['edit_quiz', 'delete_quiz', 'create_quiz'];
+    const validPermissions = newPermissions.filter(p => !obsoletePermissions.includes(p));
+
     // Then send the update to the server
     updatePermissionMutation.mutate({
       role: selectedRole,
-      permissions: newPermissions,
+      permissions: validPermissions,
     });
   }, [selectedRole, currentRolePermissions, updatePermissionMutation]);
 
