@@ -105,7 +105,7 @@ export function RolePermissions() {
       name: "Organization Settings",
       icon: <Building className="h-5 w-5" />,
       description: "Manage organization structure and configuration",
-      permissions: ['manage_organization_settings', 'manage_organization', 'edit_organization', 'manage_locations', 'manage_processes']
+      permissions: ['view_organization', 'manage_holidaylist', 'manage_locations', 'manage_processes', 'manage_lineofbusiness']
     },
     {
       name: "Training Management",
@@ -151,11 +151,16 @@ export function RolePermissions() {
       add_users: "Create new user accounts",
       
       // Organization Settings
+      view_organization: "View organization structure and settings",
+      manage_holidaylist: "Full access to holiday management (add, edit, delete holidays)",
+      manage_locations: "Full access to manage office/center locations",
+      manage_processes: "Full access to workflow processes management",
+      manage_lineofbusiness: "Full access to line of business management",
+      
+      // Legacy - for backward compatibility
       manage_organization_settings: "Configure organization-wide parameters",
       manage_organization: "Control organization-wide settings",
       edit_organization: "Update organization settings",
-      manage_locations: "Manage different office/center locations",
-      manage_processes: "Handle workflow processes",
       create_location: "Add new location entries",
       create_process: "Set up new workflow processes",
       
