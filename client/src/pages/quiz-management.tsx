@@ -1439,22 +1439,35 @@ export function QuizManagement() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              if (generateQuizMutation.isPending) return;
-                              generateQuizMutation.mutate(template.id);
-                            }}
-                            disabled={generateQuizMutation.isPending}
-                          >
-                            {generateQuizMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <PlayCircle className="h-4 w-4" />
-                            )}
-                            <span className="ml-2">Generate Quiz</span>
-                          </Button>
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (generateQuizMutation.isPending) return;
+                                generateQuizMutation.mutate(template.id);
+                              }}
+                              disabled={generateQuizMutation.isPending}
+                            >
+                              {generateQuizMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <PlayCircle className="h-4 w-4" />
+                              )}
+                              <span className="ml-2">Generate Quiz</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                              title="You don't have permission to generate quizzes"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                              <span className="ml-2">Generate Quiz</span>
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
