@@ -27,7 +27,8 @@ import {
   Activity,
   BookOpen,
   MessageSquare,
-  Save
+  Save,
+  SquareStack
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -111,7 +112,13 @@ export function RolePermissions() {
       name: "Training Management",
       icon: <BookOpen className="h-5 w-5" />,
       description: "Control training process and batches",
-      permissions: ['manage_batches', 'manage_batch_users_add', 'manage_batch_users_remove', 'view_quiz', 'edit_quiz', 'delete_quiz', 'create_quiz', 'manage_quiz', 'take_quiz']
+      permissions: ['manage_batches', 'manage_batch_users_add', 'manage_batch_users_remove']
+    },
+    {
+      name: "Quiz Management",
+      icon: <SquareStack className="h-5 w-5" />,
+      description: "Control quiz creation and access",
+      permissions: ['view_quiz', 'edit_quiz', 'delete_quiz', 'create_quiz', 'manage_quiz', 'take_quiz', 'view_take_quiz']
     },
     {
       name: "Performance & Evaluation",
@@ -181,6 +188,7 @@ export function RolePermissions() {
       create_quiz: "Create new quizzes",
       manage_quiz: "Full control over quiz management",
       take_quiz: "Ability to take quizzes",
+      view_take_quiz: "View quizzes that can be taken",
       
       // Evaluation Forms
       view_evaluation_form: "View evaluation form details",
