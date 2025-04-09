@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { 
   Card, 
   CardContent, 
@@ -812,9 +813,13 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
 // Main batch dashboard component
 export function BatchDashboard({ batchId }: { batchId: number | string }) {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<string>("overview");
   const { toast } = useToast();
+  
+  // Check if user has export reports permission
+  const canExportReports = hasPermission("export_reports");
   
   // Fetch batch data
   const { 
@@ -952,30 +957,32 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
           <Badge variant="outline" className="text-sm">
             {trainees.length} / {batch.capacityLimit} Trainees
           </Badge>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-1"
-            onClick={() => {
-              try {
-                generateBatchInsightPDF(batch, traineesWithProgress, batchMetrics);
-                toast({
-                  title: "PDF Generated Successfully",
-                  description: "Batch insight report has been downloaded.",
-                });
-              } catch (error) {
-                console.error("Error generating PDF:", error);
-                toast({
-                  title: "Error Generating PDF",
-                  description: "There was a problem creating the PDF report.",
-                  variant: "destructive"
-                });
-              }
-            }}
-          >
-            <FileDown className="h-4 w-4" />
-            <span>Download PDF Report</span>
-          </Button>
+          {canExportReports && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1"
+              onClick={() => {
+                try {
+                  generateBatchInsightPDF(batch, traineesWithProgress, batchMetrics);
+                  toast({
+                    title: "PDF Generated Successfully",
+                    description: "Batch insight report has been downloaded.",
+                  });
+                } catch (error) {
+                  console.error("Error generating PDF:", error);
+                  toast({
+                    title: "Error Generating PDF",
+                    description: "There was a problem creating the PDF report.",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              <FileDown className="h-4 w-4" />
+              <span>Download PDF Report</span>
+            </Button>
+          )}
         </div>
       </div>
       
