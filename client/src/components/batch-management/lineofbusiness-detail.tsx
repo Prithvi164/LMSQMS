@@ -67,6 +67,10 @@ export function LineOfBusinessDetail() {
 
   // Check if user has permission to manage line of business
   const canManageLineOfBusiness = hasPermission("manage_lineofbusiness");
+  
+  // Add debugging to check permission status
+  console.log('LineOfBusiness component - User role:', user?.role);
+  console.log('LineOfBusiness component - manage_lineofbusiness permission:', canManageLineOfBusiness);
 
   // Fetch organization with optimized caching
   const { data: organization } = useQuery({
