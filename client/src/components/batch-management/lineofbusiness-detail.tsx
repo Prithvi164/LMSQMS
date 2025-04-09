@@ -72,9 +72,15 @@ export function LineOfBusinessDetail() {
   console.log('LineOfBusiness component - User role:', user?.role);
   console.log('LineOfBusiness component - manage_lineofbusiness permission:', canManageLineOfBusiness);
   
-  // Force enable permissions for owner role to bypass hierarchy checks
+  // Force enable permissions for owner role to bypass hierarchy checks, but validate other roles have the actual permission
   const isOwner = user?.role === 'owner';
-  const effectivePermission = isOwner ? true : canManageLineOfBusiness;
+  
+  // For debugging
+  console.log('LineOfBusiness component - Original permission check result:', canManageLineOfBusiness);
+  console.log('LineOfBusiness component - User permissions:', user);
+  
+  // Owner always has access, other roles need the specific permission
+  const effectivePermission = isOwner ? true : (canManageLineOfBusiness === true);
 
   // Fetch organization with optimized caching
   const { data: organization } = useQuery({

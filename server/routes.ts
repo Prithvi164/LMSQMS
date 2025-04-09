@@ -4065,6 +4065,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`User ${req.user.id} attempted to create LOB in organization ${orgId}`);
         return res.status(403).json({ message: "You can only create LOBs in your own organization" });
       }
+      
+      // Check if user has manage_lineofbusiness permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_lineofbusiness')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to create LOB without permission`);
+          return res.status(403).json({ message: "You do not have permission to create line of business" });
+        }
+      }
 
       const lobData = {
         name: req.body.name,
@@ -4716,6 +4725,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only modify LOBs in your own organization" });
       }
+      
+      // Check if user has manage_lineofbusiness permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_lineofbusiness')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to update LOB without permission`);
+          return res.status(403).json({ message: "You do not have permission to modify line of business" });
+        }
+      }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
       const updatedLob = await storage.updateLineOfBusiness(lobId, {
@@ -4741,6 +4759,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only delete LOBs in your own organization" });
+      }
+      
+      // Check if user has manage_lineofbusiness permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_lineofbusiness')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to delete LOB without permission`);
+          return res.status(403).json({ message: "You do not have permission to delete line of business" });
+        }
       }
 
       console.log('Deleting LOB:', lobId);
