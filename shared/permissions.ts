@@ -21,9 +21,6 @@ export const defaultPermissions = {
     'manage_batch_users_remove',
     // Quiz permissions
     'manage_quiz',
-    'edit_quiz',
-    'delete_quiz',
-    'create_quiz',
     'take_quiz',
     'view_quiz',
     'view_take_quiz',
@@ -53,9 +50,6 @@ export const defaultPermissions = {
     'manage_batch_users_remove',
     // Quiz permissions
     'manage_quiz',
-    'edit_quiz',
-    'delete_quiz',
-    'create_quiz',
     'take_quiz',
     'view_quiz',
     'view_take_quiz',
@@ -100,9 +94,6 @@ export const defaultPermissions = {
     'manage_batch_users_remove',
     // Quiz permissions
     'manage_quiz',
-    'edit_quiz',
-    'delete_quiz',
-    'create_quiz',
     'take_quiz',
     'view_quiz',
     'view_take_quiz',

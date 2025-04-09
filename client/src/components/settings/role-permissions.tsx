@@ -118,7 +118,7 @@ export function RolePermissions() {
       name: "Quiz Management",
       icon: <SquareStack className="h-5 w-5" />,
       description: "Control quiz creation and access",
-      permissions: ['view_quiz', 'edit_quiz', 'delete_quiz', 'create_quiz', 'manage_quiz', 'take_quiz', 'view_take_quiz']
+      permissions: ['view_quiz', 'manage_quiz', 'take_quiz', 'view_take_quiz']
     },
     {
       name: "Performance & Evaluation",
@@ -183,10 +183,7 @@ export function RolePermissions() {
       
       // Quiz Management
       view_quiz: "View quiz details and questions",
-      edit_quiz: "Modify existing quizzes",
-      delete_quiz: "Remove quizzes from the system",
-      create_quiz: "Create new quizzes",
-      manage_quiz: "Full control over quiz management",
+      manage_quiz: "Full control over quiz management (create, edit, delete)",
       take_quiz: "Ability to take quizzes",
       view_take_quiz: "View quizzes that can be taken",
       
