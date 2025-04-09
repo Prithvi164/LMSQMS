@@ -71,6 +71,10 @@ export function LineOfBusinessDetail() {
   // Add debugging to check permission status
   console.log('LineOfBusiness component - User role:', user?.role);
   console.log('LineOfBusiness component - manage_lineofbusiness permission:', canManageLineOfBusiness);
+  
+  // Force enable permissions for owner role to bypass hierarchy checks
+  const isOwner = user?.role === 'owner';
+  const effectivePermission = isOwner ? true : canManageLineOfBusiness;
 
   // Fetch organization with optimized caching
   const { data: organization } = useQuery({
@@ -120,7 +124,7 @@ export function LineOfBusinessDetail() {
 
   const createLOBMutation = useMutation({
     mutationFn: async (data: LineOfBusinessFormValues) => {
-      if (!canManageLineOfBusiness) {
+      if (!effectivePermission) {
         throw new Error('You do not have permission to create a line of business');
       }
 
@@ -159,7 +163,7 @@ export function LineOfBusinessDetail() {
 
   const updateLOBMutation = useMutation({
     mutationFn: async (data: LineOfBusinessFormValues) => {
-      if (!canManageLineOfBusiness) {
+      if (!effectivePermission) {
         throw new Error('You do not have permission to edit a line of business');
       }
 
@@ -199,7 +203,7 @@ export function LineOfBusinessDetail() {
 
   const deleteLOBMutation = useMutation({
     mutationFn: async () => {
-      if (!canManageLineOfBusiness) {
+      if (!effectivePermission) {
         throw new Error('You do not have permission to delete a line of business');
       }
 
@@ -308,7 +312,7 @@ export function LineOfBusinessDetail() {
                 }}
               />
             </div>
-            {canManageLineOfBusiness && (
+            {effectivePermission && (
               <Button onClick={() => setIsCreateDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Line of Business
@@ -360,7 +364,7 @@ export function LineOfBusinessDetail() {
                           {lob.description || "-"}
                         </TableCell>
                         <TableCell className="text-right space-x-2">
-                          {canManageLineOfBusiness && (
+                          {effectivePermission && (
                             <>
                               <Button
                                 variant="outline"
@@ -413,7 +417,7 @@ export function LineOfBusinessDetail() {
             </>
           ) : (
             <p className="text-muted-foreground">
-              No lines of business found. {canManageLineOfBusiness ? "Create a new line of business to get started." : "Ask an administrator to create lines of business."}
+              No lines of business found. {effectivePermission ? "Create a new line of business to get started." : "Ask an administrator to create lines of business."}
             </p>
           )}
         </CardContent>
@@ -528,7 +532,7 @@ export function LineOfBusinessDetail() {
                 >
                   Cancel
                 </Button>
-                {canManageLineOfBusiness ? (
+                {effectivePermission ? (
                   <Button 
                     type="submit"
                     disabled={updateLOBMutation.isPending}
@@ -573,7 +577,7 @@ export function LineOfBusinessDetail() {
             >
               Cancel
             </Button>
-            {canManageLineOfBusiness ? (
+            {effectivePermission ? (
               <Button 
                 variant="destructive"
                 onClick={handleDeleteConfirm}
