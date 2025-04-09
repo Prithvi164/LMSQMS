@@ -59,11 +59,13 @@ export const permissionEnum = pgEnum('permission', [
   'delete_users',
   'upload_users',
   'add_users',               // Create new user accounts
-  'manage_organization',
-  'view_organization',
-  'edit_organization',
-  'manage_locations',
-  'manage_processes',
+  'manage_organization',     // Legacy - to be replaced with more specific permissions
+  'view_organization',       // Legacy - to be replaced with more specific permissions
+  'edit_organization',       // Legacy - to be replaced with more specific permissions
+  'manage_locations',        // Full access to locations management
+  'manage_processes',        // Full access to processes management
+  'manage_holidaylist',      // Full access to holiday management
+  'manage_lineofbusiness',   // Full access to line of business management
   'view_performance',
   'manage_performance',
   'export_reports',

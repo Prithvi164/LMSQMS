@@ -128,10 +128,9 @@ export default function OrganizationSettings() {
   const [isAddHolidayOpen, setIsAddHolidayOpen] = useState(false);
   const [holidayToDelete, setHolidayToDelete] = useState<Holiday | null>(null);
   
-  // Check permissions
-  const canManageHolidays = hasPermission("manage_organization");
-  const canEditHolidays = hasPermission("edit_organization") || canManageHolidays;
-  const canViewHolidays = hasPermission("view_organization") || canEditHolidays;
+  // Check permissions with new specific permission structure
+  const canManageHolidays = hasPermission("manage_holidaylist");
+  const canViewHolidays = hasPermission("view_organization") || canManageHolidays;
 
   // Holiday form setup
   const holidayForm = useForm<HolidayForm>({
@@ -385,7 +384,7 @@ export default function OrganizationSettings() {
               <p className="text-sm text-muted-foreground">
                 Holidays are excluded when calculating training phase durations.
               </p>
-              {canEditHolidays && (
+              {canManageHolidays && (
                 <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-1.5">
