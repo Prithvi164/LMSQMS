@@ -1766,6 +1766,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+    
+    // Check for upload_users permission
+    const userRole = req.user.role;
+    
+    // Owner has all permissions
+    if (userRole !== 'owner') {
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      if (!userPermissions.includes('upload_users')) {
+        return res.status(403).json({ message: "You don't have permission to upload users" });
+      }
+    }
 
     try {
       const users = req.body.users;

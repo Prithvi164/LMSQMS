@@ -1,7 +1,7 @@
 import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
-import { batchStatusEnum, attendance } from "@shared/schema";
+import { batchStatusEnum, attendance, permissionEnum } from "@shared/schema";
 import {
   users,
   organizations,
@@ -105,6 +105,9 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
   
+  // Permission operations
+  getUserPermissions(userId: number): Promise<string[]>;
+  
   // Password reset operations
   createPasswordResetToken(email: string, token: string): Promise<User | undefined>;
   getUserByResetToken(token: string): Promise<User | undefined>;
@@ -183,6 +186,7 @@ export interface IStorage {
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
   getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined>;
   updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission>;
+  getUserPermissions(userId: number): Promise<string[]>;
 
   // Process operations
   getProcess(id: number): Promise<OrganizationProcess | undefined>;
@@ -2032,6 +2036,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(rolePermissions.organizationId, organizationId))
       .where(eq(rolePermissions.role, role)) as RolePermission[];
     return permission;
+  }
+
+  async getUserPermissions(userId: number): Promise<string[]> {
+    try {
+      // Get the user to find their role
+      const user = await this.getUser(userId);
+      if (!user) {
+        return []; // User not found, no permissions
+      }
+
+      // If user is owner, return all permissions
+      if (user.role === 'owner') {
+        // Return all permissions from the permissionEnum
+        return permissionEnum.enumValues;
+      }
+
+      // Get the role permissions for this user's role
+      const rolePermission = await this.getRolePermissions(user.organizationId, user.role);
+      
+      // Return the permissions or an empty array if none found
+      return rolePermission?.permissions || [];
+    } catch (error) {
+      console.error('Error getting user permissions:', error);
+      return [];
+    }
   }
 
   async updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission> {
