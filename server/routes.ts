@@ -1492,6 +1492,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only modify your own organization's settings" });
       }
+      
+      // If creating a location, check for manage_locations permission
+      if (req.body.type === "locations" && req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_locations')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to create location without permission`);
+          return res.status(403).json({ message: "You do not have permission to create locations" });
+        }
+      }
 
       // Check if we're updating the feature type directly
       if (req.body.featureType) {
@@ -3678,6 +3687,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only modify locations in your own organization" });
       }
+      
+      // Check if user has manage_locations permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_locations')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to update location without permission`);
+          return res.status(403).json({ message: "You do not have permission to modify locations" });
+        }
+      }
 
       // Validate request body
       const { name, address, city, state, country } = req.body;
@@ -3728,6 +3746,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only delete locations in your own organization" });
+      }
+      
+      // Check if user has manage_locations permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_locations')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to delete location without permission`);
+          return res.status(403).json({ message: "You do not have permission to delete locations" });
+        }
       }
 
       console.log('Deleting location:', locationId);
@@ -4645,6 +4672,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only create processes in your own organization" });
       }
+      
+      // Check if user has manage_processes permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_processes')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to create process without permission`);
+          return res.status(403).json({ message: "You do not have permission to create process" });
+        }
+      }
 
       const processData = {
         ...req.body,
@@ -4676,6 +4712,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only update processes in your own organization" });
       }
+      
+      // Check if user has manage_processes permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_processes')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to update process without permission`);
+          return res.status(403).json({ message: "You do not have permission to update process" });
+        }
+      }
 
       console.log('Updating process:', processId, 'with data:', req.body);
 
@@ -4699,15 +4744,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "Youcan only delete processes in your own organization" });
+        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+      }
+      
+      // Check if user has manage_processes permission or is owner
+      if (req.user.role !== 'owner') {
+        const userPermissions = await storage.getRolePermissions(req.user.role);
+        if (!userPermissions?.permissions.includes('manage_processes')) {
+          console.log(`User ${req.user.id} with role ${req.user.role} attempted to delete process without permission`);
+          return res.status(403).json({ message: "You do not have permission to delete process" });
+        }
       }
 
       console.log('Deleting process:', processId);
       await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
-      res.status(200).json({ message: "Processdeleted successfully"});
-}catch (error:any) {
+      res.status(200).json({ message: "Process deleted successfully"});
+    } catch (error:any) {
       console.error("Process deletion error:", error);
       res.status(400).json({ message: error.message || "Failed to delete process" });
     }
