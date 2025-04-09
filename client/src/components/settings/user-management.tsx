@@ -534,9 +534,14 @@ export function UserManagement() {
     }, [editUser.processes, processes]);
 
     // Determine if the current user can edit this user
-    // Check both the user's role hierarchy AND their edit_users permission
+    // Only use permission system for consistency with other features
     const hasEditPermission = hasPermission("edit_users");
-    const canEdit = (user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin")) && hasEditPermission;
+    
+    // Check if the target user is an admin or owner - these should only be editable by higher roles
+    const isTargetProtected = editUser.role === "admin" || editUser.role === "owner";
+    const canLowerRoleEdit = !isTargetProtected || user?.role === "owner";
+    
+    const canEdit = hasEditPermission && canLowerRoleEdit;
 
     if (!canEdit) {
       return (

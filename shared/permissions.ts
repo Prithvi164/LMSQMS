@@ -59,7 +59,6 @@ export const defaultPermissions = {
   ],
   team_lead: [
     'view_users',
-    'edit_users',
     'manage_performance',
     'view_organization',
     // Feedback permissions
