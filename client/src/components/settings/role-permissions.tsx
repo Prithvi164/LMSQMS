@@ -111,7 +111,7 @@ export function RolePermissions() {
       name: "Training Management",
       icon: <BookOpen className="h-5 w-5" />,
       description: "Control training process and batches",
-      permissions: ['manage_batches', 'view_quiz', 'edit_quiz', 'delete_quiz', 'create_quiz', 'manage_quiz', 'take_quiz']
+      permissions: ['manage_batches', 'manage_batch_users_add', 'manage_batch_users_remove', 'view_quiz', 'edit_quiz', 'delete_quiz', 'create_quiz', 'manage_quiz', 'take_quiz']
     },
     {
       name: "Performance & Evaluation",
@@ -171,6 +171,8 @@ export function RolePermissions() {
       
       // Training Management
       manage_batches: "Create, edit, and delete training batches",
+      manage_batch_users_add: "Add users to training batches",
+      manage_batch_users_remove: "Remove users from training batches",
       
       // Quiz Management
       view_quiz: "View quiz details and questions",

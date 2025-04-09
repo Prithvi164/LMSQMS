@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Tabs,
   TabsContent,
@@ -98,6 +99,10 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  
+  // Check permissions for managing trainees
+  const { hasPermission } = usePermissions();
+  const canRemoveBatchUsers = hasPermission('manage_batch_users_remove');
   
   // Use hierarchy utility functions for permission checks
   
@@ -422,16 +427,18 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsTransferDialogOpen(true);
-                      }}
-                    >
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </Button>
+                    {canRemoveBatchUsers && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsTransferDialogOpen(true);
+                        }}
+                      >
+                        <ArrowRightLeft className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -444,16 +451,18 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canRemoveBatchUsers && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

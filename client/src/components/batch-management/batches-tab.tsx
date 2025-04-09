@@ -137,6 +137,8 @@ export function BatchesTab() {
   const [isTraineeDialogOpen, setIsTraineeDialogOpen] = useState(false);
 
   const canManageBatches = hasPermission("manage_batches");
+  const canAddBatchUsers = hasPermission("manage_batch_users_add");
+  const canRemoveBatchUsers = hasPermission("manage_batch_users_remove");
 
   // Query to get all users for hierarchy checking
   const {
@@ -650,6 +652,14 @@ export function BatchesTab() {
   };
 
   const handleAddTraineeClick = (batch: BatchWithRelations) => {
+    if (!canAddBatchUsers) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to add trainees to batches",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedBatchForTrainee(batch);
     setIsAddTraineeDialogOpen(true);
   };
@@ -771,15 +781,17 @@ export function BatchesTab() {
                     <Eye className="h-4 w-4" />
                     <span className="sr-only">View Dashboard</span>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleAddTraineeClick(batch)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    <span className="sr-only">Add Trainee</span>
-                  </Button>
+                  {canAddBatchUsers && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAddTraineeClick(batch)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      <span className="sr-only">Add Trainee</span>
+                    </Button>
+                  )}
                   {canManageBatches && batch.status === 'planned' && (
                     <>
                       <Button
