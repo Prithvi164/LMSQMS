@@ -61,33 +61,21 @@ async function comparePasswords(supplied: string, stored: string) {
       console.error("Invalid stored password format:", stored);
       return false;
     }
-    
     const [hashed, salt] = stored.split(".");
     console.log("Password comparison details:");
     console.log("- Salt:", salt);
     console.log("- Stored hash length:", hashed.length);
     console.log("- Stored hash:", hashed);
 
-    // For demo/testing purposes ONLY - hardcoded success for password123 
-    if (supplied === "password123") {
-      console.log("- SPECIAL CASE: Allowing login with password123 for testing");
-      return true;
-    }
-
-    // Manual comparison for debugging
+    const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
     const suppliedHex = suppliedBuf.toString("hex");
 
-    console.log("- Supplied password:", supplied);
     console.log("- Supplied password length:", supplied.length);
     console.log("- Generated hash:", suppliedHex);
     console.log("- Generated hash length:", suppliedBuf.length);
-    
-    // Simple string comparison instead of buffer comparison to avoid length issues
-    const result = hashed === suppliedHex;
-    console.log("- String comparison result:", result);
-    
-    return result;
+
+    return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
     return false;

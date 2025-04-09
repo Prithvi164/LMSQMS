@@ -1,10 +1,11 @@
 import { db } from './db';
-import { permissionEnum, rolePermissions } from '@shared/schema';
+import { roles, permissions } from '../shared/schema';
+import { permissionEnum } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 // Define default permissions for each role
 export const defaultPermissions = {
-  owner: Array.from(permissionEnum.enumValues).filter(p => p !== 'create_admin' as any), // Owner gets all permissions except create_admin
+  owner: permissionEnum.enumValues.filter(p => p !== 'create_admin'), // Owner gets all permissions except create_admin
   admin: [
     'manage_users',
     'view_users',
@@ -31,12 +32,11 @@ export const defaultPermissions = {
     'manage_performance',
     'view_organization'
   ],
-  quality_analyst: [
+  qualityassurance: [
     'view_users',
     'manage_performance',
     'export_reports',
-    'view_organization',
-    'add_users'  // Added the add_users permission here
+    'view_organization'
   ],
   trainer: [
     'view_users',
@@ -52,33 +52,25 @@ export const defaultPermissions = {
 // Function to get default permissions for a role
 export async function getDefaultPermissions(role: string): Promise<string[]> {
   try {
-    // Handle specific role mapping to ensure backward compatibility
-    const mappedRole = role === 'qualityassurance' ? 'quality_analyst' : role;
-    
     // First check if role has custom permissions in database
-    const customPerms = await db.select().from(rolePermissions)
-      .where(eq(rolePermissions.role, mappedRole as any));
+    const customPerms = await db.select().from(permissions)
+      .where(eq(permissions.role, role));
 
     if (customPerms.length > 0) {
       return customPerms[0].permissions;
     }
 
     // If no custom permissions, initialize with defaults and return
-    const defaultPerms = defaultPermissions[mappedRole as keyof typeof defaultPermissions] || [];
-    // Convert to string[] to avoid readonly type issues
-    const permissionsArray = Array.isArray(defaultPerms) ? [...defaultPerms] : [];
-    await db.insert(rolePermissions).values({
-      role: mappedRole,
-      permissions: permissionsArray,
-      organizationId: 1 // Default organization ID
+    const defaultPerms = defaultPermissions[role as keyof typeof defaultPermissions] || [];
+    await db.insert(permissions).values({
+      role: role,
+      permissions: defaultPerms
     }).onConflictDoNothing();
 
-    // Convert to string[] to avoid readonly type issues for return
-    return Array.isArray(defaultPerms) ? [...defaultPerms] : [];
+    return defaultPerms;
   } catch (error) {
     console.error('Error getting permissions:', error);
-    const fallbackPerms = defaultPermissions[role as keyof typeof defaultPermissions] || [];
-    return Array.isArray(fallbackPerms) ? [...fallbackPerms] : [];
+    return defaultPermissions[role as keyof typeof defaultPermissions] || [];
   }
 }
 
@@ -87,14 +79,9 @@ export async function initializeDefaultPermissions() {
   try {
     const roles = Object.keys(defaultPermissions);
     for (const role of roles) {
-      const defaultPerms = defaultPermissions[role as keyof typeof defaultPermissions];
-      // Convert to string[] to avoid readonly type issues
-      const permissionsArray = Array.isArray(defaultPerms) ? [...defaultPerms] : [];
-      
-      await db.insert(rolePermissions).values({
+      await db.insert(permissions).values({
         role: role,
-        permissions: permissionsArray,
-        organizationId: 1 // Default organization ID
+        permissions: defaultPermissions[role as keyof typeof defaultPermissions]
       }).onConflictDoNothing();
     }
     console.log('Default permissions initialized');
