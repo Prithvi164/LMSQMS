@@ -41,7 +41,6 @@ import {
 } from "@/components/ui/select";
 import { Plus, Loader2, Edit, Trash2, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 
 const lobFormSchema = z.object({
   name: z.string().min(1, "LOB name is required"),
@@ -264,8 +263,7 @@ export function LobDetail() {
     <div className="space-y-4">
       <Card className="overflow-hidden border-none shadow-lg">
         <CardContent className="p-6">
-          {/* Header Section */}
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
               <SiReact className="h-5 w-5 text-purple-500" />
               <h2 className="text-lg font-semibold">Manage Line of Business</h2>
@@ -300,123 +298,6 @@ export function LobDetail() {
               </TooltipProvider>
             </div>
           </div>
-
-          {/* Separator between header and content */}
-          <Separator className="my-4" />
-
-          {/* LOB List Section */}
-          {lobs?.length > 0 ? (
-            <>
-              <div className="flex items-center justify-end py-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Rows per page:</span>
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => {
-                      setPageSize(parseInt(value));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="10" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="relative overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>LOB Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedLobs.map((lob: any) => (
-                      <TableRow key={lob.id}>
-                        <TableCell className="font-medium">{lob.name}</TableCell>
-                        <TableCell>{lob.description}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(lob)}
-                                    className="h-7 w-7 p-0 text-blue-600"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Edit LOB</span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  <p>Edit Line of Business</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDelete(lob)}
-                                    className="h-7 w-7 p-0 text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete LOB</span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  <p>Delete Line of Business</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredLobs.length)} of {filteredLobs.length} entries
-                </div>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <p className="text-muted-foreground">No line of business found. Create a new LOB to get started.</p>
-          )}
         </CardContent>
       </Card>
 
@@ -541,6 +422,122 @@ export function LobDetail() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* LOB List Section */}
+      <Card>
+        <CardContent>
+          {lobs?.length > 0 ? (
+            <>
+              <div className="flex items-center justify-end py-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Rows per page:</span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => {
+                      setPageSize(parseInt(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="relative overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>LOB Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLobs.map((lob: any) => (
+                      <TableRow key={lob.id}>
+                        <TableCell className="font-medium">{lob.name}</TableCell>
+                        <TableCell>{lob.description}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEdit(lob)}
+                                    className="h-7 w-7 p-0 text-blue-600"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    <span className="sr-only">Edit LOB</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Edit Line of Business</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDelete(lob)}
+                                    className="h-7 w-7 p-0 text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Delete LOB</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Delete Line of Business</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1} to {Math.min(endIndex, lobs.length)} of {lobs.length} entries
+                </div>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-muted-foreground">No line of business found. Create a new LOB to get started.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
