@@ -363,27 +363,7 @@ export function ProcessDetail() {
           </div>
           {processes.length > 0 ? (
             <>
-              <div className="flex items-center justify-end py-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Rows per page:</span>
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => {
-                      setPageSize(parseInt(value));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="10" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              {/* Row per page selection moved to the end of the table */}
 
               <div className="relative overflow-x-auto rounded-lg border">
                 <Table>
