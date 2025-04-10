@@ -186,6 +186,7 @@ export interface IStorage {
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
   getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined>;
   updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission>;
+  resetRolePermissionsToDefault(organizationId: number, role: string): Promise<RolePermission>;
   getUserPermissions(userId: number): Promise<string[]>;
 
   // Process operations
@@ -2084,6 +2085,17 @@ export class DatabaseStorage implements IStorage {
         .returning() as RolePermission[];
       return created;
     }
+  }
+  
+  async resetRolePermissionsToDefault(organizationId: number, role: string): Promise<RolePermission> {
+    // Import the default permissions from shared permissions
+    const { getDefaultPermissions } = await import("@shared/permissions");
+    
+    // Get the default permissions for this role
+    const defaultPermissions = getDefaultPermissions(role);
+    
+    // Update the role permissions with the defaults
+    return this.updateRolePermissions(organizationId, role, defaultPermissions);
   }
 
 
