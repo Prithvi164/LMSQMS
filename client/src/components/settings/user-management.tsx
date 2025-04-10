@@ -461,6 +461,12 @@ export function UserManagement() {
     queryKey: ["/api/users/processes"],
     enabled: !!user,
   });
+  
+  // Add new query for user batch processes
+  const { data: userBatchProcesses = {} } = useQuery({
+    queryKey: ["/api/users/batch-processes"],
+    enabled: !!user,
+  });
 
   // Add helper function to get user processes
   const getUserProcesses = (userId: number) => {
