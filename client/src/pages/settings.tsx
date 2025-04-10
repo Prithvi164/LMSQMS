@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { usePermissions, PermissionGuard } from "@/hooks/use-permissions";
 
+// Feature flag to control whether the Role Order UI is visible
+const SHOW_ROLE_ORDER_UI = false;
+
 // Import existing components
 import { UserManagement } from "@/components/settings/user-management";
 import { UserProfile } from "@/components/settings/user-profile";
@@ -209,7 +212,7 @@ export default function Settings(): React.JSX.Element {
                   )}
                   {activeTab === "permissions" && (
                     <div className="space-y-6">
-                      <RoleHierarchyEditor />
+                      {SHOW_ROLE_ORDER_UI && <RoleHierarchyEditor />}
                       <RolePermissions />
                     </div>
                   )}
