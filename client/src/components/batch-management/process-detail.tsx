@@ -42,7 +42,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, Pencil, Trash, Search } from "lucide-react";
+import { Plus, Loader2, Edit, Trash2, Search } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface LineOfBusiness {
   id: number;
@@ -405,26 +406,46 @@ export function ProcessDetail() {
                         <TableCell className="text-center">{process.certificationDays}</TableCell>
                         <TableCell className="text-center">{process.ojtDays}</TableCell>
                         <TableCell className="text-center">{process.ojtCertificationDays}</TableCell>
-                        <TableCell className="text-right space-x-2">
-                          {canManageProcesses && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleEdit(process)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canManageProcesses && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleDelete(process)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          )}
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            {canManageProcesses && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(process)}
+                                      className="h-7 w-7 p-0 text-blue-600"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                      <span className="sr-only">Edit Process</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p>Edit Process</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDelete(process)}
+                                      className="h-7 w-7 p-0 text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Delete Process</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p>Delete Process</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
