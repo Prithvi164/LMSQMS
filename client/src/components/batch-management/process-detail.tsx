@@ -320,33 +320,44 @@ export function ProcessDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2 mb-6">
-        <SiReact className="h-8 w-8 text-blue-500" />
-        <h1 className="text-2xl font-semibold">Manage Processes</h1>
-      </div>
-
-      {/* Search and Actions Section */}
-      <Card className="border-dashed">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search processes..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
+      <Card className="overflow-hidden border-none shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <SiReact className="h-5 w-5 text-purple-500" />
+              <h2 className="text-lg font-semibold">Manage Processes</h2>
             </div>
-            {canManageProcesses && (
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Process
-              </Button>
-            )}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search processes..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-9 w-[250px] focus:border-purple-500"
+                />
+              </div>
+              {canManageProcesses && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setIsCreateDialogOpen(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Process
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Add a new process
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
