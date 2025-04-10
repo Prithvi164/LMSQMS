@@ -64,27 +64,79 @@ interface TreeNode {
 }
 
 // Helper function to build the tree structure
-const buildOrgTree = (users: User[], rootUserId: number | null = null): TreeNode[] => {
-  const children = users.filter(user => user.managerId === rootUserId);
-  if (!children.length) return [];
+const buildOrgTree = (users: User[], rootUserId: number | null = null, searchTerm: string = ""): TreeNode[] => {
+  // If search term is provided, only include matching users in the tree
+  const filteredUsers = searchTerm 
+    ? users.filter(user => 
+        user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : users;
+    
+  // For regular operation (no search), filter children by managerId
+  if (!searchTerm) {
+    const children = users.filter(user => user.managerId === rootUserId);
+    if (!children.length) return [];
 
-  return children.map(child => ({
-    user: child,
-    children: buildOrgTree(users, child.id)
-  }));
+    return children.map(child => ({
+      user: child,
+      children: buildOrgTree(users, child.id, searchTerm)
+    }));
+  } 
+  // When searching, include any user that matches the search criteria
+  // and also include their managers to maintain hierarchy
+  else {
+    const matchingUsers = new Set<number>();
+    
+    // Add all matching users to our set
+    filteredUsers.forEach(user => matchingUsers.add(user.id));
+    
+    // For each matching user, add their managers up the chain
+    filteredUsers.forEach(user => {
+      let currentUser = user;
+      while (currentUser.managerId !== null && currentUser.managerId !== rootUserId) {
+        matchingUsers.add(currentUser.managerId);
+        currentUser = users.find(u => u.id === currentUser.managerId) || { ...currentUser, managerId: null };
+      }
+    });
+    
+    // Now filter the immediate children of the current root
+    const children = users.filter(user => 
+      user.managerId === rootUserId && 
+      (matchingUsers.has(user.id) || hasMatchingDescendant(user.id, users, matchingUsers))
+    );
+    
+    if (!children.length) return [];
+    
+    return children.map(child => ({
+      user: child,
+      children: buildOrgTree(users, child.id, searchTerm)
+    }));
+  }
+};
+
+// Helper function to check if a user has any descendants that match the search
+const hasMatchingDescendant = (userId: number, users: User[], matchingIds: Set<number>): boolean => {
+  const directChildren = users.filter(user => user.managerId === userId);
+  
+  return directChildren.some(child => 
+    matchingIds.has(child.id) || hasMatchingDescendant(child.id, users, matchingIds)
+  );
 };
 
 // Find a user's reporting hierarchy
 const findUserHierarchy = (
   userId: number, 
-  allUsers: User[]
+  allUsers: User[],
+  searchTerm: string = ""
 ): TreeNode | null => {
   const currentUser = allUsers.find(u => u.id === userId);
   if (!currentUser) return null;
   
   return {
     user: currentUser,
-    children: buildOrgTree(allUsers, currentUser.id)
+    children: buildOrgTree(allUsers, currentUser.id, searchTerm)
   };
 };
 
@@ -557,17 +609,17 @@ export function OrganizationTree() {
   if (viewMode === 'full') {
     displayTree = [{
       user: rootUser,
-      children: buildOrgTree(users, rootUser.id)
+      children: buildOrgTree(users, rootUser.id, searchQuery.trim())
     }];
   } else if (viewMode === 'myHierarchy' && user) {
-    const myHierarchy = findUserHierarchy(user.id, users);
+    const myHierarchy = findUserHierarchy(user.id, users, searchQuery.trim());
     if (myHierarchy) {
       displayTree = [myHierarchy];
     } else {
       // Fallback to full org if user's hierarchy not found
       displayTree = [{
         user: rootUser,
-        children: buildOrgTree(users, rootUser.id)
+        children: buildOrgTree(users, rootUser.id, searchQuery.trim())
       }];
     }
   }
