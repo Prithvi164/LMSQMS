@@ -3065,6 +3065,8 @@ export class DatabaseStorage implements IStorage {
 
   async getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]> {
     try {
+      console.log(`Fetching batch processes for user ${userId}`);
+      
       const processes = await db
         .select({
           id: userBatchProcesses.id,
@@ -3087,6 +3089,18 @@ export class DatabaseStorage implements IStorage {
           eq(userBatchProcesses.processId, organizationProcesses.id)
         )
         .where(eq(userBatchProcesses.userId, userId)) as UserBatchProcess[];
+
+      // Add debugging for specific user ID
+      if (userId === 386) {
+        console.log(`Found ${processes.length} batch processes for user 386:`, 
+          processes.map(p => ({
+            batchId: p.batchId,
+            batchName: p.batchName,
+            processId: p.processId,
+            processName: p.processName
+          }))
+        );
+      }
 
       return processes;
     } catch (error) {
