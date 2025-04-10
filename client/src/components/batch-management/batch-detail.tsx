@@ -18,11 +18,8 @@ interface BatchDetailProps {
 }
 
 export function BatchDetail({ onCreateBatch }: BatchDetailProps) {
-  // Load the active tab from localStorage or default to "batches"
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem("batchManagementActiveTab");
-    return savedTab || "batches";
-  });
+  // Always default to "batches" tab when component mounts
+  const [activeTab, setActiveTab] = useState("batches");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
   // Save the active tab to localStorage whenever it changes
