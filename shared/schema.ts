@@ -72,7 +72,8 @@ export const permissionEnum = pgEnum('permission', [
   'manage_batches',
   'manage_batch_users_add',  // Add users to batches
   'manage_batch_users_remove', // Remove users from batches
-  'view_trainee_management', // View trainee management section
+  'view_trainee_management', // View trainee management section (read-only)
+  'manage_trainee_management', // Full access to trainee management section
   // Quiz management permissions
   'manage_quiz',         // Create, edit, delete quizzes
   'take_quiz',           // Take quizzes
@@ -88,9 +89,7 @@ export const permissionEnum = pgEnum('permission', [
   'manage_allocation',         // Manage allocations
   'view_allocation',           // View allocations
   'manage_feedback',           // Manage feedback
-  'view_feedback',             // View feedback
-  'view_trainee_management',    // View trainee management section (read-only)
-  'manage_trainee_management'   // Full access to trainee management section
+  'view_feedback'             // View feedback
 ]);
 
 export const processStatusEnum = pgEnum('process_status', [
