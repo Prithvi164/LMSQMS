@@ -231,30 +231,34 @@ export function UserManagement() {
         };
       });
 
-      // Third sheet with batch process details
-      const batchProcessDataToExport = users.map(user => {
+      // Create the new "user_batch" sheet with the requested columns
+      // This will flatten the data to have one row per user-batch association
+      const userBatchData = [];
+      
+      // Iterate through each user
+      for (const user of users) {
         const userBatchProcessList = Array.isArray(userBatchProcesses[user.id]) ? userBatchProcesses[user.id] : [];
-        return {
-          'User ID': user.id,
-          Username: user.username,
-          'Full Name': user.fullName || '',
-          Email: user.email,
-          'Employee ID': user.employeeId || '',
-          'Batch Count': userBatchProcessList.length,
-          'Batch Names': userBatchProcessList.map((bp: any) => bp.batchName || '').join(", ") || "No batches",
-          'Batch IDs': userBatchProcessList.map((bp: any) => bp.batchId || '').join(", ") || "",
-          'Process IDs': userBatchProcessList.map((bp: any) => bp.processId || '').join(", ") || "",
-          'Process Names': userBatchProcessList.map((bp: any) => bp.processName || '').join(", ") || "",
-          'Batch Statuses': userBatchProcessList.map((bp: any) => bp.status || '').join(", ") || "",
-          'Joined Dates': userBatchProcessList.map((bp: any) => {
-            return bp.joinedAt ? new Date(bp.joinedAt).toISOString().split('T')[0] : '';
-          }).join(", ") || "",
-          'Completed Dates': userBatchProcessList.map((bp: any) => {
-            return bp.completedAt ? new Date(bp.completedAt).toISOString().split('T')[0] : '';
-          }).join(", ") || "",
-          Status: user.active ? 'Active' : 'Inactive'
-        };
-      });
+        
+        if (userBatchProcessList.length > 0) {
+          // For each user's batch, create a row with the required data
+          for (const bp of userBatchProcessList) {
+            userBatchData.push({
+              // From User_Batch_Process table
+              'User ID': user.id,
+              'Batch ID': bp.batchId,
+              'Role': user.role,
+              
+              // From Organisation_Batch table
+              'Batch Name': bp.batchName || '',
+              'Batch Start Date': bp.startDate || '',  
+              'Batch End Date': bp.endDate || '',
+              'Status': bp.status || '',
+              'Capacity': bp.capacityLimit || '',
+              'Batch Phase Status': bp.currentPhase || ''
+            });
+          }
+        }
+      }
 
       // Create workbook and add the user details sheet
       const wb = XLSX.utils.book_new();
@@ -265,9 +269,9 @@ export function UserManagement() {
       const wsProcesses = XLSX.utils.json_to_sheet(processDataToExport);
       XLSX.utils.book_append_sheet(wb, wsProcesses, "User Processes");
       
-      // Add the batch process details sheet
-      const wsBatchProcesses = XLSX.utils.json_to_sheet(batchProcessDataToExport);
-      XLSX.utils.book_append_sheet(wb, wsBatchProcesses, "User Batch Processes");
+      // Add the new user_batch sheet with the requested columns
+      const wsUserBatch = XLSX.utils.json_to_sheet(userBatchData);
+      XLSX.utils.book_append_sheet(wb, wsUserBatch, "user_batch");
       
       // Save the file
       XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
