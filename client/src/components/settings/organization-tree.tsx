@@ -246,7 +246,11 @@ const UserCard = ({
       
       <div className="p-1.5">
         <div className="flex flex-col items-center text-center mb-0.5">
-          <div className="font-bold text-xs truncate w-full">{user.fullName || user.username}</div>
+          <div className="font-bold text-xs truncate w-full">
+            {user.username && user.username.includes('@') 
+              ? user.username.split('@')[0] // If username is an email, show only the part before @
+              : (user.fullName || user.username)}
+          </div>
         </div>
         
         <div className="flex justify-center mb-2">
