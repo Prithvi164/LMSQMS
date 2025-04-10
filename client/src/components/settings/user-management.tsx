@@ -236,43 +236,80 @@ export function UserManagement() {
       const userBatchData = [];
       
       // Get all batches to retrieve additional batch information
-      const allBatches = {};
+      const allBatches: Record<number, any> = {};
       
-      // Fetch all batches to get additional data about each batch
+      // Make a fresh API call for batches to ensure we have the latest data
       try {
         const batchResponse = await fetch(`/api/organizations/${user?.organizationId}/batches`);
         if (batchResponse.ok) {
           const batchesData = await batchResponse.json();
+          console.log(`Fetched ${batchesData.length} batches from the API`);
+          
           if (Array.isArray(batchesData)) {
             batchesData.forEach((batch: any) => {
               if (batch && batch.id) {
                 allBatches[batch.id] = batch;
               }
             });
+            console.log(`Created lookup for ${Object.keys(allBatches).length} batches`);
+            // Log a sample of batches to verify structure
+            if (Object.keys(allBatches).length > 0) {
+              const sampleBatchId = Object.keys(allBatches)[0];
+              console.log(`Sample batch (ID ${sampleBatchId}):`, allBatches[sampleBatchId]);
+            }
           }
+        } else {
+          console.error("Failed to fetch batches, response was not OK");
         }
       } catch (error) {
         console.error("Error fetching batches:", error);
       }
       
-      // Add debug logging
-      console.log("userBatchProcesses data:", userBatchProcesses);
+      // Make a fresh API call for user batch processes
+      let freshUserBatchProcesses: Record<number, any[]> = {};
+      try {
+        const bpResponse = await fetch(`/api/users/batch-processes`);
+        if (bpResponse.ok) {
+          freshUserBatchProcesses = await bpResponse.json();
+          console.log("Freshly fetched user batch processes:", freshUserBatchProcesses);
+        } else {
+          console.error("Failed to fetch fresh batch processes, response was not OK");
+          freshUserBatchProcesses = userBatchProcesses as Record<number, any[]>;
+        }
+      } catch (error) {
+        console.error("Error fetching fresh batch processes:", error);
+        // Fall back to existing data
+        freshUserBatchProcesses = userBatchProcesses as Record<number, any[]>;
+      }
       
       // Iterate through each user
       for (const user of users) {
+        // Log user being processed
         console.log(`Processing user: ${user.id} (${user.username})`);
-        const userBatchProcessList = Array.isArray(userBatchProcesses[user.id]) ? userBatchProcesses[user.id] : [];
+        
+        // Get batch processes for this user
+        const userBatchProcessList = Array.isArray(freshUserBatchProcesses[user.id]) 
+          ? freshUserBatchProcesses[user.id] 
+          : [];
+          
         console.log(`User ${user.id} has ${userBatchProcessList.length} batch processes`);
         
+        // Process each batch for this user
         if (userBatchProcessList.length > 0) {
           console.log(`Batch process data for user ${user.id}:`, userBatchProcessList);
           
-          // For each user's batch, create a row with the required data
           for (const bp of userBatchProcessList) {
-            // Get additional batch information from allBatches
+            // Ensure we have a batchId
+            if (!bp.batchId) {
+              console.error("Missing batchId in batch process:", bp);
+              continue;
+            }
+            
+            // Get the batch information
             const batchInfo = allBatches[bp.batchId] || {};
             console.log(`Using batch info for batchId ${bp.batchId}:`, batchInfo);
             
+            // Add a row to the export data
             userBatchData.push({
               // From User_Batch_Process table
               'User ID': user.id,
@@ -280,9 +317,13 @@ export function UserManagement() {
               'Role': user.role,
               
               // From Organisation_Batch table
-              'Batch Name': bp.batchName || batchInfo.name || '',
-              'Batch Start Date': batchInfo.startDate ? new Date(batchInfo.startDate).toISOString().split('T')[0] : '',  
-              'Batch End Date': batchInfo.endDate ? new Date(batchInfo.endDate).toISOString().split('T')[0] : '',
+              'Batch Name': bp.batchName || batchInfo.name || `Batch ${bp.batchId}`,
+              'Batch Start Date': batchInfo.startDate 
+                ? new Date(batchInfo.startDate).toISOString().split('T')[0] 
+                : '',  
+              'Batch End Date': batchInfo.endDate 
+                ? new Date(batchInfo.endDate).toISOString().split('T')[0] 
+                : '',
               'Status': bp.status || '',
               'Capacity': batchInfo.capacityLimit || '',
               'Batch Phase Status': batchInfo.status || ''
