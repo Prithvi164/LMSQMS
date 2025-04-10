@@ -28,7 +28,8 @@ import {
   BookOpen,
   MessageSquare,
   Save,
-  SquareStack
+  SquareStack,
+  GraduationCap
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -112,7 +113,13 @@ export function RolePermissions() {
       name: "Training Management",
       icon: <BookOpen className="h-5 w-5" />,
       description: "Control training process and batches",
-      permissions: ['manage_batches', 'manage_batch_users_add', 'manage_batch_users_remove', 'view_trainee_management']
+      permissions: ['manage_batches', 'manage_batch_users_add', 'manage_batch_users_remove']
+    },
+    {
+      name: "Trainee Management",
+      icon: <GraduationCap className="h-5 w-5" />,
+      description: "Access trainee management section",
+      permissions: ['view_trainee_management']
     },
     {
       name: "Quiz Management",
