@@ -38,7 +38,7 @@ export function BatchDetail({ onCreateBatch }: BatchDetailProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Batch Management Setup</CardTitle>
+          <CardTitle>Setup</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
