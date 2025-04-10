@@ -102,7 +102,10 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   
   // Check permissions for managing trainees
   const { hasPermission } = usePermissions();
-  const canRemoveBatchUsers = hasPermission('manage_batch_users_remove');
+  // Check if user has full trainee management permissions
+  const hasFullAccess = hasPermission('manage_trainee_management');
+  // For backward compatibility, still check the batch-specific permissions
+  const canRemoveBatchUsers = hasFullAccess || hasPermission('manage_batch_users_remove');
   
   // Use hierarchy utility functions for permission checks
   

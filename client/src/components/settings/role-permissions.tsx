@@ -118,8 +118,8 @@ export function RolePermissions() {
     {
       name: "Trainee Management",
       icon: <GraduationCap className="h-5 w-5" />,
-      description: "Access trainee management section",
-      permissions: ['view_trainee_management']
+      description: "Control trainee management section",
+      permissions: ['view_trainee_management', 'manage_trainee_management']
     },
     {
       name: "Quiz Management",
@@ -187,7 +187,8 @@ export function RolePermissions() {
       manage_batches: "Create, edit, and delete training batches",
       manage_batch_users_add: "Add users to training batches",
       manage_batch_users_remove: "Remove users from training batches",
-      view_trainee_management: "Access trainee management section",
+      view_trainee_management: "Read-only access to trainee management section",
+      manage_trainee_management: "Full access to trainee management (add, edit, remove trainees)",
       
       // Quiz Management
       view_quiz: "View quiz details and questions",

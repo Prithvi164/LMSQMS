@@ -973,7 +973,8 @@ function TraineeManagement() {
 const PermissionGuardedTraineeManagement = () => {
   const { hasPermission } = usePermissions();
   
-  if (!hasPermission('view_trainee_management')) {
+  // First check if user has either view or manage permission
+  if (!hasPermission('view_trainee_management') && !hasPermission('manage_trainee_management')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
         <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
@@ -987,6 +988,7 @@ const PermissionGuardedTraineeManagement = () => {
     );
   }
   
+  // If we get here, the user has at least one of the trainee management permissions
   return <TraineeManagement />;
 };
 
