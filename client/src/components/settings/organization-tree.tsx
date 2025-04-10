@@ -524,8 +524,8 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
       <div className="mb-4">
         <UserCard 
           user={node.user}
-          // Use a safe way to pass department data
-          department={node.user.role === "trainee" ? "Training" : node.user.role === "trainer" ? "Training" : "Management"}
+          // Display user's email instead of department/role
+          department={node.user.email}
           // Pass location information or empty string
           location={getLocationName(node.user)}
           // Pass process information
