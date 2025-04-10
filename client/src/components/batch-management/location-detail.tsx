@@ -528,7 +528,7 @@ export function LocationDetail() {
                                       onClick={() => handleEdit(location)}
                                       className="h-7 w-7 p-0 text-blue-600"
                                     >
-                                      <Pencil className="h-4 w-4" />
+                                      <Edit className="h-4 w-4" />
                                       <span className="sr-only">Edit Location</span>
                                     </Button>
                                   </TooltipTrigger>
