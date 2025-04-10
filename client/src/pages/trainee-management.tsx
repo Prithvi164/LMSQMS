@@ -93,7 +93,11 @@ const getStatusColor = (status: string): string => {
   }
 };
 
-function TraineeManagement() {
+type TraineeManagementProps = {
+  hasFullAccess: boolean;
+}
+
+function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [metricType, setMetricType] = useState<MetricType>('weekly');
@@ -269,9 +273,12 @@ function TraineeManagement() {
       key={batch.id}
       className={`${selectedBatch === batch.id ? 'border-primary' : ''} 
                  ${navigatingBatchId === batch.id && isNavigating ? 'opacity-70' : ''} 
-                 cursor-pointer transition-all duration-200 
+                 ${hasFullAccess ? 'cursor-pointer' : 'cursor-default'} transition-all duration-200 
                  ${PHASE_COLORS[batch.status as keyof typeof PHASE_COLORS]}`}
       onClick={() => {
+        // Only allow interaction if user has full access
+        if (!hasFullAccess) return;
+        
         if (batch.status !== 'planned') {
           // Show loading state
           setIsNavigating(true);
@@ -327,7 +334,7 @@ function TraineeManagement() {
           </div>
         </div>
 
-        {batch.status === 'planned' && (
+        {batch.status === 'planned' && hasFullAccess && (
           <Button
             className="w-full transition-transform active:scale-95 hover:scale-100"
             onClick={(e) => {
@@ -339,6 +346,14 @@ function TraineeManagement() {
             <CheckCircle2 className="h-4 w-4 mr-2" />
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
           </Button>
+        )}
+        
+        {/* View-only message for users without full access */}
+        {batch.status === 'planned' && !hasFullAccess && (
+          <div className="w-full p-2 bg-gray-100 dark:bg-gray-800 rounded text-center text-sm text-muted-foreground">
+            <InfoIcon className="h-4 w-4 inline-block mr-1" />
+            View-only access
+          </div>
         )}
         
         {/* Trainee Assessment Results - Show only for the selected batch */}
@@ -988,8 +1003,11 @@ const PermissionGuardedTraineeManagement = () => {
     );
   }
   
+  // Pass the permission status to the component for conditional rendering
+  const hasFullAccess = hasPermission('manage_trainee_management');
+  
   // If we get here, the user has at least one of the trainee management permissions
-  return <TraineeManagement />;
+  return <TraineeManagement hasFullAccess={hasFullAccess} />;
 };
 
 export default PermissionGuardedTraineeManagement;
