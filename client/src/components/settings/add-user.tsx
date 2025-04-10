@@ -265,7 +265,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         username: "jsmith",
         fullName: "John Smith",
         email: "jsmith@example.com",
-        role: "advisor", // Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee
+        role: "advisor", // Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor
         reportingManager: "manager_username", // Username of the manager
         location: "Mumbai", // Must match existing location name in the system
         employeeId: "EMP001",
@@ -287,7 +287,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Field: "username", Description: "Unique username (required), no spaces allowed", Example: "john.smith" },
       { Field: "fullName", Description: "User's full name (required)", Example: "John Smith" },
       { Field: "email", Description: "Valid email address (required)", Example: "john.smith@example.com" },
-      { Field: "role", Description: "User role (required). Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor, trainee", Example: "advisor" },
+      { Field: "role", Description: "User role (required). Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor", Example: "advisor" },
       { Field: "reportingManager", Description: "Username of the manager (respects role hierarchy)", Example: "jane.manager" },
       { Field: "location", Description: "Location name (must match existing location in the system)", Example: "Mumbai" },
       { Field: "employeeId", Description: "Employee ID (optional)", Example: "EMP001" },
@@ -311,8 +311,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Role: "team_lead", "Reports To": "Owner, Admin, or Manager", "Display Name": "Team Lead" },
       { Role: "quality_analyst", "Reports To": "Owner, Admin, Manager, or Team Lead", "Display Name": "Quality Analyst" },
       { Role: "trainer", "Reports To": "Owner, Admin, Manager, or Team Lead", "Display Name": "Trainer" },
-      { Role: "advisor", "Reports To": "Any higher role", "Display Name": "Advisor" },
-      { Role: "trainee", "Reports To": "Any higher role, typically assigned to a Trainer", "Display Name": "Trainee" }
+      { Role: "advisor", "Reports To": "Any higher role", "Display Name": "Advisor" }
     ];
     
     const roleSheet = XLSX.utils.json_to_sheet(roleInfo);
