@@ -53,6 +53,7 @@ import {
   Plus,
   Loader2,
   Pencil,
+  Edit,
   Trash2,
   MapPin,
   Search,
