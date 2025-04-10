@@ -61,11 +61,14 @@ interface Process {
   lineOfBusinessId: number;
   lineOfBusinessName?: string;
   status?: string;
+  description?: string;
+  lobName?: string;
 }
 
 // Form schema updated to allow 0 days
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
+  description: z.string().optional(),
   inductionDays: z.number().min(0, "Induction days cannot be negative"),
   trainingDays: z.number().min(0, "Training days cannot be negative"),
   certificationDays: z.number().min(0, "Certification days cannot be negative"),
@@ -123,7 +126,8 @@ export function ProcessDetail() {
     const searchStr = searchQuery.toLowerCase();
     return (
       process.name.toLowerCase().includes(searchStr) ||
-      (process.lineOfBusinessName || "").toLowerCase().includes(searchStr)
+      (process.lobName || "").toLowerCase().includes(searchStr) ||
+      (process.description || "").toLowerCase().includes(searchStr)
     );
   });
 
@@ -136,6 +140,7 @@ export function ProcessDetail() {
     resolver: zodResolver(processFormSchema),
     defaultValues: {
       name: "",
+      description: "",
       inductionDays: 0,
       trainingDays: 0,
       certificationDays: 0,
@@ -149,6 +154,7 @@ export function ProcessDetail() {
     resolver: zodResolver(processFormSchema),
     defaultValues: {
       name: "",
+      description: "",
       inductionDays: 0,
       trainingDays: 0,
       certificationDays: 0,
@@ -279,6 +285,7 @@ export function ProcessDetail() {
     setSelectedProcess(process);
     editForm.reset({
       name: process.name,
+      description: process.description || "",
       inductionDays: process.inductionDays,
       trainingDays: process.trainingDays,
       certificationDays: process.certificationDays,
@@ -359,12 +366,8 @@ export function ProcessDetail() {
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Process List */}
-      <Card>
-        <CardContent>
+          {/* Process List */}
           {processes.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
@@ -389,34 +392,25 @@ export function ProcessDetail() {
                 </div>
               </div>
 
-              <div className="relative overflow-x-auto">
+              <div className="relative overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Process Name</TableHead>
-                      <TableHead>Line of Business</TableHead>
-                      <TableHead className="text-center">Induction Days</TableHead>
-                      <TableHead className="text-center">Training Days</TableHead>
-                      <TableHead className="text-center">Certification Days</TableHead>
-                      <TableHead className="text-center">OJT Days</TableHead>
-                      <TableHead className="text-center">OJT Cert Days</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Process Name</TableHead>
+                      <TableHead className="font-semibold">Line of Business</TableHead>
+                      <TableHead className="font-semibold">Description</TableHead>
+                      <TableHead className="font-semibold text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedProcesses.map((process: Process) => (
-                      <TableRow key={process.id}>
-                        <TableCell className="font-medium">
-                          {process.name}
-                        </TableCell>
-                        <TableCell>
-                          {lineOfBusinesses.find(lob => lob.id === process.lineOfBusinessId)?.name || "-"}
-                        </TableCell>
-                        <TableCell className="text-center">{process.inductionDays}</TableCell>
-                        <TableCell className="text-center">{process.trainingDays}</TableCell>
-                        <TableCell className="text-center">{process.certificationDays}</TableCell>
-                        <TableCell className="text-center">{process.ojtDays}</TableCell>
-                        <TableCell className="text-center">{process.ojtCertificationDays}</TableCell>
+                      <TableRow 
+                        key={process.id}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
+                        <TableCell className="font-medium">{process.name}</TableCell>
+                        <TableCell>{process.lobName || "-"}</TableCell>
+                        <TableCell>{process.description || "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
                             {canManageProcesses && (
@@ -466,8 +460,7 @@ export function ProcessDetail() {
 
               <div className="flex items-center justify-between py-4">
                 <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length}{" "}
-                  entries
+                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length} entries
                 </div>
                 <div className="space-x-2">
                   <Button
@@ -490,30 +483,27 @@ export function ProcessDetail() {
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground">
-              No processes found. Create a new process to get started.
-            </p>
+            <p className="text-muted-foreground">No processes found. Create a new process to get started.</p>
           )}
         </CardContent>
       </Card>
 
       {/* Create Process Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create Process</DialogTitle>
+            <DialogTitle className="text-2xl mb-6">Create Process</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-4">
-                {/* Process Name and Line of Business in the same row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Card>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Process Name</FormLabel>
+                        <FormLabel>PROCESS NAME</FormLabel>
                         <FormControl>
                           <Input placeholder="Enter process name" {...field} />
                         </FormControl>
@@ -527,10 +517,10 @@ export function ProcessDetail() {
                     name="lineOfBusinessId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Line of Business</FormLabel>
+                        <FormLabel>LINE OF BUSINESS</FormLabel>
                         <Select
-                          onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                          value={field.value?.toString()}
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value?.toString()}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -538,7 +528,7 @@ export function ProcessDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                            {lineOfBusinesses.map((lob: any) => (
                               <SelectItem key={lob.id} value={lob.id.toString()}>
                                 {lob.name}
                               </SelectItem>
@@ -549,22 +539,33 @@ export function ProcessDetail() {
                       </FormItem>
                     )}
                   />
-                </div>
 
-                {/* Days input fields in a grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter process description" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="inductionDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Induction Days</FormLabel>
+                        <FormLabel>INDUCTION DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -577,13 +578,13 @@ export function ProcessDetail() {
                     name="trainingDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Training Days</FormLabel>
+                        <FormLabel>TRAINING DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -596,13 +597,13 @@ export function ProcessDetail() {
                     name="certificationDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Certification Days</FormLabel>
+                        <FormLabel>CERTIFICATION DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -615,13 +616,13 @@ export function ProcessDetail() {
                     name="ojtDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>OJT Days</FormLabel>
+                        <FormLabel>OJT DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -634,31 +635,28 @@ export function ProcessDetail() {
                     name="ojtCertificationDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>OJT Certification Days</FormLabel>
+                        <FormLabel>OJT CERTIFICATION DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              <DialogFooter>
+              <div className="flex justify-end">
                 <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={createProcessMutation.isPending}
                 >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createProcessMutation.isPending}>
                   {createProcessMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -668,7 +666,7 @@ export function ProcessDetail() {
                     "Create Process"
                   )}
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
           </Form>
         </DialogContent>
@@ -676,42 +674,82 @@ export function ProcessDetail() {
 
       {/* Edit Process Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Process</DialogTitle>
+            <DialogTitle className="text-2xl mb-6">Edit Process</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-4">
-              <div className="space-y-4">
-                {/* Same form fields as create dialog */}
-                <FormField
-                  control={editForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Process Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter process name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+              <Card>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PROCESS NAME</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter process name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Same number input fields as create dialog */}
+                  <FormField
+                    control={editForm.control}
+                    name="lineOfBusinessId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LINE OF BUSINESS</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Line of Business" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {lineOfBusinesses.map((lob: any) => (
+                              <SelectItem key={lob.id} value={lob.id.toString()}>
+                                {lob.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter process description" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={editForm.control}
                     name="inductionDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Induction Days</FormLabel>
+                        <FormLabel>INDUCTION DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -724,13 +762,13 @@ export function ProcessDetail() {
                     name="trainingDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Training Days</FormLabel>
+                        <FormLabel>TRAINING DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -743,13 +781,13 @@ export function ProcessDetail() {
                     name="certificationDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Certification Days</FormLabel>
+                        <FormLabel>CERTIFICATION DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -762,13 +800,13 @@ export function ProcessDetail() {
                     name="ojtDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>OJT Days</FormLabel>
+                        <FormLabel>OJT DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -781,110 +819,68 @@ export function ProcessDetail() {
                     name="ojtCertificationDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>OJT Certification Days</FormLabel>
+                        <FormLabel>OJT CERTIFICATION DAYS</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            min="0"
+                            min={0}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
+                </CardContent>
+              </Card>
 
-                <FormField
-                  control={editForm.control}
-                  name="lineOfBusinessId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Line of Business</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                        value={field.value?.toString()}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Line of Business" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                            <SelectItem key={lob.id} value={lob.id.toString()}>
-                              {lob.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <DialogFooter>
+              <div className="flex justify-end">
                 <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={updateProcessMutation.isPending}
                 >
-                  Cancel
+                  {updateProcessMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Process"
+                  )}
                 </Button>
-                {canManageProcesses ? (
-                  <Button type="submit" disabled={updateProcessMutation.isPending}>
-                    {updateProcessMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      "Update Process"
-                    )}
-                  </Button>
-                ) : (
-                  <Button type="button" disabled>
-                    Insufficient Permissions
-                  </Button>
-                )}
-              </DialogFooter>
+              </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Process Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Delete Process</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p>
-              Are you sure you want to delete the process "{selectedProcess?.name}"? This action cannot be undone.
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. To confirm deletion, please type <span className="font-mono text-primary">{selectedProcess?.name}</span>
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="confirm">Type "{selectedProcess?.name}" to confirm deletion</Label>
-              <Input
-                id="confirm"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-                placeholder="Type process name to confirm"
-              />
-            </div>
+            <Input
+              placeholder="Type process name to confirm"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              className="font-mono"
+            />
           </div>
           <DialogFooter>
             <Button
-              type="button"
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              type="button"
               variant="destructive"
               onClick={handleDeleteConfirm}
               disabled={deleteProcessMutation.isPending}
