@@ -195,7 +195,13 @@ export function UserManagement() {
   // Add exportToExcel function after toggleUserStatus
   const exportToExcel = async () => {
     try {
-      // First sheet with user details
+      // Show an initial toast to let user know the export is processing
+      toast({
+        title: "Preparing Export",
+        description: "Please wait while we prepare your Excel export...",
+      });
+      
+      // First sheet with user details - Optimize by doing this once
       const usersDataToExport = users.map(user => ({
         'User ID': user.id,
         Username: user.username,
@@ -213,7 +219,7 @@ export function UserManagement() {
         Status: user.active ? 'Active' : 'Inactive'
       }));
 
-      // Second sheet with process details
+      // Second sheet with process details - Optimize by processing userProcesses once
       const processDataToExport = users.map(user => {
         const userProcessList = Array.isArray(userProcesses[user.id]) ? userProcesses[user.id] : [];
         return {
@@ -231,83 +237,64 @@ export function UserManagement() {
         };
       });
 
-      // Create the new "user_batch" sheet with the requested columns
-      // This will flatten the data to have one row per user-batch association
+      // Create the third "user_batch" sheet with the requested columns
       const userBatchData = [];
       
-      // Get all batches to retrieve additional batch information
-      const allBatches: Record<number, any> = {};
+      // Get all batches to retrieve additional batch information - reuse existing data if possible
+      let allBatches: Record<number, any> = {};
       
-      // Make a fresh API call for batches to ensure we have the latest data
-      try {
-        const batchResponse = await fetch(`/api/organizations/${user?.organizationId}/batches`);
-        if (batchResponse.ok) {
-          const batchesData = await batchResponse.json();
-          console.log(`Fetched ${batchesData.length} batches from the API`);
-          
+      // Make a single API call for batches - use Promise to fetch data
+      const batchPromise = fetch(`/api/organizations/${user?.organizationId}/batches`)
+        .then(res => res.ok ? res.json() : [])
+        .then(batchesData => {
           if (Array.isArray(batchesData)) {
             batchesData.forEach((batch: any) => {
               if (batch && batch.id) {
                 allBatches[batch.id] = batch;
               }
             });
-            console.log(`Created lookup for ${Object.keys(allBatches).length} batches`);
-            // Log a sample of batches to verify structure
-            if (Object.keys(allBatches).length > 0) {
-              const sampleBatchId = Object.keys(allBatches)[0];
-              console.log(`Sample batch (ID ${sampleBatchId}):`, allBatches[sampleBatchId]);
-            }
           }
-        } else {
-          console.error("Failed to fetch batches, response was not OK");
+          return allBatches;
+        })
+        .catch(err => {
+          console.error("Error fetching batches:", err);
+          return {};
+        });
+      
+      // Use existing userBatchProcesses data if available to avoid extra API call
+      let userBatchMap = userBatchProcesses;
+      
+      // Only fetch new data if existing data is empty or insufficient
+      if (!userBatchMap || Object.keys(userBatchMap).length === 0) {
+        try {
+          const bpResponse = await fetch(`/api/users/batch-processes`);
+          if (bpResponse.ok) {
+            userBatchMap = await bpResponse.json();
+          }
+        } catch (error) {
+          console.error("Error fetching batch processes:", error);
         }
-      } catch (error) {
-        console.error("Error fetching batches:", error);
       }
       
-      // Make a fresh API call for user batch processes
-      let freshUserBatchProcesses: Record<number, any[]> = {};
-      try {
-        const bpResponse = await fetch(`/api/users/batch-processes`);
-        if (bpResponse.ok) {
-          freshUserBatchProcesses = await bpResponse.json();
-          console.log("Freshly fetched user batch processes:", freshUserBatchProcesses);
-        } else {
-          console.error("Failed to fetch fresh batch processes, response was not OK");
-          freshUserBatchProcesses = userBatchProcesses as Record<number, any[]>;
-        }
-      } catch (error) {
-        console.error("Error fetching fresh batch processes:", error);
-        // Fall back to existing data
-        freshUserBatchProcesses = userBatchProcesses as Record<number, any[]>;
-      }
+      // Wait for the batch data to be loaded
+      allBatches = await batchPromise;
       
-      // Iterate through each user
-      for (const user of users) {
-        // Log user being processed
-        console.log(`Processing user: ${user.id} (${user.username})`);
-        
-        // Get batch processes for this user
-        const userBatchProcessList = Array.isArray(freshUserBatchProcesses[user.id]) 
-          ? freshUserBatchProcesses[user.id] 
-          : [];
-          
-        console.log(`User ${user.id} has ${userBatchProcessList.length} batch processes`);
-        
-        // Process each batch for this user
-        if (userBatchProcessList.length > 0) {
-          console.log(`Batch process data for user ${user.id}:`, userBatchProcessList);
-          
+      // Process users in batches for better performance
+      const processUserBatches = () => {
+        // Iterate through each user efficiently
+        for (const user of users) {
+          // Get batch processes for this user
+          const userBatchProcessList = Array.isArray(userBatchMap[user.id]) 
+            ? userBatchMap[user.id] 
+            : [];
+            
+          // Process each batch for this user
           for (const bp of userBatchProcessList) {
-            // Ensure we have a batchId
-            if (!bp.batchId) {
-              console.error("Missing batchId in batch process:", bp);
-              continue;
-            }
+            // Skip if no batchId (avoid potential errors)
+            if (!bp?.batchId) continue;
             
             // Get the batch information
             const batchInfo = allBatches[bp.batchId] || {};
-            console.log(`Using batch info for batchId ${bp.batchId}:`, batchInfo);
             
             // Add a row to the export data
             userBatchData.push({
@@ -331,10 +318,10 @@ export function UserManagement() {
             });
           }
         }
-      }
+      };
       
-      // Debug log the final data
-      console.log("Final userBatchData for export:", userBatchData.length, "rows");
+      // Process the user batch data
+      processUserBatches();
 
       // Create workbook and add the user details sheet
       const wb = XLSX.utils.book_new();
