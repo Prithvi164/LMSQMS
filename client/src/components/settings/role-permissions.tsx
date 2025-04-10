@@ -355,9 +355,7 @@ export function RolePermissions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Roles & Permissions</h1>
-      </div>
+      {/* Removed duplicate heading */}
 
       <Alert>
         <AlertTriangle className="h-4 w-4" />
