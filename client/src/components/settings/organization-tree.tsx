@@ -65,26 +65,7 @@ interface TreeNode {
 
 // Helper function to build the tree structure
 const buildOrgTree = (users: User[], rootUserId: number | null = null, searchTerm: string = ""): TreeNode[] => {
-  // If search term is provided, only include matching users in the tree
-  const searchTermLower = searchTerm.toLowerCase();
-  
-  const filteredUsers = searchTerm 
-    ? users.filter(user => {
-        // Exact match for username (prioritize this for IDs like P_Ganesh1)
-        if (user.username && user.username.toLowerCase() === searchTermLower) {
-          return true;
-        }
-        
-        // Partial match for username, fullName, or role
-        return (
-          (user.fullName && user.fullName.toLowerCase().includes(searchTermLower)) || 
-          (user.username && user.username.toLowerCase().includes(searchTermLower)) ||
-          (user.role && user.role.toLowerCase().includes(searchTermLower))
-        );
-      })
-    : users;
-    
-  // For regular operation (no search), filter children by managerId
+  // If no search term, just build the regular organizational hierarchy
   if (!searchTerm) {
     const children = users.filter(user => user.managerId === rootUserId);
     if (!children.length) return [];
@@ -94,36 +75,106 @@ const buildOrgTree = (users: User[], rootUserId: number | null = null, searchTer
       children: buildOrgTree(users, child.id, searchTerm)
     }));
   } 
-  // When searching, include any user that matches the search criteria
-  // and also include their managers to maintain hierarchy
+  // When searching, we need a more sophisticated approach to maintain hierarchy
   else {
-    const matchingUsers = new Set<number>();
+    const searchTermLower = searchTerm.toLowerCase();
     
-    // Add all matching users to our set
-    filteredUsers.forEach(user => matchingUsers.add(user.id));
-    
-    // For each matching user, add their managers up the chain
-    filteredUsers.forEach(user => {
-      let currentUser = user;
-      while (currentUser.managerId !== null && currentUser.managerId !== rootUserId) {
-        matchingUsers.add(currentUser.managerId);
-        currentUser = users.find(u => u.id === currentUser.managerId) || { ...currentUser, managerId: null };
+    // Find all users matching the search term
+    const matchingUsers = users.filter(user => {
+      // Exact match for username (prioritize this for IDs like P_Ganesh1)
+      if (user.username && user.username.toLowerCase() === searchTermLower) {
+        return true;
       }
+      
+      // Partial match for username, fullName, or role
+      return (
+        (user.fullName && user.fullName.toLowerCase().includes(searchTermLower)) || 
+        (user.username && user.username.toLowerCase().includes(searchTermLower)) ||
+        (user.role && user.role.toLowerCase().includes(searchTermLower))
+      );
     });
     
-    // Now filter the immediate children of the current root
+    // If no matching users, return empty array
+    if (matchingUsers.length === 0) return [];
+    
+    // Create a set of all user IDs that should be visible in the tree
+    const visibleUserIds = new Set<number>();
+    
+    // Function to add a user and all their ancestors to the visible set
+    const addUserWithAncestors = (userId: number) => {
+      // Add this user
+      visibleUserIds.add(userId);
+      
+      // Find the user object
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      
+      // If this user has a manager and it's not the current root, add the manager too
+      if (user.managerId !== null && user.managerId !== rootUserId) {
+        addUserWithAncestors(user.managerId);
+      }
+    };
+    
+    // Function to add all descendants of a user to the visible set
+    const addUserDescendants = (userId: number) => {
+      // Find all immediate children
+      const children = users.filter(u => u.managerId === userId);
+      
+      // For each child, add them and their descendants
+      for (const child of children) {
+        visibleUserIds.add(child.id);
+        addUserDescendants(child.id);
+      }
+    };
+    
+    // For each matching user, add them, their ancestors, and their descendants
+    for (const user of matchingUsers) {
+      // Add the user and their ancestors
+      addUserWithAncestors(user.id);
+      
+      // Add all of the user's descendants
+      addUserDescendants(user.id);
+    }
+    
+    // Now build the tree using only the visible users
+    // Get immediate children of the current root
     const children = users.filter(user => 
       user.managerId === rootUserId && 
-      (matchingUsers.has(user.id) || hasMatchingDescendant(user.id, users, matchingUsers))
+      (visibleUserIds.has(user.id) || hasChildInSet(user.id, users, visibleUserIds))
     );
     
     if (!children.length) return [];
     
+    // Build the tree with only visible users
     return children.map(child => ({
       user: child,
-      children: buildOrgTree(users, child.id, searchTerm)
+      children: buildChildrenTree(users, child.id, visibleUserIds)
     }));
   }
+};
+
+// Helper function to build a children tree with only users from a specific set
+const buildChildrenTree = (users: User[], parentId: number, visibleUserIds: Set<number>): TreeNode[] => {
+  const children = users.filter(user => 
+    user.managerId === parentId && 
+    (visibleUserIds.has(user.id) || hasChildInSet(user.id, users, visibleUserIds))
+  );
+  
+  if (!children.length) return [];
+  
+  return children.map(child => ({
+    user: child,
+    children: buildChildrenTree(users, child.id, visibleUserIds)
+  }));
+};
+
+// Helper function to check if a user has any children in the visible set
+const hasChildInSet = (userId: number, users: User[], visibleUserIds: Set<number>): boolean => {
+  const directChildren = users.filter(user => user.managerId === userId);
+  
+  return directChildren.some(child => 
+    visibleUserIds.has(child.id) || hasChildInSet(child.id, users, visibleUserIds)
+  );
 };
 
 // Helper function to check if a user has any descendants that match the search
@@ -301,7 +352,6 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
   const { user: currentUser } = useAuth();
   const isRoot = level === 0;
   const hasChildren = node.children.length > 0;
-  const [expanded, setExpanded] = useState<boolean>(false);
   
   // Determine if this user is directly matching the search
   const isHighlighted = searchTerm ? 
@@ -309,6 +359,12 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
      (node.user.fullName && node.user.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
      (node.user.username && node.user.username.toLowerCase().includes(searchTerm.toLowerCase())))
     : false;
+    
+  // Auto-expand if there's a search term and this node is highlighted,
+  // or if it's a root node in search mode
+  const [expanded, setExpanded] = useState<boolean>(
+    searchTerm ? (isHighlighted || isRoot) : false
+  );
   
   // Get the location information from the API using React Query
   const { data: locations = [] } = useQuery<{ id: number; name: string; }[]>({
