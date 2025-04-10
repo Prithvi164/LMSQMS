@@ -768,25 +768,25 @@ export function BatchesTab() {
                   {batch.status ? batch.status.charAt(0).toUpperCase() + batch.status.slice(1) : 'Planned'}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">
-                <div className="flex items-center justify-end space-x-2 opacity-100 transition-opacity action-buttons">
+              <TableCell className="text-right p-2 min-w-[120px]">
+                <div className="flex items-center justify-end gap-1 action-buttons">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/batch-dashboard/${batch.id}`);
                           }}
-                          className="h-8 w-8 p-0 hover:text-blue-600"
+                          className="h-7 w-7 p-0 text-blue-600"
                         >
                           <Eye className="h-4 w-4" />
                           <span className="sr-only">View Dashboard</span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="top">
                         <p>View Batch Dashboard</p>
                       </TooltipContent>
                     </Tooltip>
@@ -796,15 +796,15 @@ export function BatchesTab() {
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => handleAddTraineeClick(batch)}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0 text-green-600"
                           >
                             <UserPlus className="h-4 w-4" />
                             <span className="sr-only">Add Trainee</span>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent side="top">
                           <p>Add Trainee to Batch</p>
                         </TooltipContent>
                       </Tooltip>
@@ -816,14 +816,14 @@ export function BatchesTab() {
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() => handleEditClick(batch)}
-                              className="h-8 w-8 p-0 hover:text-primary"
+                              className="h-7 w-7 p-0 text-primary"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>
+                          <TooltipContent side="top">
                             <p>Edit Batch</p>
                           </TooltipContent>
                         </Tooltip>
@@ -832,14 +832,14 @@ export function BatchesTab() {
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() => handleDeleteClick(batch)}
-                              className="h-8 w-8 p-0 hover:text-destructive"
+                              className="h-7 w-7 p-0 text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>
+                          <TooltipContent side="top">
                             <p>Delete Batch</p>
                           </TooltipContent>
                         </Tooltip>
