@@ -1665,6 +1665,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint to fetch user batch processes for all users in the organization
+  app.get("/api/users/batch-processes", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Get all users in the organization
+      const orgUsers = await db.query.users.findMany({
+        where: eq(users.organizationId, req.user.organizationId),
+        columns: {
+          id: true
+        }
+      });
+
+      // Initialize result object
+      const allUserBatchProcesses: Record<number, any[]> = {};
+      
+      // For each user, retrieve their batch processes
+      for (const user of orgUsers) {
+        const batchProcesses = await storage.getUserBatchProcesses(user.id);
+        
+        if (batchProcesses.length > 0) {
+          allUserBatchProcesses[user.id] = batchProcesses.map(bp => ({
+            batchId: bp.batchId,
+            batchName: bp.batchName,
+            processId: bp.processId,
+            processName: bp.processName,
+            status: bp.status,
+            joinedAt: bp.joinedAt,
+            completedAt: bp.completedAt
+          }));
+        } else {
+          allUserBatchProcesses[user.id] = [];
+        }
+      }
+
+      res.json(allUserBatchProcesses);
+    } catch (error: any) {
+      console.error("Error fetching user batch processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
