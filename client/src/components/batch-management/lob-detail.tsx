@@ -298,9 +298,7 @@ export function LobDetail() {
               </TooltipProvider>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
+          
       {/* Create LOB Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -423,9 +421,7 @@ export function LobDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* LOB List Section */}
-      <Card>
-        <CardContent>
+          {/* LOB List Section */}
           {lobs?.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
@@ -450,7 +446,7 @@ export function LobDetail() {
                 </div>
               </div>
 
-              <div className="relative overflow-x-auto">
+              <div className="relative overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
