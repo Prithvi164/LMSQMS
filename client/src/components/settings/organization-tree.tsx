@@ -516,7 +516,11 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
                 {node.children.length > 1 && index > 0 && (
                   <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[3px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
                 )}
-                <OrgNode node={child} level={level + 1} />
+                <OrgNode 
+                  node={child} 
+                  level={level + 1} 
+                  searchTerm={searchTerm}
+                />
               </div>
             ))}
           </div>
