@@ -892,7 +892,10 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
           </div>
           {canManageBatches && (
             <Button
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={() => {
+                setIsCreateDialogOpen(true);
+                onCreate?.();
+              }}
               className="gap-2 ml-4"
             >
               <Plus className="h-4 w-4" />
@@ -1081,7 +1084,10 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
                 <Button
                   size="sm"
                   className="relative"
-                  onClick={() => setIsCreateDialogOpen(true)}
+                  onClick={() => {
+                    setIsCreateDialogOpen(true);
+                    onCreate?.();
+                  }}
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Batch
