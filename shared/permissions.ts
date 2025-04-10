@@ -19,6 +19,8 @@ export const defaultPermissions = {
     'manage_batches',
     'manage_batch_users_add',
     'manage_batch_users_remove',
+    'view_trainee_management',
+    'manage_trainee_management',
     // Quiz permissions
     'manage_quiz',
     'take_quiz',
@@ -48,6 +50,8 @@ export const defaultPermissions = {
     'manage_batches',
     'manage_batch_users_add',
     'manage_batch_users_remove',
+    'view_trainee_management',
+    'manage_trainee_management',
     // Quiz permissions
     'manage_quiz',
     'take_quiz',
@@ -93,6 +97,7 @@ export const defaultPermissions = {
     'manage_batch_users_add',
     'manage_batch_users_remove',
     'view_trainee_management',
+    'manage_trainee_management',
     // Quiz permissions
     'manage_quiz',
     'take_quiz',

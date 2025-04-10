@@ -442,18 +442,21 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                         <ArrowRightLeft className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Coming Soon",
-                          description: "Edit functionality will be available soon",
-                        });
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    {/* Edit button - only visible for users with full management access */}
+                    {hasFullAccess && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Coming Soon",
+                            description: "Edit functionality will be available soon",
+                          });
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
                     {canRemoveBatchUsers && (
                       <Button
                         variant="ghost"
