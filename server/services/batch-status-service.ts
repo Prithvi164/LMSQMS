@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { organizationBatches, batchStatusEnum, batchHistory, users } from '@shared/schema';
-import { eq, and, lt, isNull, not } from 'drizzle-orm';
+import { organizationBatches, batchStatusEnum, batchHistory, users, userBatchProcesses } from '@shared/schema';
+import { eq, and, or, lt, isNull, not, sql } from 'drizzle-orm';
 import { startOfDay } from 'date-fns';
 
 // Function to get the next phase based on current phase
@@ -118,6 +118,63 @@ const addBatchHistoryRecord = async (
   }
 };
 
+// Function to fix batches that incorrectly transitioned to induction/training without users
+export const resetEmptyBatches = async () => {
+  try {
+    console.log('Starting empty batch reset check...');
+    
+    // Get all batches that are in induction or training status
+    const activeBatches = await db.query.organizationBatches.findMany({
+      where: and(
+        or(
+          eq(organizationBatches.status, 'induction'),
+          eq(organizationBatches.status, 'training')
+        )
+      )
+    });
+    
+    for (const batch of activeBatches) {
+      // Check if the batch has any enrolled users
+      const enrolledUsersCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.batchId, batch.id));
+      
+      const userCount = enrolledUsersCount[0]?.count || 0;
+      
+      // If no users are enrolled, reset the batch back to planned status
+      if (userCount === 0) {
+        console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users but is in '${batch.status}' status. Resetting to 'planned'.`);
+        
+        await db
+          .update(organizationBatches)
+          .set({ 
+            status: 'planned',
+            updatedAt: new Date(),
+            actualInductionStartDate: null,
+            actualInductionEndDate: null,
+            actualTrainingStartDate: null
+          })
+          .where(eq(organizationBatches.id, batch.id));
+          
+        // Add history record
+        await addBatchHistoryRecord(
+          batch.id,
+          'phase_change',
+          `Batch reset from ${batch.status} to planned due to having no enrolled users`,
+          batch.status,
+          'planned',
+          batch.organizationId
+        );
+      }
+    }
+    
+    console.log('Empty batch reset completed');
+  } catch (error) {
+    console.error('Error resetting empty batches:', error);
+  }
+};
+
 export const updateBatchStatuses = async () => {
   try {
     console.log('Starting batch status update check...');
@@ -141,29 +198,42 @@ export const updateBatchStatuses = async () => {
         if (inductionStartDate) {
           const startDate = new Date(inductionStartDate);
           if (today >= startDate) {
-            // Time to move to induction phase
-            const nextPhase = 'induction';
-            const actualStartField = getActualPhaseStartDateField(nextPhase);
+            // First check if the batch has any enrolled users
+            const enrolledUsersCount = await db
+              .select({ count: sql<number>`count(*)` })
+              .from(userBatchProcesses)
+              .where(eq(userBatchProcesses.batchId, batch.id));
             
-            console.log(`Updating batch ${batch.id} status from ${currentPhase} to ${nextPhase}`);
-            await db
-              .update(organizationBatches)
-              .set({ 
-                status: nextPhase,
-                [actualStartField]: today,
-                updatedAt: new Date()
-              })
-              .where(eq(organizationBatches.id, batch.id));
+            const userCount = enrolledUsersCount[0]?.count || 0;
+            
+            // Only transition if there are users enrolled in the batch
+            if (userCount > 0) {
+              // Time to move to induction phase
+              const nextPhase = 'induction';
+              const actualStartField = getActualPhaseStartDateField(nextPhase);
               
-            // Add history record
-            await addBatchHistoryRecord(
-              batch.id,
-              'phase_change',
-              `Batch phase changed from ${currentPhase} to ${nextPhase}`,
-              currentPhase,
-              nextPhase,
-              batch.organizationId
-            );
+              console.log(`Updating batch ${batch.id} status from ${currentPhase} to ${nextPhase}`);
+              await db
+                .update(organizationBatches)
+                .set({ 
+                  status: nextPhase,
+                  [actualStartField]: today,
+                  updatedAt: new Date()
+                })
+                .where(eq(organizationBatches.id, batch.id));
+                
+              // Add history record
+              await addBatchHistoryRecord(
+                batch.id,
+                'phase_change',
+                `Batch phase changed from ${currentPhase} to ${nextPhase}`,
+                currentPhase,
+                nextPhase,
+                batch.organizationId
+              );
+            } else {
+              console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users. Keeping in 'planned' status.`);
+            }
           }
         }
         continue;
@@ -180,43 +250,56 @@ export const updateBatchStatuses = async () => {
       if (today >= endDate) {
         const nextPhase = getNextPhase(currentPhase);
         if (nextPhase) {
-          // Record the actual end date for the current phase
-          const actualEndField = getActualPhaseEndDateField(currentPhase);
+          // Check if the batch has any enrolled users
+          const enrolledUsersCount = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(userBatchProcesses)
+            .where(eq(userBatchProcesses.batchId, batch.id));
           
-          // Record the actual start date for the next phase
-          const actualStartField = getActualPhaseStartDateField(nextPhase);
+          const userCount = enrolledUsersCount[0]?.count || 0;
           
-          console.log(`Updating batch ${batch.id} status from ${currentPhase} to ${nextPhase}`);
-          
-          const updateData: Record<string, any> = { 
-            status: nextPhase,
-            updatedAt: new Date()
-          };
-          
-          // Add actual end date for current phase
-          if (actualEndField) {
-            updateData[actualEndField] = today;
-          }
-          
-          // Add actual start date for next phase
-          if (actualStartField) {
-            updateData[actualStartField] = today;
-          }
-          
-          await db
-            .update(organizationBatches)
-            .set(updateData)
-            .where(eq(organizationBatches.id, batch.id));
+          // Only transition if there are users enrolled in the batch
+          if (userCount > 0) {
+            // Record the actual end date for the current phase
+            const actualEndField = getActualPhaseEndDateField(currentPhase);
             
-          // Add history record
-          await addBatchHistoryRecord(
-            batch.id,
-            'phase_change',
-            `Batch phase changed from ${currentPhase} to ${nextPhase}`,
-            currentPhase,
-            nextPhase,
-            batch.organizationId
-          );
+            // Record the actual start date for the next phase
+            const actualStartField = getActualPhaseStartDateField(nextPhase);
+            
+            console.log(`Updating batch ${batch.id} status from ${currentPhase} to ${nextPhase}`);
+            
+            const updateData: Record<string, any> = { 
+              status: nextPhase,
+              updatedAt: new Date()
+            };
+            
+            // Add actual end date for current phase
+            if (actualEndField) {
+              updateData[actualEndField] = today;
+            }
+            
+            // Add actual start date for next phase
+            if (actualStartField) {
+              updateData[actualStartField] = today;
+            }
+            
+            await db
+              .update(organizationBatches)
+              .set(updateData)
+              .where(eq(organizationBatches.id, batch.id));
+              
+            // Add history record
+            await addBatchHistoryRecord(
+              batch.id,
+              'phase_change',
+              `Batch phase changed from ${currentPhase} to ${nextPhase}`,
+              currentPhase,
+              nextPhase,
+              batch.organizationId
+            );
+          } else {
+            console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users. Keeping in '${currentPhase}' status.`);
+          }
         }
       }
     }
