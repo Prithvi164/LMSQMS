@@ -66,12 +66,22 @@ interface TreeNode {
 // Helper function to build the tree structure
 const buildOrgTree = (users: User[], rootUserId: number | null = null, searchTerm: string = ""): TreeNode[] => {
   // If search term is provided, only include matching users in the tree
+  const searchTermLower = searchTerm.toLowerCase();
+  
   const filteredUsers = searchTerm 
-    ? users.filter(user => 
-        user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.role?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? users.filter(user => {
+        // Exact match for username (prioritize this for IDs like P_Ganesh1)
+        if (user.username && user.username.toLowerCase() === searchTermLower) {
+          return true;
+        }
+        
+        // Partial match for username, fullName, or role
+        return (
+          (user.fullName && user.fullName.toLowerCase().includes(searchTermLower)) || 
+          (user.username && user.username.toLowerCase().includes(searchTermLower)) ||
+          (user.role && user.role.toLowerCase().includes(searchTermLower))
+        );
+      })
     : users;
     
   // For regular operation (no search), filter children by managerId
@@ -153,6 +163,7 @@ interface UserCardProps {
   reportCount?: number;
   onClick?: () => void;
   expanded?: boolean;
+  highlighted?: boolean;
 }
 
 // User Card Component
@@ -165,7 +176,8 @@ const UserCard = ({
   batchInfo = null, 
   reportCount = 0,
   onClick,
-  expanded = false
+  expanded = false,
+  highlighted = false
 }: UserCardProps) => {
   const avatarColor = color || getAvatarColor(user.fullName || user.username);
   // Enhanced gradients for the role-based header (similar to reference image)
@@ -176,7 +188,9 @@ const UserCard = ({
                     "bg-gradient-to-r from-blue-500 to-blue-700";
   
   return (
-    <Card className={`min-w-[280px] max-w-[280px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 ${expanded ? 'border-primary/70' : 'border-muted'}`}>
+    <Card className={`min-w-[280px] max-w-[280px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
+      ${highlighted ? 'border-amber-400 ring-2 ring-amber-300 shadow-amber-200/50' : 
+        expanded ? 'border-primary/70' : 'border-muted'}`}>
       {/* Gradient colored header based on role */}
       <div className={`${roleColor} h-3 w-full`}></div>
       
@@ -285,12 +299,25 @@ interface OrgNodeProps {
   level: number;
 }
 
+interface OrgNodeProps {
+  node: TreeNode;
+  level: number;
+  searchTerm?: string;
+}
+
 // Organization Node Component for horizontal tree
-const OrgNode = ({ node, level }: OrgNodeProps) => {
+const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
   const { user: currentUser } = useAuth();
   const isRoot = level === 0;
   const hasChildren = node.children.length > 0;
   const [expanded, setExpanded] = useState<boolean>(false);
+  
+  // Determine if this user is directly matching the search
+  const isHighlighted = searchTerm ? 
+    (node.user.username?.toLowerCase() === searchTerm.toLowerCase() ||
+     (node.user.fullName && node.user.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+     (node.user.username && node.user.username.toLowerCase().includes(searchTerm.toLowerCase())))
+    : false;
   
   // Get the location information from the API using React Query
   const { data: locations = [] } = useQuery<{ id: number; name: string; }[]>({
@@ -461,6 +488,7 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
           reportCount={node.children.length}
           onClick={() => setExpanded(!expanded)}
           expanded={expanded}
+          highlighted={isHighlighted}
         />
       </div>
       
@@ -707,7 +735,12 @@ export function OrganizationTree() {
         >
           <div className="org-chart">
             {displayTree.map((node) => (
-              <OrgNode key={node.user.id} node={node} level={0} />
+              <OrgNode 
+                key={node.user.id} 
+                node={node} 
+                level={0} 
+                searchTerm={searchQuery.trim()}
+              />
             ))}
           </div>
         </div>
