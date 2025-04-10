@@ -97,28 +97,22 @@ export function ProcessDetail() {
   // Check if user has permission to manage processes
   const canManageProcesses = hasPermission("manage_processes");
 
-  // Fetch organization with optimized caching
+  // Fetch organization
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
   });
 
-  // Fetch line of businesses with optimized caching
+  // Fetch line of businesses
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 30 * 60 * 1000,
   });
 
-  // Fetch processes with optimized caching
+  // Fetch processes
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id,
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 30 * 60 * 1000,
   });
 
   // Filter and pagination calculations
@@ -528,7 +522,7 @@ export function ProcessDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {lineOfBusinesses.map((lob: any) => (
+                            {(lineOfBusinesses as any[]).map((lob: any) => (
                               <SelectItem key={lob.id} value={lob.id.toString()}>
                                 {lob.name}
                               </SelectItem>
@@ -651,7 +645,7 @@ export function ProcessDetail() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <DialogFooter>
                 <Button
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
@@ -666,7 +660,7 @@ export function ProcessDetail() {
                     "Create Process"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
@@ -712,7 +706,7 @@ export function ProcessDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {lineOfBusinesses.map((lob: any) => (
+                            {(lineOfBusinesses as any[]).map((lob: any) => (
                               <SelectItem key={lob.id} value={lob.id.toString()}>
                                 {lob.name}
                               </SelectItem>
@@ -835,7 +829,7 @@ export function ProcessDetail() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <DialogFooter>
                 <Button
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
@@ -850,7 +844,7 @@ export function ProcessDetail() {
                     "Update Process"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>

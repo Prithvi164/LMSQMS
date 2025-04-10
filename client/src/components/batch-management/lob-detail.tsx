@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -47,9 +48,7 @@ const lobFormSchema = z.object({
   description: z.string().min(1, "Description is required"),
 });
 
-const deleteConfirmationSchema = z.object({
-  confirmText: z.string()
-});
+type LOBFormValues = z.infer<typeof lobFormSchema>;
 
 export function LobDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -82,7 +81,7 @@ export function LobDetail() {
     enabled: !!organization?.id,
   });
 
-  const form = useForm<z.infer<typeof lobFormSchema>>({
+  const form = useForm<LOBFormValues>({
     resolver: zodResolver(lobFormSchema),
     defaultValues: {
       name: "",
@@ -90,18 +89,11 @@ export function LobDetail() {
     },
   });
 
-  const editForm = useForm<z.infer<typeof lobFormSchema>>({
+  const editForm = useForm<LOBFormValues>({
     resolver: zodResolver(lobFormSchema),
     defaultValues: {
       name: "",
       description: "",
-    },
-  });
-
-  const deleteForm = useForm<z.infer<typeof deleteConfirmationSchema>>({
-    resolver: zodResolver(deleteConfirmationSchema),
-    defaultValues: {
-      confirmText: "",
     },
   });
 
@@ -120,7 +112,7 @@ export function LobDetail() {
   const paginatedLobs = filteredLobs.slice(startIndex, endIndex);
 
   const createLobMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
+    mutationFn: async (data: LOBFormValues) => {
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses`, {
         method: 'POST',
         headers: {
@@ -155,7 +147,7 @@ export function LobDetail() {
   });
 
   const updateLobMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
+    mutationFn: async (data: LOBFormValues) => {
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses/${selectedLob.id}`, {
         method: 'PATCH',
         headers: {
@@ -220,7 +212,7 @@ export function LobDetail() {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof lobFormSchema>) => {
+  const onSubmit = async (data: LOBFormValues) => {
     try {
       await createLobMutation.mutateAsync(data);
     } catch (error) {
@@ -228,7 +220,7 @@ export function LobDetail() {
     }
   };
 
-  const onEdit = async (data: z.infer<typeof lobFormSchema>) => {
+  const onEdit = async (data: LOBFormValues) => {
     try {
       await updateLobMutation.mutateAsync(data);
     } catch (error) {
@@ -299,6 +291,7 @@ export function LobDetail() {
             </div>
           </div>
 
+          {/* LOB List Section */}
           {lobs?.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
@@ -424,7 +417,7 @@ export function LobDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Card>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                   <FormField
                     control={form.control}
                     name="name"
@@ -455,7 +448,7 @@ export function LobDetail() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <DialogFooter>
                 <Button
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
@@ -470,7 +463,7 @@ export function LobDetail() {
                     "Submit"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
@@ -485,7 +478,7 @@ export function LobDetail() {
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
               <Card>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                   <FormField
                     control={editForm.control}
                     name="name"
@@ -516,7 +509,7 @@ export function LobDetail() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <DialogFooter>
                 <Button
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
@@ -531,7 +524,7 @@ export function LobDetail() {
                     "Update"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
@@ -551,11 +544,11 @@ export function LobDetail() {
             <Input
               className="font-mono"
               placeholder="Type delete confirmation"
-              value={deleteForm.watch("confirmText")}
-              onChange={(e) => deleteForm.setValue("confirmText", e.target.value)}
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
             />
           </div>
-          <div className="flex justify-end gap-3">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
@@ -564,7 +557,7 @@ export function LobDetail() {
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteForm.watch("confirmText") !== deleteConfirmationText || deleteLobMutation.isPending}
+              disabled={deleteLobMutation.isPending}
               onClick={async () => {
                 try {
                   await deleteLobMutation.mutateAsync();
@@ -582,7 +575,7 @@ export function LobDetail() {
                 "Delete Line of Business"
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
