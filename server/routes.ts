@@ -1672,6 +1672,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      console.log(`Fetching batch processes for organization: ${req.user.organizationId}`);
+      
       // Get all users in the organization
       const orgUsers = await db.query.users.findMany({
         where: eq(users.organizationId, req.user.organizationId),
@@ -1679,6 +1681,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: true
         }
       });
+      
+      console.log(`Found ${orgUsers.length} users in organization`);
+      console.log(`User IDs:`, orgUsers.map(u => u.id));
+      
+      // Check if user 386 is included
+      const hasUser386 = orgUsers.some(u => u.id === 386);
+      console.log(`User 386 included in results: ${hasUser386}`);
 
       // Initialize result object
       const allUserBatchProcesses: Record<number, any[]> = {};
@@ -1686,6 +1695,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For each user, retrieve their batch processes
       for (const user of orgUsers) {
         const batchProcesses = await storage.getUserBatchProcesses(user.id);
+        
+        if (user.id === 386) {
+          console.log(`Found ${batchProcesses.length} batch processes for user 386:`, batchProcesses);
+        }
         
         if (batchProcesses.length > 0) {
           allUserBatchProcesses[user.id] = batchProcesses.map(bp => ({
