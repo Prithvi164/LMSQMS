@@ -21,7 +21,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -42,7 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, Edit, Trash2, Search } from "lucide-react";
+import { Plus, Loader2, Edit, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface LineOfBusiness {
@@ -320,40 +322,45 @@ export function ProcessDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2 mb-6">
-        <SiReact className="h-8 w-8 text-blue-500" />
-        <h1 className="text-2xl font-semibold">Manage Processes</h1>
-      </div>
-
-      {/* Search and Actions Section */}
-      <Card className="border-dashed">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search processes..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
+      <Card className="overflow-hidden border-none shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <SiReact className="h-5 w-5 text-blue-500" />
+              <h2 className="text-lg font-semibold">Manage Processes</h2>
             </div>
-            {canManageProcesses && (
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Process
-              </Button>
-            )}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search processes..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-9 w-[250px] focus:border-purple-500"
+                />
+              </div>
+              {canManageProcesses && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setIsCreateDialogOpen(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Process
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>Add a new process</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Process List */}
-      <Card>
-        <CardContent>
           {processes.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
@@ -378,23 +385,26 @@ export function ProcessDetail() {
                 </div>
               </div>
 
-              <div className="relative overflow-x-auto">
+              <div className="relative overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Process Name</TableHead>
-                      <TableHead>Line of Business</TableHead>
-                      <TableHead className="text-center">Induction Days</TableHead>
-                      <TableHead className="text-center">Training Days</TableHead>
-                      <TableHead className="text-center">Certification Days</TableHead>
-                      <TableHead className="text-center">OJT Days</TableHead>
-                      <TableHead className="text-center">OJT Cert Days</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Process Name</TableHead>
+                      <TableHead className="font-semibold">Line of Business</TableHead>
+                      <TableHead className="font-semibold text-center">Induction Days</TableHead>
+                      <TableHead className="font-semibold text-center">Training Days</TableHead>
+                      <TableHead className="font-semibold text-center">Certification Days</TableHead>
+                      <TableHead className="font-semibold text-center">OJT Days</TableHead>
+                      <TableHead className="font-semibold text-center">OJT Cert Days</TableHead>
+                      <TableHead className="font-semibold text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedProcesses.map((process: Process) => (
-                      <TableRow key={process.id}>
+                      <TableRow 
+                        key={process.id}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
                         <TableCell className="font-medium">
                           {process.name}
                         </TableCell>
@@ -409,41 +419,45 @@ export function ProcessDetail() {
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
                             {canManageProcesses && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleEdit(process)}
-                                      className="h-7 w-7 p-0 text-blue-600"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                      <span className="sr-only">Edit Process</span>
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    <p>Edit Process</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                              <>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleEdit(process)}
+                                        className="h-7 w-7 p-0 text-blue-600"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                        <span className="sr-only">Edit Process</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p>Edit Process</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleDelete(process)}
-                                      className="h-7 w-7 p-0 text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                      <span className="sr-only">Delete Process</span>
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    <p>Delete Process</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDelete(process)}
+                                        className="h-7 w-7 p-0 text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Delete Process</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p>Delete Process</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
                             )}
                           </div>
                         </TableCell>
@@ -453,35 +467,84 @@ export function ProcessDetail() {
                 </Table>
               </div>
 
-              <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length}{" "}
-                  entries
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-4 px-4">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing{" "}
+                      {startIndex + 1}{" "}
+                      to{" "}
+                      {Math.min(endIndex, filteredProcesses.length)}{" "}
+                      of {filteredProcesses.length} processes
+                    </div>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => {
+                        setPageSize(parseInt(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue placeholder="Select page size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Page Size</SelectLabel>
+                          <SelectItem value="10">10 per page</SelectItem>
+                          <SelectItem value="25">25 per page</SelectItem>
+                          <SelectItem value="50">50 per page</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+              )}
             </>
+          ) : searchQuery ? (
+            <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
+              <SiReact className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">
+                No processes found matching "{searchQuery}"
+              </p>
+            </div>
           ) : (
-            <p className="text-muted-foreground">
-              No processes found. Create a new process to get started.
-            </p>
+            <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
+              <SiReact className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">
+                No processes found. Add your first process to get started.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
