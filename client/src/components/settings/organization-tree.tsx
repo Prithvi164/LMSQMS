@@ -189,8 +189,7 @@ const UserCard = ({
   
   return (
     <Card className={`min-w-[280px] max-w-[280px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
-      ${highlighted ? 'border-amber-400 ring-2 ring-amber-300 shadow-amber-200/50' : 
-        expanded ? 'border-primary/70' : 'border-muted'}`}>
+      ${expanded ? 'border-primary/70' : 'border-muted'}`}>
       {/* Gradient colored header based on role */}
       <div className={`${roleColor} h-3 w-full`}></div>
       
@@ -488,7 +487,7 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
           reportCount={node.children.length}
           onClick={() => setExpanded(!expanded)}
           expanded={expanded}
-          highlighted={isHighlighted}
+          highlighted={isHighlighted ? true : false}
         />
       </div>
       
