@@ -468,7 +468,6 @@ export function LocationDetail() {
                         onClick={() => {
                           setIsCreateDialogOpen(true);
                         }}
-                        className="bg-purple-600 hover:bg-purple-700 transition-colors"
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add New Location
@@ -616,7 +615,7 @@ export function LocationDetail() {
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           onClick={() => handlePageChange(page)}
-                          className={currentPage === page ? "bg-purple-600" : ""}
+                          className={currentPage === page ? "" : ""}
                         >
                           {page}
                         </Button>
@@ -780,7 +779,6 @@ export function LocationDetail() {
                 </Button>
                 <Button 
                   type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
                   disabled={createLocationMutation.isPending}
                 >
                   {createLocationMutation.isPending && (
@@ -921,7 +919,6 @@ export function LocationDetail() {
                 </Button>
                 <Button 
                   type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
                   disabled={editLocationMutation.isPending}
                 >
                   {editLocationMutation.isPending && (
