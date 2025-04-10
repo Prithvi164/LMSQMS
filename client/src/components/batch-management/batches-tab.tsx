@@ -46,6 +46,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import type { OrganizationBatch, OrganizationLocation, OrganizationLineOfBusiness, OrganizationProcess, User } from "@shared/schema";
 import { AddTraineeForm } from "./add-trainee-form";
@@ -769,47 +770,78 @@ export function BatchesTab() {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end space-x-2 opacity-100 transition-opacity action-buttons">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/batch-dashboard/${batch.id}`);
-                    }}
-                    className="h-8 w-8 p-0 hover:text-blue-600"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span className="sr-only">View Dashboard</span>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/batch-dashboard/${batch.id}`);
+                        }}
+                        className="h-8 w-8 p-0 hover:text-blue-600"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">View Dashboard</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>View Batch Dashboard</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
                   {canAddBatchUsers && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleAddTraineeClick(batch)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span className="sr-only">Add Trainee</span>
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAddTraineeClick(batch)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          <span className="sr-only">Add Trainee</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Add Trainee to Batch</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
+                  
                   {canManageBatches && batch.status === 'planned' && (
                     <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditClick(batch)}
-                        className="h-8 w-8 p-0 hover:text-primary"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(batch)}
-                        className="h-8 w-8 p-0 hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(batch)}
+                            className="h-8 w-8 p-0 hover:text-primary"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit Batch</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(batch)}
+                            className="h-8 w-8 p-0 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Delete Batch</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </>
                   )}
                 </div>
