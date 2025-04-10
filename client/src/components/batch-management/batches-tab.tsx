@@ -106,7 +106,11 @@ interface BatchWithRelations extends BatchInterface {
   } | null;
 }
 
-export function BatchesTab() {
+interface BatchesTabProps {
+  onCreate?: () => void;
+}
+
+export function BatchesTab({ onCreate }: BatchesTabProps) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();

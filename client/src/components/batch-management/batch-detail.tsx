@@ -32,10 +32,6 @@ export function BatchDetail({ onCreateBatch }: BatchDetailProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Batch Management</h1>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Batch Management Setup</CardTitle>
