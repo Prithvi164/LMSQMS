@@ -33,6 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
 import { BatchQuizAttempts } from "@/components/batch-management/batch-quiz-attempts";
+import { usePermissions } from "@/hooks/use-permissions";
 
 // Type for batch data
 type Batch = {
@@ -92,7 +93,7 @@ const getStatusColor = (status: string): string => {
   }
 };
 
-export default function TraineeManagement() {
+function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [metricType, setMetricType] = useState<MetricType>('weekly');
@@ -967,3 +968,26 @@ export default function TraineeManagement() {
     </div>
   );
 }
+
+// Permission-protected wrapper component
+const PermissionGuardedTraineeManagement = () => {
+  const { hasPermission } = usePermissions();
+  
+  if (!hasPermission('view_trainee_management')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
+        <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
+        <p className="text-muted-foreground mb-4">
+          You do not have permission to access the Trainee Management section.
+        </p>
+        <Button asChild variant="outline">
+          <a href="/">Return to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+  
+  return <TraineeManagement />;
+};
+
+export default PermissionGuardedTraineeManagement;
