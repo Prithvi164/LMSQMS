@@ -188,71 +188,66 @@ const UserCard = ({
                     "bg-gradient-to-r from-blue-500 to-blue-700";
   
   return (
-    <Card className={`min-w-[280px] max-w-[280px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
+    <Card className={`min-w-[220px] max-w-[220px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
       ${expanded ? 'border-primary/70' : 'border-muted'}`}>
       {/* Gradient colored header based on role */}
       <div className={`${roleColor} h-3 w-full`}></div>
       
-      <div className="p-4">
-        <div className="flex flex-col items-center text-center mb-3">
-          <Avatar className={`h-20 w-20 ${avatarColor} text-white mb-3 ring-4 ring-background shadow-lg`}>
-            <AvatarFallback className="text-2xl font-bold">
-              {getInitials(user.fullName || user.username)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="font-bold text-base truncate w-full">{user.fullName || user.username}</div>
-          <div className="text-sm text-muted-foreground truncate w-full mt-1">
+      <div className="p-2">
+        <div className="flex flex-col items-center text-center mb-1">
+          <div className="font-bold text-sm truncate w-full">{user.fullName || user.username}</div>
+          <div className="text-xs text-muted-foreground truncate w-full mt-0.5">
             {user.role && user.role.replace(/_/g, " ")}
           </div>
         </div>
         
-        <div className="flex justify-center mb-3">
+        <div className="flex justify-center mb-2">
           <Badge 
             variant={user.role === "owner" ? "default" : "outline"} 
-            className={`capitalize ${
+            className={`capitalize text-xs ${
               user.role === "owner" ? "bg-gradient-to-r from-primary to-primary-600 border-0 shadow-md" : 
               user.role === "admin" ? "border-indigo-500 text-indigo-600 shadow-sm" :
               user.role === "manager" ? "border-emerald-500 text-emerald-600 shadow-sm" :
               user.role === "trainer" ? "border-orange-500 text-orange-600 shadow-sm" :
               "border-blue-500 text-blue-600 shadow-sm"
-            } px-3 py-1 font-medium`}
+            } px-2 py-0.5 font-medium`}
           >
             {user.role}
           </Badge>
         </div>
         
-        <div className="space-y-2 mt-2">
+        <div className="space-y-1 mt-1">
           {/* Department - Enhanced with gradient border */}
           {department && (
-            <div className="flex items-center gap-2 bg-gradient-to-r from-muted/20 to-muted/40 py-2 px-3 rounded-md text-sm shadow-sm border-l-[3px] border-primary/70">
-              <Building className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-0.5 bg-gradient-to-r from-muted/20 to-muted/40 py-0.5 px-1.5 rounded-md text-xs shadow-sm border-l-[2px] border-primary/70">
+              <Building className="h-2.5 w-2.5 text-primary" />
               <span className="truncate font-medium">{department}</span>
             </div>
           )}
           
           {/* Location - Enhanced with gradient */}
           {location && (
-            <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-blue-100/80 dark:from-blue-900/20 dark:to-blue-900/40 py-2 px-3 rounded-md text-sm border-l-[3px] border-blue-500 shadow-sm my-2">
-              <Map className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center gap-0.5 bg-gradient-to-r from-blue-50 to-blue-100/80 dark:from-blue-900/20 dark:to-blue-900/40 py-0.5 px-1.5 rounded-md text-xs border-l-[2px] border-blue-500 shadow-sm my-0.5">
+              <Map className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
               <span className="truncate font-medium">{location}</span>
             </div>
           )}
           
           {/* Process Name - Enhanced with gradient */}
           {processName && (
-            <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-emerald-100/80 dark:from-emerald-900/20 dark:to-emerald-900/40 py-2 px-3 rounded-md text-sm border-l-[3px] border-emerald-500 shadow-sm my-2">
-              <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex items-center gap-0.5 bg-gradient-to-r from-emerald-50 to-emerald-100/80 dark:from-emerald-900/20 dark:to-emerald-900/40 py-0.5 px-1.5 rounded-md text-xs border-l-[2px] border-emerald-500 shadow-sm my-0.5">
+              <Briefcase className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
               <span className="truncate font-medium">{processName}</span>
             </div>
           )}
           
           {/* Batch Info - Enhanced with gradient */}
           {batchInfo && (
-            <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-100/80 dark:from-amber-900/20 dark:to-amber-900/40 py-2 px-3 rounded-md text-sm border-l-[3px] border-amber-500 shadow-sm my-2">
-              <GraduationCap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <div className="flex items-center gap-0.5 bg-gradient-to-r from-amber-50 to-amber-100/80 dark:from-amber-900/20 dark:to-amber-900/40 py-0.5 px-1.5 rounded-md text-xs border-l-[2px] border-amber-500 shadow-sm my-0.5">
+              <GraduationCap className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400" />
               <div className="flex items-center justify-between w-full">
                 <span className="truncate font-medium">{batchInfo.name}</span>
-                <span className={`ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                <span className={`ml-1 inline-flex items-center px-1 py-0 rounded-full text-[0.65rem] ${
                   batchInfo.status === 'active' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 dark:from-green-900/40 dark:to-green-900/60 dark:text-green-300' : 
                   batchInfo.status === 'completed' ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 dark:from-blue-900/40 dark:to-blue-900/60 dark:text-blue-300' : 
                   batchInfo.status === 'on_hold' ? 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 dark:from-amber-900/40 dark:to-amber-900/60 dark:text-amber-300' : 
@@ -266,23 +261,23 @@ const UserCard = ({
         </div>
         
         {reportCount > 0 && (
-          <div className="mt-3 pt-2 border-t border-border flex justify-center">
+          <div className="mt-1 pt-0.5 border-t border-border flex justify-center">
             <Badge 
               variant={expanded ? "default" : "secondary"}
-              className={`text-sm px-3 py-1.5 ${
+              className={`text-xs px-1.5 py-0.5 ${
                 expanded 
                   ? "bg-gradient-to-r from-primary/80 to-primary shadow-md text-primary-foreground" 
                   : "bg-gradient-to-r from-muted/30 to-muted/60 shadow-sm hover:shadow-md"
-              } cursor-pointer transition-all flex items-center gap-1.5 font-medium`}
+              } cursor-pointer transition-all flex items-center gap-0.5 font-medium`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (typeof onClick === 'function') onClick();
               }}
             >
-              {reportCount} direct {reportCount === 1 ? 'report' : 'reports'}
+              {reportCount} {reportCount === 1 ? 'report' : 'reports'}
               {onClick && (
                 <ChevronDown 
-                  className={`h-4 w-4 ml-1 transition-transform ${expanded ? 'rotate-180' : ''}`} 
+                  className={`h-2.5 w-2.5 transition-transform ${expanded ? 'rotate-180' : ''}`} 
                 />
               )}
             </Badge>
