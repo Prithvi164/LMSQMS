@@ -255,15 +255,23 @@ export function UserManagement() {
         console.error("Error fetching batches:", error);
       }
       
+      // Add debug logging
+      console.log("userBatchProcesses data:", userBatchProcesses);
+      
       // Iterate through each user
       for (const user of users) {
+        console.log(`Processing user: ${user.id} (${user.username})`);
         const userBatchProcessList = Array.isArray(userBatchProcesses[user.id]) ? userBatchProcesses[user.id] : [];
+        console.log(`User ${user.id} has ${userBatchProcessList.length} batch processes`);
         
         if (userBatchProcessList.length > 0) {
+          console.log(`Batch process data for user ${user.id}:`, userBatchProcessList);
+          
           // For each user's batch, create a row with the required data
           for (const bp of userBatchProcessList) {
             // Get additional batch information from allBatches
             const batchInfo = allBatches[bp.batchId] || {};
+            console.log(`Using batch info for batchId ${bp.batchId}:`, batchInfo);
             
             userBatchData.push({
               // From User_Batch_Process table
@@ -282,6 +290,9 @@ export function UserManagement() {
           }
         }
       }
+      
+      // Debug log the final data
+      console.log("Final userBatchData for export:", userBatchData.length, "rows");
 
       // Create workbook and add the user details sheet
       const wb = XLSX.utils.book_new();
