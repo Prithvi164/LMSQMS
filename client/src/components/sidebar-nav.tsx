@@ -63,7 +63,7 @@ export function SidebarNav() {
     { href: '/batch-management', label: 'Batch Management', icon: Users, 
       permission: 'manage_batches' }, // Using manage_batches as the control permission
     { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck, 
-      permission: 'view_users' },
+      permission: 'view_trainee_management' },
     { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen, 
       permission: 'view_quiz' }, // Only show if user has view_quiz permission
   ];
