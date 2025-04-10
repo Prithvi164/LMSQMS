@@ -1708,7 +1708,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processName: bp.processName,
             status: bp.status,
             joinedAt: bp.joinedAt,
-            completedAt: bp.completedAt
+            completedAt: bp.completedAt,
+            trainerId: bp.trainerId
           }));
         } else {
           allUserBatchProcesses[user.id] = [];

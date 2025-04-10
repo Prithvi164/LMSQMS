@@ -326,7 +326,8 @@ export function UserManagement() {
                 : '',
               'Status': bp.status || '',
               'Capacity': batchInfo.capacityLimit || '',
-              'Batch Phase Status': batchInfo.status || ''
+              'Batch Phase Status': batchInfo.status || '',
+              'Trainer ID': bp.trainerId || batchInfo.trainerId || ''
             });
           }
         }

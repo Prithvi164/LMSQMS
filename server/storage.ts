@@ -3078,6 +3078,7 @@ export class DatabaseStorage implements IStorage {
           completedAt: userBatchProcesses.completedAt,
           batchName: organizationBatches.name, 
           processName: organizationProcesses.name,
+          trainerId: organizationBatches.trainerId,
         })
         .from(userBatchProcesses)
         .leftJoin(
