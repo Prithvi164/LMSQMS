@@ -193,7 +193,7 @@ export function UserManagement() {
   };
 
   // Add exportToExcel function after toggleUserStatus
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
       // First sheet with user details
       const usersDataToExport = users.map(user => ({
@@ -235,6 +235,26 @@ export function UserManagement() {
       // This will flatten the data to have one row per user-batch association
       const userBatchData = [];
       
+      // Get all batches to retrieve additional batch information
+      const allBatches = {};
+      
+      // Fetch all batches to get additional data about each batch
+      try {
+        const batchResponse = await fetch(`/api/organizations/${user?.organizationId}/batches`);
+        if (batchResponse.ok) {
+          const batchesData = await batchResponse.json();
+          if (Array.isArray(batchesData)) {
+            batchesData.forEach((batch: any) => {
+              if (batch && batch.id) {
+                allBatches[batch.id] = batch;
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching batches:", error);
+      }
+      
       // Iterate through each user
       for (const user of users) {
         const userBatchProcessList = Array.isArray(userBatchProcesses[user.id]) ? userBatchProcesses[user.id] : [];
@@ -242,6 +262,9 @@ export function UserManagement() {
         if (userBatchProcessList.length > 0) {
           // For each user's batch, create a row with the required data
           for (const bp of userBatchProcessList) {
+            // Get additional batch information from allBatches
+            const batchInfo = allBatches[bp.batchId] || {};
+            
             userBatchData.push({
               // From User_Batch_Process table
               'User ID': user.id,
@@ -249,12 +272,12 @@ export function UserManagement() {
               'Role': user.role,
               
               // From Organisation_Batch table
-              'Batch Name': bp.batchName || '',
-              'Batch Start Date': bp.startDate || '',  
-              'Batch End Date': bp.endDate || '',
+              'Batch Name': bp.batchName || batchInfo.name || '',
+              'Batch Start Date': batchInfo.startDate ? new Date(batchInfo.startDate).toISOString().split('T')[0] : '',  
+              'Batch End Date': batchInfo.endDate ? new Date(batchInfo.endDate).toISOString().split('T')[0] : '',
               'Status': bp.status || '',
-              'Capacity': bp.capacityLimit || '',
-              'Batch Phase Status': bp.currentPhase || ''
+              'Capacity': batchInfo.capacityLimit || '',
+              'Batch Phase Status': batchInfo.status || ''
             });
           }
         }
@@ -279,7 +302,7 @@ export function UserManagement() {
       // Show success toast
       toast({
         title: "Export Successful",
-        description: "User details, process information, and batch process details have been exported to Excel.",
+        description: "User details, process information, and user batch data have been exported to Excel.",
       });
     } catch (error) {
       console.error("Error exporting to Excel:", error);
