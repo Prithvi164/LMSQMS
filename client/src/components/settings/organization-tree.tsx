@@ -196,9 +196,6 @@ const UserCard = ({
       <div className="p-1.5">
         <div className="flex flex-col items-center text-center mb-0.5">
           <div className="font-bold text-xs truncate w-full">{user.fullName || user.username}</div>
-          <div className="text-[10px] text-muted-foreground truncate w-full mt-0">
-            {user.role && user.role.replace(/_/g, " ")}
-          </div>
         </div>
         
         <div className="flex justify-center mb-2">
