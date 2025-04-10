@@ -231,6 +231,30 @@ export function UserManagement() {
         };
       });
 
+      // Third sheet with batch process details
+      const batchProcessDataToExport = users.map(user => {
+        const userBatchProcessList = Array.isArray(userBatchProcesses[user.id]) ? userBatchProcesses[user.id] : [];
+        return {
+          'User ID': user.id,
+          Username: user.username,
+          'Full Name': user.fullName || '',
+          Email: user.email,
+          'Employee ID': user.employeeId || '',
+          'Batch Count': userBatchProcessList.length,
+          'Batch Names': userBatchProcessList.map((bp: any) => bp.batchName || '').join(", ") || "No batches",
+          'Batch IDs': userBatchProcessList.map((bp: any) => bp.batchId || '').join(", ") || "",
+          'Process Names': userBatchProcessList.map((bp: any) => bp.processName || '').join(", ") || "",
+          'Batch Statuses': userBatchProcessList.map((bp: any) => bp.status || '').join(", ") || "",
+          'Joined Dates': userBatchProcessList.map((bp: any) => {
+            return bp.joinedAt ? new Date(bp.joinedAt).toISOString().split('T')[0] : '';
+          }).join(", ") || "",
+          'Completed Dates': userBatchProcessList.map((bp: any) => {
+            return bp.completedAt ? new Date(bp.completedAt).toISOString().split('T')[0] : '';
+          }).join(", ") || "",
+          Status: user.active ? 'Active' : 'Inactive'
+        };
+      });
+
       // Create workbook and add the user details sheet
       const wb = XLSX.utils.book_new();
       const wsUsers = XLSX.utils.json_to_sheet(usersDataToExport);
@@ -240,13 +264,17 @@ export function UserManagement() {
       const wsProcesses = XLSX.utils.json_to_sheet(processDataToExport);
       XLSX.utils.book_append_sheet(wb, wsProcesses, "User Processes");
       
+      // Add the batch process details sheet
+      const wsBatchProcesses = XLSX.utils.json_to_sheet(batchProcessDataToExport);
+      XLSX.utils.book_append_sheet(wb, wsBatchProcesses, "User Batch Processes");
+      
       // Save the file
       XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
       
       // Show success toast
       toast({
         title: "Export Successful",
-        description: "User details and process information have been exported to Excel.",
+        description: "User details, process information, and batch process details have been exported to Excel.",
       });
     } catch (error) {
       console.error("Error exporting to Excel:", error);
