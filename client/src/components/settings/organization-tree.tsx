@@ -239,7 +239,7 @@ const UserCard = ({
                     "bg-gradient-to-r from-blue-500 to-blue-700";
   
   return (
-    <Card className={`min-w-[180px] max-w-[180px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
+    <Card className={`min-w-[250px] max-w-[250px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
       ${expanded ? 'border-primary/70' : 'border-muted'}`}>
       {/* Gradient colored header based on role */}
       <div className={`${roleColor} h-2 w-full`}></div>
