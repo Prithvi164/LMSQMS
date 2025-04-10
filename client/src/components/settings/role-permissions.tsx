@@ -270,6 +270,49 @@ export function RolePermissions() {
       });
     },
   });
+  
+  // Mutation for resetting permissions to default values
+  const resetPermissionsMutation = useMutation({
+    mutationFn: async (role: string) => {
+      console.log('Resetting permissions for role:', role);
+      
+      const res = await apiRequest("POST", `/api/permissions/${role}/reset`, {});
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to reset permissions');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Update the local state with the reset permissions
+      setCurrentRolePermissions(data.permissions);
+      
+      // Update the cached data
+      queryClient.setQueryData(["/api/permissions"], (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((rp: any) => 
+          rp.role === data.role ? data : rp
+        );
+      });
+      
+      // Invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/permissions"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/permissions/${data.role}`] });
+      
+      toast({
+        title: "Permissions reset",
+        description: `${data.role.replace(/_/g, " ")} permissions have been reset to default values.`,
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Failed to reset permissions:', error);
+      toast({
+        title: "Failed to reset permissions",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Update current permissions when selected role changes
   useEffect(() => {
@@ -432,15 +475,14 @@ export function RolePermissions() {
                   <Button 
                     size="sm" 
                     variant="outline"
+                    disabled={resetPermissionsMutation.isPending || selectedRole === 'owner' && user?.role !== 'owner'}
                     onClick={() => {
-                      // Reset to defaults logic would go here
-                      toast({
-                        title: "Reset to defaults",
-                        description: "Permissions have been reset to role defaults",
-                      });
+                      if (window.confirm(`Are you sure you want to reset ${selectedRole.replace(/_/g, " ")} permissions to defaults?`)) {
+                        resetPermissionsMutation.mutate(selectedRole);
+                      }
                     }}
                   >
-                    Reset
+                    {resetPermissionsMutation.isPending ? 'Resetting...' : 'Reset'}
                   </Button>
                 </div>
               </div>
