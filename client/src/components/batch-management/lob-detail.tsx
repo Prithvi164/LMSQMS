@@ -23,7 +23,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -48,7 +47,9 @@ const lobFormSchema = z.object({
   description: z.string().min(1, "Description is required"),
 });
 
-type LOBFormValues = z.infer<typeof lobFormSchema>;
+const deleteConfirmationSchema = z.object({
+  confirmText: z.string()
+});
 
 export function LobDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -81,7 +82,7 @@ export function LobDetail() {
     enabled: !!organization?.id,
   });
 
-  const form = useForm<LOBFormValues>({
+  const form = useForm<z.infer<typeof lobFormSchema>>({
     resolver: zodResolver(lobFormSchema),
     defaultValues: {
       name: "",
@@ -89,11 +90,18 @@ export function LobDetail() {
     },
   });
 
-  const editForm = useForm<LOBFormValues>({
+  const editForm = useForm<z.infer<typeof lobFormSchema>>({
     resolver: zodResolver(lobFormSchema),
     defaultValues: {
       name: "",
       description: "",
+    },
+  });
+
+  const deleteForm = useForm<z.infer<typeof deleteConfirmationSchema>>({
+    resolver: zodResolver(deleteConfirmationSchema),
+    defaultValues: {
+      confirmText: "",
     },
   });
 
@@ -112,7 +120,7 @@ export function LobDetail() {
   const paginatedLobs = filteredLobs.slice(startIndex, endIndex);
 
   const createLobMutation = useMutation({
-    mutationFn: async (data: LOBFormValues) => {
+    mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses`, {
         method: 'POST',
         headers: {
@@ -147,7 +155,7 @@ export function LobDetail() {
   });
 
   const updateLobMutation = useMutation({
-    mutationFn: async (data: LOBFormValues) => {
+    mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses/${selectedLob.id}`, {
         method: 'PATCH',
         headers: {
@@ -212,7 +220,7 @@ export function LobDetail() {
     },
   });
 
-  const onSubmit = async (data: LOBFormValues) => {
+  const onSubmit = async (data: z.infer<typeof lobFormSchema>) => {
     try {
       await createLobMutation.mutateAsync(data);
     } catch (error) {
@@ -220,7 +228,7 @@ export function LobDetail() {
     }
   };
 
-  const onEdit = async (data: LOBFormValues) => {
+  const onEdit = async (data: z.infer<typeof lobFormSchema>) => {
     try {
       await updateLobMutation.mutateAsync(data);
     } catch (error) {
@@ -290,8 +298,134 @@ export function LobDetail() {
               </TooltipProvider>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* LOB List Section */}
+      {/* Create LOB Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-6">Create Line of Business</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Card>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LOB NAME</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter LOB name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter LOB description" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={createLobMutation.isPending}
+                >
+                  {createLobMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit LOB Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-6">Edit Line of Business</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+              <Card>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LOB NAME</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter LOB name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter LOB description" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={updateLobMutation.isPending}
+                >
+                  {updateLobMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* LOB List Section */}
+      <Card>
+        <CardContent>
           {lobs?.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
@@ -316,21 +450,18 @@ export function LobDetail() {
                 </div>
               </div>
 
-              <div className="relative overflow-x-auto rounded-lg border">
+              <div className="relative overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="font-semibold">LOB Name</TableHead>
-                      <TableHead className="font-semibold">Description</TableHead>
-                      <TableHead className="font-semibold text-right">Actions</TableHead>
+                    <TableRow>
+                      <TableHead>LOB Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedLobs.map((lob: any) => (
-                      <TableRow 
-                        key={lob.id}
-                        className="hover:bg-muted/50 transition-colors"
-                      >
+                      <TableRow key={lob.id}>
                         <TableCell className="font-medium">{lob.name}</TableCell>
                         <TableCell>{lob.description}</TableCell>
                         <TableCell className="text-right">
@@ -408,128 +539,6 @@ export function LobDetail() {
         </CardContent>
       </Card>
 
-      {/* Create LOB Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Create Line of Business</DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Card>
-                <CardContent className="space-y-4 pt-6">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LOB NAME</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>DESCRIPTION</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB description" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={createLobMutation.isPending}
-                >
-                  {createLobMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Submit"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit LOB Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Edit Line of Business</DialogTitle>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
-              <Card>
-                <CardContent className="space-y-4 pt-6">
-                  <FormField
-                    control={editForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LOB NAME</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>DESCRIPTION</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB description" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={updateLobMutation.isPending}
-                >
-                  {updateLobMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -544,11 +553,11 @@ export function LobDetail() {
             <Input
               className="font-mono"
               placeholder="Type delete confirmation"
-              value={deleteConfirmationText}
-              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              value={deleteForm.watch("confirmText")}
+              onChange={(e) => deleteForm.setValue("confirmText", e.target.value)}
             />
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-3">
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
@@ -557,7 +566,7 @@ export function LobDetail() {
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteLobMutation.isPending}
+              disabled={deleteForm.watch("confirmText") !== deleteConfirmationText || deleteLobMutation.isPending}
               onClick={async () => {
                 try {
                   await deleteLobMutation.mutateAsync();
@@ -575,7 +584,7 @@ export function LobDetail() {
                 "Delete Line of Business"
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
