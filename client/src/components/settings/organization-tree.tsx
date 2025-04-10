@@ -188,15 +188,15 @@ const UserCard = ({
                     "bg-gradient-to-r from-blue-500 to-blue-700";
   
   return (
-    <Card className={`min-w-[220px] max-w-[220px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
+    <Card className={`min-w-[180px] max-w-[180px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 
       ${expanded ? 'border-primary/70' : 'border-muted'}`}>
       {/* Gradient colored header based on role */}
-      <div className={`${roleColor} h-3 w-full`}></div>
+      <div className={`${roleColor} h-2 w-full`}></div>
       
-      <div className="p-2">
-        <div className="flex flex-col items-center text-center mb-1">
-          <div className="font-bold text-sm truncate w-full">{user.fullName || user.username}</div>
-          <div className="text-xs text-muted-foreground truncate w-full mt-0.5">
+      <div className="p-1.5">
+        <div className="flex flex-col items-center text-center mb-0.5">
+          <div className="font-bold text-xs truncate w-full">{user.fullName || user.username}</div>
+          <div className="text-[10px] text-muted-foreground truncate w-full mt-0">
             {user.role && user.role.replace(/_/g, " ")}
           </div>
         </div>
@@ -468,7 +468,7 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
   return (
     <div className="flex flex-col items-center">
       {/* User card */}
-      <div className="mb-6">
+      <div className="mb-4">
         <UserCard 
           user={node.user}
           // Use a safe way to pass department data
@@ -488,27 +488,27 @@ const OrgNode = ({ node, level, searchTerm = "" }: OrgNodeProps) => {
       
       {/* Connector line to children - only show when expanded */}
       {hasChildren && expanded && (
-        <div className="w-[3px] h-12 bg-gradient-to-b from-primary/60 to-primary/30 rounded-full" />
+        <div className="w-[2px] h-8 bg-gradient-to-b from-primary/60 to-primary/30 rounded-full" />
       )}
       
       {/* Children - only show when expanded */}
       {hasChildren && expanded && (
         <div className="relative">
           {/* Horizontal connecting line */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[3px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
+          <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-4 w-[2px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
           
           {/* Horizontal line above children */}
           <div 
-            className={`absolute h-[3px] bg-gradient-to-r from-primary/30 via-primary/60 to-primary/30 rounded-full ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} 
-            style={{ top: '-6px' }} 
+            className={`absolute h-[2px] bg-gradient-to-r from-primary/30 via-primary/60 to-primary/30 rounded-full ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} 
+            style={{ top: '-4px' }} 
           />
           
-          <div className="flex gap-10 mt-4">
+          <div className="flex gap-6 mt-2">
             {node.children.map((child, index) => (
               <div key={child.user.id} className="relative">
                 {/* Vertical connecting line to parent */}
                 {node.children.length > 1 && index > 0 && (
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[3px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-4 w-[2px] bg-gradient-to-t from-primary/60 to-primary/30 rounded-full" />
                 )}
                 <OrgNode 
                   node={child} 
