@@ -35,12 +35,27 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2, Edit, Trash2, Search } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { 
+  Plus, 
+  Loader2, 
+  Edit, 
+  Trash2, 
+  Search, 
+  ChevronLeft, 
+  ChevronRight 
+} from "lucide-react";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipTrigger, 
+  TooltipProvider 
+} from "@/components/ui/tooltip";
 
 const lobFormSchema = z.object({
   name: z.string().min(1, "LOB name is required"),
@@ -261,196 +276,61 @@ export function LobDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2 mb-6">
-        <SiReact className="h-8 w-8 text-blue-500" />
-        <h1 className="text-2xl font-semibold">Manage LOB</h1>
-      </div>
-
-      {/* Search and Actions Section */}
-      <Card className="border-dashed">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search LOBs..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
-                }}
-              />
+      <Card className="overflow-hidden border-none shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <SiReact className="h-5 w-5 text-blue-500" />
+              <h2 className="text-lg font-semibold">Manage Line of Business</h2>
             </div>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New LOB
-            </Button>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search LOBs..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1); // Reset to first page on search
+                  }}
+                  className="pl-9 w-[250px] focus:border-purple-500"
+                />
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={() => setIsCreateDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New LOB
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Add a new line of business</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Create LOB Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Create Line of Business</DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Card>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LOB NAME</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>DESCRIPTION</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB description" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={createLobMutation.isPending}
-                >
-                  {createLobMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Submit"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit LOB Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Edit Line of Business</DialogTitle>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
-              <Card>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={editForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LOB NAME</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>DESCRIPTION</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter LOB description" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={updateLobMutation.isPending}
-                >
-                  {updateLobMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* LOB List Section */}
-      <Card>
-        <CardContent>
-          {lobs?.length > 0 ? (
+          {filteredLobs.length > 0 ? (
             <>
-              <div className="flex items-center justify-end py-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Rows per page:</span>
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => {
-                      setPageSize(parseInt(value));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="10" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="relative overflow-x-auto">
+              <div className="relative overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>LOB Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">LOB Name</TableHead>
+                      <TableHead className="font-semibold">Description</TableHead>
+                      <TableHead className="font-semibold text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedLobs.map((lob: any) => (
-                      <TableRow key={lob.id}>
+                      <TableRow 
+                        key={lob.id}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
                         <TableCell className="font-medium">{lob.name}</TableCell>
                         <TableCell>{lob.description}</TableCell>
                         <TableCell className="text-right">
@@ -472,7 +352,9 @@ export function LobDetail() {
                                   <p>Edit Line of Business</p>
                                 </TooltipContent>
                               </Tooltip>
+                            </TooltipProvider>
                               
+                            <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -498,39 +380,233 @@ export function LobDetail() {
                 </Table>
               </div>
 
-              <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, lobs.length)} of {lobs.length} entries
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-4 px-4">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing{" "}
+                      {startIndex + 1}{" "}
+                      to{" "}
+                      {Math.min(endIndex, filteredLobs.length)}{" "}
+                      of {filteredLobs.length} LOBs
+                    </div>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => {
+                        setPageSize(parseInt(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue placeholder="Select page size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Page Size</SelectLabel>
+                          <SelectItem value="10">10 per page</SelectItem>
+                          <SelectItem value="50">50 per page</SelectItem>
+                          <SelectItem value="100">100 per page</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+              )}
             </>
+          ) : searchQuery ? (
+            <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
+              <SiReact className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">
+                No Line of Business found matching "{searchQuery}"
+              </p>
+            </div>
           ) : (
-            <p className="text-muted-foreground">No line of business found. Create a new LOB to get started.</p>
+            <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
+              <SiReact className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">
+                No Line of Business found. Add your first LOB to get started.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Create LOB Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-6">Create Line of Business</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Card>
+                <CardContent className="space-y-4 pt-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold text-foreground">LOB NAME</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter LOB name" 
+                            {...field} 
+                            className="transition-colors focus:border-purple-500"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold text-foreground">DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter LOB description" 
+                            {...field} 
+                            className="transition-colors focus:border-purple-500"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createLobMutation.isPending}
+                >
+                  {createLobMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Add LOB
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit LOB Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-6">Edit Line of Business</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+              <Card>
+                <CardContent className="space-y-4 pt-6">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold text-foreground">LOB NAME</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter LOB name" 
+                            {...field} 
+                            className="transition-colors focus:border-purple-500"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold text-foreground">DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter LOB description" 
+                            {...field} 
+                            className="transition-colors focus:border-purple-500"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateLobMutation.isPending}
+                >
+                  {updateLobMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Update LOB
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Line of Business</DialogTitle>
           </DialogHeader>
@@ -570,7 +646,7 @@ export function LobDetail() {
                   Deleting...
                 </>
               ) : (
-                "Delete Line of Business"
+                "Delete"
               )}
             </Button>
           </div>
