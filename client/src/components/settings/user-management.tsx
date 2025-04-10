@@ -243,6 +243,7 @@ export function UserManagement() {
           'Batch Count': userBatchProcessList.length,
           'Batch Names': userBatchProcessList.map((bp: any) => bp.batchName || '').join(", ") || "No batches",
           'Batch IDs': userBatchProcessList.map((bp: any) => bp.batchId || '').join(", ") || "",
+          'Process IDs': userBatchProcessList.map((bp: any) => bp.processId || '').join(", ") || "",
           'Process Names': userBatchProcessList.map((bp: any) => bp.processName || '').join(", ") || "",
           'Batch Statuses': userBatchProcessList.map((bp: any) => bp.status || '').join(", ") || "",
           'Joined Dates': userBatchProcessList.map((bp: any) => {
