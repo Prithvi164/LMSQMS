@@ -39,7 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2, Pencil, Trash, Search } from "lucide-react";
+import { Plus, Loader2, Edit, Trash2, Search } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 const lobFormSchema = z.object({
   name: z.string().min(1, "LOB name is required"),
@@ -452,22 +453,44 @@ export function LobDetail() {
                       <TableRow key={lob.id}>
                         <TableCell className="font-medium">{lob.name}</TableCell>
                         <TableCell>{lob.description}</TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleEdit(lob)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleDelete(lob)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEdit(lob)}
+                                    className="h-7 w-7 p-0 text-blue-600"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    <span className="sr-only">Edit LOB</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Edit Line of Business</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDelete(lob)}
+                                    className="h-7 w-7 p-0 text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Delete LOB</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Delete Line of Business</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
