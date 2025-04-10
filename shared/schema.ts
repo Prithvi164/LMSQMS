@@ -88,7 +88,8 @@ export const permissionEnum = pgEnum('permission', [
   'manage_allocation',         // Manage allocations
   'view_allocation',           // View allocations
   'manage_feedback',           // Manage feedback
-  'view_feedback'              // View feedback
+  'view_feedback',             // View feedback
+  'view_trainee_management'    // View trainee management section
 ]);
 
 export const processStatusEnum = pgEnum('process_status', [
