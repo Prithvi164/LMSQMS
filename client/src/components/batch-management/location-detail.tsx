@@ -524,17 +524,18 @@ export function LocationDetail() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
-                                      variant="outline"
-                                      size="sm"
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => handleEdit(location)}
-                                      className="hover:bg-purple-50"
+                                      className="h-7 w-7 p-0 text-blue-600"
                                     >
-                                      <Pencil
-                                        className="h-4 w-4 text-purple-600"
-                                      />
+                                      <Pencil className="h-4 w-4" />
+                                      <span className="sr-only">Edit Location</span>
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Edit location</TooltipContent>
+                                  <TooltipContent side="top">
+                                    <p>Edit Location</p>
+                                  </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
 
@@ -542,16 +543,17 @@ export function LocationDetail() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
-                                      variant="destructive"
-                                      size="sm"
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => handleDelete(location)}
-                                      className="hover:bg-red-600"
+                                      className="h-7 w-7 p-0 text-destructive"
                                     >
                                       <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Delete Location</span>
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>
-                                    Delete location
+                                  <TooltipContent side="top">
+                                    <p>Delete Location</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
