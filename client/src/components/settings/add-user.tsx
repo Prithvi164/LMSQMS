@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Check, Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import type { User, Organization, OrganizationProcess, OrganizationLineOfBusines
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Check, FileSpreadsheet, Upload, Download } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions, PermissionGuard } from "@/hooks/use-permissions"; // Add permissions hook
 import * as XLSX from "xlsx";
@@ -54,6 +54,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const [openLocation, setOpenLocation] = useState(false);
   const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showFailureDetails, setShowFailureDetails] = useState(false);
+  const [failedUploads, setFailedUploads] = useState<{username: string, reason: string}[]>([]);
   
   // Check if user has permission to add users
   const canAddUsers = hasPermission("add_users") || hasPermission("manage_users");
@@ -161,20 +163,63 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         organizationId: organization?.id,
       });
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Users uploaded successfully",
-      });
+    onSuccess: (response: any) => {
+      // Check if there are any failed uploads
+      const failedCount = response.failed?.length || 0;
+      const successCount = response.successful?.length || 0;
+      
+      if (successCount > 0 && failedCount > 0) {
+        // Partial success
+        toast({
+          title: "Partial Success",
+          description: `${successCount} users uploaded successfully. ${failedCount} users failed.`,
+          variant: "default",
+        });
+        
+        // Show details of failures
+        showFailureDialog(response.failed);
+      } else if (successCount > 0) {
+        // Complete success
+        toast({
+          title: "Success",
+          description: `${successCount} users uploaded successfully`,
+        });
+      } else {
+        // All failed but API returned 200-range status
+        toast({
+          title: "Upload Failed",
+          description: "All user uploads failed. See details for more information.",
+          variant: "destructive",
+        });
+        
+        // Show details of failures
+        showFailureDialog(response.failed);
+      }
+      
       setBulkUploadData([]);
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to upload users",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Check if the response contains failed users data
+      const errorData = error.response?.data;
+      
+      if (errorData?.failed && Array.isArray(errorData.failed)) {
+        toast({
+          title: "Upload Failed",
+          description: errorData.message || "Failed to upload users. See details for more information.",
+          variant: "destructive",
+        });
+        
+        // Show details of failures
+        showFailureDialog(errorData.failed);
+      } else {
+        // Generic error
+        toast({
+          title: "Error",
+          description: error.message || "Failed to upload users",
+          variant: "destructive",
+        });
+      }
     },
   });
 
