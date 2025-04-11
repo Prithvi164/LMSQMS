@@ -1,4 +1,0 @@
-Username,Full Name,Email,Employee ID,Phone Number,Date of Joining,Date of Birth,Education,Reporting Manager,Role,Category,Line of Business,Process,Location
-testuser1,Test User 1,testuser1@example.com,EMP001,9876543210,2023-01-15,1990-05-20,Graduate,admin.1,advisor,active,"Customer Support,Inbound","Complaint Resolution,Technical Support",Mumbai
-testuser2,Test User 2,testuser2@example.com,EMP002,9876543211,2023-02-10,1992-07-15,Graduate,Admin.1,advisor,active,"Inbound,Outbound","Technical Support,Sales",Delhi
-testuser3,Test User 3,testuser3@example.com,EMP003,9876543212,2023-03-05,1988-11-10,Postgraduate,ADMIN.1,trainee,active,"Customer Support,Sales","Complaint Resolution,Sales Process",Mumbai

@@ -2214,11 +2214,10 @@ export class DatabaseStorage implements IStorage {
 
   async getLineOfBusinessByName(name: string): Promise<{ id: number } | null> {
     try {
-      // Use case-insensitive comparison
       const [lob] = await db
         .select({ id: organizationLineOfBusinesses.id })
         .from(organizationLineOfBusinesses)
-        .where(sql`LOWER(${organizationLineOfBusinesses.name}) = LOWER(${name})`);
+        .where(eq(organizationLineOfBusinesses.name, name));
       return lob || null;
     } catch (error) {
       console.error('Error getting line of business by name:', error);
@@ -2584,11 +2583,10 @@ export class DatabaseStorage implements IStorage {
 
   async getLocationByName(name: string): Promise<{ id: number } | null> {
     try {
-      // Use case-insensitive comparison
       const [location] = await db
         .select({ id: organizationLocations.id })
         .from(organizationLocations)
-        .where(sql`LOWER(${organizationLocations.name}) = LOWER(${name})`);
+        .where(eq(organizationLocations.name, name));
       return location || null;
     } catch (error) {
       console.error('Error getting location by name:', error);
@@ -2598,11 +2596,10 @@ export class DatabaseStorage implements IStorage {
 
   async getProcessByName(name: string): Promise<{ id: number } | null> {
     try {
-      // Use case-insensitive comparison
       const [process] = await db
         .select({ id: organizationProcesses.id })
         .from(organizationProcesses)
-        .where(sql`LOWER(${organizationProcesses.name}) = LOWER(${name})`);
+        .where(eq(organizationProcesses.name, name));
       return process || null;
     } catch (error) {
       console.error('Error getting process by name:', error);
@@ -2618,30 +2615,6 @@ export class DatabaseStorage implements IStorage {
         throw new Error('User not found');
       }
 
-      // Check if the process is already assigned to the user (regardless of Line of Business)
-      const existingProcess = await db
-        .select()
-        .from(userProcesses)
-        .where(eq(userProcesses.userId, userId))
-        .where(eq(userProcesses.processId, processId))
-        .limit(1);
-
-      if (existingProcess.length > 0) {
-        // Process is already assigned to this user, update the Line of Business if needed
-        if (lineOfBusinessId) {
-          await db
-            .update(userProcesses)
-            .set({
-              lineOfBusinessId: lineOfBusinessId,
-              updatedAt: new Date()
-            })
-            .where(eq(userProcesses.userId, userId))
-            .where(eq(userProcesses.processId, processId));
-        }
-        console.log(`Process ${processId} already assigned to user ${userId}, skipping duplicate assignment`);
-        return;
-      }
-
       // Create the user process association with optional lineOfBusinessId
       await db.insert(userProcesses).values({
         userId,
@@ -2653,7 +2626,6 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date()
       });
-      console.log(`Successfully assigned process ${processId} to user ${userId} with LOB ${lineOfBusinessId || 'null'}`);
     } catch (error) {
       console.error('Error assigning process to user:', error);
       throw error;
