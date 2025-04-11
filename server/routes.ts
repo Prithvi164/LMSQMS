@@ -3672,7 +3672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user has manage_locations permission or is owner
       if (req.user.role !== 'owner') {
-        const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+        const userPermissions = await storage.getRolePermissions(orgId, req.user.role);
         if (!userPermissions?.permissions.includes('manage_locations')) {
           console.log(`User ${req.user.id} with role ${req.user.role} attempted to update location without permission`);
           return res.status(403).json({ message: "You do not have permission to modify locations" });
@@ -3732,7 +3732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user has manage_locations permission or is owner
       if (req.user.role !== 'owner') {
-        const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+        const userPermissions = await storage.getRolePermissions(orgId, req.user.role);
         if (!userPermissions?.permissions.includes('manage_locations')) {
           console.log(`User ${req.user.id} with role ${req.user.role} attempted to delete location without permission`);
           return res.status(403).json({ message: "You do not have permission to delete locations" });
