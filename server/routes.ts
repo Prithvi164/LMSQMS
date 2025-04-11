@@ -1865,24 +1865,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid users data" });
       }
 
-      // Start a transaction
-      await db.transaction(async (tx) => {
-        for (const userData of users) {
+      // Track successful and failed uploads
+      const results = {
+        successful: [] as { username: string; email: string }[],
+        failed: [] as { username: string; reason: string }[]
+      };
+
+      // Process each user without a transaction to allow partial success
+      for (const userData of users) {
+        try {
           // Validate required fields
           if (!userData.username || !userData.email || !userData.password) {
-            throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
+            throw new Error(`Missing required fields`);
           }
 
           // Check if username already exists
           const existingUser = await storage.getUserByUsername(userData.username);
           if (existingUser) {
-            throw new Error(`Username ${userData.username} already exists`);
+            throw new Error(`Username already exists`);
           }
           
           // Check if email already exists
           const existingUserByEmail = await storage.getUserByEmail(userData.email);
           if (existingUserByEmail) {
-            throw new Error(`Email ${userData.email} already exists. Please use a different email address.`);
+            throw new Error(`Email already exists. Please use a different email address.`);
           }
 
           // Find reporting manager by username if provided
@@ -1983,13 +1989,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.assignProcessToUser(newUser.id, process.id, null);
             }
           }
+          
+          // Add to successful list
+          results.successful.push({ 
+            username: userData.username, 
+            email: userData.email 
+          });
+          
+        } catch (error: any) {
+          console.error(`Error creating user ${userData.username || 'unknown'}:`, error.message);
+          
+          // Add to failed list with reason
+          results.failed.push({
+            username: userData.username || 'unknown',
+            reason: error.message
+          });
+          
+          // Continue with next user instead of stopping the whole process
+          continue;
         }
-      });
+      }
 
-      res.status(201).json({ message: "Users created successfully" });
+      // Report results
+      if (results.successful.length > 0) {
+        console.log(`Successfully created ${results.successful.length} users`);
+        console.log(`Failed to create ${results.failed.length} users`);
+        
+        // Return partial success response with details on failures
+        const statusCode = results.failed.length > 0 ? 207 : 201; // Use 207 Multi-Status for partial success
+        return res.status(statusCode).json({
+          message: `Successfully created ${results.successful.length} users.` + 
+                  (results.failed.length > 0 ? ` Failed to create ${results.failed.length} users.` : ''),
+          successful: results.successful,
+          failed: results.failed
+        });
+      } else {
+        // All users failed
+        return res.status(400).json({ 
+          message: "All user creations failed", 
+          failed: results.failed 
+        });
+      }
     } catch (error: any) {
       console.error("Bulk user creation error:", error);
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: "An unexpected error occurred during bulk user creation", error: error.message });
     }
   });
 
