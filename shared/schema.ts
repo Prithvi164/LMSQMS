@@ -85,6 +85,8 @@ export const permissionEnum = pgEnum('permission', [
   'delete_evaluation_form',    // Delete evaluation forms
   'create_evaluation_form',    // Create evaluation forms
   'view_evaluation_form',      // View evaluation forms
+  'manage_conduct_form',       // Full control over conduct forms
+  'manage_evaluation_feedback', // Full control over evaluation feedback
   // Allocation and feedback permissions
   'manage_allocation',         // Manage allocations
   'view_allocation',           // View allocations

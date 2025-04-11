@@ -130,8 +130,12 @@ export function RolePermissions() {
     {
       name: "Performance & Evaluation",
       icon: <Activity className="h-5 w-5" />,
-      description: "View evaluation forms",
-      permissions: ['view_evaluation_form']
+      description: "Manage evaluations and conduct forms",
+      permissions: [
+        'view_evaluation_form',
+        'manage_conduct_form',
+        'manage_evaluation_feedback'
+      ]
     },
     {
       name: "Reporting & Analytics",
@@ -202,6 +206,8 @@ export function RolePermissions() {
       delete_evaluation_form: "Remove evaluation forms",
       create_evaluation_form: "Create new evaluation forms",
       manage_evaluation_form: "Full control over evaluation forms",
+      manage_conduct_form: "Full control over conduct forms",
+      manage_evaluation_feedback: "Full control over evaluation feedback",
       
       // Feedback & Allocation
       view_feedback: "View feedback data",
