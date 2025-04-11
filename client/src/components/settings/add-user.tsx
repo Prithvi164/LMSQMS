@@ -365,17 +365,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       XLSX.utils.book_append_sheet(wb, locationSheet, "Available Locations");
     }
     
-    // Add Line of Business information
-    const lobInfo = lineOfBusinesses.map(lob => ({
-      "LOB ID": lob.id,
-      "Line of Business Name": lob.name,
-      "Description": lob.description
-    }));
-    
-    if (lobInfo.length > 0) {
-      const lobSheet = XLSX.utils.json_to_sheet(lobInfo);
-      XLSX.utils.book_append_sheet(wb, lobSheet, "Lines of Business");
-    }
+    // Lines of Business sheet removed as it's no longer needed
+    // Process sheet already shows the line of business for each process
     
     // Add Process information
     const processInfo = processes.map(proc => ({
