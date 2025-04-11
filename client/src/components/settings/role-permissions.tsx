@@ -33,12 +33,28 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function RolePermissions() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>(roleEnum.enumValues[1]); // Start with 'admin'
   const [currentRolePermissions, setCurrentRolePermissions] = useState<string[]>([]);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [pendingPermissionChange, setPendingPermissionChange] = useState<{
+    permission: string;
+    newState: boolean;
+    permissions: string[];
+  } | null>(null);
 
   const { data: rolePermissions, isLoading } = useQuery<RolePermission[]>({
     queryKey: ["/api/permissions"],
@@ -346,28 +362,58 @@ export function RolePermissions() {
   }, [selectedRole, rolePermissions]);
 
   const handlePermissionToggle = useCallback((permission: string) => {
-    // Use the local state instead of the callback to get permissions
-    const newPermissions = currentRolePermissions.includes(permission)
-      ? currentRolePermissions.filter((p: string) => p !== permission)
-      : [...currentRolePermissions, permission];
+    // Determine if this is enabling or disabling the permission
+    const isEnabling = !currentRolePermissions.includes(permission);
+    const action = isEnabling ? "enable" : "disable";
     
-    // Update local state immediately for a responsive UI
-    setCurrentRolePermissions(newPermissions);
-
-    // Filter out any obsolete quiz-specific permissions that have been consolidated under 'manage_quiz'
+    // Calculate the new permissions array
+    const newPermissions = isEnabling
+      ? [...currentRolePermissions, permission]
+      : currentRolePermissions.filter((p: string) => p !== permission);
+    
+    // Filter out any obsolete quiz-specific permissions
     const obsoletePermissions = ['edit_quiz', 'delete_quiz', 'create_quiz'];
     const validPermissions = newPermissions.filter(p => !obsoletePermissions.includes(p));
-
-    // Then send the update to the server
+    
+    // Set the pending permission change to show in confirmation dialog
+    setPendingPermissionChange({
+      permission,
+      newState: isEnabling,
+      permissions: validPermissions
+    });
+    
+    // Open the confirmation dialog
+    setConfirmationOpen(true);
+    
+  }, [currentRolePermissions]);
+  
+  // Function to apply the permission change after confirmation
+  const applyPermissionChange = useCallback(() => {
+    if (!pendingPermissionChange) return;
+    
+    // Update local state for responsive UI
+    setCurrentRolePermissions(pendingPermissionChange.permissions);
+    
+    // Send the update to the server
     updatePermissionMutation.mutate({
       role: selectedRole,
-      permissions: validPermissions,
+      permissions: pendingPermissionChange.permissions,
     });
-  }, [selectedRole, currentRolePermissions, updatePermissionMutation]);
+    
+    // Close dialog and clear pending change
+    setConfirmationOpen(false);
+    setPendingPermissionChange(null);
+  }, [pendingPermissionChange, selectedRole, updatePermissionMutation]);
+  
+  // Function to cancel the permission change
+  const cancelPermissionChange = useCallback(() => {
+    setConfirmationOpen(false);
+    setPendingPermissionChange(null);
+  }, []);
 
   type PermissionType = typeof permissionEnum.enumValues[number];
 
-  const handleCategoryPermissions = (categoryPermissions: string[], enabled: boolean) => {
+  const handleCategoryPermissions = useCallback((categoryPermissions: string[], enabled: boolean) => {
     // Filter to only include permissions that exist in the system
     const validPermissions = categoryPermissions.filter(p => 
       permissionEnum.enumValues.includes(p as PermissionType)
@@ -387,13 +433,16 @@ export function RolePermissions() {
       newPermissions = newPermissions.filter(p => !validPermissions.includes(p as PermissionType));
     }
     
-    // Update state and send to server
-    setCurrentRolePermissions(newPermissions);
-    updatePermissionMutation.mutate({
-      role: selectedRole,
-      permissions: newPermissions,
+    // Set the pending permission change to show in confirmation dialog
+    setPendingPermissionChange({
+      permission: enabled ? "enable all permissions in this category" : "disable all permissions in this category",
+      newState: enabled,
+      permissions: newPermissions
     });
-  };
+    
+    // Open the confirmation dialog
+    setConfirmationOpen(true);
+  }, [currentRolePermissions]);
 
   const filterPermissions = (permissions: string[]) => {
     // Filter out course related permissions
