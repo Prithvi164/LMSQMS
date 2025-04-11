@@ -478,6 +478,26 @@ export function RolePermissions() {
           Changes to permissions take effect immediately. Users may need to refresh their page to see updates.
         </AlertDescription>
       </Alert>
+      
+      {/* Permission Change Confirmation Dialog */}
+      <AlertDialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Permission Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPermissionChange?.newState
+                ? `Are you sure you want to enable "${pendingPermissionChange?.permission}" for ${selectedRole.replace(/_/g, " ")} role?`
+                : `Are you sure you want to disable "${pendingPermissionChange?.permission}" for ${selectedRole.replace(/_/g, " ")} role?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelPermissionChange}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={applyPermissionChange}>
+              {pendingPermissionChange?.newState ? "Enable" : "Disable"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardHeader>
