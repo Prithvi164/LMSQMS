@@ -1,587 +1,706 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Form, useForm } from 'react-hook-form';
-import { Link } from 'wouter';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Pagination } from '@/components/ui/pagination';
-import {
-  Form as FormUI,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import type { User, Organization, OrganizationLocation, UserProcess, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2, Users, Network, ChevronDown, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { insertUserSchema } from "@shared/schema";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { z } from "zod";
+import * as XLSX from "xlsx";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from '@/components/ui/command';
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { useToast } from '@/hooks/use-toast';
-import { Check, ChevronsUpDown, ChevronRight, ChevronDown, Download, Edit2, Network, Search, Trash2, Users } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { queryClient } from '@/lib/queryClient';
-import { useAuth } from '@/hooks/use-auth';
-import { usePermissions } from '@/hooks/use-permissions';
-import { PageHeader } from '@/components/page-header';
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  getReportingChainUsers, 
+  canEditUser, 
+  isSubordinate, 
+  getFormattedReportingPath
+} from "@/lib/hierarchy-utils";
+import { HierarchicalUserRow } from "./hierarchical-user-row";
 
-const editUserSchema = z.object({
-  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-  fullName: z.string().min(2, { message: "Full name is required" }),
-  email: z.string().email({ message: "Invalid email address" }),
-  employeeId: z.string().optional(),
-  role: z.string({ required_error: "Please select a role" }),
-  category: z.string().optional(),
-  locationId: z.number().optional().nullable(),
-  managerId: z.number().optional().nullable(),
-  phoneNumber: z.string().optional(),
-  education: z.string().optional(),
+// Extend the insertUserSchema for the edit form
+const editUserSchema = insertUserSchema.extend({
+  locationId: z.string().optional(),
+  managerId: z.string().optional(),
   dateOfJoining: z.string().optional(),
   dateOfBirth: z.string().optional(),
+  education: z.string().optional(),
+  category: z.string(),
   processes: z.array(z.number()).optional(),
-  lineOfBusinesses: z.array(z.number()).optional(),
-});
+}).omit({ certified: true }).partial();
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
-type User = {
-  id: number;
-  username: string;
-  fullName: string;
-  email: string;
-  employeeId: string;
-  role: string;
-  category: string;
-  locationId: number | null;
-  managerId: number | null;
-  phoneNumber: string;
-  education: string;
-  dateOfJoining: string;
-  dateOfBirth: string;
-  active: boolean;
-  processes: number[];
-};
-
-type OrganizationLocation = {
-  id: number;
-  name: string;
-};
-
-type OrganizationProcess = {
-  id: number;
-  name: string;
-  lineOfBusinessId: number;
-};
-
-type LineOfBusiness = {
-  id: number;
-  name: string;
-};
-
-export const UserManagement = () => {
+export function UserManagement() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  
-  // State for data
-  const [users, setUsers] = useState<User[]>([]);
-  const [uniqueManagers, setUniqueManagers] = useState<{ id: number; name: string }[]>([]);
-  const [processes, setProcesses] = useState<OrganizationProcess[]>([]);
-  const [linesOfBusiness, setLinesOfBusiness] = useState<LineOfBusiness[]>([]);
-  const [locations, setLocations] = useState<OrganizationLocation[]>([]);
-  
-  // State for filters and pagination
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [managerFilter, setManagerFilter] = useState('all');
-  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('flat');
-  const [expandedManagers, setExpandedManagers] = useState<Set<number>>(new Set());
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [managerFilter, setManagerFilter] = useState<string>("all");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('hierarchy');
+  const [expandedManagers, setExpandedManagers] = useState<number[]>([]);
+  const [showHierarchicalFilter, setShowHierarchicalFilter] = useState<boolean>(false);
   
-  // Filtered processes based on selected LOBs
-  const filteredProcesses = processes.filter(process =>
-    selectedLOBs.includes(process.lineOfBusinessId)
-  );
-
-  // User batch data for hierarchy
-  const userBatchData = [];
-  const userBatchMap = {};
-
-  // Permission checks
-  const canManageUsers = hasPermission('manageUsers');
-  const canSeeHierarchy = hasPermission('viewAllUsers');
-  const canExportReports = hasPermission('exportReports');
-
-  // Fetch users
-  const { data: usersData, isLoading, refetch } = useQuery({
-    queryKey: ['/api/users'],
-    onSuccess: (data) => {
-      if (data && Array.isArray(data)) {
-        setUsers(data);
-        
-        // Extract unique managers for filter
-        const managers = data
-          .filter(u => u.role === 'manager' || u.role === 'team_lead' || u.role === 'admin')
-          .map(u => ({ id: u.id, name: u.fullName }));
-        
-        const uniqueManagersMap = new Map();
-        managers.forEach(manager => {
-          uniqueManagersMap.set(manager.id, manager);
-        });
-        
-        setUniqueManagers(Array.from(uniqueManagersMap.values()));
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error loading users",
-        description: error.message,
-      });
+  // Auto-expand current user's node when switching to hierarchical view
+  useEffect(() => {
+    if (viewMode === 'hierarchy' && user?.id && !expandedManagers.includes(user.id)) {
+      setExpandedManagers(prev => [...prev, user.id]);
     }
+  }, [viewMode, user?.id]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Number of items to show per page
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: !!user,
   });
 
-  // Fetch organization data
-  const { data: orgSettings } = useQuery({
-    queryKey: ['/api/organizations/settings'],
-    onSuccess: (data) => {
-      if (data) {
-        // Get locations
-        const locations = data.locations || [];
-        setLocations(locations);
-        
-        // Get processes
-        const allProcesses = data.processes || [];
-        setProcesses(allProcesses);
-        
-        // Get lines of business
-        const allLOBs = data.linesOfBusiness || [];
-        setLinesOfBusiness(allLOBs);
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error loading organization settings",
-        description: error.message,
-      });
-    }
-  });
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      try {
+        console.log('Attempting to deactivate user:', userId);
+        const response = await apiRequest("DELETE", `/api/users/${userId}`);
+        const data = await response.json().catch(() => null);
 
-  // Fetch user processes
-  const { data: userProcesses } = useQuery({
-    queryKey: ['/api/users/processes'],
-    onSuccess: (data) => {
-      console.log("User processes loaded:", data);
-    },
-    onError: (error) => {
-      console.error("Error loading user processes:", error);
-    }
-  });
-
-  // Toggle user active status
-  const toggleUserStatus = (userId: number, currentStatus: boolean, userRole: string) => {
-    if (userRole === "owner") {
-      toast({
-        title: "Cannot modify owner",
-        description: "The owner's status cannot be changed.",
-      });
-      return;
-    }
-
-    updateUser.mutate(
-      {
-        userId,
-        data: { active: !currentStatus }
-      },
-      {
-        onSuccess: () => {
-          toast({
-            title: `User ${currentStatus ? 'deactivated' : 'activated'}`,
-            description: `User has been ${currentStatus ? 'deactivated' : 'activated'} successfully.`,
-          });
-          refetch();
-        },
-        onError: (error: Error) => {
-          toast({
-            variant: "destructive",
-            title: "Error updating user",
-            description: error.message,
-          });
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to deactivate user");
         }
-      }
-    );
-  };
 
-  // Delete user
-  const deleteUser = useMutation({
-    mutationFn: (userId: number) => 
-      fetch(`/api/users/${userId}/delete`, { method: 'DELETE' })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete user');
-          return res.json();
-        }),
+        if (!data?.success) {
+          throw new Error(data?.message || "User deactivation failed");
+        }
+
+        return data;
+      } catch (error) {
+        console.error('Error in deactivate mutation:', error);
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: data.message || "User deactivated successfully",
+      });
+
+      // Force refetch the users list
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.refetchQueries({ queryKey: ["/api/users"] });
+
+      // Reset UI state
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+      setDeleteConfirmation("");
+
+      // Reset to first page if current page becomes empty
+      if (currentUsers.length === 1 && currentPage > 1) {
+        setCurrentPage(1);
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Deactivate mutation error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to deactivate user. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
+      const response = await apiRequest("PATCH", `/api/users/${id}`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user");
+      }
+      return response.json();
+    },
     onSuccess: () => {
       toast({
-        title: "User deleted",
-        description: "User has been deleted successfully.",
+        title: "Success",
+        description: "User updated successfully",
       });
-      refetch();
-      setShowDeleteDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
     onError: (error: Error) => {
       toast({
-        variant: "destructive",
-        title: "Error deleting user",
+        title: "Error",
         description: error.message,
+        variant: "destructive",
       });
+    },
+  });
+
+  // Function to toggle user status
+  const toggleUserStatus = async (userId: number, currentStatus: boolean, userRole: string) => {
+    try {
+      if (userRole === "owner") {
+        toast({
+          title: "Error",
+          description: "Owner status cannot be changed",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await updateUserMutation.mutateAsync({
+        id: userId,
+        data: { active: !currentStatus }
+      });
+    } catch (error) {
+      console.error('Error toggling user status:', error);
     }
-  });
-
-  // Update user
-  const updateUser = useMutation({
-    mutationFn: ({ userId, data }: { userId: number; data: any }) =>
-      fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(res => {
-        if (!res.ok) throw new Error('Failed to update user');
-        return res.json();
-      })
-  });
-
-  // Helper function to get manager name by ID
-  const getManagerName = (managerId: number | null) => {
-    if (!managerId) return "None";
-    const manager = users.find(u => u.id === managerId);
-    return manager ? manager.fullName : "Unknown";
   };
 
-  // Helper function to get location name by ID
-  const getLocationName = (locationId: number | null) => {
-    if (!locationId) return "None";
-    const location = orgSettings && orgSettings.locations ? 
-      orgSettings.locations.find((l: OrganizationLocation) => l.id === locationId) : null;
-    return location ? location.name : "Unknown";
-  };
+  // Add exportToExcel function after toggleUserStatus
+  const exportToExcel = async () => {
+    try {
+      // Show an initial toast to let user know the export is processing
+      toast({
+        title: "Preparing Export",
+        description: "Please wait while we prepare your Excel export...",
+      });
+      
+      // First sheet with user details - Optimize by doing this once
+      const usersDataToExport = users.map(user => ({
+        'User ID': user.id,
+        Username: user.username,
+        'Full Name': user.fullName || '',
+        Email: user.email,
+        'Employee ID': user.employeeId || '',
+        Role: user.role,
+        Category: user.category || 'active',
+        'Phone Number': user.phoneNumber || '',
+        Location: getLocationName(user.locationId),
+        Manager: getManagerName(user.managerId),
+        'Date of Joining': user.dateOfJoining || '',
+        'Date of Birth': user.dateOfBirth || '',
+        Education: user.education || '',
+        Status: user.active ? 'Active' : 'Inactive'
+      }));
 
-  // Helper function to get user's processes
-  const getUserProcesses = (userId: number) => {
-    if (!userProcesses || !processes.length) return null;
-    
-    const userProcessIds = userProcesses[userId] || [];
-    if (!userProcessIds.length) return null;
-    
-    const processNames = userProcessIds.map(processId => {
-      const process = processes.find(p => p.id === processId);
-      return process ? process.name : null;
-    }).filter(Boolean);
-    
-    return processNames.join(", ");
-  };
+      // Second sheet with process details - Optimize by processing userProcesses once
+      const processDataToExport = users.map(user => {
+        const userProcessList = Array.isArray(userProcesses[user.id]) ? userProcesses[user.id] : [];
+        return {
+          'User ID': user.id,
+          Username: user.username,
+          'Full Name': user.fullName || '',
+          Email: user.email,
+          'Employee ID': user.employeeId || '',
+          Category: user.category || 'active',
+          'Processes': userProcessList.map((p: any) => p.processName || '').join(", ") || "No processes",
+          'Process Count': userProcessList.length,
+          'Process IDs': userProcessList.map((p: any) => p.processId || '').join(", ") || "",
+          'Line of Business': userProcessList.map((p: any) => p.lineOfBusinessName || "").join(", ") || "",
+          Status: user.active ? 'Active' : 'Inactive'
+        };
+      });
 
-  // Filtered users based on search and filters
-  const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      // Search filter
-      const searchMatch = 
-        searchTerm === '' || 
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+      // Create the third "user_batch" sheet with the requested columns
+      const userBatchData = [];
       
-      // Role filter
-      const roleMatch = roleFilter === 'all' || user.role === roleFilter;
+      // Get all batches to retrieve additional batch information - reuse existing data if possible
+      let allBatches: Record<number, any> = {};
       
-      // Category filter
-      const categoryMatch = categoryFilter === 'all' || 
-        (categoryFilter === 'trainee' && user.category === 'trainee') ||
-        (categoryFilter === 'active' && user.category !== 'trainee' && user.active);
+      // Make a single API call for batches - use Promise to fetch data
+      const batchPromise = fetch(`/api/organizations/${user?.organizationId}/batches`)
+        .then(res => res.ok ? res.json() : [])
+        .then(batchesData => {
+          if (Array.isArray(batchesData)) {
+            batchesData.forEach((batch: any) => {
+              if (batch && batch.id) {
+                allBatches[batch.id] = batch;
+              }
+            });
+          }
+          return allBatches;
+        })
+        .catch(err => {
+          console.error("Error fetching batches:", err);
+          return {};
+        });
       
-      // Manager filter
-      let managerMatch = true;
-      if (managerFilter !== 'all') {
-        if (managerFilter === 'none') {
-          managerMatch = !user.managerId;
-        } else if (managerFilter === 'direct' && user) {
-          managerMatch = user.managerId === user.id;
-        } else if (managerFilter === 'team' && user) {
-          // User is either a direct report or in the reporting chain under the current user
-          managerMatch = isSubordinate(user.id, user.id, users);
-        } else {
-          // Specific manager selected
-          managerMatch = user.managerId === parseInt(managerFilter);
+      // Use existing userBatchProcesses data if available to avoid extra API call
+      let userBatchMap = userBatchProcesses;
+      
+      // Only fetch new data if existing data is empty or insufficient
+      if (!userBatchMap || Object.keys(userBatchMap).length === 0) {
+        try {
+          const bpResponse = await fetch(`/api/users/batch-processes`);
+          if (bpResponse.ok) {
+            userBatchMap = await bpResponse.json();
+          }
+        } catch (error) {
+          console.error("Error fetching batch processes:", error);
         }
       }
       
-      return searchMatch && roleMatch && categoryMatch && managerMatch;
-    });
-  }, [users, searchTerm, roleFilter, categoryFilter, managerFilter]);
-
-  // Pagination
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const currentUsers = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredUsers, currentPage]);
-
-  // Helper function to check if a user is a subordinate of another
-  const isSubordinate = (managerId: number, userId: number, allUsers: User[]) => {
-    if (!managerId || !userId) return false;
-    
-    const user = allUsers.find(u => u.id === userId);
-    if (!user) return false;
-    
-    if (user.managerId === managerId) return true;
-    
-    if (user.managerId) {
-      return isSubordinate(managerId, user.managerId, allUsers);
-    }
-    
-    return false;
-  };
-
-  // Export to Excel
-  const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      filteredUsers.map(user => ({
-        Username: user.username,
-        "Full Name": user.fullName,
-        Email: user.email,
-        "Employee ID": user.employeeId,
-        Role: user.role,
-        Category: user.category || 'active',
-        Manager: getManagerName(user.managerId),
-        Location: getLocationName(user.locationId),
-        Processes: getUserProcesses(user.id) || 'None',
-        "Active Status": user.active ? 'Active' : 'Inactive',
-        "Date of Joining": user.dateOfJoining || 'N/A',
-        "Date of Birth": user.dateOfBirth || 'N/A',
-        "Phone Number": user.phoneNumber || 'N/A',
-        "Education": user.education || 'N/A'
-      }))
-    );
-    
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
-    
-    // Auto-size columns
-    const colWidths = [
-      { wch: 15 }, // Username
-      { wch: 20 }, // Full Name
-      { wch: 25 }, // Email
-      { wch: 15 }, // Employee ID
-      { wch: 12 }, // Role
-      { wch: 12 }, // Category
-      { wch: 20 }, // Manager
-      { wch: 15 }, // Location
-      { wch: 30 }, // Processes
-      { wch: 15 }, // Active Status
-      { wch: 15 }, // Date of Joining
-      { wch: 15 }, // Date of Birth
-      { wch: 15 }, // Phone Number
-      { wch: 20 }  // Education
-    ];
-    worksheet['!cols'] = colWidths;
-    
-    XLSX.writeFile(workbook, `Users_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  // Format reporting path for hierarchy view
-  const getFormattedReportingPath = (userId: number, allUsers: User[]) => {
-    const user = allUsers.find(u => u.id === userId);
-    if (!user || !user.managerId) return "N/A";
-    
-    const path = [];
-    let currentId = user.managerId;
-    
-    while (currentId) {
-      const manager = allUsers.find(u => u.id === currentId);
-      if (!manager) break;
+      // Wait for the batch data to be loaded
+      allBatches = await batchPromise;
       
-      path.push(manager.fullName);
-      currentId = manager.managerId;
+      // Process users in batches for better performance
+      const processUserBatches = () => {
+        // Iterate through each user efficiently
+        for (const user of users) {
+          // Get batch processes for this user
+          const userBatchProcessList = Array.isArray(userBatchMap[user.id]) 
+            ? userBatchMap[user.id] 
+            : [];
+            
+          // Process each batch for this user
+          for (const bp of userBatchProcessList) {
+            // Skip if no batchId (avoid potential errors)
+            if (!bp?.batchId) continue;
+            
+            // Get the batch information
+            const batchInfo = allBatches[bp.batchId] || {};
+            
+            // Add a row to the export data
+            userBatchData.push({
+              // From User_Batch_Process table
+              'User ID': user.id,
+              'Batch ID': bp.batchId,
+              'Role': user.role,
+              
+              // From Organisation_Batch table
+              'Batch Name': bp.batchName || batchInfo.name || `Batch ${bp.batchId}`,
+              'Batch Start Date': batchInfo.startDate 
+                ? new Date(batchInfo.startDate).toISOString().split('T')[0] 
+                : '',  
+              'Batch End Date': batchInfo.endDate 
+                ? new Date(batchInfo.endDate).toISOString().split('T')[0] 
+                : '',
+              'Status': bp.status || '',
+              'Capacity': batchInfo.capacityLimit || '',
+              'Batch Phase Status': batchInfo.status || '',
+              'Trainer ID': bp.trainerId || batchInfo.trainerId || ''
+            });
+          }
+        }
+      };
+      
+      // Process the user batch data
+      processUserBatches();
+
+      // Create workbook and add the user details sheet
+      const wb = XLSX.utils.book_new();
+      const wsUsers = XLSX.utils.json_to_sheet(usersDataToExport);
+      XLSX.utils.book_append_sheet(wb, wsUsers, "Users");
+      
+      // Add the process details sheet
+      const wsProcesses = XLSX.utils.json_to_sheet(processDataToExport);
+      XLSX.utils.book_append_sheet(wb, wsProcesses, "User Processes");
+      
+      // Add the new user_batch sheet with the requested columns
+      const wsUserBatch = XLSX.utils.json_to_sheet(userBatchData);
+      XLSX.utils.book_append_sheet(wb, wsUserBatch, "user_batch");
+      
+      // Save the file
+      XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      // Show success toast
+      toast({
+        title: "Export Successful",
+        description: "User details, process information, and user batch data have been exported to Excel.",
+      });
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error exporting the data. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+
+  // Find manager name for a user
+  const getManagerName = (managerId: number | null) => {
+    if (!managerId) return "No Manager";
+    const manager = users.find(u => u.id === managerId);
+    return manager ? manager.fullName || manager.username : "Unknown Manager";
+  };
+
+  // Find location name for a user
+  const getLocationName = (locationId: number | null) => {
+    if (!locationId) return "No Location";
+    
+    // First try from the dedicated locations array (from separate query)
+    if (locations && locations.length > 0) {
+      const location = locations.find(l => l.id === locationId);
+      if (location) return location.name;
     }
     
-    return path.join(" > ");
-  };
-
-  // Handle expand/collapse for hierarchy view
-  const toggleManager = (managerId: number) => {
-    const newExpandedManagers = new Set(expandedManagers);
-    if (newExpandedManagers.has(managerId)) {
-      newExpandedManagers.delete(managerId);
-    } else {
-      newExpandedManagers.add(managerId);
+    // Fallback to orgSettings locations
+    if (orgSettings?.locations && Array.isArray(orgSettings.locations)) {
+      const location = orgSettings.locations.find((l: OrganizationLocation) => l.id === locationId);
+      if (location) return location.name;
     }
-    setExpandedManagers(newExpandedManagers);
+    
+    // If neither source has the location, show a placeholder
+    return isLoadingOrgSettings ? "Loading..." : "Unknown Location";
   };
 
+  // Get hierarchy level
+  const getHierarchyLevel = (userId: number): number => {
+    let level = 0;
+    let currentUser = users.find(u => u.id === userId);
+    
+    while (currentUser?.managerId) {
+      level++;
+      currentUser = users.find(u => u.id === currentUser?.managerId);
+    }
+    
+    return level;
+  };
+
+  // Toggle expanded state for a manager
+  const toggleManagerExpanded = (managerId: number) => {
+    if (expandedManagers.includes(managerId)) {
+      setExpandedManagers(expandedManagers.filter(id => id !== managerId));
+    } else {
+      setExpandedManagers([...expandedManagers, managerId]);
+    }
+  };
+  
+  // Expand all managers at once
   const expandAllManagers = () => {
+    // Find all users who have direct reports (they are managers)
     const allManagerIds = users
       .filter(u => users.some(user => user.managerId === u.id))
       .map(u => u.id);
-    setExpandedManagers(new Set(allManagerIds));
+    setExpandedManagers(allManagerIds);
+    
+    toast({
+      title: "Hierarchy Expanded",
+      description: `Expanded all ${allManagerIds.length} managers in the hierarchy view.`
+    });
   };
-
+  
+  // Collapse all expanded managers
   const collapseAllManagers = () => {
-    setExpandedManagers(new Set());
+    setExpandedManagers([]);
+    
+    toast({
+      title: "Hierarchy Collapsed",
+      description: "Collapsed all managers in the hierarchy view."
+    });
   };
-
+  
+  // Handle delete confirmation
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
     setShowDeleteDialog(true);
   };
 
+  // Check if a user is in the current user's reporting chain
+  const isInCurrentUserHierarchy = (targetUserId: number): boolean => {
+    if (!user) return false;
+    if (user.id === targetUserId) return true;
+    return isSubordinate(user.id, targetUserId, users);
+  };
+
+  // Get all users visible to the current user based on hierarchy
+  const getVisibleUsers = (): User[] => {
+    if (!user) return [];
+    
+    // Owners and admins can see all users
+    if (user.role === 'owner' || user.role === 'admin') {
+      return users;
+    }
+    
+    // Other roles can only see themselves and their subordinates
+    return getReportingChainUsers(user.id, users);
+  };
+
+  // Get unique managers for filter dropdown
+  const uniqueManagers = Array.from(
+    new Map(
+      getVisibleUsers()
+        .filter(u => u.managerId !== null)
+        .map(u => {
+          const manager = users.find(m => m.id === u.managerId);
+          return manager ? [manager.id, { id: manager.id, name: manager.fullName || manager.username }] : null;
+        })
+        .filter((item): item is [number, { id: number; name: string }] => item !== null)
+    ).values()
+  );
+
+  // Filter users based on search term, filters, and hierarchy visibility
+  const filteredUsers = getVisibleUsers().filter(u => {
+    const matchesSearch = searchTerm === "" ||
+      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    
+    // Add category filter
+    const matchesCategory = categoryFilter === "all" || 
+      (u.category || "active") === categoryFilter;
+
+    // Enhanced manager filter to include hierarchical filtering
+    const matchesManager = managerFilter === "all" ||
+      (managerFilter === "none" && !u.managerId) ||
+      (managerFilter === "direct" && u.managerId === user?.id) ||
+      (managerFilter === "team" && isSubordinate(user?.id || 0, u.id, users)) ||
+      (u.managerId?.toString() === managerFilter);
+
+    return matchesSearch && matchesRole && matchesManager && matchesCategory;
+  });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // For hierarchy view, we need to determine which root users to show on the current page
+  const getRootUsersForCurrentPage = (usersToFilter: User[]) => {
+    // Get root users (users without managers)
+    const rootUsers = usersToFilter.filter(u => !u.managerId);
+    
+    // If we're showing the current user's hierarchy and they're not a root user, they become the "root" for display
+    if (user?.role !== 'owner' && user?.role !== 'admin' && user?.managerId) {
+      return [user];
+    }
+    
+    // Apply pagination to root users
+    return rootUsers.slice(startIndex, endIndex);
+  };
+
+  // Page change handler
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    
+    // When changing pages, we may need to expand the appropriate managers
+    if (viewMode === 'hierarchy') {
+      // Reset expanded managers when changing pages
+      setExpandedManagers([]);
+      
+      // If the user is logged in, auto-expand their node
+      if (user?.id) {
+        setExpandedManagers([user.id]);
+      }
+    }
+  };
+
+  // Generate page numbers array
+  const getPageNumbers = () => {
+    const delta = 2; // Number of pages to show before and after current page
+    const range = [];
+    const rangeWithDots = [];
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+        range.push(i);
+      }
+    }
+
+    for (let i of range) {
+      if (l) {
+        if (i - l === 2) {
+          rangeWithDots.push(l + 1);
+        } else if (i - l !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      l = i;
+    }
+
+    return rangeWithDots;
+  };
+
+  // Add new state for LOB selection
+  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
+
+  // Add LOB and Process queries
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const filteredProcesses = processes.filter(process =>
+    selectedLOBs.includes(process.lineOfBusinessId)
+  );
+
+  // Helper function to handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) {
+      console.error('No user selected for deletion');
+      return;
+    }
+
+    try {
+      console.log('Confirming deletion for user:', userToDelete.id);
+      await deleteUserMutation.mutateAsync(userToDelete.id);
+    } catch (error) {
+      console.error("Error in handleDeleteConfirm:", error);
+    }
+  };
+
+  // Query for organization settings - includes locations
+  const { data: orgSettings, isLoading: isLoadingOrgSettings } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    enabled: !!user?.organizationId,
+  });
+  
+  // Add a separate dedicated query for locations to ensure they load properly
+  const { data: locations = [] } = useQuery<OrganizationLocation[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+    enabled: !!user?.organizationId,
+  });
+
+  // Add new query for user processes
+  const { data: userProcesses = {} } = useQuery({
+    queryKey: ["/api/users/processes"],
+    enabled: !!user,
+  });
+  
+  // Add new query for user batch processes
+  const { data: userBatchProcesses = {} } = useQuery({
+    queryKey: ["/api/users/batch-processes"],
+    enabled: !!user,
+  });
+
+  // Add helper function to get user processes
+  const getUserProcesses = (userId: number) => {
+    const processes = userProcesses[userId] || [];
+    return processes.map((p: any) => p.processName).join(", ") || "No processes";
+  };
+
+  // Check for user management permissions
+  const canManageUsers = hasPermission("manage_users");
+  const canViewUsers = hasPermission("view_users");
+  const canDeleteUsers = hasPermission("delete_users");
+  const canExportReports = hasPermission("export_reports");
+
+  // If user can't even view users, show restricted access message
+  if (!canViewUsers) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              You don't have permission to view user information.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const deleteConfirmationText = userToDelete?.username || "";
+  const deleteForm = useForm({
+    defaultValues: { confirmText: "" },
+  });
+
+  // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [openLOB, setOpenLOB] = useState(false);
     const [openProcess, setOpenProcess] = useState(false);
-    
-    // Dialog-specific selectedLOBs state
-    const [dialogSelectedLOBs, setDialogSelectedLOBs] = useState<number[]>([]);
-    
-    // Dialog-specific filteredProcesses for the edit user dialog
-    const dialogFilteredProcesses = processes.filter(process =>
-      dialogSelectedLOBs.includes(process.lineOfBusinessId)
-    );
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
         username: editUser.username,
-        fullName: editUser.fullName,
+        fullName: editUser.fullName || "",
         email: editUser.email,
-        employeeId: editUser.employeeId,
+        employeeId: editUser.employeeId || "",
         role: editUser.role,
-        category: editUser.category,
-        locationId: editUser.locationId,
-        managerId: editUser.managerId,
-        phoneNumber: editUser.phoneNumber,
-        education: editUser.education,
-        dateOfJoining: editUser.dateOfJoining,
-        dateOfBirth: editUser.dateOfBirth,
-        processes: editUser.processes,
+        phoneNumber: editUser.phoneNumber || "",
+        locationId: editUser.locationId?.toString() || "none",
+        managerId: editUser.managerId?.toString() || "none",
+        dateOfJoining: editUser.dateOfJoining || "",
+        dateOfBirth: editUser.dateOfBirth || "",
+        education: editUser.education || "",
+        category: editUser.category || "active",
+        processes: editUser.processes || [],
       }
     });
 
     useEffect(() => {
-      if (isDialogOpen) {
-        console.log("Dialog opened, initializing form values", editUser);
-        
-        // Find the LOBs for the user's processes
-        if (editUser.processes && editUser.processes.length > 0) {
-          const userLOBs = new Set<number>();
-          
-          editUser.processes.forEach(processId => {
+      // Initialize selectedLOBs based on user's processes
+      if (editUser.processes) {
+        const lobIds = editUser.processes
+          .map(processId => {
             const process = processes.find(p => p.id === processId);
-            if (process && process.lineOfBusinessId) {
-              userLOBs.add(process.lineOfBusinessId);
-            }
-          });
-          
-          // Set the dialog-specific selectedLOBs
-          const lobArray = Array.from(userLOBs);
-          console.log("Setting dialog selected LOBs:", lobArray);
-          setDialogSelectedLOBs(lobArray);
-        }
-      }
-    }, [isDialogOpen, editUser, processes]);
+            return process?.lineOfBusinessId;
+          })
+          .filter((id): id is number => id !== undefined);
 
-    const onSubmit = async (data: UserFormData) => {
-      const updatedData = { ...data };
-      
-      // Don't update the username
-      delete updatedData.username;
-      
-      console.log("Saving user with data:", updatedData);
-      
-      updateUser.mutate(
-        {
-          userId: editUser.id,
-          data: updatedData
-        },
-        {
-          onSuccess: () => {
-            toast({
-              title: "User updated",
-              description: "User information has been updated successfully.",
-            });
-            setIsDialogOpen(false);
-            refetch();
-          },
-          onError: (error: Error) => {
-            toast({
-              variant: "destructive",
-              title: "Error updating user",
-              description: error.message,
-            });
-          }
-        }
+        setSelectedLOBs([...new Set(lobIds)]);
+      }
+    }, [editUser.processes, processes]);
+
+    // Determine if the current user can edit this user
+    // Only use permission system for consistency with other features
+    const hasEditPermission = hasPermission("edit_users");
+    
+    // Check if the target user is an admin or owner - these should only be editable by higher roles
+    const isTargetProtected = editUser.role === "admin" || editUser.role === "owner";
+    const canLowerRoleEdit = !isTargetProtected || user?.role === "owner";
+    
+    const canEdit = hasEditPermission && canLowerRoleEdit;
+
+    if (!canEdit) {
+      return (
+        <Button variant="outline" size="icon" disabled title="You don't have permission to edit this user">
+          <Edit2 className="h-4 w-4" />
+        </Button>
       );
-    };
+    }
 
     return (
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -590,408 +709,384 @@ export const UserManagement = () => {
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user information and permissions.
+              Update information for {editUser.username}
             </DialogDescription>
           </DialogHeader>
-          <div>
+          <div className="flex-1 overflow-y-auto pr-2">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(async (data) => {
+                try {
+                  // Clean up the data before submission
+                  const cleanedData = {
+                    ...data,
+                    locationId: data.locationId === "none" ? null : parseInt(data.locationId),
+                    managerId: data.managerId === "none" ? null : parseInt(data.managerId),
+                    processes: data.processes || [],
+                  };
+
+                  await updateUserMutation.mutateAsync({
+                    id: editUser.id,
+                    data: cleanedData
+                  });
+                  setIsDialogOpen(false);
+                } catch (error) {
+                  console.error('Error updating user:', error);
+                }
+              })} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              disabled 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="email"
-                              disabled={true}
-                              className="opacity-70"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select 
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="email"
                             disabled={editUser.role === "owner"}
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="team_lead">Team Lead</SelectItem>
-                              <SelectItem value="trainer">Trainer</SelectItem>
-                              <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
-                              <SelectItem value="advisor">Advisor</SelectItem>
-                              <SelectItem value="trainee">Trainee</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="phoneNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
+                            className={editUser.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
+                          />
+                        </FormControl>
+                        {editUser.role === "owner" && (
+                          <p className="text-sm text-muted-foreground">
+                            Email cannot be changed for owner accounts
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="employeeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Employee ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role</FormLabel>
+                        <Select
+                          disabled={editUser.role === "owner"}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
-                            <Input 
-                              {...field} 
-                            />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="employeeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Employee ID</FormLabel>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="team_lead">Team Lead</SelectItem>
+                            <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
+                            <SelectItem value="trainer">Trainer</SelectItem>
+                            <SelectItem value="advisor">Advisor</SelectItem>
+                            <SelectItem value="trainee">Trainee</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {editUser.role === "owner" && (
+                          <p className="text-sm text-muted-foreground">
+                            Role cannot be changed for owner accounts
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="locationId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Location</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
-                            <Input 
-                              {...field} 
-                            />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a location" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="trainee">Trainee</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="managerId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Manager</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                            defaultValue={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a manager" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="">None</SelectItem>
-                              {users
-                                .filter(u => u.id !== editUser.id && (u.role === 'manager' || u.role === 'team_lead' || u.role === 'admin'))
-                                .map(manager => (
-                                  <SelectItem key={manager.id} value={manager.id.toString()}>
-                                    {manager.fullName}
-                                  </SelectItem>
-                                ))
-                              }
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="locationId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                            defaultValue={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a location" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="">No Location</SelectItem>
-                              {locations.map((location) => (
-                                <SelectItem key={location.id} value={location.id.toString()}>
-                                  {location.name}
+                          <SelectContent>
+                            <SelectItem value="none">No Location</SelectItem>
+                            {locations?.map((location) => (
+                              <SelectItem key={location.id} value={location.id.toString()}>
+                                {location.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="managerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Manager</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a manager" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No Manager</SelectItem>
+                            {users
+                              .filter(u => u.id !== editUser.id && u.active) // Can't assign self as manager
+                              .map(manager => (
+                                <SelectItem key={manager.id} value={manager.id.toString()}>
+                                  {manager.fullName || manager.username}
                                 </SelectItem>
                               ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="dateOfJoining"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Date of Joining</FormLabel>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="dateOfJoining"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Joining</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Birth</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="education"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Education</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
-                            <Input 
-                              type="date"
-                              {...field} 
-                            />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="dateOfBirth"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Date of Birth</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="date"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="education"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Education</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="lineOfBusinesses"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Line of Business</FormLabel>
-                          <Popover open={openLOB} onOpenChange={setOpenLOB}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={openLOB}
-                                className="w-full justify-between"
-                              >
-                                {dialogSelectedLOBs.length > 0
-                                  ? `${dialogSelectedLOBs.length} selected`
-                                  : "Select line of business..."}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-96 p-0">
-                              <Command>
-                                <CommandInput placeholder="Search line of business..." />
-                                <CommandEmpty>No line of business found.</CommandEmpty>
-                                <CommandGroup>
-                                  {linesOfBusiness.map((lob) => (
-                                    <CommandItem
-                                      key={lob.id}
-                                      value={lob.name}
-                                      onSelect={() => {
-                                        const isSelected = dialogSelectedLOBs.includes(lob.id);
-                                        if (isSelected) {
-                                          const newSelectedLOBs = dialogSelectedLOBs.filter(id => id !== lob.id);
-                                          setDialogSelectedLOBs(newSelectedLOBs);
-                                          setSelectedLOBs(newSelectedLOBs); // Update parent state for filtering
-                                        } else {
-                                          const newSelectedLOBs = [...dialogSelectedLOBs, lob.id];
-                                          setDialogSelectedLOBs(newSelectedLOBs);
-                                          setSelectedLOBs(newSelectedLOBs); // Update parent state for filtering
-                                        }
-                                      }}
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="trainee">Trainee</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Processes</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-normal">Line of Business</Label>
+                      <Popover open={openLOB} onOpenChange={setOpenLOB}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openLOB}
+                            className="w-full justify-between mt-1"
+                          >
+                            {selectedLOBs.length > 0
+                              ? `${selectedLOBs.length} selected`
+                              : "Select line of business..."}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-96 p-0">
+                          <Command>
+                            <CommandInput placeholder="Search line of business..." />
+                            <CommandEmpty>No line of business found.</CommandEmpty>
+                            <CommandGroup className="max-h-60 overflow-y-auto">
+                              {lineOfBusinesses.map((lob) => (
+                                <CommandItem
+                                  key={lob.id}
+                                  value={lob.name}
+                                  onSelect={() => {
+                                    const isSelected = selectedLOBs.includes(lob.id);
+                                    if (isSelected) {
+                                      setSelectedLOBs(selectedLOBs.filter(id => id !== lob.id));
+                                    } else {
+                                      setSelectedLOBs([...selectedLOBs, lob.id]);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={cn(
+                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
+                                        selectedLOBs.includes(lob.id)
+                                          ? "bg-primary border-primary text-primary-foreground"
+                                          : "border-input"
+                                      )}
                                     >
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className={cn(
-                                            "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                            dialogSelectedLOBs.includes(lob.id)
-                                              ? "bg-primary border-primary text-primary-foreground"
-                                              : "border-input"
-                                          )}
-                                        >
-                                          {dialogSelectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
-                                        </div>
-                                        {lob.name}
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="processes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Processes</FormLabel>
-                          <Popover open={openProcess} onOpenChange={setOpenProcess}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={openProcess}
-                                className="w-full justify-between"
-                                disabled={dialogSelectedLOBs.length === 0}
-                              >
-                                {form.watch("processes")?.length
-                                  ? `${form.watch("processes")?.length} selected`
-                                  : "Select processes..."}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-96 p-0">
-                              <Command>
-                                <CommandInput placeholder="Search processes..." />
-                                <CommandEmpty>No processes found.</CommandEmpty>
-                                <CommandGroup>
-                                  {dialogFilteredProcesses.map((process) => {
+                                      {selectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
+                                    </div>
+                                    {lob.name}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-normal">Processes</Label>
+                      <Popover open={openProcess} onOpenChange={setOpenProcess}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openProcess}
+                            className="w-full justify-between mt-1"
+                            disabled={selectedLOBs.length === 0}
+                          >
+                            {form.watch("processes")?.length
+                              ? `${form.watch("processes")?.length} selected`
+                              : "Select processes..."}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-96 p-0">
+                          <Command>
+                            <CommandInput placeholder="Search processes..." />
+                            <CommandEmpty>No processes found.</CommandEmpty>
+                            <CommandGroup className="max-h-60 overflow-y-auto">
+                              {filteredProcesses.map((process) => (
+                                <CommandItem
+                                  key={process.id}
+                                  value={process.name}
+                                  onSelect={() => {
                                     const currentProcesses = form.getValues("processes") || [];
                                     const isSelected = currentProcesses.includes(process.id);
-                                    return (
-                                      <CommandItem
-                                        key={process.id}
-                                        value={process.name}
-                                        onSelect={() => {
-                                          console.log("Process selected:", process.name, "Current processes:", currentProcesses);
-                                          if (isSelected) {
-                                            form.setValue(
-                                              "processes",
-                                              currentProcesses.filter(id => id !== process.id)
-                                            );
-                                          } else {
-                                            form.setValue("processes", [...currentProcesses, process.id]);
-                                          }
-                                          // Force a re-render to update the UI
-                                          form.trigger("processes");
-                                        }}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <div
-                                            className={cn(
-                                              "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                              form.watch("processes")?.includes(process.id)
-                                                ? "bg-primary border-primary text-primary-foreground"
-                                                : "border-input"
-                                            )}
-                                          >
-                                            {form.watch("processes")?.includes(process.id) && (
-                                              <Check className="h-3 w-3" />
-                                            )}
-                                          </div>
-                                          {process.name}
-                                        </div>
-                                      </CommandItem>
-                                    );
-                                  })}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                                    if (isSelected) {
+                                      form.setValue(
+                                        "processes",
+                                        currentProcesses.filter(id => id !== process.id)
+                                      );
+                                    } else {
+                                      form.setValue("processes", [...currentProcesses, process.id]);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={cn(
+                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
+                                        form.watch("processes")?.includes(process.id)
+                                          ? "bg-primary border-primary text-primary-foreground"
+                                          : "border-input"
+                                      )}
+                                    >
+                                      {form.watch("processes")?.includes(process.id) && (
+                                        <Check className="h-3 w-3" />
+                                      )}
+                                    </div>
+                                    {process.name}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>
@@ -1270,60 +1365,225 @@ export const UserManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  // Hierarchical view logic here (omitted for brevity)
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-4">
-                      Hierarchical view is available but code omitted for brevity
-                    </TableCell>
-                  </TableRow>
-                )}
-                
-                {filteredUsers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      No users match the current filters
-                    </TableCell>
-                  </TableRow>
+                  // Hierarchical view - tree structure based on current user and visible permissions
+                  (() => {
+                    // If no users match the filters, don't show anything
+                    if (filteredUsers.length === 0) {
+                      return null;
+                    }
+
+                    // Filter logic for specific category
+                    const showTraineeOnly = categoryFilter === 'trainee';
+                    const showActiveOnly = categoryFilter === 'active';
+                    
+                    // For hierarchy view, we need to include parents even if they don't match the filter
+                    // This preserves the hierarchy while still highlighting the matched users
+                    const hierarchyUsers = users.filter(u => {
+                      // This is a direct match to our filters
+                      const directMatch = filteredUsers.some(filtered => filtered.id === u.id);
+                      
+                      // If this is a direct match, include it
+                      if (directMatch) return true;
+                      
+                      // Otherwise, check if any of this user's subordinates match our filters
+                      // If so, we need to include this user to maintain the hierarchy
+                      const hasMatchingSubordinate = filteredUsers.some(filtered => 
+                        isSubordinate(u.id, filtered.id, users)
+                      );
+                      
+                      return hasMatchingSubordinate;
+                    });
+                    
+                    // Auto-expand managers that have matching subordinates
+                    // This ensures that filtered results are visible in the hierarchy
+                    if (categoryFilter !== 'all' || roleFilter !== 'all' || searchTerm || managerFilter !== 'all') {
+                      // Identify managers who have subordinates that match the filter
+                      const managersWithMatchingSubordinates = hierarchyUsers.filter(u => {
+                        // Check if any direct reports of this user match the filter
+                        return users.some(potentialReport => 
+                          potentialReport.managerId === u.id && 
+                          filteredUsers.some(filtered => filtered.id === potentialReport.id)
+                        );
+                      });
+                      
+                      // Add these managers to expanded list if not already there
+                      managersWithMatchingSubordinates.forEach(manager => {
+                        if (!expandedManagers.includes(manager.id)) {
+                          setExpandedManagers(prev => [...prev, manager.id]);
+                        }
+                      });
+                    }
+                    
+                    // If owner or admin, show the org hierarchy from paginated root users
+                    if (user?.role === 'owner' || user?.role === 'admin') {
+                      // Apply pagination to root users
+                      const rootUsers = hierarchyUsers.filter(u => !u.managerId);
+                      const paginatedRootUsers = getRootUsersForCurrentPage(hierarchyUsers);
+                      
+                      return paginatedRootUsers.map(rootUser => (
+                        <HierarchicalUserRow
+                          key={rootUser.id}
+                          user={rootUser}
+                          users={hierarchyUsers}
+                          level={0}
+                          expandedManagers={expandedManagers}
+                          toggleExpanded={toggleManagerExpanded}
+                          getManagerName={getManagerName}
+                          getLocationName={getLocationName}
+                          getProcessNames={getUserProcesses}
+                          canManageUsers={canManageUsers}
+                          canDeleteUsers={canDeleteUsers}
+                          editUserComponent={(user) => <EditUserDialog user={user} />}
+                          toggleUserStatus={toggleUserStatus}
+                          handleDeleteClick={handleDeleteClick}
+                          getFormattedReportingPath={getFormattedReportingPath}
+                        />
+                      ));
+                    } 
+                    // For managers and other roles, show only their own hierarchy
+                    else {
+                      // Here we're not paginating by root users since we're showing the current user's hierarchy
+                      // Ensure current user is in the filtered list for hierarchy
+                      if (!hierarchyUsers.some(u => u.id === user?.id)) {
+                        return <div className="p-4 text-center text-muted-foreground">No matching users in your team</div>;
+                      }
+                      
+                      // We still need to apply pagination to the filtered hierarchy
+                      // For non-admin users, there's effectively only one "root" (themselves)
+                      // So we just check if we're on the first page, since they should only appear there
+                      if (currentPage === 1) {
+                        return (
+                          <HierarchicalUserRow
+                            key={user?.id}
+                            user={user as User}
+                            users={hierarchyUsers}
+                            level={0}
+                            expandedManagers={expandedManagers}
+                            toggleExpanded={toggleManagerExpanded}
+                            getManagerName={getManagerName}
+                            getLocationName={getLocationName}
+                            getProcessNames={getUserProcesses}
+                            canManageUsers={canManageUsers}
+                            canDeleteUsers={canDeleteUsers}
+                            editUserComponent={(user) => <EditUserDialog user={user} />}
+                            toggleUserStatus={toggleUserStatus}
+                            handleDeleteClick={handleDeleteClick}
+                            getFormattedReportingPath={getFormattedReportingPath}
+                          />
+                        );
+                      } else {
+                        // Return empty on other pages since the user's hierarchy
+                        // only appears on the first page
+                        return <div className="p-4 text-center text-muted-foreground">No results on this page</div>;
+                      }
+                    }
+                  })()
                 )}
               </TableBody>
             </Table>
+            
+            {/* No results message */}
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground">
+                No users match your current filters
+              </div>
+            )}
           </div>
-          
+
+          {/* Pagination controls */}
           {totalPages > 1 && (
-            <div className="flex justify-end mt-4">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
+            <div className="flex justify-center mt-6">
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                {getPageNumbers().map((pageNum, idx) => (
+                  <Button
+                    key={idx}
+                    variant={pageNum === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => typeof pageNum === 'number' && handlePageChange(pageNum)}
+                    disabled={pageNum === '...'}
+                  >
+                    {pageNum}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  Last
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Delete user confirmation dialog */}
+      {/* Delete confirmation dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Deactivate User</DialogTitle>
             <DialogDescription>
-              This action will deactivate the user account. The user will no longer be able to log in. Are you sure you want to continue?
+              This action will deactivate the user, preventing them from logging in.
+              Their data will be maintained in the system.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p>To confirm, type the username: <strong>{deleteConfirmationText}</strong></p>
+              <Input
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type username to confirm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => userToDelete && deleteUser.mutate(userToDelete.id)}
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteConfirmation !== deleteConfirmationText}
             >
-              Deactivate
+              {deleteUserMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deactivating...
+                </>
+              ) : (
+                "Deactivate User"
+              )}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
+}
