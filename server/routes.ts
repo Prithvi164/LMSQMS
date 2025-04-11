@@ -1934,10 +1934,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!process) {
                 throw new Error(`Process ${processName} not found`);
               }
+              
+              // Store the process with its original LOB mapping
               validatedProcesses.push({
                 name: processName,
-                id: process.id
+                id: process.id,
+                lineOfBusinessId: process.lineOfBusinessId
               });
+              
+              console.log(`Process ${processName} belongs to LOB ID: ${process.lineOfBusinessId}`);
             }
             
             // Store validated processes for the second pass
@@ -1998,8 +2003,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Assign processes if any were validated
           if (userData._validatedProcesses && userData._validatedProcesses.length > 0) {
             for (const process of userData._validatedProcesses) {
-              console.log(`Assigning process ${process.name} (ID: ${process.id}) to user ${userData.username}`);
-              await storage.assignProcessToUser(newUser.id, process.id, userData.lineOfBusinessId);
+              // Use the process's original LOB ID instead of the user's general LOB ID
+              console.log(`Assigning process ${process.name} (ID: ${process.id}) to user ${userData.username} with LOB ID: ${process.lineOfBusinessId}`);
+              await storage.assignProcessToUser(newUser.id, process.id, process.lineOfBusinessId);
             }
           }
         }
