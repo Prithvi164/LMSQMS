@@ -1888,53 +1888,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find reporting manager by username if provided
           let managerId = null;
           if (userData.reportingManager) {
-            // Normalize the reporting manager username to lowercase for comparison
-            const normalizedReportingManager = userData.reportingManager.toLowerCase();
-            console.log(`Looking up reporting manager with normalized username: ${normalizedReportingManager}`);
+            // If we have a reporting manager, we'll use direct SQL for case-insensitive lookup
+            console.log(`Executing direct SQL lookup for manager: ${userData.reportingManager}`);
             
-            // Get all users
-            const allUsers = await db.select().from(users);
-            
-            console.log(`Found ${allUsers.length} total users in the system`);
-            
-            // Log potential matching users for debugging
-            const potentialMatches = allUsers.filter(u => 
-              u.username && 
-              u.username.toLowerCase().includes('admin')
-            );
-            
-            console.log(`Potential admin matches:`, potentialMatches.map(u => ({ 
-              id: u.id, 
-              username: u.username,
-              normalized: u.username?.toLowerCase(),
-              role: u.role
-            })));
-            
-            // Find manager with case-insensitive comparison
-            const manager = allUsers.find(u => 
-              u.username && u.username.toLowerCase() === normalizedReportingManager
-            );
-              
-            if (!manager) {
-              console.log(`No manager found for normalized username: ${normalizedReportingManager}`);
-              
-              // Look for partial matches to suggest to the user
-              const partialMatches = allUsers.filter(u => 
-                u.username && 
-                (u.username.toLowerCase().includes(normalizedReportingManager) || 
-                 normalizedReportingManager.includes(u.username.toLowerCase()))
+            try {
+              // Execute a raw SQL query for case-insensitive username match
+              const result = await db.execute(
+                sql`SELECT id, username, role FROM users 
+                    WHERE LOWER(username) = LOWER(${userData.reportingManager})`
               );
               
-              if (partialMatches.length > 0) {
-                console.log('Potential partial matches:', partialMatches.map(u => u.username));
-                throw new Error(`Reporting manager "${userData.reportingManager}" not found. Did you mean one of these? ${partialMatches.map(u => u.username).join(', ')}`);
+              console.log(`SQL query executed, found rows: ${result.rows?.length || 0}`);
+              
+              // Check if we found a manager
+              if (result.rows && result.rows.length > 0) {
+                const managerRow = result.rows[0];
+                console.log(`Found manager via SQL:`, managerRow);
+                managerId = Number(managerRow.id);
               } else {
-                throw new Error(`Reporting manager "${userData.reportingManager}" not found. Please check the username and try again.`);
+                // No exact match found, try to suggest similar usernames
+                console.log(`No exact match found for "${userData.reportingManager}", looking for similar names...`);
+                
+                // Get all admins or users with "admin" in username for suggestions
+                const allUsersResult = await db.execute(
+                  sql`SELECT id, username, role FROM users 
+                      WHERE role = 'admin' OR LOWER(username) LIKE '%admin%'`
+                );
+                
+                if (allUsersResult.rows && allUsersResult.rows.length > 0) {
+                  const suggestions = allUsersResult.rows.map(r => r.username).join(', ');
+                  console.log('Potential admin matches:', allUsersResult.rows);
+                  throw new Error(`Reporting manager "${userData.reportingManager}" not found. Did you mean one of these? ${suggestions}`);
+                } else {
+                  throw new Error(`Reporting manager "${userData.reportingManager}" not found. Please check the username and try again.`);
+                }
+              }
+            } catch (error) {
+              if (error.message && error.message.includes('Reporting manager')) {
+                // This is our formatted error, so just re-throw
+                throw error;
+              } else {
+                // Something else went wrong with the DB query
+                console.error('Error querying for reporting manager:', error);
+                throw new Error(`Error looking up reporting manager: ${error.message}`);
               }
             }
-            
-            console.log(`Found manager:`, { id: manager.id, username: manager.username });
-            managerId = manager.id;
           }
 
           // Find location by name if provided
