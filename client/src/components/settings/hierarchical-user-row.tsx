@@ -77,6 +77,7 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
       case 'admin': return 'bg-primary text-primary-foreground';
       case 'manager': return 'bg-purple-500 text-white';
       case 'team_lead': return 'bg-indigo-500 text-white';
+      case 'quality_analyst': return 'bg-blue-500 text-white';
       case 'trainer': return 'bg-amber-500 text-white';
       case 'advisor': return 'bg-teal-500 text-white';
       case 'trainee': return 'bg-secondary text-secondary-foreground';
