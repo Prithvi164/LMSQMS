@@ -1645,29 +1645,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Get all user processes for the organization
-      const processes = await db.query.userProcesses.findMany({
-        where: sql`user_id IN (
+      // Get all user processes for the organization with Line of Business information
+      const processes = await db.execute(sql`
+        SELECT up.user_id, up.process_id, op.name as process_name, 
+               lob.id as line_of_business_id, lob.name as line_of_business_name
+        FROM user_processes up
+        JOIN organization_processes op ON up.process_id = op.id
+        LEFT JOIN organization_line_of_businesses lob ON up.line_of_business_id = lob.id
+        WHERE up.user_id IN (
           SELECT id FROM users 
           WHERE organization_id = ${req.user.organizationId}
-        )`,
-        with: {
-          process: {
-            columns: {
-              name: true
-            }
-          }
-        }
-      });
+        )
+      `);
 
       // Format the response to group processes by user ID
       const userProcessMap = processes.reduce((acc: Record<number, any[]>, curr) => {
-        if (!acc[curr.userId]) {
-          acc[curr.userId] = [];
+        if (!acc[curr.user_id]) {
+          acc[curr.user_id] = [];
         }
-        acc[curr.userId].push({
-          processId: curr.processId,
-          processName: curr.process.name
+        acc[curr.user_id].push({
+          processId: curr.process_id,
+          processName: curr.process_name,
+          lineOfBusinessId: curr.line_of_business_id,
+          lineOfBusinessName: curr.line_of_business_name
         });
         return acc;
       }, {});
