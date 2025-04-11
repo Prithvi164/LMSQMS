@@ -74,7 +74,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       password: "",
       fullName: "",
       employeeId: "",
-      role: "advisor",
+      role: "",
       category: "active",
       email: "",
       phoneNumber: "",
@@ -93,7 +93,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     password: "",
     fullName: "",
     employeeId: "",
-    role: "advisor",
+    role: "",
     category: "active", // Default to active
     email: "",
     phoneNumber: "",
@@ -153,7 +153,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         password: "",
         fullName: "",
         employeeId: "",
-        role: "advisor",
+        role: "",
         category: "active",
         email: "",
         phoneNumber: "",
@@ -633,7 +633,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     }));
                     setSelectedLOBs([]);
                   }}
+                  required
                 >
+                  <option value="" disabled>Select a role...</option>
                   {user.role === "owner" ? (
                     <>
                       <option value="admin">Admin</option>
