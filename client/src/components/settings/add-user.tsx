@@ -65,6 +65,28 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       setBulkUploadData([]);
     }
   }, [hasPermission]);
+  
+  // Clear form data when component mounts/opens
+  useEffect(() => {
+    // Reset form data to defaults when component mounts
+    setNewUserData({
+      username: "",
+      password: "",
+      fullName: "",
+      employeeId: "",
+      role: "advisor",
+      category: "active",
+      email: "",
+      phoneNumber: "",
+      education: "",
+      dateOfJoining: "",
+      dateOfBirth: "",
+      managerId: "none",
+      locationId: "none",
+      processes: [],
+    });
+    setSelectedLOBs([]);
+  }, []);
 
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -524,7 +546,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">
+                  Username <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="username"
                   value={newUserData.username}
@@ -537,7 +561,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName">
+                  Full Name <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="fullName"
                   value={newUserData.fullName}
