@@ -43,7 +43,7 @@ type BulkUserUpload = {
   process: string;
 };
 
-export function AddUser({ users, user, organization, potentialManagers }: AddUserProps) {
+function AddUser({ users, user, organization, potentialManagers }: AddUserProps) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
@@ -115,10 +115,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         organizationId: organization?.id,
       };
       
-      // Only include lineOfBusinessId if processes are selected and we have LOBs selected
+      // Only include lineOfBusinessIds if processes are selected and we have LOBs selected
       if (data.processes.length > 0 && selectedLOBs.length > 0) {
-        // Using the first selected LOB as the lineOfBusinessId
-        payload.lineOfBusinessId = selectedLOBs[0];
+        // Using the first selected LOB as the primary lineOfBusinessId (for backwards compatibility)
+        const payloadWithLOB = {
+          ...payload,
+          lineOfBusinessId: selectedLOBs[0]
+        };
+        return apiRequest('POST', '/api/users', payloadWithLOB);
       }
       
       return apiRequest('POST', '/api/users', payload);
@@ -272,6 +276,11 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       validRoles.includes(u.role) && 
       (currentUserHierarchy.has(u.id) || u.id === user.id)
     );
+  }
+
+  function showFailureDialog(failures: {username: string, reason: string}[]) {
+    setFailedUploads(failures);
+    setShowFailureDetails(true);
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1042,3 +1051,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     </Card>
   );
 }
+
+// Export the AddUser component
+export { AddUser };
