@@ -302,7 +302,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfBirth: "1990-05-20", // yyyy-MM-dd format
         education: "Bachelor's in Business",
         lineOfBusiness: "Sales", // Must match existing LOB name in the system
-        process: "Lead Generation" // Must match existing process name in the system
+        process: "Lead Generation, Customer Support" // Multiple processes separated by commas
       }
     ];
     
@@ -324,7 +324,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Field: "dateOfBirth", Description: "Date of birth in YYYY-MM-DD format (optional)", Example: "1990-05-20" },
       { Field: "education", Description: "Educational background (optional)", Example: "Bachelor's in Business" },
       { Field: "lineOfBusiness", Description: "Line of Business name (must match existing LOB in the system)", Example: "Sales" },
-      { Field: "process", Description: "Process name (must match existing process in the system)", Example: "Lead Generation" }
+      { Field: "process", Description: "Process name(s). For multiple processes, separate with commas. Each process must match existing process names in the system.", Example: "Lead Generation, Customer Support" }
     ];
     
     const fieldInfoSheet = XLSX.utils.json_to_sheet(fieldInfo);
@@ -454,6 +454,15 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                   <p className="text-muted-foreground mt-2"><strong>Important:</strong> You can only assign managers who are within your own reporting chain. For example, if you are a Team Lead, you can only assign users to report to yourself or your upline managers.</p>
                   <p className="text-muted-foreground mt-2">The downloaded template includes detailed guidance in the "Role Hierarchy" sheet.</p>
                 </div>
+                
+                <div className="mb-4 bg-blue-50 dark:bg-blue-950 p-3 rounded-md text-sm border border-blue-200 dark:border-blue-800">
+                  <p className="font-medium mb-1 text-blue-800 dark:text-blue-300">Multiple Process Assignment</p>
+                  <p className="text-muted-foreground">Users can be assigned to multiple processes by separating process names with commas in the template:</p>
+                  <div className="bg-white dark:bg-gray-800 p-2 rounded my-2 text-xs font-mono border border-blue-100 dark:border-blue-900">
+                    <span className="text-green-600 dark:text-green-400">Example: "Lead Generation, Customer Support, Technical Support"</span>
+                  </div>
+                  <p className="text-muted-foreground">Make sure each process name matches exactly with a process in the system. All processes must be valid for the user to be created.</p>
+                </div>
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <Label htmlFor="file-upload">Select Excel File</Label>
@@ -522,7 +531,13 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                           <TableCell>{user.role}</TableCell>
                           <TableCell>{user.location}</TableCell>
                           <TableCell>{user.lineOfBusiness}</TableCell>
-                          <TableCell>{user.process}</TableCell>
+                          <TableCell>
+                            {user.process?.split(',').map((proc, idx) => (
+                              <Badge key={idx} variant="outline" className="mr-1 my-0.5">
+                                {proc.trim()}
+                              </Badge>
+                            ))}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
