@@ -1509,7 +1509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If creating a location, check for manage_locations permission
       if (req.body.type === "locations" && req.user.role !== 'owner') {
-        const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+        const userPermissions = await storage.getRolePermissions(orgId, req.user.role);
         if (!userPermissions?.permissions.includes('manage_locations')) {
           console.log(`User ${req.user.id} with role ${req.user.role} attempted to create location without permission`);
           return res.status(403).json({ message: "You do not have permission to create locations" });
@@ -4077,7 +4077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user has manage_lineofbusiness permission or is owner
       if (req.user.role !== 'owner') {
-        const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+        const userPermissions = await storage.getRolePermissions(orgId, req.user.role);
         if (!userPermissions?.permissions.includes('manage_lineofbusiness')) {
           console.log(`User ${req.user.id} with role ${req.user.role} attempted to create LOB without permission`);
           return res.status(403).json({ message: "You do not have permission to create line of business" });
