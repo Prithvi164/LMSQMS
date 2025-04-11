@@ -54,6 +54,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const [openLocation, setOpenLocation] = useState(false);
   const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Check if user has permission to add users
   const canAddUsers = hasPermission("add_users") || hasPermission("manage_users");
@@ -459,6 +460,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                         accept=".xlsx,.xls"
                         onChange={handleFileUpload}
                         className="flex-1"
+                        ref={fileInputRef}
                       />
                       <Button
                         onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
