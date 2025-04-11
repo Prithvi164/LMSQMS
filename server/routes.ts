@@ -1888,10 +1888,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find reporting manager by username if provided
           let managerId = null;
           if (userData.reportingManager) {
+            console.log(`Looking up reporting manager with username: ${userData.reportingManager}`);
+            
+            // Use direct SQL query to debug what's happening
+            const users = await db.select().from(schema.users);
+            const potentialMatches = users.filter(u => 
+              u.username && u.username.toLowerCase() === userData.reportingManager.toLowerCase()
+            );
+            
+            console.log(`Potential matching users:`, potentialMatches.map(u => ({ 
+              id: u.id, 
+              username: u.username,
+              usernameToLower: u.username.toLowerCase(),
+              searchToLower: userData.reportingManager.toLowerCase(),
+              match: u.username.toLowerCase() === userData.reportingManager.toLowerCase()
+            })));
+            
             const manager = await storage.getUserByUsername(userData.reportingManager);
+            
             if (!manager) {
+              console.log(`Manager not found for username: ${userData.reportingManager}`);
               throw new Error(`Reporting manager ${userData.reportingManager} not found`);
             }
+            
+            console.log(`Found manager:`, { id: manager.id, username: manager.username });
             managerId = manager.id;
           }
 
