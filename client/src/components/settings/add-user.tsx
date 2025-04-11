@@ -453,15 +453,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                   <p className="text-muted-foreground mt-2">The downloaded template includes detailed guidance in the "Role Hierarchy" sheet.</p>
                 </div>
                 
-                <div className="mb-4 bg-blue-50 dark:bg-blue-950 p-3 rounded-md text-sm border border-blue-200 dark:border-blue-800">
-                  <p className="font-medium mb-1 text-blue-800 dark:text-blue-300">Multiple Process Assignment</p>
-                  <p className="text-muted-foreground">Users can be assigned to multiple processes by separating process names with commas in the template:</p>
-                  <div className="bg-white dark:bg-gray-800 p-2 rounded my-2 text-xs font-mono border border-blue-100 dark:border-blue-900">
-                    <span className="text-green-600 dark:text-green-400">Example: "Lead Generation, Customer Support, Technical Support"</span>
-                  </div>
-                  <p className="text-muted-foreground">Make sure each process name matches exactly with a process in the system. All processes must be valid for the user to be created.</p>
-                  <p className="text-muted-foreground mt-2"><strong>Note:</strong> You no longer need to specify Line of Business in the template. The system will automatically map each process to its correct Line of Business.</p>
-                </div>
+
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <Label htmlFor="file-upload">Select Excel File</Label>
