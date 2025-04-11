@@ -70,7 +70,7 @@ export function SidebarNav() {
   
   // Define QMS features with permission checks
   const qmsFeatures = [
-    { href: '/evaluation-templates', label: 'Manage Evaluation Form', icon: CheckSquare,
+    { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare,
       permission: 'view_evaluation_form' },
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet,
       permission: 'manage_conduct_form' },
