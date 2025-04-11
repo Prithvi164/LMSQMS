@@ -570,8 +570,14 @@ export function UserManagement() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Global filteredProcesses for the main component
   const filteredProcesses = processes.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
+  );
+  
+  // Dialog-specific filteredProcesses for the edit user dialog
+  const dialogFilteredProcesses = processes.filter(process =>
+    dialogSelectedLOBs.includes(process.lineOfBusinessId)
   );
 
   // Helper function to handle delete confirmation
@@ -1059,7 +1065,7 @@ export function UserManagement() {
                             <CommandInput placeholder="Search processes..." />
                             <CommandEmpty>No processes found.</CommandEmpty>
                             <CommandGroup className="max-h-60 overflow-y-auto">
-                              {filteredProcesses.map((process) => (
+                              {dialogFilteredProcesses.map((process) => (
                                 <CommandItem
                                   key={process.id}
                                   value={process.name}
