@@ -1197,6 +1197,47 @@ export function UserManagement() {
                   </>
                 )}
               </Button>
+              
+              {/* Add expand/collapse all buttons for hierarchy view */}
+              {viewMode === 'hierarchy' && (
+                <div className="flex gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={expandAllManagers}
+                          className="h-10 w-10"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Expand All</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={collapseAllManagers}
+                          className="h-10 w-10"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Collapse All</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              )}
               {canExportReports && (
                 <Button onClick={exportToExcel} variant="outline" className="gap-2">
                   <Download className="h-4 w-4" />
