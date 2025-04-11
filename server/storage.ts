@@ -2403,6 +2403,22 @@ export class DatabaseStorage implements IStorage {
     lineOfBusinessId: number | null
   ): Promise<{ user: User; processes: UserProcess[] }> {
     try {
+      // Check if email already exists before starting the transaction
+      if (user.email) {
+        const existingUserByEmail = await this.getUserByEmail(user.email);
+        if (existingUserByEmail) {
+          throw new Error(`Email ${user.email} already exists. Please use a different email address.`);
+        }
+      }
+      
+      // Check if username already exists before starting the transaction
+      if (user.username) {
+        const existingUserByUsername = await this.getUserByUsername(user.username);
+        if (existingUserByUsername) {
+          throw new Error(`Username ${user.username} already exists. Please use a different username.`);
+        }
+      }
+      
       return await db.transaction(async (tx) => {
         // Create the user first
         const [newUser] = await tx

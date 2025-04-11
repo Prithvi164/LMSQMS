@@ -1873,10 +1873,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
           }
 
-          // Check if username or email already exists
+          // Check if username already exists
           const existingUser = await storage.getUserByUsername(userData.username);
           if (existingUser) {
             throw new Error(`Username ${userData.username} already exists`);
+          }
+          
+          // Check if email already exists
+          const existingUserByEmail = await storage.getUserByEmail(userData.email);
+          if (existingUserByEmail) {
+            throw new Error(`Email ${userData.email} already exists. Please use a different email address.`);
           }
 
           const existingEmail = await storage.getUserByEmail(userData.email);
@@ -2041,6 +2047,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { processes, lineOfBusinessId, ...userData } = req.body;
+      
+      // Check if email already exists
+      if (userData.email) {
+        const existingUserByEmail = await storage.getUserByEmail(userData.email);
+        if (existingUserByEmail) {
+          return res.status(400).json({ message: "Email already exists. Please choose a different email address." });
+        }
+      }
+      
+      // Check if username already exists
+      if (userData.username) {
+        const existingUserByUsername = await storage.getUserByUsername(userData.username);
+        if (existingUserByUsername) {
+          return res.status(400).json({ message: "Username already exists. Please choose a different username." });
+        }
+      }
 
       // Validate that lineOfBusinessId is provided when processes are specified
       if (processes?.length > 0 && !lineOfBusinessId) {
