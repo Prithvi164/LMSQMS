@@ -2214,10 +2214,11 @@ export class DatabaseStorage implements IStorage {
 
   async getLineOfBusinessByName(name: string): Promise<{ id: number } | null> {
     try {
+      // Use case-insensitive comparison
       const [lob] = await db
         .select({ id: organizationLineOfBusinesses.id })
         .from(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.name, name));
+        .where(sql`LOWER(${organizationLineOfBusinesses.name}) = LOWER(${name})`);
       return lob || null;
     } catch (error) {
       console.error('Error getting line of business by name:', error);
@@ -2583,10 +2584,11 @@ export class DatabaseStorage implements IStorage {
 
   async getLocationByName(name: string): Promise<{ id: number } | null> {
     try {
+      // Use case-insensitive comparison
       const [location] = await db
         .select({ id: organizationLocations.id })
         .from(organizationLocations)
-        .where(eq(organizationLocations.name, name));
+        .where(sql`LOWER(${organizationLocations.name}) = LOWER(${name})`);
       return location || null;
     } catch (error) {
       console.error('Error getting location by name:', error);
@@ -2596,10 +2598,11 @@ export class DatabaseStorage implements IStorage {
 
   async getProcessByName(name: string): Promise<{ id: number } | null> {
     try {
+      // Use case-insensitive comparison
       const [process] = await db
         .select({ id: organizationProcesses.id })
         .from(organizationProcesses)
-        .where(eq(organizationProcesses.name, name));
+        .where(sql`LOWER(${organizationProcesses.name}) = LOWER(${name})`);
       return process || null;
     } catch (error) {
       console.error('Error getting process by name:', error);

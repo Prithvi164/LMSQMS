@@ -1929,14 +1929,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             onboardingCompleted: true,
           });
 
-          // Find line of business by name if provided
-          let lineOfBusinessId = null;
+          // Handle multiple lines of business (comma-separated)
+          const lineOfBusinessIds = [];
           if (userData.lineOfBusiness) {
-            const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
-            if (!lob) {
-              throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
+            console.log(`Processing Line of Business for user ${userData.username}: ${userData.lineOfBusiness}`);
+            
+            // Split Line of Business by comma and trim whitespace
+            const linesOfBusiness = userData.lineOfBusiness.split(',').map(lob => lob.trim()).filter(Boolean);
+            
+            for (const lobName of linesOfBusiness) {
+              console.log(`Finding Line of Business "${lobName}" for user ${userData.username}`);
+              const lob = await storage.getLineOfBusinessByName(lobName);
+              if (!lob) {
+                throw new Error(`Line of Business "${lobName}" not found`);
+              }
+              lineOfBusinessIds.push(lob.id);
             }
-            lineOfBusinessId = lob.id;
           }
 
           // Handle multiple processes (comma-separated)
@@ -1946,12 +1954,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
             
             for (const processName of processes) {
-              console.log(`Assigning process ${processName} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
               const process = await storage.getProcessByName(processName);
               if (!process) {
-                throw new Error(`Process ${processName} not found`);
+                throw new Error(`Process "${processName}" not found`);
               }
-              await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
+              
+              // If there are multiple lines of business, assign the process to each one
+              if (lineOfBusinessIds.length > 0) {
+                for (const lobId of lineOfBusinessIds) {
+                  console.log(`Assigning process "${processName}" to user ${userData.username} with Line of Business ID ${lobId}`);
+                  await storage.assignProcessToUser(newUser.id, process.id, lobId);
+                }
+              } else {
+                // If no Line of Business specified, assign without LOB
+                console.log(`Assigning process "${processName}" to user ${userData.username} without Line of Business`);
+                await storage.assignProcessToUser(newUser.id, process.id, null);
+              }
             }
           }
         }
