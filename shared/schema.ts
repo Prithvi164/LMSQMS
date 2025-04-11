@@ -991,7 +991,7 @@ export const users = pgTable("users", {
   role: roleEnum("role").notNull(),
   category: userCategoryTypeEnum("category").default('trainee').notNull(),
   locationId: integer("location_id").references(() => organizationLocations.id),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   education: text("education"),
   dateOfJoining: date("date_of_joining"),
   phoneNumber: text("phone_number"),
