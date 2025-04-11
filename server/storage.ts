@@ -291,8 +291,7 @@ export interface IStorage {
   // Helper methods for bulk upload
   getLocationByName(name: string): Promise<{ id: number } | null>;
   getProcessByName(name: string): Promise<{ id: number } | null>;
-  getLineOfBusinessByName(name: string): Promise<{ id: number } | null>;
-  assignProcessToUser(userId: number, processId: number, lineOfBusinessId?: number): Promise<void>;
+  assignProcessToUser(userId: number, processId: number): Promise<void>;
 
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
@@ -2596,19 +2595,6 @@ export class DatabaseStorage implements IStorage {
       return process || null;
     } catch (error) {
       console.error('Error getting process by name:', error);
-      throw error;
-    }
-  }
-
-  async getLineOfBusinessByName(name: string): Promise<{ id: number } | null> {
-    try {
-      const [lob] = await db
-        .select({ id: lineOfBusinesses.id })
-        .from(lineOfBusinesses)
-        .where(eq(lineOfBusinesses.name, name));
-      return lob || null;
-    } catch (error) {
-      console.error('Error getting line of business by name:', error);
       throw error;
     }
   }

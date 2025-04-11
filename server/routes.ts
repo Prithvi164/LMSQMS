@@ -1865,30 +1865,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid users data" });
       }
 
-      // Track successful and failed uploads
-      const results = {
-        successful: [] as { username: string; email: string }[],
-        failed: [] as { username: string; reason: string }[]
-      };
-
-      // Process each user without a transaction to allow partial success
-      for (const userData of users) {
-        try {
+      // Start a transaction
+      await db.transaction(async (tx) => {
+        for (const userData of users) {
           // Validate required fields
           if (!userData.username || !userData.email || !userData.password) {
-            throw new Error(`Missing required fields`);
+            throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
           }
 
           // Check if username already exists
           const existingUser = await storage.getUserByUsername(userData.username);
           if (existingUser) {
-            throw new Error(`Username already exists`);
+            throw new Error(`Username ${userData.username} already exists`);
           }
           
           // Check if email already exists
           const existingUserByEmail = await storage.getUserByEmail(userData.email);
           if (existingUserByEmail) {
-            throw new Error(`Email already exists. Please use a different email address.`);
+            throw new Error(`Email ${userData.email} already exists. Please use a different email address.`);
           }
 
           // Find reporting manager by username if provided
@@ -1935,104 +1929,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             onboardingCompleted: true,
           });
 
-          // Process comma-separated lines of business and processes
-          if (userData.lineOfBusiness && userData.process) {
-            console.log(`Processing LOBs and processes for user ${userData.username}`);
-            console.log(`LOBs: ${userData.lineOfBusiness}`);
-            console.log(`Processes: ${userData.process}`);
-            
-            // Split LOBs and processes by comma and trim whitespace
-            const lineOfBusinesses = userData.lineOfBusiness.split(',').map(lob => lob.trim()).filter(Boolean);
-            const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
-            
-            console.log(`Found ${lineOfBusinesses.length} LOBs and ${processes.length} processes`);
-            
-            // For each process, find the corresponding LOB (if available) and assign
-            for (let i = 0; i < processes.length; i++) {
-              const processName = processes[i];
-              // Use the matching LOB if available, otherwise use the first LOB
-              const lobName = (i < lineOfBusinesses.length) ? lineOfBusinesses[i] : lineOfBusinesses[0];
-              
-              console.log(`Assigning process "${processName}" with LOB "${lobName}" to user ${userData.username}`);
-              
-              // Find the process
-              const process = await storage.getProcessByName(processName);
-              if (!process) {
-                throw new Error(`Process "${processName}" not found`);
-              }
-              
-              // Find the LOB
-              const lob = await storage.getLineOfBusinessByName(lobName);
-              if (!lob) {
-                throw new Error(`Line of Business "${lobName}" not found`);
-              }
-              
-              // Assign the process to the user with the specified LOB
-              await storage.assignProcessToUser(newUser.id, process.id, lob.id);
-            }
-          } else if (userData.lineOfBusiness) {
-            // Legacy support for single LOB without process
+          // Find line of business by name if provided
+          let lineOfBusinessId = null;
+          if (userData.lineOfBusiness) {
             const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
             if (!lob) {
               throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
             }
-          } else if (userData.process) {
-            // Legacy support for single process without LOB
+            lineOfBusinessId = lob.id;
+          }
+
+          // Handle multiple processes (comma-separated)
+          if (userData.process) {
+            console.log(`Processing processes for user ${userData.username}: ${userData.process}`);
+            // Split processes by comma and trim whitespace
             const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
             
             for (const processName of processes) {
-              console.log(`Assigning process ${processName} to user ${userData.username} without LOB`);
+              console.log(`Assigning process ${processName} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
               const process = await storage.getProcessByName(processName);
               if (!process) {
                 throw new Error(`Process ${processName} not found`);
               }
-              await storage.assignProcessToUser(newUser.id, process.id, null);
+              await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
             }
           }
-          
-          // Add to successful list
-          results.successful.push({ 
-            username: userData.username, 
-            email: userData.email 
-          });
-          
-        } catch (error: any) {
-          console.error(`Error creating user ${userData.username || 'unknown'}:`, error.message);
-          
-          // Add to failed list with reason
-          results.failed.push({
-            username: userData.username || 'unknown',
-            reason: error.message
-          });
-          
-          // Continue with next user instead of stopping the whole process
-          continue;
         }
-      }
+      });
 
-      // Report results
-      if (results.successful.length > 0) {
-        console.log(`Successfully created ${results.successful.length} users`);
-        console.log(`Failed to create ${results.failed.length} users`);
-        
-        // Return partial success response with details on failures
-        const statusCode = results.failed.length > 0 ? 207 : 201; // Use 207 Multi-Status for partial success
-        return res.status(statusCode).json({
-          message: `Successfully created ${results.successful.length} users.` + 
-                  (results.failed.length > 0 ? ` Failed to create ${results.failed.length} users.` : ''),
-          successful: results.successful,
-          failed: results.failed
-        });
-      } else {
-        // All users failed
-        return res.status(400).json({ 
-          message: "All user creations failed", 
-          failed: results.failed 
-        });
-      }
+      res.status(201).json({ message: "Users created successfully" });
     } catch (error: any) {
       console.error("Bulk user creation error:", error);
-      res.status(500).json({ message: "An unexpected error occurred during bulk user creation", error: error.message });
+      res.status(400).json({ message: error.message });
     }
   });
 
