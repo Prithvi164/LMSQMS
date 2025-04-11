@@ -1652,35 +1652,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    // Use SQL LOWER() function to make the comparison case-insensitive
-    const [user] = await db.select().from(users).where(
-      sql`LOWER(${users.username}) = LOWER(${username})`
-    ) as User[];
+    const [user] = await db.select().from(users).where(eq(users.username, username)) as User[];
     return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    // Use SQL LOWER() function to make the comparison case-insensitive
-    const [user] = await db.select().from(users).where(
-      sql`LOWER(${users.email}) = LOWER(${email})`
-    ) as User[];
+    const [user] = await db.select().from(users).where(eq(users.email, email)) as User[];
     return user;
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    // Check for existing email (case-insensitive check is now handled by getUserByEmail)
+    // Check for existing email
     if (user.email) {
       const existingUserWithEmail = await this.getUserByEmail(user.email);
       if (existingUserWithEmail) {
         throw new Error(`A user with email ${user.email} already exists`);
-      }
-    }
-
-    // Check for existing username (case-insensitive check is now handled by getUserByUsername)
-    if (user.username) {
-      const existingUserByUsername = await this.getUserByUsername(user.username);
-      if (existingUserByUsername) {
-        throw new Error(`Username ${user.username} already exists. Please use a different username.`);
       }
     }
     
@@ -1692,28 +1678,26 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Attempting to update user with ID: ${id}`, user);
 
-      // Check if username is being updated and if it would conflict (case-insensitive)
+      // Check if username is being updated and if it would conflict
       if (user.username) {
-        const existingUsers = await db
+        const existingUser = await db
           .select()
           .from(users)
-          .where(sql`LOWER(${users.username}) = LOWER(${user.username})`);
-        
-        const existingUser = existingUsers.find(u => u.id !== id);
+          .where(eq(users.username, user.username))
+          .then(results => results.find(u => u.id !== id));
 
         if (existingUser) {
           throw new Error('Username already exists. Please choose a different username.');
         }
       }
       
-      // Check if email is being updated and if it would conflict (case-insensitive)
+      // Check if email is being updated and if it would conflict
       if (user.email) {
-        const existingUsersWithEmail = await db
+        const existingUserWithEmail = await db
           .select()
           .from(users)
-          .where(sql`LOWER(${users.email}) = LOWER(${user.email})`);
-        
-        const existingUserWithEmail = existingUsersWithEmail.find(u => u.id !== id);
+          .where(eq(users.email, user.email))
+          .then(results => results.find(u => u.id !== id));
 
         if (existingUserWithEmail) {
           throw new Error('Email already exists. Please choose a different email address.');
