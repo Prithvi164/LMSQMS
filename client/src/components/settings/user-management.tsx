@@ -404,6 +404,30 @@ export function UserManagement() {
     }
   };
   
+  // Expand all managers at once
+  const expandAllManagers = () => {
+    // Find all users who have direct reports (they are managers)
+    const allManagerIds = users
+      .filter(u => users.some(user => user.managerId === u.id))
+      .map(u => u.id);
+    setExpandedManagers(allManagerIds);
+    
+    toast({
+      title: "Hierarchy Expanded",
+      description: `Expanded all ${allManagerIds.length} managers in the hierarchy view.`
+    });
+  };
+  
+  // Collapse all expanded managers
+  const collapseAllManagers = () => {
+    setExpandedManagers([]);
+    
+    toast({
+      title: "Hierarchy Collapsed",
+      description: "Collapsed all managers in the hierarchy view."
+    });
+  };
+  
   // Handle delete confirmation
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
