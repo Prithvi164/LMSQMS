@@ -1888,36 +1888,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find reporting manager by username if provided
           let managerId = null;
           if (userData.reportingManager) {
-            // If we have a reporting manager, we'll use direct SQL for case-insensitive lookup
-            console.log(`Executing direct SQL lookup for manager: ${userData.reportingManager}`);
+            // If we have a reporting manager, we'll use the case-insensitive lookup
+            console.log(`Looking up reporting manager: ${userData.reportingManager}`);
             
             try {
-              // Execute a raw SQL query for case-insensitive username match
-              const result = await db.execute(
-                sql`SELECT id, username, role FROM users 
-                    WHERE LOWER(username) = LOWER(${userData.reportingManager})`
+              // First, check if the string is simply "Admin.1"
+              const lowercaseManager = userData.reportingManager.toLowerCase();
+              
+              // Get all users
+              const allUsers = await db.select().from(users);
+              console.log(`Looking through ${allUsers.length} users for manager match`);
+              
+              // Manually filter for case-insensitive comparison
+              const managerMatches = allUsers.filter(user => 
+                user.username && user.username.toLowerCase() === lowercaseManager
               );
               
-              console.log(`SQL query executed, found rows: ${result.rows?.length || 0}`);
+              console.log(`Found ${managerMatches.length} matches for "${userData.reportingManager}"`);
               
               // Check if we found a manager
-              if (result.rows && result.rows.length > 0) {
-                const managerRow = result.rows[0];
-                console.log(`Found manager via SQL:`, managerRow);
-                managerId = Number(managerRow.id);
+              if (managerMatches.length > 0) {
+                const manager = managerMatches[0];
+                console.log(`Found manager:`, { id: manager.id, username: manager.username, role: manager.role });
+                managerId = manager.id;
               } else {
                 // No exact match found, try to suggest similar usernames
                 console.log(`No exact match found for "${userData.reportingManager}", looking for similar names...`);
                 
-                // Get all admins or users with "admin" in username for suggestions
-                const allUsersResult = await db.execute(
-                  sql`SELECT id, username, role FROM users 
-                      WHERE role = 'admin' OR LOWER(username) LIKE '%admin%'`
+                // Get potential admin matches for suggestions
+                const adminMatches = allUsers.filter(user => 
+                  user.role === 'admin' || 
+                  (user.username && user.username.toLowerCase().includes('admin'))
                 );
                 
-                if (allUsersResult.rows && allUsersResult.rows.length > 0) {
-                  const suggestions = allUsersResult.rows.map(r => r.username).join(', ');
-                  console.log('Potential admin matches:', allUsersResult.rows);
+                if (adminMatches.length > 0) {
+                  const suggestions = adminMatches.map(u => u.username).join(', ');
+                  console.log('Potential admin matches:', adminMatches.map(u => ({id: u.id, username: u.username, role: u.role})));
                   throw new Error(`Reporting manager "${userData.reportingManager}" not found. Did you mean one of these? ${suggestions}`);
                 } else {
                   throw new Error(`Reporting manager "${userData.reportingManager}" not found. Please check the username and try again.`);
