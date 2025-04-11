@@ -2594,10 +2594,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProcessByName(name: string): Promise<{ id: number } | null> {
+  async getProcessByName(name: string): Promise<{ id: number, lineOfBusinessId?: number } | null> {
     try {
       const [process] = await db
-        .select({ id: organizationProcesses.id })
+        .select({ 
+          id: organizationProcesses.id,
+          lineOfBusinessId: organizationProcesses.lineOfBusinessId
+        })
         .from(organizationProcesses)
         .where(eq(organizationProcesses.name, name));
       return process || null;
