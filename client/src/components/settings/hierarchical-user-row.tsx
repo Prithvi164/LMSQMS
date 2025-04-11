@@ -1,5 +1,17 @@
 import React from "react";
-import { ChevronDown, ChevronRight, Trash2, User as UserRound, MapPin } from "lucide-react";
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  Trash2, 
+  User as UserRound, 
+  MapPin, 
+  FolderTree, 
+  Users, 
+  FileTree,
+  MinusSquare,
+  PlusSquare,
+  CircleUserRound
+} from "lucide-react";
 import { User } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,10 +59,16 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
   const isExpanded = expandedManagers.includes(user.id);
   
   // Calculate indentation based on hierarchy level
-  const indentPadding = level * 20; // 20px per level
+  const indentPadding = level * 24; // 24px per level for more spacing
   
   // Determine if this entry is directly matched by filters
   const isFilterMatch = users.some(u => u.id === user.id);
+  
+  // Determine if this user is the last child in their group (for better tree line rendering)
+  const isLastChild = level > 0 && user.managerId !== null && 
+    users.filter(u => u.managerId === user.managerId)
+      .sort((a, b) => a.id - b.id)
+      .pop()?.id === user.id;
   
   // Role colors using style instead of variant
   const getRoleStyle = (role: string): string => {
@@ -78,41 +96,66 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
       >
         <TableCell>
           <div className="relative flex items-center" style={{ paddingLeft: `${indentPadding}px` }}>
-            {/* Hierarchy connector lines */}
+            {/* Hierarchy connector lines - improved visualization */}
             {level > 0 && (
               <div 
-                className="absolute left-0 top-0 bottom-0 border-l-2 border-muted-foreground/20" 
-                style={{ left: `${(level-1) * 20 + 10}px`, height: "100%" }}
+                className={cn(
+                  "absolute left-0 top-0 bottom-0 border-l-2",
+                  isLastChild ? "border-transparent" : "border-muted-foreground/30",
+                  isFilterMatch ? "border-primary/40" : ""
+                )}
+                style={{ left: `${(level-1) * 24 + 12}px`, height: "100%" }}
               />
             )}
             {level > 0 && (
               <div 
-                className="absolute border-t-2 border-muted-foreground/20" 
-                style={{ left: `${(level-1) * 20 + 10}px`, width: "10px", top: "50%" }}
+                className={cn(
+                  "absolute border-t-2", 
+                  isFilterMatch ? "border-primary/40" : "border-muted-foreground/30"
+                )}
+                style={{ left: `${(level-1) * 24 + 12}px`, width: "12px", top: "50%" }}
               />
             )}
+            
             {/* Expand/collapse button for users with direct reports */}
             {hasDirectReports && (
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-6 w-6 p-0 mr-1" 
+                className={cn(
+                  "h-6 w-6 p-0 mr-1.5 transition-all",
+                  isExpanded ? "bg-muted" : "hover:bg-muted",
+                  directReports.length > 5 ? "ring-1 ring-primary/20" : ""
+                )}
                 onClick={() => toggleExpanded(user.id)}
+                title={`${isExpanded ? "Collapse" : "Expand"} (${directReports.length} direct ${directReports.length === 1 ? "report" : "reports"})`}
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
+                  <MinusSquare className="h-4 w-4" />
                 ) : (
-                  <ChevronRight className="h-4 w-4" />
+                  <PlusSquare className="h-4 w-4" />
                 )}
               </Button>
             )}
             
             {/* Indentation for users without direct reports */}
             {!hasDirectReports && level > 0 && (
-              <div className="w-7"></div>
+              <div className="w-7 flex items-center justify-center">
+                <CircleUserRound className="h-3 w-3 text-muted-foreground/50" />
+              </div>
             )}
             
-            <span className="font-medium">{user.username}</span>
+            <span className={cn(
+              "font-medium flex items-center",
+              isFilterMatch ? "text-primary" : ""
+            )}>
+              {user.username}
+              {hasDirectReports && (
+                <Badge variant="outline" size="sm" className="ml-2 text-[10px] h-4">
+                  {directReports.length}
+                </Badge>
+              )}
+            </span>
           </div>
         </TableCell>
         <TableCell>
