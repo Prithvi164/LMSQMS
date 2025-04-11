@@ -3598,7 +3598,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validPermissions = [
         ...permissionEnum.enumValues,
         'manage_batch_users_add',
-        'manage_batch_users_remove'
+        'manage_batch_users_remove',
+        'manage_conduct_form',
+        'manage_evaluation_feedback'
       ];
       
       console.log("Valid permission values:", validPermissions);
