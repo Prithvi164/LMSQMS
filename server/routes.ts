@@ -1865,9 +1865,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid users data" });
       }
 
-      // Start a transaction
-      await db.transaction(async (tx) => {
-        for (const userData of users) {
+      console.log(`Starting bulk user upload validation for ${users.length} users`);
+      
+      // First pass: validate all users before creating any
+      // This ensures we don't create partial data if validation fails
+      const validatedUsers = [];
+      const errors = [];
+      
+      for (const userData of users) {
+        try {
           // Validate required fields
           if (!userData.username || !userData.email || !userData.password) {
             throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
@@ -1904,7 +1910,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             locationId = location.id;
           }
-
+          
+          // Find line of business by name if provided
+          let lineOfBusinessId = null;
+          if (userData.lineOfBusiness) {
+            const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
+            if (!lob) {
+              throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
+            }
+            lineOfBusinessId = lob.id;
+          }
+          
+          // Validate processes if provided
+          if (userData.process) {
+            console.log(`Validating processes for user ${userData.username}: ${userData.process}`);
+            // Split processes by comma and trim whitespace
+            const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
+            const validatedProcesses = [];
+            
+            for (const processName of processes) {
+              console.log(`Checking process ${processName} for user ${userData.username}`);
+              const process = await storage.getProcessByName(processName);
+              if (!process) {
+                throw new Error(`Process ${processName} not found`);
+              }
+              validatedProcesses.push({
+                name: processName,
+                id: process.id
+              });
+            }
+            
+            // Store validated processes for the second pass
+            userData._validatedProcesses = validatedProcesses;
+          }
+          
+          // Store validated data for second pass
+          validatedUsers.push({
+            ...userData,
+            managerId,
+            locationId,
+            lineOfBusinessId
+          });
+          
+        } catch (error) {
+          errors.push(`User ${userData.username || 'unknown'}: ${error.message}`);
+        }
+      }
+      
+      // If any validation errors, abort the entire operation
+      if (errors.length > 0) {
+        console.log('Validation errors found, aborting upload:', errors);
+        return res.status(400).json({ 
+          message: "Validation failed. No users were created.", 
+          errors 
+        });
+      }
+      
+      // Second pass: create all users in a transaction
+      console.log(`All ${validatedUsers.length} users validated successfully, proceeding with creation`);
+      
+      await db.transaction(async (tx) => {
+        for (const userData of validatedUsers) {
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
@@ -1916,51 +1982,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: userData.email,
             role: userData.role,
             category: "active", // Always set to active for bulk upload
-            locationId,
+            locationId: userData.locationId,
             employeeId: userData.employeeId, 
             phoneNumber: userData.phoneNumber,
             dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : null,
             dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
             education: userData.education,
             organizationId: req.user.organizationId!,
-            managerId,
+            managerId: userData.managerId,
             active: true,
             certified: false,
             onboardingCompleted: true,
           });
 
-          // Find line of business by name if provided
-          let lineOfBusinessId = null;
-          if (userData.lineOfBusiness) {
-            const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
-            if (!lob) {
-              throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
-            }
-            lineOfBusinessId = lob.id;
-          }
-
-          // Handle multiple processes (comma-separated)
-          if (userData.process) {
-            console.log(`Processing processes for user ${userData.username}: ${userData.process}`);
-            // Split processes by comma and trim whitespace
-            const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
-            
-            for (const processName of processes) {
-              console.log(`Assigning process ${processName} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
-              const process = await storage.getProcessByName(processName);
-              if (!process) {
-                throw new Error(`Process ${processName} not found`);
-              }
-              await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
+          // Assign processes if any were validated
+          if (userData._validatedProcesses && userData._validatedProcesses.length > 0) {
+            for (const process of userData._validatedProcesses) {
+              console.log(`Assigning process ${process.name} (ID: ${process.id}) to user ${userData.username}`);
+              await storage.assignProcessToUser(newUser.id, process.id, userData.lineOfBusinessId);
             }
           }
         }
       });
 
-      res.status(201).json({ message: "Users created successfully" });
+      res.status(201).json({ 
+        message: "Users created successfully",
+        count: validatedUsers.length
+      });
     } catch (error: any) {
       console.error("Bulk user creation error:", error);
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ 
+        message: "An unexpected error occurred during bulk user creation", 
+        error: error.message 
+      });
     }
   });
 
@@ -4342,6 +4396,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Found batch:', batch);
       
+      // Check if process exists for this batch
+      if (!batch.processId) {
+        console.log('No process ID found for batch:', batchId);
+        return res.status(400).json({ message: "Batch has no process assigned" });
+      }
+      
+      // Verify the process exists
+      const process = await storage.getProcess(batch.processId);
+      if (!process) {
+        console.log('Process not found for ID:', batch.processId);
+        return res.status(400).json({ message: `Process with ID ${batch.processId} not found` });
+      }
+      
+      console.log('Found process:', process.name);
+      
       // Get trainer details if trainer is assigned to the batch
       // Always use batch location for trainees, not trainer's location
       const batchLocationId = batch.locationId;
@@ -4394,15 +4463,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      let successCount = 0;
-      let failureCount = 0;
       const errors = [];
       const requiredFields = ['username', 'fullName', 'email', 'employeeId', 'phoneNumber', 'dateOfJoining', 'dateOfBirth', 'education', 'password', 'role'];
+      const validatedRows = [];
 
-      // Process each row
+      // First pass: validate all rows without making any changes
+      console.log('Validating all rows before processing');
       for (const row of rows) {
         try {
-          console.log('Processing row:', row);
+          console.log('Validating row:', row);
+
+          // Check for existing username
+          const existingUsername = await storage.getUserByUsername(String(row.username));
+          if (existingUsername) {
+            throw new Error(`Username ${row.username} already exists`);
+          }
+          
+          // Check for existing email
+          const existingEmail = await storage.getUserByEmail(String(row.email));
+          if (existingEmail) {
+            throw new Error(`Email ${row.email} already exists`);
+          }
 
           // Validate required fields
           const missingFields = requiredFields.filter(field => !row[field]);
@@ -4448,6 +4529,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('Invalid date format. Use YYYY-MM-DD format');
           }
 
+          // Create validated data object
+          validatedRows.push({
+            ...row,
+            dateOfJoining,
+            dateOfBirth,
+            role,
+          });
+          
+        } catch (error) {
+          const rowNum = rows.indexOf(row) + 2; // +2 for header row and 0-based index
+          const errorMessage = `Row ${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMessage);
+          console.error('Validation error:', errorMessage);
+        }
+      }
+
+      // If there are any validation errors, abort the entire operation
+      if (errors.length > 0) {
+        console.log('Validation failed with errors:', errors);
+        return res.status(400).json({
+          message: "Bulk upload validation failed",
+          totalRows: rows.length,
+          errors
+        });
+      }
+
+      // Second pass: process all rows in a transaction
+      console.log('All rows validated successfully, proceeding with transaction');
+      let successCount = 0;
+      
+      // Use a transaction to ensure all-or-nothing operation
+      await db.transaction(async (tx) => {
+        for (const row of validatedRows) {
+          console.log('Processing validated row for user:', row.username);
+          
+          // Hash password
+          const hashedPassword = await hashPassword(String(row.password));
+          
           // Create trainee data object
           const traineeData = {
             username: String(row.username),
@@ -4455,11 +4574,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: String(row.email),
             employeeId: String(row.employeeId),
             phoneNumber: String(row.phoneNumber),
-            dateOfJoining: dateOfJoining,
-            dateOfBirth: dateOfBirth,
+            dateOfJoining: row.dateOfJoining,
+            dateOfBirth: row.dateOfBirth,
             education: String(row.education),
-            password: await hashPassword(String(row.password)),
-            role: role,
+            password: hashedPassword,
+            role: row.role,
             category: "trainee", // This is correct - category should be trainee
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
@@ -4471,7 +4590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Creating user with data:', { 
             ...traineeData, 
             password: '[REDACTED]',
-            role,
+            role: row.role,
             category: 'trainee'
           });
 
@@ -4502,31 +4621,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           console.log('User process record created');
-
           successCount++;
-        } catch (error) {
-          failureCount++;
-          const rowNum = rows.indexOf(row) + 2; // +2 for header row and 0-based index
-          const errorMessage = `Row ${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-          errors.push(errorMessage);
-          console.error('Error processing row:', errorMessage);
         }
-      }
-
-      console.log('Upload processing complete:', {
-        totalRows: rows.length,
-        successCount,
-        failureCount,
-        errors
       });
+
+      console.log('Transaction completed successfully. Users created:', successCount);
 
       // Send detailed response
       res.json({
-        message: "Bulk upload completed",
+        message: "Bulk upload completed successfully",
         totalRows: rows.length,
         successCount,
-        failureCount,
-        errors: errors.length > 0 ? errors : undefined,
         remainingCapacity: remainingCapacity - successCount
       });
     } catch (error) {
