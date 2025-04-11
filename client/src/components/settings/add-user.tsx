@@ -12,11 +12,12 @@ import type { User, Organization, OrganizationProcess, OrganizationLineOfBusines
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Check, FileSpreadsheet, Upload, Download } from "lucide-react";
+import { Check, FileSpreadsheet, Upload, Download, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions, PermissionGuard } from "@/hooks/use-permissions"; // Add permissions hook
 import * as XLSX from "xlsx";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface AddUserProps {
   users: User[];
@@ -283,6 +284,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   }
 
   function downloadTemplate() {
+    // Get existing managers' usernames for the example template
+    // Find first available manager
+    let exampleManager = "your_manager_username";
+    const validManagers = potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+    if (validManagers.length > 0) {
+      exampleManager = validManagers[0].username;
+    }
+    
     // Create a workbook
     const wb = XLSX.utils.book_new();
     
@@ -293,7 +302,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         fullName: "John Smith",
         email: "jsmith@example.com",
         role: "advisor", // Valid values: owner, admin, manager, team_lead, quality_analyst, trainer, advisor
-        reportingManager: "manager_username", // Username of the manager
+        reportingManager: exampleManager, // Must be an existing username in the system
         location: "Mumbai", // Must match existing location name in the system
         employeeId: "EMP001",
         password: "securepassword123",
@@ -496,20 +505,32 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
               {bulkUploadData.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setBulkUploadData([]);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = '';
-                        }
-                      }}
-                    >
-                      Clear
-                    </Button>
+                  <div className="space-y-2 mb-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setBulkUploadData([]);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                    
+                    {bulkUploadData.some(user => user.reportingManager === "manager_username") && (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle className="text-xs font-medium">Validation Error</AlertTitle>
+                        <AlertDescription className="text-xs">
+                          Please update the placeholder "manager_username" to an actual manager username that exists in the system.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                   <Table>
                     <TableHeader>
