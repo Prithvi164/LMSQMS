@@ -650,6 +650,8 @@ export function UserManagement() {
     const [openLOB, setOpenLOB] = useState(false);
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    // Local selectedLOBs state for this specific dialog instance
+    const [dialogSelectedLOBs, setDialogSelectedLOBs] = useState<number[]>([]);
 
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
@@ -670,9 +672,10 @@ export function UserManagement() {
       }
     });
 
+    // Initialize state when dialog opens
     useEffect(() => {
-      // Initialize selectedLOBs based on user's processes
-      if (editUser.processes) {
+      if (isDialogOpen && editUser.processes && editUser.processes.length > 0) {
+        console.log("Initializing LOB selection for user", editUser.username);
         const lobIds = editUser.processes
           .map(processId => {
             const process = processes.find(p => p.id === processId);
@@ -680,9 +683,13 @@ export function UserManagement() {
           })
           .filter((id): id is number => id !== undefined);
 
-        setSelectedLOBs([...new Set(lobIds)]);
+        const uniqueLobIds = [...new Set(lobIds)];
+        console.log("Found LOB IDs:", uniqueLobIds);
+        setDialogSelectedLOBs(uniqueLobIds);
+        // Also update the parent component's state to ensure proper filtering
+        setSelectedLOBs(uniqueLobIds);
       }
-    }, [editUser.processes, processes]);
+    }, [isDialogOpen, editUser.processes, processes]);
 
     // Determine if the current user can edit this user
     // Only use permission system for consistency with other features
@@ -983,8 +990,8 @@ export function UserManagement() {
                             aria-expanded={openLOB}
                             className="w-full justify-between mt-1"
                           >
-                            {selectedLOBs.length > 0
-                              ? `${selectedLOBs.length} selected`
+                            {dialogSelectedLOBs.length > 0
+                              ? `${dialogSelectedLOBs.length} selected`
                               : "Select line of business..."}
                           </Button>
                         </PopoverTrigger>
@@ -998,11 +1005,15 @@ export function UserManagement() {
                                   key={lob.id}
                                   value={lob.name}
                                   onSelect={() => {
-                                    const isSelected = selectedLOBs.includes(lob.id);
+                                    const isSelected = dialogSelectedLOBs.includes(lob.id);
                                     if (isSelected) {
-                                      setSelectedLOBs(selectedLOBs.filter(id => id !== lob.id));
+                                      const newSelectedLOBs = dialogSelectedLOBs.filter(id => id !== lob.id);
+                                      setDialogSelectedLOBs(newSelectedLOBs);
+                                      setSelectedLOBs(newSelectedLOBs); // Update parent state for filtering
                                     } else {
-                                      setSelectedLOBs([...selectedLOBs, lob.id]);
+                                      const newSelectedLOBs = [...dialogSelectedLOBs, lob.id];
+                                      setDialogSelectedLOBs(newSelectedLOBs);
+                                      setSelectedLOBs(newSelectedLOBs); // Update parent state for filtering
                                     }
                                   }}
                                 >
@@ -1010,12 +1021,12 @@ export function UserManagement() {
                                     <div
                                       className={cn(
                                         "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        selectedLOBs.includes(lob.id)
+                                        dialogSelectedLOBs.includes(lob.id)
                                           ? "bg-primary border-primary text-primary-foreground"
                                           : "border-input"
                                       )}
                                     >
-                                      {selectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
+                                      {dialogSelectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
                                     </div>
                                     {lob.name}
                                   </div>
@@ -1036,7 +1047,7 @@ export function UserManagement() {
                             role="combobox"
                             aria-expanded={openProcess}
                             className="w-full justify-between mt-1"
-                            disabled={selectedLOBs.length === 0}
+                            disabled={dialogSelectedLOBs.length === 0}
                           >
                             {form.watch("processes")?.length
                               ? `${form.watch("processes")?.length} selected`
