@@ -201,7 +201,7 @@ export function RolePermissions() {
       view_take_quiz: "View quizzes that can be taken",
       
       // Evaluation Forms
-      view_evaluation_form: "View evaluation form details",
+      view_evaluation_form: "Manage evaluation form",
       edit_evaluation_form: "Modify existing evaluation forms",
       delete_evaluation_form: "Remove evaluation forms",
       create_evaluation_form: "Create new evaluation forms",
