@@ -472,9 +472,34 @@ export function UserManagement() {
   const endIndex = startIndex + itemsPerPage;
   const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
+  // For hierarchy view, we need to determine which root users to show on the current page
+  const getRootUsersForCurrentPage = (usersToFilter: User[]) => {
+    // Get root users (users without managers)
+    const rootUsers = usersToFilter.filter(u => !u.managerId);
+    
+    // If we're showing the current user's hierarchy and they're not a root user, they become the "root" for display
+    if (user?.role !== 'owner' && user?.role !== 'admin' && user?.managerId) {
+      return [user];
+    }
+    
+    // Apply pagination to root users
+    return rootUsers.slice(startIndex, endIndex);
+  };
+
   // Page change handler
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
+    
+    // When changing pages, we may need to expand the appropriate managers
+    if (viewMode === 'hierarchy') {
+      // Reset expanded managers when changing pages
+      setExpandedManagers([]);
+      
+      // If the user is logged in, auto-expand their node
+      if (user?.id) {
+        setExpandedManagers([user.id]);
+      }
+    }
   };
 
   // Generate page numbers array
@@ -1324,41 +1349,16 @@ export function UserManagement() {
                       });
                     }
                     
-                    // If owner or admin, show the entire org hierarchy from root users
+                    // If owner or admin, show the org hierarchy from paginated root users
                     if (user?.role === 'owner' || user?.role === 'admin') {
-                      return hierarchyUsers
-                        .filter(u => !u.managerId) // Only root users (no manager)
-                        .map(rootUser => (
-                          <HierarchicalUserRow
-                            key={rootUser.id}
-                            user={rootUser}
-                            users={hierarchyUsers}
-                            level={0}
-                            expandedManagers={expandedManagers}
-                            toggleExpanded={toggleManagerExpanded}
-                            getManagerName={getManagerName}
-                            getLocationName={getLocationName}
-                            getProcessNames={getUserProcesses}
-                            canManageUsers={canManageUsers}
-                            canDeleteUsers={canDeleteUsers}
-                            editUserComponent={(user) => <EditUserDialog user={user} />}
-                            toggleUserStatus={toggleUserStatus}
-                            handleDeleteClick={handleDeleteClick}
-                            getFormattedReportingPath={getFormattedReportingPath}
-                          />
-                        ));
-                    } 
-                    // For managers and other roles, show only their own hierarchy
-                    else {
-                      // Ensure current user is in the filtered list for hierarchy
-                      if (!hierarchyUsers.some(u => u.id === user?.id)) {
-                        return <div className="p-4 text-center text-muted-foreground">No matching users in your team</div>;
-                      }
+                      // Apply pagination to root users
+                      const rootUsers = hierarchyUsers.filter(u => !u.managerId);
+                      const paginatedRootUsers = getRootUsersForCurrentPage(hierarchyUsers);
                       
-                      return (
+                      return paginatedRootUsers.map(rootUser => (
                         <HierarchicalUserRow
-                          key={user?.id}
-                          user={user as User}
+                          key={rootUser.id}
+                          user={rootUser}
                           users={hierarchyUsers}
                           level={0}
                           expandedManagers={expandedManagers}
@@ -1373,7 +1373,44 @@ export function UserManagement() {
                           handleDeleteClick={handleDeleteClick}
                           getFormattedReportingPath={getFormattedReportingPath}
                         />
-                      );
+                      ));
+                    } 
+                    // For managers and other roles, show only their own hierarchy
+                    else {
+                      // Here we're not paginating by root users since we're showing the current user's hierarchy
+                      // Ensure current user is in the filtered list for hierarchy
+                      if (!hierarchyUsers.some(u => u.id === user?.id)) {
+                        return <div className="p-4 text-center text-muted-foreground">No matching users in your team</div>;
+                      }
+                      
+                      // We still need to apply pagination to the filtered hierarchy
+                      // For non-admin users, there's effectively only one "root" (themselves)
+                      // So we just check if we're on the first page, since they should only appear there
+                      if (currentPage === 1) {
+                        return (
+                          <HierarchicalUserRow
+                            key={user?.id}
+                            user={user as User}
+                            users={hierarchyUsers}
+                            level={0}
+                            expandedManagers={expandedManagers}
+                            toggleExpanded={toggleManagerExpanded}
+                            getManagerName={getManagerName}
+                            getLocationName={getLocationName}
+                            getProcessNames={getUserProcesses}
+                            canManageUsers={canManageUsers}
+                            canDeleteUsers={canDeleteUsers}
+                            editUserComponent={(user) => <EditUserDialog user={user} />}
+                            toggleUserStatus={toggleUserStatus}
+                            handleDeleteClick={handleDeleteClick}
+                            getFormattedReportingPath={getFormattedReportingPath}
+                          />
+                        );
+                      } else {
+                        // Return empty on other pages since the user's hierarchy
+                        // only appears on the first page
+                        return <div className="p-4 text-center text-muted-foreground">No results on this page</div>;
+                      }
                     }
                   })()
                 )}
