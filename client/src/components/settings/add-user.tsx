@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -190,6 +190,10 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         description: "Users uploaded successfully",
       });
       setBulkUploadData([]);
+      // Reset file input after successful upload
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
     onError: (error: Error) => {
@@ -487,7 +491,12 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setBulkUploadData([])}
+                      onClick={() => {
+                        setBulkUploadData([]);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      }}
                     >
                       Clear
                     </Button>
