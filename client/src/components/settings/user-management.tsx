@@ -680,22 +680,31 @@ export function UserManagement() {
 
     // Initialize state when dialog opens
     useEffect(() => {
-      if (isDialogOpen && editUser.processes && editUser.processes.length > 0) {
-        console.log("Initializing LOB selection for user", editUser.username);
-        const lobIds = editUser.processes
-          .map(processId => {
-            const process = processes.find(p => p.id === processId);
-            return process?.lineOfBusinessId;
-          })
-          .filter((id): id is number => id !== undefined);
+      if (isDialogOpen) {
+        console.log("Dialog opened for user", editUser.username);
+        console.log("User processes:", editUser.processes);
+        console.log("Available processes:", processes);
+        
+        if (editUser.processes && editUser.processes.length > 0) {
+          console.log("Initializing LOB selection for user processes:", editUser.processes);
+          const lobIds = editUser.processes
+            .map(processId => {
+              const process = processes.find(p => p.id === processId);
+              console.log(`Looking for process ID ${processId}:`, process);
+              return process?.lineOfBusinessId;
+            })
+            .filter((id): id is number => id !== undefined);
 
-        const uniqueLobIds = [...new Set(lobIds)];
-        console.log("Found LOB IDs:", uniqueLobIds);
-        setDialogSelectedLOBs(uniqueLobIds);
-        // Also update the parent component's state to ensure proper filtering
-        setSelectedLOBs(uniqueLobIds);
+          const uniqueLobIds = [...new Set(lobIds)];
+          console.log("Found LOB IDs:", uniqueLobIds);
+          setDialogSelectedLOBs(uniqueLobIds);
+        } else {
+          // Reset selections if no processes
+          console.log("No processes found for user, resetting LOB selection");
+          setDialogSelectedLOBs([]);
+        }
       }
-    }, [isDialogOpen, editUser.processes, processes]);
+    }, [isDialogOpen, editUser, processes]);
 
     // Determine if the current user can edit this user
     // Only use permission system for consistency with other features
