@@ -2600,6 +2600,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getLineOfBusinessByName(name: string): Promise<{ id: number } | null> {
+    try {
+      const [lob] = await db
+        .select({ id: lineOfBusinesses.id })
+        .from(lineOfBusinesses)
+        .where(eq(lineOfBusinesses.name, name));
+      return lob || null;
+    } catch (error) {
+      console.error('Error getting line of business by name:', error);
+      throw error;
+    }
+  }
+
   async assignProcessToUser(userId: number, processId: number, lineOfBusinessId?: number): Promise<void> {
     try {
       // Get the organization ID for the user
