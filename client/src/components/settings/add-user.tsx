@@ -576,7 +576,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">
+                  Email <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -590,7 +592,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">
+                  Password <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="password"
                   type="password"
@@ -613,7 +617,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role">
+                  Role <span className="text-red-500">*</span>
+                </Label>
                 <select
                   id="role"
                   className="w-full rounded-md border border-input bg-background px-3 py-2"
@@ -781,7 +787,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="employeeId">Employee ID</Label>
+                <Label htmlFor="employeeId">
+                  Employee ID <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="employeeId"
                   value={newUserData.employeeId}
@@ -936,7 +944,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Label htmlFor="phoneNumber">
+                  Phone Number <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="phoneNumber"
                   value={newUserData.phoneNumber}
@@ -949,7 +959,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                <Label htmlFor="dateOfJoining">
+                  Date of Joining <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="dateOfJoining"
                   type="date"
