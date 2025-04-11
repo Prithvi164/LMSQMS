@@ -20,7 +20,6 @@ import { QuizResultsPage } from "@/pages/quiz-results";
 import { MyQuizzesPage } from "@/pages/my-quizzes";
 import MockCallScenarios from "@/pages/mock-call-scenarios";
 import EvaluationTemplates from "@/pages/evaluation-templates";
-import AudioFileManagement from "@/pages/audio-file-management";
 import AudioFileAllocation from "@/pages/audio-file-allocation";
 import AudioAssignmentDashboard from "@/pages/audio-assignment-dashboard";
 import ConductEvaluation from "@/pages/conduct-evaluation";
@@ -79,7 +78,6 @@ function Router() {
           <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
           <ProtectedRoute path="/conduct-evaluation" component={ConductEvaluation} /> 
           <ProtectedRoute path="/evaluation-feedback" component={EvaluationFeedback} />
-          <ProtectedRoute path="/audio-file-management" component={AudioFileManagement} />
           <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
           <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
           <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
