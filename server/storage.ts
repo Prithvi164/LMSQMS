@@ -1662,6 +1662,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
+    // Check for existing email
+    if (user.email) {
+      const existingUserWithEmail = await this.getUserByEmail(user.email);
+      if (existingUserWithEmail) {
+        throw new Error(`A user with email ${user.email} already exists`);
+      }
+    }
+    
     const [newUser] = await db.insert(users).values(user).returning() as User[];
     return newUser;
   }
@@ -1680,6 +1688,19 @@ export class DatabaseStorage implements IStorage {
 
         if (existingUser) {
           throw new Error('Username already exists. Please choose a different username.');
+        }
+      }
+      
+      // Check if email is being updated and if it would conflict
+      if (user.email) {
+        const existingUserWithEmail = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, user.email))
+          .then(results => results.find(u => u.id !== id));
+
+        if (existingUserWithEmail) {
+          throw new Error('Email already exists. Please choose a different email address.');
         }
       }
 

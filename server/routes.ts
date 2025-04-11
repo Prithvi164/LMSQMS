@@ -242,6 +242,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", async (req, res, next) => {
     try {
       const { username, password, organizationName, ...userData } = req.body;
+      
+      // Check if username already exists
+      const existingUserByUsername = await storage.getUserByUsername(username);
+      if (existingUserByUsername) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Check if email already exists
+      if (userData.email) {
+        const existingUserByEmail = await storage.getUserByEmail(userData.email);
+        if (existingUserByEmail) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
+      }
 
       // Check if organization exists
       let organization = await storage.getOrganizationByName(organizationName);
