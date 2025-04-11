@@ -574,11 +574,6 @@ export function UserManagement() {
   const filteredProcesses = processes.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
   );
-  
-  // Dialog-specific filteredProcesses for the edit user dialog
-  const dialogFilteredProcesses = processes.filter(process =>
-    dialogSelectedLOBs.includes(process.lineOfBusinessId)
-  );
 
   // Helper function to handle delete confirmation
   const handleDeleteConfirm = async () => {
@@ -658,6 +653,11 @@ export function UserManagement() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     // Local selectedLOBs state for this specific dialog instance
     const [dialogSelectedLOBs, setDialogSelectedLOBs] = useState<number[]>([]);
+    
+    // Dialog-specific filteredProcesses for the edit user dialog
+    const dialogFilteredProcesses = processes.filter(process =>
+      dialogSelectedLOBs.includes(process.lineOfBusinessId)
+    );
 
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
