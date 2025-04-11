@@ -222,6 +222,14 @@ export function RolePermissions() {
     return descriptions[permission] || permission.replace(/_/g, " ");
   };
 
+  // Get custom display name for permission
+  const getPermissionDisplayName = (permission: string) => {
+    const displayNames: Record<string, string> = {
+      view_evaluation_form: "Manage Evaluation Form",
+    };
+    return displayNames[permission] || permission.replace(/_/g, " ");
+  };
+
   const getPermissionIcon = (permission: string) => {
     if (permission.startsWith('view_')) return <Info className="h-4 w-4 text-blue-500" />;
     if (permission.startsWith('manage_')) return <Settings className="h-4 w-4 text-purple-500" />;
@@ -543,7 +551,7 @@ export function RolePermissions() {
                               {getPermissionIcon(permission)}
                               <div>
                                 <p className="text-sm capitalize">
-                                  {permission.replace(/_/g, " ")}
+                                  {getPermissionDisplayName(permission)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {getPermissionDescription(permission)}
