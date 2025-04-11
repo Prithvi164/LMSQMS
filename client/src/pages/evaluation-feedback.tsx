@@ -13,6 +13,7 @@ import { Loader2, ClipboardList, Eye, Check, X } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { usePermissions } from '@/hooks/use-permissions';
 
 // Define types for evaluation data
 type EvaluationParameter = {
@@ -77,7 +78,7 @@ type FeedbackItem = {
   reportingHeadResponse?: string;
 };
 
-export default function EvaluationFeedbackPage() {
+function EvaluationFeedbackPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('pending');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -506,3 +507,26 @@ export default function EvaluationFeedbackPage() {
     </div>
   );
 }
+
+// Permission guard wrapper
+const PermissionGuardedEvaluationFeedback = () => {
+  const { hasPermission } = usePermissions();
+  
+  if (!hasPermission('manage_evaluation_feedback')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
+        <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
+        <p className="text-muted-foreground mb-4">
+          You do not have permission to access the Evaluation Feedback section.
+        </p>
+        <Button asChild variant="outline">
+          <a href="/">Return to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+  
+  return <EvaluationFeedbackPage />;
+};
+
+export default PermissionGuardedEvaluationFeedback;

@@ -22,8 +22,8 @@ import MockCallScenarios from "@/pages/mock-call-scenarios";
 import EvaluationTemplates from "@/pages/evaluation-templates";
 import AudioFileAllocation from "@/pages/audio-file-allocation";
 import AudioAssignmentDashboard from "@/pages/audio-assignment-dashboard";
-import ConductEvaluation from "@/pages/conduct-evaluation";
-import EvaluationFeedback from "@/pages/evaluation-feedback";
+import PermissionGuardedConductEvaluation from "@/pages/conduct-evaluation";
+import PermissionGuardedEvaluationFeedback from "@/pages/evaluation-feedback";
 import AzureStorageBrowser from "@/pages/azure-storage-browser";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
@@ -76,8 +76,8 @@ function Router() {
           <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
           <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
           <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
-          <ProtectedRoute path="/conduct-evaluation" component={ConductEvaluation} /> 
-          <ProtectedRoute path="/evaluation-feedback" component={EvaluationFeedback} />
+          <ProtectedRoute path="/conduct-evaluation" component={PermissionGuardedConductEvaluation} /> 
+          <ProtectedRoute path="/evaluation-feedback" component={PermissionGuardedEvaluationFeedback} />
           <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
           <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
           <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />

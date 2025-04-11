@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -48,7 +49,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export default function ConductEvaluation() {
+function ConductEvaluation() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1867,3 +1868,26 @@ export default function ConductEvaluation() {
     </div>
   );
 }
+
+// Permission guard wrapper
+const PermissionGuardedConductEvaluation = () => {
+  const { hasPermission } = usePermissions();
+  
+  if (!hasPermission('manage_conduct_form')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
+        <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
+        <p className="text-muted-foreground mb-4">
+          You do not have permission to access the Conduct Evaluation section.
+        </p>
+        <Button asChild variant="outline">
+          <a href="/">Return to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+  
+  return <ConductEvaluation />;
+};
+
+export default PermissionGuardedConductEvaluation;
