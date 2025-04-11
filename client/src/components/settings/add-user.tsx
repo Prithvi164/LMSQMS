@@ -301,8 +301,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfJoining: "2023-01-15", // yyyy-MM-dd format
         dateOfBirth: "1990-05-20", // yyyy-MM-dd format
         education: "Bachelor's in Business",
-        lineOfBusiness: "Sales", // Must match existing LOB name in the system
-        process: "Lead Generation, Customer Support" // Multiple processes separated by commas
+        lineOfBusiness: "", // No need to specify - will be determined automatically from processes
+        process: "Lead Generation, Customer Support, Technical Support" // Multiple processes separated by commas
       }
     ];
     
@@ -323,8 +323,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Field: "dateOfJoining", Description: "Date of joining in YYYY-MM-DD format (optional)", Example: "2023-01-15" },
       { Field: "dateOfBirth", Description: "Date of birth in YYYY-MM-DD format (optional)", Example: "1990-05-20" },
       { Field: "education", Description: "Educational background (optional)", Example: "Bachelor's in Business" },
-      { Field: "lineOfBusiness", Description: "Line of Business name (must match existing LOB in the system)", Example: "Sales" },
-      { Field: "process", Description: "Process name(s). For multiple processes, separate with commas. Each process must match existing process names in the system.", Example: "Lead Generation, Customer Support" }
+      { Field: "lineOfBusiness", Description: "Leave empty - this field is now automatically determined from the processes assigned to the user", Example: "Leave empty" },
+      { Field: "process", Description: "Process name(s). For multiple processes, separate with commas. Each process must match existing process names in the system. The system will automatically assign the appropriate Line of Business for each process.", Example: "Lead Generation, Customer Support, Technical Support" }
     ];
     
     const fieldInfoSheet = XLSX.utils.json_to_sheet(fieldInfo);
@@ -462,6 +462,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     <span className="text-green-600 dark:text-green-400">Example: "Lead Generation, Customer Support, Technical Support"</span>
                   </div>
                   <p className="text-muted-foreground">Make sure each process name matches exactly with a process in the system. All processes must be valid for the user to be created.</p>
+                  <p className="text-muted-foreground mt-2"><strong>Note:</strong> You no longer need to specify Line of Business in the template. The system will automatically map each process to its correct Line of Business.</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
