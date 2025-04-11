@@ -291,7 +291,8 @@ export interface IStorage {
   // Helper methods for bulk upload
   getLocationByName(name: string): Promise<{ id: number } | null>;
   getProcessByName(name: string): Promise<{ id: number } | null>;
-  assignProcessToUser(userId: number, processId: number): Promise<void>;
+  getLineOfBusinessByName(name: string): Promise<{ id: number } | null>;
+  assignProcessToUser(userId: number, processId: number, lineOfBusinessId?: number): Promise<void>;
 
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;

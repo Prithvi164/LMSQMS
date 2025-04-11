@@ -1929,29 +1929,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
             onboardingCompleted: true,
           });
 
-          // Find line of business by name if provided
-          let lineOfBusinessId = null;
-          if (userData.lineOfBusiness) {
+          // Process comma-separated lines of business and processes
+          if (userData.lineOfBusiness && userData.process) {
+            console.log(`Processing LOBs and processes for user ${userData.username}`);
+            console.log(`LOBs: ${userData.lineOfBusiness}`);
+            console.log(`Processes: ${userData.process}`);
+            
+            // Split LOBs and processes by comma and trim whitespace
+            const lineOfBusinesses = userData.lineOfBusiness.split(',').map(lob => lob.trim()).filter(Boolean);
+            const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
+            
+            console.log(`Found ${lineOfBusinesses.length} LOBs and ${processes.length} processes`);
+            
+            // For each process, find the corresponding LOB (if available) and assign
+            for (let i = 0; i < processes.length; i++) {
+              const processName = processes[i];
+              // Use the matching LOB if available, otherwise use the first LOB
+              const lobName = (i < lineOfBusinesses.length) ? lineOfBusinesses[i] : lineOfBusinesses[0];
+              
+              console.log(`Assigning process "${processName}" with LOB "${lobName}" to user ${userData.username}`);
+              
+              // Find the process
+              const process = await storage.getProcessByName(processName);
+              if (!process) {
+                throw new Error(`Process "${processName}" not found`);
+              }
+              
+              // Find the LOB
+              const lob = await storage.getLineOfBusinessByName(lobName);
+              if (!lob) {
+                throw new Error(`Line of Business "${lobName}" not found`);
+              }
+              
+              // Assign the process to the user with the specified LOB
+              await storage.assignProcessToUser(newUser.id, process.id, lob.id);
+            }
+          } else if (userData.lineOfBusiness) {
+            // Legacy support for single LOB without process
             const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
             if (!lob) {
               throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
             }
-            lineOfBusinessId = lob.id;
-          }
-
-          // Handle multiple processes (comma-separated)
-          if (userData.process) {
-            console.log(`Processing processes for user ${userData.username}: ${userData.process}`);
-            // Split processes by comma and trim whitespace
+          } else if (userData.process) {
+            // Legacy support for single process without LOB
             const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
             
             for (const processName of processes) {
-              console.log(`Assigning process ${processName} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
+              console.log(`Assigning process ${processName} to user ${userData.username} without LOB`);
               const process = await storage.getProcessByName(processName);
               if (!process) {
                 throw new Error(`Process ${processName} not found`);
               }
-              await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
+              await storage.assignProcessToUser(newUser.id, process.id, null);
             }
           }
         }
