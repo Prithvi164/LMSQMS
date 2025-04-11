@@ -310,7 +310,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfJoining: "2023-01-15", // yyyy-MM-dd format
         dateOfBirth: "1990-05-20", // yyyy-MM-dd format
         education: "Bachelor's in Business",
-        lineOfBusiness: "", // No need to specify - will be determined automatically from processes
         process: "Lead Generation, Customer Support, Technical Support" // Multiple processes separated by commas
       }
     ];
@@ -332,7 +331,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       { Field: "dateOfJoining", Description: "Date of joining in YYYY-MM-DD format (optional)", Example: "2023-01-15" },
       { Field: "dateOfBirth", Description: "Date of birth in YYYY-MM-DD format (optional)", Example: "1990-05-20" },
       { Field: "education", Description: "Educational background (optional)", Example: "Bachelor's in Business" },
-      { Field: "lineOfBusiness", Description: "Leave empty - this field is now automatically determined from the processes assigned to the user", Example: "Leave empty" },
       { Field: "process", Description: "Process name(s). For multiple processes, separate with commas. Each process must match existing process names in the system. The system will automatically assign the appropriate Line of Business for each process.", Example: "Lead Generation, Customer Support, Technical Support" }
     ];
     
@@ -540,7 +538,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Location</TableHead>
-                        <TableHead>Line of Business</TableHead>
                         <TableHead>Process</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -552,7 +549,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.role}</TableCell>
                           <TableCell>{user.location}</TableCell>
-                          <TableCell>{user.lineOfBusiness}</TableCell>
                           <TableCell>
                             {user.process?.split(',').map((proc, idx) => (
                               <Badge key={idx} variant="outline" className="mr-1 my-0.5">
