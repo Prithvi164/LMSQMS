@@ -2125,9 +2125,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Only owners and admins can delete users
-      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
-        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+      // Check if user has manage_users permission (which includes delete capability)
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      
+      if (!userPermissions.includes('manage_users')) {
+        console.log(`Delete request rejected: User ${req.user.id} lacks 'manage_users' permission`);
         return res.status(403).json({ 
           success: false, 
           message: "Insufficient permissions to delete users" 
