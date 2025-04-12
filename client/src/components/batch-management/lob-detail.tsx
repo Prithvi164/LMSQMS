@@ -90,6 +90,14 @@ export function LobDetail() {
   // Proper permission check - owners always have access, but all other roles 
   // (including admin) must have the specific permission
   const effectivePermission = isOwner || canManageLineOfBusiness;
+  
+  // Debug logging for permission status
+  console.log('LOB Detail Component - Permission Check:', {
+    role: user?.role,
+    hasManageLineOfBusinessPermission: canManageLineOfBusiness,
+    isOwner,
+    effectivePermission
+  });
 
   // First fetch organization
   const { data: organization } = useQuery({
@@ -320,22 +328,28 @@ export function LobDetail() {
                   className="pl-9 w-[250px] focus:border-purple-500"
                 />
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={() => setIsCreateDialogOpen(true)}
-                      disabled={!effectivePermission}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New LOB
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>{effectivePermission ? 'Add a new line of business' : 'You do not have permission to add a line of business'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {effectivePermission ? (
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New LOB
+                </Button>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button disabled>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New LOB
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>You do not have permission to add a line of business</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </div>
 
@@ -360,25 +374,36 @@ export function LobDetail() {
                         <TableCell>{lob.description}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(lob)}
-                                    className="h-7 w-7 p-0 text-blue-600"
-                                    disabled={!effectivePermission}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Edit LOB</span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  <p>{effectivePermission ? 'Edit Line of Business' : 'You do not have permission to edit a line of business'}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            {effectivePermission ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(lob)}
+                                className="h-7 w-7 p-0 text-blue-600"
+                              >
+                                <Edit className="h-4 w-4" />
+                                <span className="sr-only">Edit LOB</span>
+                              </Button>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 p-0 text-blue-600/30"
+                                      disabled
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                      <span className="sr-only">Edit LOB</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p>You do not have permission to edit a line of business</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                               
                             <TooltipProvider>
                               <Tooltip>
