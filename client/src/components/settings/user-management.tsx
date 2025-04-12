@@ -711,13 +711,26 @@ export function UserManagement() {
     }
 
     return (
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           <Button variant="outline" size="icon" onClick={() => setIsDialogOpen(true)}>
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent 
+          className="max-w-2xl max-h-[90vh] flex flex-col" 
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            // Prevent closing when interacting with Popover elements
+            if (e.target && (
+              (e.target as HTMLElement).closest('[role="combobox"]') || 
+              (e.target as HTMLElement).closest('[role="dialog"]') ||
+              (e.target as HTMLElement).closest('[cmdk-input=""]')
+            )) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
