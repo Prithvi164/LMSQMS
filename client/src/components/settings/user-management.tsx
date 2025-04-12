@@ -50,6 +50,7 @@ import {
   getFormattedReportingPath
 } from "@/lib/hierarchy-utils";
 import { HierarchicalUserRow } from "./hierarchical-user-row";
+import { EditUserModal } from "./edit-user-modal";
 
 // Extend the insertUserSchema for the edit form
 // Using more explicit transformation to handle form values
@@ -664,96 +665,32 @@ export function UserManagement() {
     defaultValues: { confirmText: "" },
   });
 
-  // Create EditUserDialog component
-  // Completely redesigned EditUserDialog component to be more robust
-  const EditUserDialog = ({ user: editUser }: { user: User }) => {
-    // Create internal state only when the dialog is actually opened
-    // to avoid any issues with the form initialization
-    const [internalState, setInternalState] = useState({
-      isOpen: false,
-      isFormReady: false,
-      openLOB: false,
-      openProcess: false,
-      selectedLOBs: [] as number[],
-      selectedProcesses: [] as number[]
-    });
-
-    // Safe string conversion helper 
-    const safeString = (value: any): string => {
-      if (value === null || value === undefined) return "";
-      return String(value);
-    };
+  // Edit user button with our new modal component
+  const EditUserButton = ({ user: editUser }: { user: User }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
     
-    // Create a simplified form without all the default values initially
-    // We'll set them properly once the dialog is open
-    const form = useForm<UserFormData>({
-      resolver: zodResolver(editUserSchema),
-      defaultValues: {
-        username: "",
-        email: "",
-        role: "advisor",
-        processes: []
-      }
-    });
-    
-    // Safe function to load processes when the dialog opens
-    const loadUserProcesses = useCallback(() => {
-      try {
-        if (!userProcesses) return;
-        
-        // Check if user has processes and safely access them
-        const userProcessList = userProcesses[editUser.id as keyof typeof userProcesses] || [];
-        if (!Array.isArray(userProcessList)) return;
-        
-        // Extract process IDs 
-        const processIds = userProcessList
-          .map((p: any) => p.processId)
-          .filter(Boolean);
-        
-        // Update form with these processes
-        form.setValue("processes", processIds);
-        
-        // Extract LOBs from these processes
-        const lobIds = userProcessList
-          .map((p: any) => {
-            const process = processes.find(proc => proc.id === p.processId);
-            return process?.lineOfBusinessId;
-          })
-          .filter(Boolean);
-        
-        // Filter out undefined values and convert to numbers array
-        const validLobIds = lobIds.filter((id): id is number => typeof id === 'number');
-        
-        // Use the internal state setter
-        setInternalState(prev => ({
-          ...prev,
-          selectedLOBs: Array.from(new Set(validLobIds))
-        }));
-        console.log('Loaded processes:', processIds);
-        console.log('Loaded LOBs:', Array.from(new Set(validLobIds)));
-      } catch (error) {
-        console.error('Error loading user processes:', error);
-        // If there's an error, don't let it crash the component
-      }
-    }, [editUser.id, userProcesses, processes, form]);
-    
-    // Trigger process loading when dialog opens
-    useEffect(() => {
-      if (internalState.isOpen) {
-        loadUserProcesses();
-      }
-    }, [internalState.isOpen, loadUserProcesses]);
-
     // Determine if the current user can edit this user
-    // Only use permission system for consistency with other features
     const hasEditPermission = hasPermission("edit_users");
     
-    // Check if the target user is an admin or owner - these should only be editable by higher roles
+    // Check if the target user is admin/owner - should only be editable by higher roles
     const isTargetProtected = editUser.role === "admin" || editUser.role === "owner";
     const canLowerRoleEdit = !isTargetProtected || user?.role === "owner";
     
     const canEdit = hasEditPermission && canLowerRoleEdit;
-
+    
+    // Handle the save operation for the user
+    const handleSaveUser = async (userId: number, data: any) => {
+      try {
+        await updateUserMutation.mutateAsync({
+          id: userId,
+          data: data
+        });
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error('Error updating user:', error);
+      }
+    }
+    
     if (!canEdit) {
       return (
         <Button variant="outline" size="icon" disabled title="You don't have permission to edit this user">
@@ -761,502 +698,31 @@ export function UserManagement() {
         </Button>
       );
     }
-
+    
     return (
-      <Dialog 
-        open={internalState.isOpen} 
-        onOpenChange={(open) => {
-          // Track all opening/closing attempts
-          console.log(`Dialog open changed to: ${open}`);
-          
-          // Only allow explicit closing through the close button or submission
-          if (!open) {
-            console.log("Dialog close attempt - using internal state setter");
-            setInternalState(prev => ({...prev, isOpen: false}));
-            return;
-          }
-          
-          // When opening, set the state
-          setInternalState(prev => ({...prev, isOpen: true}));
-        }}>
-        <DialogTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log("Edit button clicked");
-              setInternalState(prev => ({...prev, isOpen: true}));
-              
-              // Initialize form with current values when opening
-              form.reset({
-                username: safeString(editUser.username),
-                fullName: safeString(editUser.fullName),
-                email: safeString(editUser.email),
-                employeeId: safeString(editUser.employeeId),
-                role: editUser.role,
-                phoneNumber: safeString(editUser.phoneNumber),
-                locationId: editUser.locationId ? String(editUser.locationId) : "none",
-                managerId: editUser.managerId ? String(editUser.managerId) : "none",
-                dateOfJoining: safeString(editUser.dateOfJoining),
-                dateOfBirth: safeString(editUser.dateOfBirth),
-                education: safeString(editUser.education),
-                category: editUser.category || "active",
-                processes: [],
-              });
-            }}>
-            <Edit2 className="h-4 w-4" />
-          </Button>
-        </DialogTrigger>
-        <DialogContent 
-          className="max-w-2xl max-h-[90vh] flex flex-col" 
-          onInteractOutside={(e) => {
-            console.log("Dialog interaction outside prevented");
-            e.preventDefault();
-          }}
-          onEscapeKeyDown={(e) => {
-            console.log("Escape key prevented");
-            e.preventDefault();
-          }}
-          onPointerDownOutside={(e) => {
-            console.log("Pointer down outside prevented");
-            e.preventDefault();
-          }}>
-          <DialogHeader className="flex flex-row items-center justify-between">
-            <div>
-              <DialogTitle>Edit User</DialogTitle>
-              <DialogDescription>
-                Update information for {editUser.username}
-              </DialogDescription>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log("Explicit close button clicked");
-                setInternalState(prev => ({...prev, isOpen: false}));
-              }}
-              type="button"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto pr-2">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(async (formData) => {
-                try {
-                  // Safely cast the form data to our expected type
-                  const data = formData as unknown as {
-                    username: string,
-                    fullName: string,
-                    email: string,
-                    employeeId: string,
-                    phoneNumber: string,
-                    role: string,
-                    dateOfBirth: string,
-                    dateOfJoining: string,
-                    education: string,
-                    category: string,
-                    locationId: string,
-                    managerId: string,
-                    processes: number[]
-                  };
-                  
-                  // Clean up the data before submission
-                  // Ensure proper type conversion for form data
-                  const locationId = data.locationId === "none" ? null : 
-                    typeof data.locationId === 'string' ? parseInt(data.locationId) : data.locationId;
-                  
-                  const managerId = data.managerId === "none" ? null : 
-                    typeof data.managerId === 'string' ? parseInt(data.managerId) : data.managerId;
-                  
-                  const cleanedData = {
-                    ...data,
-                    locationId,
-                    managerId,
-                    processes: Array.isArray(data.processes) ? data.processes : [],
-                  };
-
-                  await updateUserMutation.mutateAsync({
-                    id: editUser.id,
-                    data: cleanedData
-                  });
-                  // Close dialog on successful submission
-                  setInternalState(prev => ({...prev, isOpen: false}));
-                } catch (error) {
-                  console.error('Error updating user:', error);
-                }
-              })} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="fullName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="email"
-                            disabled={editUser.role === "owner"}
-                            className={editUser.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
-                          />
-                        </FormControl>
-                        {editUser.role === "owner" && (
-                          <p className="text-sm text-muted-foreground">
-                            Email cannot be changed for owner accounts
-                          </p>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="employeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employee ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select
-                          disabled={editUser.role === "owner"}
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="manager">Manager</SelectItem>
-                            <SelectItem value="team_lead">Team Lead</SelectItem>
-                            <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
-                            <SelectItem value="trainer">Trainer</SelectItem>
-                            <SelectItem value="advisor">Advisor</SelectItem>
-                            <SelectItem value="trainee">Trainee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {editUser.role === "owner" && (
-                          <p className="text-sm text-muted-foreground">
-                            Role cannot be changed for owner accounts
-                          </p>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="locationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a location" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No Location</SelectItem>
-                            {locations?.map((location) => (
-                              <SelectItem key={location.id} value={location.id.toString()}>
-                                {location.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="managerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Manager</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a manager" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No Manager</SelectItem>
-                            {users
-                              .filter(u => u.id !== editUser.id && u.active) // Can't assign self as manager
-                              .map(manager => (
-                                <SelectItem key={manager.id} value={manager.id.toString()}>
-                                  {manager.fullName || manager.username}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dateOfJoining"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Joining</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dateOfBirth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Birth</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="education"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Education</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="trainee">Trainee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Processes</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-normal">Line of Business</Label>
-                      <Popover open={openLOB} onOpenChange={setOpenLOB}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openLOB}
-                            className="w-full justify-between mt-1"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent event from bubbling up to dialog
-                            }}
-                          >
-                            {selectedLOBs.length > 0
-                              ? `${selectedLOBs.length} selected`
-                              : "Select line of business..."}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()} onInteractOutside={(e) => e.preventDefault()}>
-                          <Command>
-                            <CommandInput placeholder="Search line of business..." />
-                            <CommandEmpty>No line of business found.</CommandEmpty>
-                            <CommandGroup className="max-h-60 overflow-y-auto">
-                              {lineOfBusinesses.map((lob) => (
-                                <CommandItem
-                                  key={lob.id}
-                                  value={lob.name}
-                                  onSelect={() => {
-                                    const isSelected = selectedLOBs.includes(lob.id);
-                                    if (isSelected) {
-                                      setSelectedLOBs(selectedLOBs.filter(id => id !== lob.id));
-                                    } else {
-                                      setSelectedLOBs([...selectedLOBs, lob.id]);
-                                    }
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={cn(
-                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        selectedLOBs.includes(lob.id)
-                                          ? "bg-primary border-primary text-primary-foreground"
-                                          : "border-input"
-                                      )}
-                                    >
-                                      {selectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
-                                    </div>
-                                    {lob.name}
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-normal">Processes</Label>
-                      <Popover open={openProcess} onOpenChange={setOpenProcess}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openProcess}
-                            className="w-full justify-between mt-1"
-                            disabled={selectedLOBs.length === 0}
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent event from bubbling up to dialog
-                            }}
-                          >
-                            {form.watch("processes")?.length
-                              ? `${form.watch("processes")?.length} selected`
-                              : "Select processes..."}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()} onInteractOutside={(e) => e.preventDefault()}>
-                          <Command>
-                            <CommandInput placeholder="Search processes..." />
-                            <CommandEmpty>No processes found.</CommandEmpty>
-                            <CommandGroup className="max-h-60 overflow-y-auto">
-                              {filteredProcesses.map((process) => (
-                                <CommandItem
-                                  key={process.id}
-                                  value={process.name}
-                                  onSelect={() => {
-                                    const currentProcesses = form.getValues("processes") || [];
-                                    const isSelected = currentProcesses.includes(process.id);
-                                    if (isSelected) {
-                                      form.setValue(
-                                        "processes",
-                                        currentProcesses.filter(id => id !== process.id)
-                                      );
-                                    } else {
-                                      form.setValue("processes", [...currentProcesses, process.id]);
-                                    }
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={cn(
-                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        form.watch("processes")?.includes(process.id)
-                                          ? "bg-primary border-primary text-primary-foreground"
-                                          : "border-input"
-                                      )}
-                                    >
-                                      {form.watch("processes")?.includes(process.id) && (
-                                        <Check className="h-3 w-3" />
-                                      )}
-                                    </div>
-                                    {process.name}
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Save Changes</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <Edit2 className="h-4 w-4" />
+        </Button>
+        
+        {isModalOpen && (
+          <EditUserModal
+            user={editUser}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSaveUser}
+            locations={locations || []}
+            users={users}
+            lineOfBusinesses={lineOfBusinesses || []}
+            processes={processes || []}
+            userProcesses={userProcesses || {}}
+          />
+        )}
+      </>
     );
   };
 
@@ -1508,7 +974,7 @@ export function UserManagement() {
                       {canManageUsers && (
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <EditUserDialog user={user} />
+                            <EditUserButton user={user} />
                             {user.role !== "owner" && (
                               <Button
                                 variant="outline"
@@ -1593,7 +1059,7 @@ export function UserManagement() {
                           getProcessNames={getUserProcesses}
                           canManageUsers={canManageUsers}
                           canDeleteUsers={canDeleteUsers}
-                          editUserComponent={(user) => <EditUserDialog user={user} />}
+                          editUserComponent={(user) => <EditUserButton user={user} />}
                           toggleUserStatus={toggleUserStatus}
                           handleDeleteClick={handleDeleteClick}
                           getFormattedReportingPath={getFormattedReportingPath}
@@ -1625,7 +1091,7 @@ export function UserManagement() {
                             getProcessNames={getUserProcesses}
                             canManageUsers={canManageUsers}
                             canDeleteUsers={canDeleteUsers}
-                            editUserComponent={(user) => <EditUserDialog user={user} />}
+                            editUserComponent={(user) => <EditUserButton user={user} />}
                             toggleUserStatus={toggleUserStatus}
                             handleDeleteClick={handleDeleteClick}
                             getFormattedReportingPath={getFormattedReportingPath}
