@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { User, OrganizationLocation, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
