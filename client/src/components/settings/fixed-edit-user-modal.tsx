@@ -385,7 +385,6 @@ export function FixedEditUserModal({
                             <SelectItem 
                               key={location.id} 
                               value={location.id.toString()}
-                              onMouseDown={(e) => e.stopPropagation()}
                             >
                               {location.name}
                             </SelectItem>
@@ -416,10 +415,7 @@ export function FixedEditUserModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent position="popper">
-                          <SelectItem 
-                            value="none"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="none">
                             No Manager
                           </SelectItem>
                           {users
@@ -428,7 +424,6 @@ export function FixedEditUserModal({
                               <SelectItem 
                                 key={manager.id} 
                                 value={manager.id.toString()}
-                                onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {manager.fullName || manager.username}
                               </SelectItem>
@@ -504,16 +499,10 @@ export function FixedEditUserModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent position="popper">
-                          <SelectItem 
-                            value="active"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="active">
                             Active
                           </SelectItem>
-                          <SelectItem 
-                            value="trainee"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="trainee">
                             Trainee
                           </SelectItem>
                         </SelectContent>
@@ -575,7 +564,6 @@ export function FixedEditUserModal({
                                     setSelectedLOBs([...selectedLOBs, lob.id]);
                                   }
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center gap-2">
                                   <div
@@ -654,7 +642,7 @@ export function FixedEditUserModal({
                                       );
                                     }
                                   }}
-                                  onMouseDown={(e) => e.stopPropagation()}
+
                                 >
                                   <div className="flex items-center gap-2">
                                     <div
