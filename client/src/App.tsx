@@ -18,6 +18,7 @@ import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
 import { MyQuizzesPage } from "@/pages/my-quizzes";
+import FixHolidayPermissions from "@/pages/fix-holiday-permissions";
 import MockCallScenarios from "@/pages/mock-call-scenarios";
 import EvaluationTemplates from "@/pages/evaluation-templates";
 import AudioFileAllocation from "@/pages/audio-file-allocation";
@@ -81,6 +82,7 @@ function Router() {
           <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
           <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
           <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
+          <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />
           <Route component={NotFound} />
         </Switch>
       </main>
