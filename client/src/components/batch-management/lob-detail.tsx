@@ -328,27 +328,13 @@ export function LobDetail() {
                   className="pl-9 w-[250px] focus:border-purple-500"
                 />
               </div>
-              {effectivePermission ? (
+              {effectivePermission && (
                 <Button
                   onClick={() => setIsCreateDialogOpen(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add New LOB
                 </Button>
-              ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button disabled>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add New LOB
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p>You do not have permission to add a line of business</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               )}
             </div>
           </div>
@@ -374,56 +360,38 @@ export function LobDetail() {
                         <TableCell>{lob.description}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            {effectivePermission ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEdit(lob)}
-                                className="h-7 w-7 p-0 text-blue-600"
-                              >
-                                <Edit className="h-4 w-4" />
-                                <span className="sr-only">Edit LOB</span>
-                              </Button>
-                            ) : (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 p-0 text-blue-600/30"
-                                      disabled
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                      <span className="sr-only">Edit LOB</span>
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    <p>You do not have permission to edit a line of business</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                            {effectivePermission && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEdit(lob)}
+                                  className="h-7 w-7 p-0 text-blue-600"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  <span className="sr-only">Edit LOB</span>
+                                </Button>
+                                
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDelete(lob)}
+                                        className="h-7 w-7 p-0 text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Delete LOB</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p>Delete Line of Business</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
                             )}
-                              
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDelete(lob)}
-                                    className="h-7 w-7 p-0 text-destructive"
-                                    disabled={!effectivePermission}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete LOB</span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  <p>{effectivePermission ? 'Delete Line of Business' : 'You do not have permission to delete a line of business'}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
