@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { SiReact } from "react-icons/si";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,6 +79,17 @@ export function LobDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  
+  // Check if user has permission to manage line of business
+  const canManageLineOfBusiness = hasPermission("manage_lineofbusiness");
+  
+  // For owners, we want to override any permission check
+  const isOwner = user?.role === 'owner';
+  
+  // Proper permission check - owners always have access, but all other roles 
+  // (including admin) must have the specific permission
+  const effectivePermission = isOwner || canManageLineOfBusiness;
 
   // First fetch organization
   const { data: organization } = useQuery({
@@ -136,6 +148,10 @@ export function LobDetail() {
 
   const createLobMutation = useMutation({
     mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
+      if (!effectivePermission) {
+        throw new Error('You do not have permission to create a line of business');
+      }
+      
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses`, {
         method: 'POST',
         headers: {
@@ -171,6 +187,10 @@ export function LobDetail() {
 
   const updateLobMutation = useMutation({
     mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
+      if (!effectivePermission) {
+        throw new Error('You do not have permission to update a line of business');
+      }
+      
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses/${selectedLob.id}`, {
         method: 'PATCH',
         headers: {

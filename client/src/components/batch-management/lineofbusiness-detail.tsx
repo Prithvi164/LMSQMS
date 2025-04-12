@@ -71,7 +71,8 @@ export function LineOfBusinessDetail() {
   // For owners, we want to override any permission check
   const isOwner = user?.role === 'owner';
   
-  // Simple permission check - owners always have access, others need the specific permission
+  // Proper permission check - owners always have access, but all other roles 
+  // (including admin) must have the specific permission
   const effectivePermission = isOwner || canManageLineOfBusiness;
 
   // Fetch organization with optimized caching
