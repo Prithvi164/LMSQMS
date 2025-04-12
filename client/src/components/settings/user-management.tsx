@@ -651,6 +651,14 @@ export function UserManagement() {
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+    // Prevent closing the dialog when interacting with nested components
+    const handleOpenChange = (open: boolean) => {
+      // Only allow explicitly setting to true or closing via ESC key
+      if (open || typeof event === 'undefined' || event?.type === 'keydown') {
+        setIsDialogOpen(open);
+      }
+    };
+
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
