@@ -177,12 +177,12 @@ export function RolePermissions() {
   const getPermissionDescription = (permission: string) => {
     const descriptions: Record<string, string> = {
       // User Management
-      manage_users: "Create, edit, and delete user accounts",
+      manage_users: "Full user management including delete access",
       view_users: "View user profiles and information",
       edit_users: "Modify user account details",
-      delete_users: "Remove user accounts",
+      delete_users: "Legacy: use manage_users instead", // Kept for backward compatibility
       upload_users: "Bulk import user data",
-      add_users: "Create new user accounts",
+      add_users: "Create new user accounts", // Independent from manage_users
       
       // Organization Settings
       view_organization: "View organization structure and settings",
