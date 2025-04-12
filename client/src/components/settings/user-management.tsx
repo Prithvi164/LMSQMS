@@ -52,14 +52,24 @@ import {
 import { HierarchicalUserRow } from "./hierarchical-user-row";
 
 // Extend the insertUserSchema for the edit form
+// Using more explicit transformation to handle form values
 const editUserSchema = insertUserSchema.extend({
-  locationId: z.string().optional(),
-  managerId: z.string().optional(),
-  dateOfJoining: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  education: z.string().optional(),
-  category: z.string(),
-  processes: z.array(z.number()).optional(),
+  // Handle string IDs for select fields
+  locationId: z.union([z.literal("none"), z.string()]).optional()
+    .transform(val => val === "none" ? null : val),
+  managerId: z.union([z.literal("none"), z.string()]).optional()
+    .transform(val => val === "none" ? null : val),
+  // String fields with proper handling for empty values
+  dateOfJoining: z.string().optional()
+    .transform(val => val === "" ? null : val),
+  dateOfBirth: z.string().optional()
+    .transform(val => val === "" ? null : val),
+  education: z.string().optional()
+    .transform(val => val === "" ? null : val),
+  // Required fields
+  category: z.string().default("active"),
+  // Process selection
+  processes: z.array(z.number()).optional().default([]),
 }).omit({ certified: true }).partial();
 
 type UserFormData = z.infer<typeof editUserSchema>;
@@ -660,21 +670,27 @@ export function UserManagement() {
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     
+    // Helper function to ensure non-null string values for form fields
+    const safeString = (value: any): string => {
+      if (value === null || value === undefined) return "";
+      return String(value);
+    };
+    
     // Create the form first so we can use it in the useEffect
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
-        username: editUser.username,
-        fullName: editUser.fullName || "",
-        email: editUser.email,
-        employeeId: editUser.employeeId || "",
+        username: safeString(editUser.username),
+        fullName: safeString(editUser.fullName),
+        email: safeString(editUser.email),
+        employeeId: safeString(editUser.employeeId),
         role: editUser.role,
-        phoneNumber: editUser.phoneNumber || "",
-        locationId: editUser.locationId?.toString() || "none",
-        managerId: editUser.managerId?.toString() || "none",
-        dateOfJoining: editUser.dateOfJoining || "",
-        dateOfBirth: editUser.dateOfBirth || "",
-        education: editUser.education || "",
+        phoneNumber: safeString(editUser.phoneNumber),
+        locationId: editUser.locationId ? String(editUser.locationId) : "none",
+        managerId: editUser.managerId ? String(editUser.managerId) : "none",
+        dateOfJoining: safeString(editUser.dateOfJoining),
+        dateOfBirth: safeString(editUser.dateOfBirth),
+        education: safeString(editUser.education),
         category: editUser.category || "active",
         processes: [],
       }
@@ -757,8 +773,25 @@ export function UserManagement() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-2">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(async (data) => {
+              <form onSubmit={form.handleSubmit(async (formData) => {
                 try {
+                  // Safely cast the form data to our expected type
+                  const data = formData as unknown as {
+                    username: string,
+                    fullName: string,
+                    email: string,
+                    employeeId: string,
+                    phoneNumber: string,
+                    role: string,
+                    dateOfBirth: string,
+                    dateOfJoining: string,
+                    education: string,
+                    category: string,
+                    locationId: string,
+                    managerId: string,
+                    processes: number[]
+                  };
+                  
                   // Clean up the data before submission
                   // Ensure proper type conversion for form data
                   const locationId = data.locationId === "none" ? null : 
@@ -771,7 +804,7 @@ export function UserManagement() {
                     ...data,
                     locationId,
                     managerId,
-                    processes: data.processes || [],
+                    processes: Array.isArray(data.processes) ? data.processes : [],
                   };
 
                   await updateUserMutation.mutateAsync({
