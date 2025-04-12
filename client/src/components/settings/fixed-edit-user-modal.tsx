@@ -678,12 +678,12 @@ export function FixedEditUserModal({
                                     <div
                                       className={cn(
                                         "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        form.getValues("processes")?.includes(process.id)
+                                        (form.watch("processes") || []).includes(process.id)
                                           ? "bg-primary border-primary text-primary-foreground"
                                           : "border-input"
                                       )}
                                     >
-                                      {form.getValues("processes")?.includes(process.id) && <Check className="h-3 w-3" />}
+                                      {(form.watch("processes") || []).includes(process.id) && <Check className="h-3 w-3" />}
                                     </div>
                                     {process.name}
                                   </div>
