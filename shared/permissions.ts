@@ -39,7 +39,6 @@ export const defaultPermissions = {
     'view_feedback'
   ],
   manager: [
-    'manage_users',  // Updated to include full management including delete
     'view_users',
     'edit_users',
     'view_organization',

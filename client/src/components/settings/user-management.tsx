@@ -651,11 +651,7 @@ export function UserManagement() {
   // Check for user management permissions
   const canManageUsers = hasPermission("manage_users");
   const canViewUsers = hasPermission("view_users");
-  
-  // Update: If a user has manage_users permission, they should also be able to delete users
-  // This ensures consistent behavior for all roles with manage_users permission
-  const canDeleteUsers = hasPermission("manage_users");
-  
+  const canDeleteUsers = hasPermission("delete_users");
   const canExportReports = hasPermission("export_reports");
 
   // If user can't even view users, show restricted access message
@@ -988,7 +984,7 @@ export function UserManagement() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <EditUserButton user={user} />
-                            {user.role !== "owner" && canDeleteUsers && (
+                            {user.role !== "owner" && (
                               <Button
                                 variant="outline"
                                 size="icon"
