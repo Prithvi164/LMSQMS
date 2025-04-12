@@ -3735,6 +3735,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Reset ALL Role Permissions to Default
+  app.post("/api/permissions/reset-all", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    if (req.user.role !== "owner" && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only owners and admins can reset permissions" });
+    }
+
+    try {
+      // Reset permissions for all roles
+      const roles = ["admin", "manager", "team_lead", "quality_analyst", "trainer", "advisor", "trainee"];
+      const results = [];
+      
+      for (const role of roles) {
+        console.log(`Resetting permissions for role ${role} to defaults`);
+        const rolePermission = await storage.resetRolePermissionsToDefault(req.user.organizationId, role);
+        results.push(rolePermission);
+      }
+      
+      res.json({ message: "All role permissions have been reset to defaults", results });
+    } catch (error: any) {
+      console.error("Error resetting all role permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Update location route
   app.patch("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {

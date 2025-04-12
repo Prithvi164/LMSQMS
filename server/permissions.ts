@@ -15,7 +15,9 @@ export const defaultPermissions = {
     'add_users',
     'manage_organization',
     'manage_performance',
-    'export_reports'
+    'export_reports',
+    'manage_holidaylist',
+    'view_organization'
   ],
   manager: [
     'view_users',
@@ -24,28 +26,35 @@ export const defaultPermissions = {
     'view_organization',
     'manage_performance',
     'manage_processes',
-    'manage_batches'
+    'manage_batches',
+    'manage_holidaylist'
   ],
   team_lead: [
     'view_users',
     'edit_users',
     'manage_performance',
-    'view_organization'
+    'view_organization',
+    'manage_holidaylist'
   ],
   qualityassurance: [
     'view_users',
     'manage_performance',
     'export_reports',
-    'view_organization'
+    'view_organization',
+    'manage_holidaylist'
   ],
   trainer: [
     'view_users',
-    'view_performance'
+    'view_performance',
+    'view_organization',
+    'manage_holidaylist'
   ],
   advisor: [
     'view_users',
     'view_performance',
-    'export_reports'
+    'export_reports',
+    'view_organization',
+    'manage_holidaylist'
   ]
 } as const;
 
