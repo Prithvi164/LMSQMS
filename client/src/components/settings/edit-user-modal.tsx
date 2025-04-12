@@ -64,6 +64,7 @@ export function EditUserModal({
   const [openLOB, setOpenLOB] = useState(false);
   const [openProcess, setOpenProcess] = useState(false);
   const [filteredProcesses, setFilteredProcesses] = useState<OrganizationProcess[]>([]);
+  const [anySelectOpen, setAnySelectOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   
   // Safe string conversion to prevent null/undefined values
@@ -157,7 +158,10 @@ export function EditUserModal({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
+        // Only close if no select dropdown is open
+        if (!anySelectOpen && !openLOB && !openProcess) {
+          onClose();
+        }
       }
     };
     
@@ -168,7 +172,7 @@ export function EditUserModal({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, anySelectOpen, openLOB, openProcess]);
   
   // Close on escape key
   useEffect(() => {
@@ -343,6 +347,7 @@ export function EditUserModal({
                         }}
                         value={field.value}
                         onOpenChange={(open) => {
+                          setAnySelectOpen(open);
                           if (open) {
                             // When opening, prevent event from propagating up to modal
                             const content = document.querySelector('[role="dialog"]');
@@ -393,6 +398,7 @@ export function EditUserModal({
                         }}
                         value={field.value}
                         onOpenChange={(open) => {
+                          setAnySelectOpen(open);
                           if (open) {
                             // When opening, prevent event from propagating up to modal
                             const content = document.querySelector('[role="dialog"]');
@@ -437,6 +443,7 @@ export function EditUserModal({
                         }}
                         value={field.value}
                         onOpenChange={(open) => {
+                          setAnySelectOpen(open);
                           if (open) {
                             // When opening, prevent event from propagating up to modal
                             const content = document.querySelector('[role="dialog"]');
