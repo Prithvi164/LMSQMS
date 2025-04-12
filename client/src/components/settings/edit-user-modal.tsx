@@ -612,6 +612,7 @@ export function EditUserModal({
                           aria-expanded={openProcess}
                           className="w-full justify-between mt-1"
                           disabled={selectedLOBs.length === 0}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {form.watch("processes")?.length
                             ? `${form.watch("processes")?.length} selected`
