@@ -50,7 +50,7 @@ import {
   getFormattedReportingPath
 } from "@/lib/hierarchy-utils";
 import { HierarchicalUserRow } from "./hierarchical-user-row";
-import { EditUserModal } from "./edit-user-modal";
+import { FixedEditUserModal } from "./fixed-edit-user-modal";
 
 // Extend the insertUserSchema for the edit form
 // Using more explicit transformation to handle form values
@@ -710,7 +710,7 @@ export function UserManagement() {
         </Button>
         
         {isModalOpen && (
-          <EditUserModal
+          <FixedEditUserModal
             user={editUser}
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
