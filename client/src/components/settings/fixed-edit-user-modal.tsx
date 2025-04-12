@@ -87,6 +87,30 @@ export function FixedEditUserModal({
   // Once the modal is opened, initialize the form with the user data
   useEffect(() => {
     if (isOpen && user) {
+      // First get the user processes to initialize the processes field correctly
+      let processIds: number[] = [];
+      
+      if (userProcesses && Array.isArray(userProcesses[user.id])) {
+        processIds = userProcesses[user.id]
+          .map((p: any) => p.processId)
+          .filter(Boolean);
+          
+        // Also set the selected LOBs based on these processes
+        const lobIds = userProcesses[user.id]
+          .map((p: any) => {
+            const process = processes.find(proc => proc.id === p.processId);
+            return process?.lineOfBusinessId;
+          })
+          .filter(Boolean);
+          
+        // Filter and set unique LOB IDs
+        const validLobIds = lobIds.filter((id): id is number => typeof id === 'number');
+        setSelectedLOBs(Array.from(new Set(validLobIds)));
+      }
+      
+      console.log('Initializing form with processes:', processIds);
+      
+      // Now reset the form with all data including processes
       form.reset({
         username: safeString(user.username),
         fullName: safeString(user.fullName),
@@ -100,48 +124,14 @@ export function FixedEditUserModal({
         dateOfBirth: safeString(user.dateOfBirth),
         education: safeString(user.education),
         category: user.category || "active",
-        processes: [],
+        processes: processIds,
       });
-      
-      // Load user processes
-      loadUserProcesses();
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, userProcesses, processes]);
   
-  // Load user processes and associated LOBs
+  // This function is now unused since we're initializing directly in useEffect
   const loadUserProcesses = () => {
-    try {
-      if (!userProcesses) return;
-      
-      // Get user processes safely
-      const userProcessList = userProcesses[user.id] || [];
-      if (!Array.isArray(userProcessList)) return;
-      
-      // Extract process IDs
-      const processIds = userProcessList
-        .map((p: any) => p.processId)
-        .filter(Boolean);
-      
-      // Set processes in form
-      form.setValue("processes", processIds);
-      
-      // Extract LOBs from the processes
-      const lobIds = userProcessList
-        .map((p: any) => {
-          const process = processes.find(proc => proc.id === p.processId);
-          return process?.lineOfBusinessId;
-        })
-        .filter(Boolean);
-      
-      // Filter and convert to number array
-      const validLobIds = lobIds.filter((id): id is number => typeof id === 'number');
-      setSelectedLOBs(Array.from(new Set(validLobIds)));
-      
-      console.log('Loaded processes:', processIds);
-      console.log('Loaded LOBs:', Array.from(new Set(validLobIds)));
-    } catch (error) {
-      console.error('Error loading user processes:', error);
-    }
+    console.log('Note: This function is now unused since we initialize in useEffect');
   };
   
   // When selected LOBs change, filter processes for selection
