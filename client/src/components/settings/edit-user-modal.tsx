@@ -335,17 +335,20 @@ export function EditUserModal({
                       <FormLabel>Role</FormLabel>
                       <Select
                         disabled={user.role === "owner"}
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          // Stop any potential events from bubbling and closing the modal
+                          setTimeout(() => {
+                            field.onChange(value);
+                          }, 0);
+                        }}
                         value={field.value}
                         onOpenChange={(open) => {
                           if (open) {
                             // When opening, prevent event from propagating up to modal
-                            setTimeout(() => {
-                              const content = document.querySelector('[role="dialog"]');
-                              if (content) {
-                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
-                              }
-                            }, 0);
+                            const content = document.querySelector('[role="dialog"]');
+                            if (content) {
+                              content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                            }
                           }
                         }}
                       >
@@ -382,17 +385,20 @@ export function EditUserModal({
                     <FormItem>
                       <FormLabel>Location</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          // Stop any potential events from bubbling and closing the modal
+                          setTimeout(() => {
+                            field.onChange(value);
+                          }, 0);
+                        }}
                         value={field.value}
                         onOpenChange={(open) => {
                           if (open) {
                             // When opening, prevent event from propagating up to modal
-                            setTimeout(() => {
-                              const content = document.querySelector('[role="dialog"]');
-                              if (content) {
-                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
-                              }
-                            }, 0);
+                            const content = document.querySelector('[role="dialog"]');
+                            if (content) {
+                              content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                            }
                           }
                         }}
                       >
@@ -423,17 +429,20 @@ export function EditUserModal({
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          // Stop any potential events from bubbling and closing the modal
+                          setTimeout(() => {
+                            field.onChange(value);
+                          }, 0);
+                        }}
                         value={field.value}
                         onOpenChange={(open) => {
                           if (open) {
                             // When opening, prevent event from propagating up to modal
-                            setTimeout(() => {
-                              const content = document.querySelector('[role="dialog"]');
-                              if (content) {
-                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
-                              }
-                            }, 0);
+                            const content = document.querySelector('[role="dialog"]');
+                            if (content) {
+                              content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                            }
                           }
                         }}
                       >
@@ -511,17 +520,20 @@ export function EditUserModal({
                     <FormItem>
                       <FormLabel>Category</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          // Stop any potential events from bubbling and closing the modal
+                          setTimeout(() => {
+                            field.onChange(value);
+                          }, 0);
+                        }}
                         value={field.value}
                         onOpenChange={(open) => {
                           if (open) {
                             // When opening, prevent event from propagating up to modal
-                            setTimeout(() => {
-                              const content = document.querySelector('[role="dialog"]');
-                              if (content) {
-                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
-                              }
-                            }, 0);
+                            const content = document.querySelector('[role="dialog"]');
+                            if (content) {
+                              content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                            }
                           }
                         }}
                       >
