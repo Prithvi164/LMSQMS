@@ -372,8 +372,8 @@ export function RolePermissions() {
 
   // Define hierarchical permission relationships
   const permissionHierarchy = {
-    // User Management: manage_users is the parent permission (add_users is now independent)
-    'manage_users': ['view_users', 'upload_users'],
+    // User Management: manage_users is the parent permission for all user-related permissions
+    'manage_users': ['view_users', 'upload_users', 'add_users'],
   };
 
   const handlePermissionToggle = useCallback((permission: string) => {
@@ -386,9 +386,6 @@ export function RolePermissions() {
       ? [...currentRolePermissions, permission]
       : currentRolePermissions.filter((p: string) => p !== permission);
     
-    // Store the state of add_users permission before any changes
-    const addUsersEnabled = currentRolePermissions.includes('add_users');
-    
     // Handle hierarchical permissions
     if (permission === 'manage_users') {
       // If enabling the parent permission, enable all child permissions
@@ -398,19 +395,12 @@ export function RolePermissions() {
             newPermissions.push(childPermission);
           }
         });
-        
-        // Note: We don't include 'add_users' here since it's independent
       } 
       // If disabling the parent permission, disable all child permissions
       else {
         newPermissions = newPermissions.filter(p => 
           !permissionHierarchy['manage_users'].includes(p)
         );
-        
-        // Preserve the state of add_users (it should remain unaffected)
-        if (addUsersEnabled) {
-          newPermissions.push('add_users');
-        }
       }
     } 
     // If toggling a child permission of "manage_users"
@@ -422,8 +412,6 @@ export function RolePermissions() {
         newPermissions = newPermissions.filter(p => p !== 'manage_users');
       }
     }
-    
-    // Note: add_users is completely independent, so no special handling needed for it
     
     // Filter out any obsolete quiz-specific permissions
     const obsoletePermissions = ['edit_quiz', 'delete_quiz', 'create_quiz'];
@@ -493,14 +481,8 @@ export function RolePermissions() {
             newPermissions.push(childPermission);
           }
         });
-        
-        // Note: We don't add 'add_users' here because it's independent from 'manage_users'
       }
     } else {
-      // Store the current state of add_users when category is being disabled
-      const addUsersEnabled = validPermissions.includes('add_users' as PermissionType) && 
-                             newPermissions.includes('add_users');
-      
       // Remove all permissions from this category
       newPermissions = newPermissions.filter(p => !validPermissions.includes(p as PermissionType));
       
@@ -509,12 +491,6 @@ export function RolePermissions() {
         newPermissions = newPermissions.filter(p => 
           !permissionHierarchy['manage_users'].includes(p)
         );
-        
-        // Restore add_users to its previous state if it was enabled
-        // since it's independent from 'manage_users'
-        if (addUsersEnabled) {
-          newPermissions.push('add_users');
-        }
       }
     }
     
