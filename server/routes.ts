@@ -3761,6 +3761,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Add specific permissions to role
+  app.post("/api/permissions/:role/add-permission", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    if (req.user.role !== "owner" && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only owners and admins can modify permissions" });
+    }
+
+    try {
+      const role = req.params.role;
+      const { permissions } = req.body;
+      
+      if (!Array.isArray(permissions) || permissions.length === 0) {
+        return res.status(400).json({ message: "Invalid permissions array" });
+      }
+      
+      console.log(`Adding permissions ${permissions.join(', ')} to role ${role}`);
+      
+      // Get current permissions for the role
+      const rolePermission = await storage.getRolePermissions(req.user.organizationId, role);
+      
+      if (!rolePermission) {
+        return res.status(404).json({ message: `Role ${role} not found` });
+      }
+      
+      // Add new permissions without duplicates
+      const updatedPermissions = [...new Set([...rolePermission.permissions, ...permissions])];
+      
+      // Update the role permissions
+      const updatedRolePermission = await storage.updateRolePermissions(
+        req.user.organizationId,
+        role,
+        updatedPermissions
+      );
+      
+      res.json({ 
+        message: `Permissions added to ${role} role successfully`,
+        rolePermission: updatedRolePermission
+      });
+    } catch (error: any) {
+      console.error("Error adding permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Convenience endpoint to fix holiday list permissions for all roles
+  app.post("/api/permissions/fix-holiday-permissions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    if (req.user.role !== "owner" && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only owners and admins can fix permissions" });
+    }
+
+    try {
+      const results = [];
+      const rolesToUpdate = [
+        { role: "admin", permissions: ["manage_organization_settings", "manage_holidaylist", "view_organization"] },
+        { role: "manager", permissions: ["manage_organization_settings", "manage_holidaylist", "view_organization"] },
+        { role: "team_lead", permissions: ["manage_holidaylist", "view_organization"] },
+        { role: "quality_analyst", permissions: ["manage_holidaylist", "view_organization"] },
+        { role: "trainer", permissions: ["manage_holidaylist", "view_organization"] },
+        { role: "advisor", permissions: ["manage_holidaylist", "view_organization"] },
+      ];
+      
+      for (const { role, permissions } of rolesToUpdate) {
+        console.log(`Adding holiday permissions to role ${role}`);
+        
+        // Get current permissions for the role
+        const rolePermission = await storage.getRolePermissions(req.user.organizationId, role);
+        
+        if (!rolePermission) {
+          console.log(`Role ${role} not found, skipping`);
+          continue;
+        }
+        
+        // Add new permissions without duplicates
+        const updatedPermissions = [...new Set([...rolePermission.permissions, ...permissions])];
+        
+        // Update the role permissions
+        const updatedRolePermission = await storage.updateRolePermissions(
+          req.user.organizationId,
+          role,
+          updatedPermissions
+        );
+        
+        results.push({
+          role,
+          addedPermissions: permissions,
+          updatedPermissions: updatedRolePermission.permissions
+        });
+      }
+      
+      res.json({ 
+        message: "Holiday permissions have been fixed for all roles",
+        results 
+      });
+    } catch (error: any) {
+      console.error("Error fixing holiday permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Update location route
   app.patch("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
