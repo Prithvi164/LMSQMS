@@ -9,7 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2, Users, Network, ChevronDown, ChevronRight } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2, Users, Network, ChevronDown, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -758,18 +758,56 @@ export function UserManagement() {
     }
 
     return (
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog 
+        open={isDialogOpen} 
+        onOpenChange={(open) => {
+          // Only allow explicit closing through the close button or submission
+          if (!open) {
+            console.log("Dialog close attempt prevented - use explicit close button");
+            // Uncomment the line below to allow normal closing behavior again
+            // setIsDialogOpen(false);
+            return;
+          }
+          setIsDialogOpen(open);
+        }}>
         <DialogTrigger asChild>
           <Button variant="outline" size="icon" onClick={() => setIsDialogOpen(true)}>
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col" onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update information for {editUser.username}
-            </DialogDescription>
+        <DialogContent 
+          className="max-w-2xl max-h-[90vh] flex flex-col" 
+          onInteractOutside={(e) => {
+            console.log("Dialog interaction outside prevented");
+            e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            console.log("Escape key prevented");
+            e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            console.log("Pointer down outside prevented");
+            e.preventDefault();
+          }}>
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update information for {editUser.username}
+              </DialogDescription>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => {
+                console.log("Explicit close button clicked");
+                setIsDialogOpen(false);
+              }}
+              type="button"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-2">
             <Form {...form}>
