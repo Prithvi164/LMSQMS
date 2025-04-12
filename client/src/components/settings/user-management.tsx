@@ -50,7 +50,7 @@ import {
   getFormattedReportingPath
 } from "@/lib/hierarchy-utils";
 import { HierarchicalUserRow } from "./hierarchical-user-row";
-import { FixedEditUserModal as EditUserModal } from "./fixed-edit-user-modal";
+import { EditUserModal } from "./edit-user-modal";
 
 // Extend the insertUserSchema for the edit form
 // Using more explicit transformation to handle form values

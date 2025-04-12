@@ -335,19 +335,7 @@ export function EditUserModal({
                       <FormLabel>Role</FormLabel>
                       <Select
                         disabled={user.role === "owner"}
-                        onValueChange={(value) => {
-                          // Prevent any event bubbling by using a manual value change approach
-                          field.onChange(value);
-                          // Prevent event propagation through the DOM
-                          setTimeout(() => {
-                            // We capture all mousedown and click events to prevent modal closure
-                            const modal = document.querySelector('.fixed.inset-0.bg-black\\/50');
-                            if (modal) {
-                              modal.addEventListener('mousedown', (e) => e.stopPropagation(), { capture: true });
-                              modal.addEventListener('click', (e) => e.stopPropagation(), { capture: true });
-                            }
-                          }, 0);
-                        }}
+                        onValueChange={field.onChange}
                         value={field.value}
                         onOpenChange={(open) => {
                           if (open) {
@@ -355,83 +343,25 @@ export function EditUserModal({
                             setTimeout(() => {
                               const content = document.querySelector('[role="dialog"]');
                               if (content) {
-                                content.addEventListener('mousedown', (e) => e.stopPropagation(), { capture: true });
-                                content.addEventListener('click', (e) => e.stopPropagation(), { capture: true });
-                              }
-                              
-                              // Also prevent clicks on the backdrop from closing the modal
-                              const modal = document.querySelector('.fixed.inset-0.bg-black\\/50');
-                              if (modal) {
-                                modal.addEventListener('mousedown', (e) => e.stopPropagation(), { capture: true });
-                                modal.addEventListener('click', (e) => e.stopPropagation(), { capture: true });
+                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
                               }
                             }, 0);
                           }
                         }}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onClick={(e) => e.stopPropagation()}
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent 
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          position="popper"
-                          className="z-[100]"
-                        >
-                          <SelectItem 
-                            value="admin" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Admin
-                          </SelectItem>
-                          <SelectItem 
-                            value="manager" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Manager
-                          </SelectItem>
-                          <SelectItem 
-                            value="team_lead" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Team Lead
-                          </SelectItem>
-                          <SelectItem 
-                            value="quality_analyst" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Quality Analyst
-                          </SelectItem>
-                          <SelectItem 
-                            value="trainer" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Trainer
-                          </SelectItem>
-                          <SelectItem 
-                            value="advisor" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Advisor
-                          </SelectItem>
-                          <SelectItem 
-                            value="trainee" 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Trainee
-                          </SelectItem>
+                        <SelectContent onClick={(e) => e.stopPropagation()}>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="team_lead">Team Lead</SelectItem>
+                          <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
+                          <SelectItem value="trainer">Trainer</SelectItem>
+                          <SelectItem value="advisor">Advisor</SelectItem>
+                          <SelectItem value="trainee">Trainee</SelectItem>
                         </SelectContent>
                       </Select>
                       {user.role === "owner" && (
