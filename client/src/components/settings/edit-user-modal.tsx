@@ -336,14 +336,25 @@ export function EditUserModal({
                       <Select
                         disabled={user.role === "owner"}
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            // When opening, prevent event from propagating up to modal
+                            setTimeout(() => {
+                              const content = document.querySelector('[role="dialog"]');
+                              if (content) {
+                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                              }
+                            }, 0);
+                          }
+                        }}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent onClick={(e) => e.stopPropagation()}>
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="team_lead">Team Lead</SelectItem>
@@ -372,14 +383,25 @@ export function EditUserModal({
                       <FormLabel>Location</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            // When opening, prevent event from propagating up to modal
+                            setTimeout(() => {
+                              const content = document.querySelector('[role="dialog"]');
+                              if (content) {
+                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                              }
+                            }, 0);
+                          }
+                        }}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a location" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent onClick={(e) => e.stopPropagation()}>
                           <SelectItem value="none">No Location</SelectItem>
                           {locations?.map((location) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
@@ -402,14 +424,25 @@ export function EditUserModal({
                       <FormLabel>Manager</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            // When opening, prevent event from propagating up to modal
+                            setTimeout(() => {
+                              const content = document.querySelector('[role="dialog"]');
+                              if (content) {
+                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                              }
+                            }, 0);
+                          }
+                        }}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a manager" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent onClick={(e) => e.stopPropagation()}>
                           <SelectItem value="none">No Manager</SelectItem>
                           {users
                             .filter(u => u.id !== user.id && u.active) // Can't self-assign
@@ -479,14 +512,25 @@ export function EditUserModal({
                       <FormLabel>Category</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
+                        onOpenChange={(open) => {
+                          if (open) {
+                            // When opening, prevent event from propagating up to modal
+                            setTimeout(() => {
+                              const content = document.querySelector('[role="dialog"]');
+                              if (content) {
+                                content.addEventListener('click', (e) => e.stopPropagation(), { once: true });
+                              }
+                            }, 0);
+                          }
+                        }}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a category" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent onClick={(e) => e.stopPropagation()}>
                           <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="trainee">Trainee</SelectItem>
                         </SelectContent>
@@ -511,6 +555,7 @@ export function EditUserModal({
                           role="combobox"
                           aria-expanded={openLOB}
                           className="w-full justify-between mt-1"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {selectedLOBs.length > 0
                             ? `${selectedLOBs.length} selected`
