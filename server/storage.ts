@@ -1898,6 +1898,74 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to assign processes to user');
     }
   }
+  
+  async updateUserProcesses(userId: number, processIds: number[], organizationId: number): Promise<void> {
+    try {
+      console.log(`Updating processes for user ${userId}:`, processIds);
+      
+      // Begin a transaction
+      await db.transaction(async (tx) => {
+        // Get current user processes
+        const currentProcesses = await tx
+          .select({ processId: userProcesses.processId })
+          .from(userProcesses)
+          .where(eq(userProcesses.userId, userId));
+          
+        const currentProcessIds = currentProcesses.map(p => p.processId);
+        
+        // Find processes to remove (in current but not in new list)
+        const processesToRemove = currentProcessIds.filter(id => !processIds.includes(id));
+        
+        // Find processes to add (in new list but not in current)
+        const processesToAdd = processIds.filter(id => !currentProcessIds.includes(id));
+        
+        console.log(`For user ${userId}: Removing ${processesToRemove.length} processes, Adding ${processesToAdd.length} processes`);
+        
+        // Remove processes that are no longer assigned
+        if (processesToRemove.length > 0) {
+          await tx
+            .delete(userProcesses)
+            .where(
+              and(
+                eq(userProcesses.userId, userId),
+                inArray(userProcesses.processId, processesToRemove)
+              )
+            );
+        }
+        
+        // Add new processes
+        if (processesToAdd.length > 0) {
+          // Get process details to determine line of business IDs
+          const processDetails = await tx
+            .select({
+              id: organizationProcesses.id,
+              lineOfBusinessId: organizationProcesses.lineOfBusinessId,
+            })
+            .from(organizationProcesses)
+            .where(inArray(organizationProcesses.id, processesToAdd));
+            
+          // Insert new processes with their line of business IDs
+          for (const process of processDetails) {
+            await tx.insert(userProcesses).values({
+              userId,
+              processId: process.id,
+              organizationId,
+              lineOfBusinessId: process.lineOfBusinessId,
+              status: 'assigned',
+              assignedAt: new Date(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+        }
+      });
+      
+      console.log(`Successfully updated processes for user ${userId}`);
+    } catch (error) {
+      console.error(`Error updating processes for user ${userId}:`, error);
+      throw new Error('Failed to update user processes');
+    }
+  }
 
   async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {

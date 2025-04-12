@@ -2166,6 +2166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = parseInt(req.params.id);
       const updateData = req.body;
+      
+      console.log(`PATCH /api/users/${userId} with data:`, updateData);
 
       // Get the user to be updated
       const userToUpdate = await storage.getUser(userId);
@@ -2198,55 +2200,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'education'
         ];
 
+        const filteredUpdateData = Object.keys(updateData)
+          .filter(key => allowedSelfUpdateFields.includes(key))
+          .reduce<Partial<AllowedSelfUpdateFields>>((obj, key) => {
+            obj[key as keyof AllowedSelfUpdateFields] = updateData[key];
+            return obj;
+          }, {});
 
+        const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+        return res.json(updatedUser);
+      }
 
+      // For owner role, allow all updates including process updates
+      if (req.user.role === 'owner') {
+        // Extract process IDs if they are being updated
+        let processIds: number[] | undefined;
+        if (updateData.processes && Array.isArray(updateData.processes)) {
+          processIds = updateData.processes.map((p: any) => 
+            typeof p === 'number' ? p : Number(p.id || p.processId)
+          ).filter((id: number) => !isNaN(id));
+          // Remove processes from updateData as they will be handled separately
+          delete updateData.processes;
+        }
+        
+        // Update basic user info
+        const updatedUser = await storage.updateUser(userId, updateData);
+        
+        // If processes were included, update them separately
+        if (processIds && processIds.length >= 0) {
+          console.log(`Updating processes for user ${userId}:`, processIds);
+          await storage.updateUserProcesses(userId, processIds, userToUpdate.organizationId);
+        }
+        
+        // Get the updated user with processes
+        const userWithProcesses = {
+          ...updatedUser,
+          processes: await storage.getUserProcesses(userId)
+        };
+        
+        return res.json(userWithProcesses);
+      }
+
+      // Admin users can only be modified by owners
+      if (userToUpdate.role === 'admin' && req.user.role !== 'owner') {
+        return res.status(403).json({ message: "Only owners can modify admin users" });
+      }
+
+      // Allow admins to change active status for non-owner users
+      if (req.user.role === 'admin' && 'active' in updateData) {
+        if (userToUpdate.role === 'owner') {
+          return res.status(403).json({ message: "Cannot change owner's active status" });
+        }
+        const updatedUser = await storage.updateUser(userId, { active: updateData.active });
+        return res.json(updatedUser);
+      }
+
+      // For other roles, restrict certain fields
+      const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
       const filteredUpdateData = Object.keys(updateData)
-        .filter(key => allowedSelfUpdateFields.includes(key))
-        .reduce<Partial<AllowedSelfUpdateFields>>((obj, key) => {
-          obj[key as keyof AllowedSelfUpdateFields] = updateData[key];
+        .filter(key => allowedFields.includes(key))
+        .reduce<Partial<AllowedUpdateFields>>((obj, key) => {
+          obj[key as keyof AllowedUpdateFields] = updateData[key] as any;
           return obj;
         }, {});
 
       const updatedUser = await storage.updateUser(userId, filteredUpdateData);
-      return res.json(updatedUser);
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("User update error:", error);
+      res.status(400).json({ message: error.message || "Failed to update user" });
     }
-
-    // For owner role, allow all updates except role changes to/from owner
-    if (req.user.role === 'owner') {
-      const updatedUser = await storage.updateUser(userId, updateData);
-      return res.json(updatedUser);
-    }
-
-    // Admin users can only be modified by owners
-    if (userToUpdate.role === 'admin' && req.user.role !== 'owner') {
-      return res.status(403).json({ message: "Only owners can modify admin users" });
-    }
-
-    // Allow admins to change active status for non-owner users
-    if (req.user.role === 'admin' && 'active' in updateData) {
-      if (userToUpdate.role === 'owner') {
-        return res.status(403).json({ message: "Cannot change owner's active status" });
-      }
-      const updatedUser = await storage.updateUser(userId, { active: updateData.active });
-      return res.json(updatedUser);
-    }
-
-    // For other roles, restrict certain fields
-    const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
-    const filteredUpdateData = Object.keys(updateData)
-      .filter(key => allowedFields.includes(key))
-      .reduce<Partial<AllowedUpdateFields>>((obj, key) => {
-        obj[key as keyof AllowedUpdateFields] = updateData[key] as any;
-        return obj;
-      }, {});
-
-    const updatedUser = await storage.updateUser(userId, filteredUpdateData);
-    res.json(updatedUser);
-  } catch (error: any) {
-    console.error("User update error:", error);
-    res.status(400).json({ message: error.message || "Failed to update user" });
-  }
-});
+  });
 
 
 
