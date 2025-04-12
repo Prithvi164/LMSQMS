@@ -152,12 +152,6 @@ export function FixedEditUserModal({
   
   // Event handler for the modal backdrop
   const handleBackdropClick = (e: React.MouseEvent) => {
-    // Prevent closing if we're in selection mode or clicked on a dropdown element
-    if (isSelecting) {
-      e.stopPropagation();
-      return;
-    }
-    
     // Only close if clicked outside the modal
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       onClose();
@@ -285,35 +279,19 @@ export function FixedEditUserModal({
                         disabled={user.role === "owner"}
                         onValueChange={(value) => {
                           field.onChange(value === "true");
-                          setIsSelecting(false);
                         }}
                         value={field.value ? "true" : "false"}
-                        onOpenChange={(open) => setIsSelecting(open)}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setIsSelecting(true);
-                            }}
-                          >
+                          <SelectTrigger>
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent 
-                          position="popper" 
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
-                          <SelectItem 
-                            value="true"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                        <SelectContent position="popper">
+                          <SelectItem value="true">
                             Active
                           </SelectItem>
-                          <SelectItem 
-                            value="false"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="false">
                             Inactive
                           </SelectItem>
                         </SelectContent>
@@ -339,65 +317,34 @@ export function FixedEditUserModal({
                         disabled={user.role === "owner"}
                         onValueChange={(value) => {
                           field.onChange(value);
-                          setIsSelecting(false);
                         }}
                         value={field.value || ''}
-                        onOpenChange={(open) => setIsSelecting(open)}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setIsSelecting(true);
-                            }}
-                          >
+                          <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent 
-                          position="popper" 
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
-                          <SelectItem 
-                            value="admin"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                        <SelectContent position="popper">
+                          <SelectItem value="admin">
                             Admin
                           </SelectItem>
-                          <SelectItem 
-                            value="manager"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="manager">
                             Manager
                           </SelectItem>
-                          <SelectItem 
-                            value="team_lead"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="team_lead">
                             Team Lead
                           </SelectItem>
-                          <SelectItem 
-                            value="quality_analyst"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="quality_analyst">
                             Quality Analyst
                           </SelectItem>
-                          <SelectItem 
-                            value="trainer"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="trainer">
                             Trainer
                           </SelectItem>
-                          <SelectItem 
-                            value="advisor"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="advisor">
                             Advisor
                           </SelectItem>
-                          <SelectItem 
-                            value="trainee"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                          <SelectItem value="trainee">
                             Trainee
                           </SelectItem>
                         </SelectContent>
@@ -422,29 +369,16 @@ export function FixedEditUserModal({
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          setIsSelecting(false);
                         }}
                         value={field.value || ''}
-                        onOpenChange={(open) => setIsSelecting(open)}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setIsSelecting(true);
-                            }}
-                          >
+                          <SelectTrigger>
                             <SelectValue placeholder="Select a location" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent 
-                          position="popper" 
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
-                          <SelectItem 
-                            value="none"
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
+                        <SelectContent position="popper">
+                          <SelectItem value="none">
                             No Location
                           </SelectItem>
                           {locations?.map((location) => (
@@ -473,25 +407,15 @@ export function FixedEditUserModal({
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          setIsSelecting(false);
                         }}
                         value={field.value || ''}
-                        onOpenChange={(open) => setIsSelecting(open)}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setIsSelecting(true);
-                            }}
-                          >
+                          <SelectTrigger>
                             <SelectValue placeholder="Select a manager" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent 
-                          position="popper" 
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
+                        <SelectContent position="popper">
                           <SelectItem 
                             value="none"
                             onMouseDown={(e) => e.stopPropagation()}
@@ -571,25 +495,15 @@ export function FixedEditUserModal({
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          setIsSelecting(false);
                         }}
                         value={field.value || ''}
-                        onOpenChange={(open) => setIsSelecting(open)}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setIsSelecting(true);
-                            }}
-                          >
+                          <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent 
-                          position="popper" 
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
+                        <SelectContent position="popper">
                           <SelectItem 
                             value="active"
                             onMouseDown={(e) => e.stopPropagation()}
