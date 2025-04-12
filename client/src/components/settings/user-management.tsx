@@ -602,13 +602,13 @@ export function UserManagement() {
   });
 
   // Add new query for user processes
-  const { data: userProcesses = {} } = useQuery({
+  const { data: userProcesses = {} as Record<number, {processId: number, processName: string}[]> } = useQuery({
     queryKey: ["/api/users/processes"],
     enabled: !!user,
   });
   
   // Add new query for user batch processes
-  const { data: userBatchProcesses = {} } = useQuery({
+  const { data: userBatchProcesses = {} as Record<number, any[]> } = useQuery({
     queryKey: ["/api/users/batch-processes"],
     enabled: !!user,
   });
