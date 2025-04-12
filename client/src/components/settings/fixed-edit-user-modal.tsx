@@ -615,7 +615,6 @@ export function FixedEditUserModal({
                       </PopoverTrigger>
                       <PopoverContent 
                         className="w-96 p-0" 
-                        onMouseDown={(e) => e.stopPropagation()}
                       >
                         <Command>
                           <CommandInput placeholder="Search processes..." />
