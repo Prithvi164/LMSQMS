@@ -152,6 +152,10 @@ export function FixedEditUserModal({
   
   // Event handler for the modal backdrop
   const handleBackdropClick = (e: React.MouseEvent) => {
+    // Don't close if we're selecting from a dropdown or if clicked within the modal
+    if (isSelecting) {
+      return;
+    }
     // Only close if clicked outside the modal
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       onClose();
@@ -521,7 +525,6 @@ export function FixedEditUserModal({
                   <div>
                     <Label className="text-sm font-normal">Line of Business</Label>
                     <Popover 
-                      open={openLOB} 
                       onOpenChange={(open) => {
                         setOpenLOB(open);
                         setIsSelecting(open);
@@ -534,8 +537,7 @@ export function FixedEditUserModal({
                           role="combobox"
                           aria-expanded={openLOB}
                           className="w-full justify-between mt-1"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
+                          onClick={() => { 
                             setIsSelecting(true);
                           }}
                         >
@@ -589,7 +591,6 @@ export function FixedEditUserModal({
                   <div>
                     <Label className="text-sm font-normal">Processes</Label>
                     <Popover 
-                      open={openProcess} 
                       onOpenChange={(open) => {
                         setOpenProcess(open);
                         setIsSelecting(open);
@@ -603,8 +604,7 @@ export function FixedEditUserModal({
                           aria-expanded={openProcess}
                           className="w-full justify-between mt-1"
                           disabled={selectedLOBs.length === 0}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
+                          onClick={() => { 
                             setIsSelecting(true);
                           }}
                         >
