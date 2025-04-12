@@ -117,7 +117,7 @@ export function RolePermissions() {
       name: "User Management",
       icon: <Users className="h-5 w-5" />,
       description: "Control user accounts and access",
-      permissions: ['view_users', 'edit_users', 'delete_users', 'upload_users', 'manage_users', 'add_users']
+      permissions: ['view_users', 'upload_users', 'manage_users', 'add_users']
     },
     {
       name: "Organization Settings",
@@ -363,8 +363,8 @@ export function RolePermissions() {
 
   // Define hierarchical permission relationships
   const permissionHierarchy = {
-    // User Management: manage_users is the parent permission
-    'manage_users': ['view_users', 'edit_users', 'delete_users', 'upload_users', 'add_users'],
+    // User Management: manage_users is the parent permission (edit_users and delete_users removed)
+    'manage_users': ['view_users', 'upload_users', 'add_users'],
   };
 
   const handlePermissionToggle = useCallback((permission: string) => {
