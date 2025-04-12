@@ -173,11 +173,20 @@ export function RolePermissions() {
     }
   ];
 
-  // Get permission description
+  // Get permission description - role-dependent for manage_users
   const getPermissionDescription = (permission: string) => {
+    // Special case for manage_users - description depends on role
+    if (permission === 'manage_users') {
+      // For owner and admin roles, include delete capability in description
+      if (selectedRole === 'owner' || selectedRole === 'admin') {
+        return "Create, edit, and delete user accounts";
+      }
+      // For other roles (manager and below), only mention create and edit
+      return "Create and edit user accounts";
+    }
+    
     const descriptions: Record<string, string> = {
       // User Management
-      manage_users: "Create and edit user accounts",
       view_users: "View user profiles and information",
       edit_users: "Modify user account details",
       delete_users: "Remove user accounts",
