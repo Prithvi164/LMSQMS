@@ -650,6 +650,32 @@ export function UserManagement() {
     const [openLOB, setOpenLOB] = useState(false);
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [initialProcessIds, setInitialProcessIds] = useState<number[]>([]);
+    
+    // Load user process IDs from API
+    useEffect(() => {
+      if (isDialogOpen && userProcesses[editUser.id]) {
+        // Extract process IDs from user's processes
+        const processIds = userProcesses[editUser.id]
+          .map((p: any) => p.processId)
+          .filter((id: number) => id !== undefined);
+          
+        setInitialProcessIds(processIds);
+        
+        // Update form with these processes
+        form.setValue("processes", processIds);
+        
+        // Extract LOBs from these processes
+        const lobIds = userProcesses[editUser.id]
+          .map((p: any) => {
+            const process = processes.find(proc => proc.id === p.processId);
+            return process?.lineOfBusinessId;
+          })
+          .filter((id): id is number => id !== undefined);
+        
+        setSelectedLOBs([...new Set(lobIds)]);
+      }
+    }, [isDialogOpen, userProcesses, editUser.id, processes]);
 
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
@@ -666,23 +692,9 @@ export function UserManagement() {
         dateOfBirth: editUser.dateOfBirth || "",
         education: editUser.education || "",
         category: editUser.category || "active",
-        processes: editUser.processes || [],
+        processes: [],
       }
     });
-
-    useEffect(() => {
-      // Initialize selectedLOBs based on user's processes
-      if (editUser.processes) {
-        const lobIds = editUser.processes
-          .map(processId => {
-            const process = processes.find(p => p.id === processId);
-            return process?.lineOfBusinessId;
-          })
-          .filter((id): id is number => id !== undefined);
-
-        setSelectedLOBs([...new Set(lobIds)]);
-      }
-    }, [editUser.processes, processes]);
 
     // Determine if the current user can edit this user
     // Only use permission system for consistency with other features
