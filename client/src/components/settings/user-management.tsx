@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -601,14 +601,23 @@ export function UserManagement() {
     enabled: !!user?.organizationId,
   });
 
-  // Add new query for user processes
-  const { data: userProcesses = {} as Record<number, {processId: number, processName: string}[]> } = useQuery({
+  // Define explicit types for API responses
+  interface ProcessData {
+    processId: number;
+    processName: string;
+  }
+  
+  type UserProcessMap = Record<number, ProcessData[]>;
+  type UserBatchMap = Record<number, any[]>;
+  
+  // Add new query for user processes with proper typing
+  const { data: userProcesses = {} as UserProcessMap } = useQuery<UserProcessMap>({
     queryKey: ["/api/users/processes"],
     enabled: !!user,
   });
   
-  // Add new query for user batch processes
-  const { data: userBatchProcesses = {} as Record<number, any[]> } = useQuery({
+  // Add new query for user batch processes with proper typing
+  const { data: userBatchProcesses = {} as UserBatchMap } = useQuery<UserBatchMap>({
     queryKey: ["/api/users/batch-processes"],
     enabled: !!user,
   });
@@ -671,36 +680,47 @@ export function UserManagement() {
       }
     });
     
-    // Load user process IDs from API when dialog opens
-    useEffect(() => {
-      if (isDialogOpen && userProcesses && userProcesses[editUser.id]) {
-        try {
-          // Extract process IDs from user's processes
-          const userProcessList = userProcesses[editUser.id] || [];
-          const processIds = userProcessList
-            .map((p: any) => p.processId)
-            .filter(Boolean);
-          
-          // Update form with these processes
-          form.setValue("processes", processIds);
-          
-          // Extract LOBs from these processes
-          const lobIds = userProcessList
-            .map((p: any) => {
-              const process = processes.find(proc => proc.id === p.processId);
-              return process?.lineOfBusinessId;
-            })
-            .filter(Boolean);
-          
-          // Use Array.from to convert Set to array to avoid typescript issues
-          setSelectedLOBs(Array.from(new Set(lobIds)));
-          console.log('Loaded processes:', processIds);
-          console.log('Loaded LOBs:', Array.from(new Set(lobIds)));
-        } catch (error) {
-          console.error('Error loading user processes:', error);
-        }
+    // Safe function to load processes when the dialog opens
+    const loadUserProcesses = useCallback(() => {
+      try {
+        if (!userProcesses) return;
+        
+        // Check if user has processes and safely access them
+        const userProcessList = userProcesses[editUser.id as keyof typeof userProcesses] || [];
+        if (!Array.isArray(userProcessList)) return;
+        
+        // Extract process IDs 
+        const processIds = userProcessList
+          .map((p: any) => p.processId)
+          .filter(Boolean);
+        
+        // Update form with these processes
+        form.setValue("processes", processIds);
+        
+        // Extract LOBs from these processes
+        const lobIds = userProcessList
+          .map((p: any) => {
+            const process = processes.find(proc => proc.id === p.processId);
+            return process?.lineOfBusinessId;
+          })
+          .filter(Boolean);
+        
+        // Use Array.from to convert Set to array to avoid typescript issues
+        setSelectedLOBs(Array.from(new Set(lobIds)));
+        console.log('Loaded processes:', processIds);
+        console.log('Loaded LOBs:', Array.from(new Set(lobIds)));
+      } catch (error) {
+        console.error('Error loading user processes:', error);
+        // If there's an error, don't let it crash the component
       }
-    }, [isDialogOpen, editUser.id, userProcesses, processes, form]);
+    }, [editUser.id, userProcesses, processes, form]);
+    
+    // Trigger process loading when dialog opens
+    useEffect(() => {
+      if (isDialogOpen) {
+        loadUserProcesses();
+      }
+    }, [isDialogOpen, loadUserProcesses]);
 
     // Determine if the current user can edit this user
     // Only use permission system for consistency with other features
