@@ -62,13 +62,8 @@ export function FixedEditUserModal({
   userProcesses
 }: EditUserModalProps) {
   const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
-  const [openLOB, setOpenLOB] = useState(false);
-  const [openProcess, setOpenProcess] = useState(false);
   const [filteredProcesses, setFilteredProcesses] = useState<OrganizationProcess[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
-
-  // For tracking if we're selecting from a dropdown
-  const [isSelecting, setIsSelecting] = useState(false);
   
   // Safe string conversion to prevent null/undefined values
   const safeString = (value: any): string => {
@@ -153,10 +148,6 @@ export function FixedEditUserModal({
   
   // Event handler for the modal backdrop
   const handleBackdropClick = (e: React.MouseEvent) => {
-    // Don't close if we're selecting from a dropdown or if clicked within the modal
-    if (isSelecting) {
-      return;
-    }
     // Only close if clicked outside the modal
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       onClose();
@@ -166,14 +157,14 @@ export function FixedEditUserModal({
   // Clean up on unmount
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSelecting) {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
     
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, isSelecting]);
+  }, [onClose]);
   
   if (!isOpen) return null;
   
@@ -525,144 +516,40 @@ export function FixedEditUserModal({
                   {/* Line of Business Selection */}
                   <div>
                     <Label className="text-sm font-normal">Line of Business</Label>
-                    <Popover 
-                      onOpenChange={(open) => {
-                        setOpenLOB(open);
-                        setIsSelecting(open);
+                    <MultiSelect
+                      options={lineOfBusinesses.map(lob => ({
+                        value: lob.id.toString(),
+                        label: lob.name
+                      }))}
+                      selectedValues={selectedLOBs.map(id => id.toString())}
+                      onChange={(values) => {
+                        // Convert back to numbers
+                        setSelectedLOBs(values.map(v => parseInt(v, 10)));
                       }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={openLOB}
-                          className="w-full justify-between mt-1"
-                          onClick={() => { 
-                            setIsSelecting(true);
-                          }}
-                        >
-                          {selectedLOBs.length > 0
-                            ? `${selectedLOBs.length} selected`
-                            : "Select line of business..."}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent 
-                        className="w-96 p-0"
-                      >
-                        <Command>
-                          <CommandInput placeholder="Search line of business..." />
-                          <CommandEmpty>No line of business found.</CommandEmpty>
-                          <CommandGroup className="max-h-60 overflow-y-auto">
-                            {lineOfBusinesses.map((lob) => (
-                              <CommandItem
-                                key={lob.id}
-                                value={lob.name}
-                                onSelect={() => {
-                                  const isSelected = selectedLOBs.includes(lob.id);
-                                  if (isSelected) {
-                                    setSelectedLOBs(selectedLOBs.filter(id => id !== lob.id));
-                                  } else {
-                                    setSelectedLOBs([...selectedLOBs, lob.id]);
-                                  }
-                                }}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={cn(
-                                      "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                      selectedLOBs.includes(lob.id)
-                                        ? "bg-primary border-primary text-primary-foreground"
-                                        : "border-input"
-                                    )}
-                                  >
-                                    {selectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
-                                  </div>
-                                  {lob.name}
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                      placeholder="Select line of business..."
+                      className="mt-1"
+                    />
                   </div>
                   
                   {/* Process Selection */}
                   <div>
                     <Label className="text-sm font-normal">Processes</Label>
-                    <Popover 
-                      onOpenChange={(open) => {
-                        setOpenProcess(open);
-                        setIsSelecting(open);
+                    <MultiSelect
+                      options={filteredProcesses.map(process => ({
+                        value: process.id.toString(),
+                        label: process.name
+                      }))}
+                      selectedValues={(form.watch("processes") || []).map(id => id.toString())}
+                      onChange={(values) => {
+                        // Convert back to numbers
+                        form.setValue(
+                          "processes", 
+                          values.map(v => parseInt(v, 10))
+                        );
                       }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={openProcess}
-                          className="w-full justify-between mt-1"
-                          disabled={selectedLOBs.length === 0}
-                          onClick={() => { 
-                            setIsSelecting(true);
-                          }}
-                        >
-                          {form.watch("processes")?.length
-                            ? `${form.watch("processes")?.length} selected`
-                            : "Select processes..."}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent 
-                        className="w-96 p-0" 
-                      >
-                        <Command>
-                          <CommandInput placeholder="Search processes..." />
-                          <CommandEmpty>No processes found.</CommandEmpty>
-                          <CommandGroup className="max-h-60 overflow-y-auto">
-                            {filteredProcesses.map((process) => {
-                              const currentProcesses = form.getValues("processes") || [];
-                              return (
-                                <CommandItem
-                                  key={process.id}
-                                  value={process.name}
-                                  onSelect={() => {
-                                    const isSelected = currentProcesses.includes(process.id);
-                                    if (isSelected) {
-                                      form.setValue(
-                                        "processes",
-                                        currentProcesses.filter(id => id !== process.id)
-                                      );
-                                    } else {
-                                      form.setValue(
-                                        "processes",
-                                        [...currentProcesses, process.id]
-                                      );
-                                    }
-                                  }}
-
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={cn(
-                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        currentProcesses.includes(process.id)
-                                          ? "bg-primary border-primary text-primary-foreground"
-                                          : "border-input"
-                                      )}
-                                    >
-                                      {currentProcesses.includes(process.id) && <Check className="h-3 w-3" />}
-                                    </div>
-                                    {process.name}
-                                  </div>
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                      placeholder="Select processes..."
+                      className="mt-1"
+                    />
                   </div>
                 </div>
               </div>
