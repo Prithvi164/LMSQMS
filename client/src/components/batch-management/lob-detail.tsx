@@ -405,25 +405,36 @@ export function LobDetail() {
                               </TooltipProvider>
                             )}
                               
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDelete(lob)}
-                                    className="h-7 w-7 p-0 text-destructive"
-                                    disabled={!effectivePermission}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete LOB</span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  <p>{effectivePermission ? 'Delete Line of Business' : 'You do not have permission to delete a line of business'}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            {effectivePermission ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(lob)}
+                                className="h-7 w-7 p-0 text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete LOB</span>
+                              </Button>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 p-0 text-destructive/30"
+                                      disabled
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Delete LOB</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p>You do not have permission to delete a line of business</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
