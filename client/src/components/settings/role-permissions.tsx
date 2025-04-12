@@ -177,7 +177,7 @@ export function RolePermissions() {
   const getPermissionDescription = (permission: string) => {
     const descriptions: Record<string, string> = {
       // User Management
-      manage_users: "Create, edit, and delete user accounts",
+      manage_users: "Create and edit user accounts",
       view_users: "View user profiles and information",
       edit_users: "Modify user account details",
       delete_users: "Remove user accounts",
