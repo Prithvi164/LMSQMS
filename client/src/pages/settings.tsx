@@ -167,15 +167,13 @@ export default function Settings(): React.JSX.Element {
               Organization Tree
             </NavTab>
 
-            {hasPermission("manage_organization_settings") && (
-              <NavTab
-                active={activeTab === "organization-settings"}
-                icon={CalendarDays}
-                onClick={() => setActiveTab("organization-settings")}
-              >
-                Organization Settings
-              </NavTab>
-            )}
+            <NavTab
+              active={activeTab === "organization-settings"}
+              icon={CalendarDays}
+              onClick={() => setActiveTab("organization-settings")}
+            >
+              Organization Settings
+            </NavTab>
           </div>
         </div>
 
@@ -217,14 +215,8 @@ export default function Settings(): React.JSX.Element {
                     </div>
                   )}
                   {activeTab === "organization-tree" && <OrganizationTree />}
-                  {activeTab === "organization-settings" && hasPermission("manage_organization_settings") && (
+                  {activeTab === "organization-settings" && (
                     <OrganizationSettings />
-                  )}
-                  {activeTab === "organization-settings" && !hasPermission("manage_organization_settings") && (
-                    <div className="p-4 border rounded-md bg-yellow-50 text-yellow-800">
-                      <h3 className="text-lg font-medium mb-2">Permission Required</h3>
-                      <p>You do not have permission to view or manage organization settings.</p>
-                    </div>
                   )}
                 </>
               )}
