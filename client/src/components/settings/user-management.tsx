@@ -650,33 +650,8 @@ export function UserManagement() {
     const [openLOB, setOpenLOB] = useState(false);
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [initialProcessIds, setInitialProcessIds] = useState<number[]>([]);
     
-    // Load user process IDs from API
-    useEffect(() => {
-      if (isDialogOpen && userProcesses[editUser.id]) {
-        // Extract process IDs from user's processes
-        const processIds = userProcesses[editUser.id]
-          .map((p: any) => p.processId)
-          .filter((id: number) => id !== undefined);
-          
-        setInitialProcessIds(processIds);
-        
-        // Update form with these processes
-        form.setValue("processes", processIds);
-        
-        // Extract LOBs from these processes
-        const lobIds = userProcesses[editUser.id]
-          .map((p: any) => {
-            const process = processes.find(proc => proc.id === p.processId);
-            return process?.lineOfBusinessId;
-          })
-          .filter((id): id is number => id !== undefined);
-        
-        setSelectedLOBs([...new Set(lobIds)]);
-      }
-    }, [isDialogOpen, userProcesses, editUser.id, processes]);
-
+    // Create the form first so we can use it in the useEffect
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
@@ -695,6 +670,37 @@ export function UserManagement() {
         processes: [],
       }
     });
+    
+    // Load user process IDs from API when dialog opens
+    useEffect(() => {
+      if (isDialogOpen && userProcesses && userProcesses[editUser.id]) {
+        try {
+          // Extract process IDs from user's processes
+          const userProcessList = userProcesses[editUser.id] || [];
+          const processIds = userProcessList
+            .map((p: any) => p.processId)
+            .filter(Boolean);
+          
+          // Update form with these processes
+          form.setValue("processes", processIds);
+          
+          // Extract LOBs from these processes
+          const lobIds = userProcessList
+            .map((p: any) => {
+              const process = processes.find(proc => proc.id === p.processId);
+              return process?.lineOfBusinessId;
+            })
+            .filter(Boolean);
+          
+          // Use Array.from to convert Set to array to avoid typescript issues
+          setSelectedLOBs(Array.from(new Set(lobIds)));
+          console.log('Loaded processes:', processIds);
+          console.log('Loaded LOBs:', Array.from(new Set(lobIds)));
+        } catch (error) {
+          console.error('Error loading user processes:', error);
+        }
+      }
+    }, [isDialogOpen, editUser.id, userProcesses, processes, form]);
 
     // Determine if the current user can edit this user
     // Only use permission system for consistency with other features
@@ -994,14 +1000,17 @@ export function UserManagement() {
                             role="combobox"
                             aria-expanded={openLOB}
                             className="w-full justify-between mt-1"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent event from bubbling up to dialog
+                            }}
                           >
                             {selectedLOBs.length > 0
                               ? `${selectedLOBs.length} selected`
                               : "Select line of business..."}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0">
-                          <Command>
+                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()}>
+                          <Command onPointerDownOutside={(e) => e.preventDefault()}>
                             <CommandInput placeholder="Search line of business..." />
                             <CommandEmpty>No line of business found.</CommandEmpty>
                             <CommandGroup className="max-h-60 overflow-y-auto">
@@ -1049,14 +1058,17 @@ export function UserManagement() {
                             aria-expanded={openProcess}
                             className="w-full justify-between mt-1"
                             disabled={selectedLOBs.length === 0}
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent event from bubbling up to dialog
+                            }}
                           >
                             {form.watch("processes")?.length
                               ? `${form.watch("processes")?.length} selected`
                               : "Select processes..."}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0">
-                          <Command>
+                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()}>
+                          <Command onPointerDownOutside={(e) => e.preventDefault()}>
                             <CommandInput placeholder="Search processes..." />
                             <CommandEmpty>No processes found.</CommandEmpty>
                             <CommandGroup className="max-h-60 overflow-y-auto">
