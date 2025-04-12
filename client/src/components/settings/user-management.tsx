@@ -171,7 +171,16 @@ export function UserManagement() {
         title: "Success",
         description: "User updated successfully",
       });
+      
+      // Invalidate and refetch both users and user processes queries
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/processes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/batch-processes"] });
+      
+      // Force an immediate refetch
+      queryClient.refetchQueries({ queryKey: ["/api/users"] });
+      queryClient.refetchQueries({ queryKey: ["/api/users/processes"] });
+      queryClient.refetchQueries({ queryKey: ["/api/users/batch-processes"] });
     },
     onError: (error: Error) => {
       toast({
