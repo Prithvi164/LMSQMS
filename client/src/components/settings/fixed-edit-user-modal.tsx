@@ -137,23 +137,28 @@ export function FixedEditUserModal({
   // When selected LOBs change, filter processes for selection
   useEffect(() => {
     if (selectedLOBs.length > 0) {
+      // Filter processes to only show those in the selected LOBs
       const filtered = processes.filter(p => selectedLOBs.includes(p.lineOfBusinessId));
       setFilteredProcesses(filtered);
-
-      // When LOBs change, update processes in form to include only those in selected LOBs
-      const currentProcessIds = form.getValues("processes") || [];
       
-      // Keep only processes that exist in currently selected LOBs
-      const validProcessIds = currentProcessIds.filter(id => 
-        filtered.some(p => p.id === id)
-      );
+      // Important: We DO NOT want to modify the selected processes here
+      // Only filter what's visible, but keep the existing selections
       
-      // Set form value to sync UI state with form state
-      form.setValue("processes", validProcessIds);
+      // This was incorrectly filtering out the user's existing process assignments:
+      // const currentProcessIds = form.getValues("processes") || [];
+      // const validProcessIds = currentProcessIds.filter(id => 
+      //   filtered.some(p => p.id === id)
+      // );
+      // form.setValue("processes", validProcessIds);
+      
+      // Instead, we'll log what processes should be displayed
+      const currentSelections = form.getValues("processes") || [];
+      console.log('Current process selections:', currentSelections);
+      console.log('Available processes in selected LOBs:', filtered.map(p => p.id));
     } else {
       setFilteredProcesses([]);
-      // If no LOBs selected, clear processes as well
-      form.setValue("processes", []);
+      // We should NOT clear process selections when no LOB is selected
+      // The user might be in the middle of making their selections
     }
   }, [selectedLOBs, processes, form]);
   
@@ -643,7 +648,13 @@ export function FixedEditUserModal({
                           <CommandEmpty>No processes found.</CommandEmpty>
                           <CommandGroup className="max-h-60 overflow-y-auto">
                             {filteredProcesses.map((process) => {
+                              // Important: Use form.getValues() here to ensure we have the latest values
+                              // This was causing processes to not show as selected in the UI
                               const currentProcesses = form.getValues("processes") || [];
+                              const isSelected = currentProcesses.includes(process.id);
+                              
+                              console.log(`Process ${process.id} (${process.name}) selected:`, isSelected);
+                              
                               return (
                                 <CommandItem
                                   key={process.id}
@@ -655,11 +666,11 @@ export function FixedEditUserModal({
                                     // Update the processes in the form
                                     if (isSelected) {
                                       const updatedProcesses = currentProcesses.filter(id => id !== process.id);
-                                      form.setValue("processes", updatedProcesses);
+                                      form.setValue("processes", updatedProcesses, { shouldDirty: true });
                                       console.log('Process removed:', process.id, 'Updated processes list:', updatedProcesses);
                                     } else {
                                       const updatedProcesses = [...currentProcesses, process.id];
-                                      form.setValue("processes", updatedProcesses);
+                                      form.setValue("processes", updatedProcesses, { shouldDirty: true });
                                       console.log('Process added:', process.id, 'Updated processes list:', updatedProcesses);
                                     }
                                   }}
@@ -668,12 +679,12 @@ export function FixedEditUserModal({
                                     <div
                                       className={cn(
                                         "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        (form.watch("processes") || []).includes(process.id)
+                                        isSelected
                                           ? "bg-primary border-primary text-primary-foreground"
                                           : "border-input"
                                       )}
                                     >
-                                      {(form.watch("processes") || []).includes(process.id) && <Check className="h-3 w-3" />}
+                                      {isSelected && <Check className="h-3 w-3" />}
                                     </div>
                                     {process.name}
                                   </div>
