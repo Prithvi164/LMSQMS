@@ -545,8 +545,7 @@ export function FixedEditUserModal({
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent 
-                        className="w-96 p-0" 
-                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-96 p-0"
                       >
                         <Command>
                           <CommandInput placeholder="Search line of business..." />
