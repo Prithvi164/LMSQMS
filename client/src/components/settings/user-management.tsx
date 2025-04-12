@@ -665,34 +665,34 @@ export function UserManagement() {
   });
 
   // Create EditUserDialog component
+  // Completely redesigned EditUserDialog component to be more robust
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
-    const [openLOB, setOpenLOB] = useState(false);
-    const [openProcess, setOpenProcess] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    
-    // Helper function to ensure non-null string values for form fields
+    // Create internal state only when the dialog is actually opened
+    // to avoid any issues with the form initialization
+    const [internalState, setInternalState] = useState({
+      isOpen: false,
+      isFormReady: false,
+      openLOB: false,
+      openProcess: false,
+      selectedLOBs: [] as number[],
+      selectedProcesses: [] as number[]
+    });
+
+    // Safe string conversion helper 
     const safeString = (value: any): string => {
       if (value === null || value === undefined) return "";
       return String(value);
     };
     
-    // Create the form first so we can use it in the useEffect
+    // Create a simplified form without all the default values initially
+    // We'll set them properly once the dialog is open
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
-        username: safeString(editUser.username),
-        fullName: safeString(editUser.fullName),
-        email: safeString(editUser.email),
-        employeeId: safeString(editUser.employeeId),
-        role: editUser.role,
-        phoneNumber: safeString(editUser.phoneNumber),
-        locationId: editUser.locationId ? String(editUser.locationId) : "none",
-        managerId: editUser.managerId ? String(editUser.managerId) : "none",
-        dateOfJoining: safeString(editUser.dateOfJoining),
-        dateOfBirth: safeString(editUser.dateOfBirth),
-        education: safeString(editUser.education),
-        category: editUser.category || "active",
-        processes: [],
+        username: "",
+        email: "",
+        role: "advisor",
+        processes: []
       }
     });
     
@@ -723,7 +723,12 @@ export function UserManagement() {
         
         // Filter out undefined values and convert to numbers array
         const validLobIds = lobIds.filter((id): id is number => typeof id === 'number');
-        setSelectedLOBs(Array.from(new Set(validLobIds)));
+        
+        // Use the internal state setter
+        setInternalState(prev => ({
+          ...prev,
+          selectedLOBs: Array.from(new Set(validLobIds))
+        }));
         console.log('Loaded processes:', processIds);
         console.log('Loaded LOBs:', Array.from(new Set(validLobIds)));
       } catch (error) {
@@ -734,10 +739,10 @@ export function UserManagement() {
     
     // Trigger process loading when dialog opens
     useEffect(() => {
-      if (isDialogOpen) {
+      if (internalState.isOpen) {
         loadUserProcesses();
       }
-    }, [isDialogOpen, loadUserProcesses]);
+    }, [internalState.isOpen, loadUserProcesses]);
 
     // Determine if the current user can edit this user
     // Only use permission system for consistency with other features
@@ -759,19 +764,48 @@ export function UserManagement() {
 
     return (
       <Dialog 
-        open={isDialogOpen} 
+        open={internalState.isOpen} 
         onOpenChange={(open) => {
+          // Track all opening/closing attempts
+          console.log(`Dialog open changed to: ${open}`);
+          
           // Only allow explicit closing through the close button or submission
           if (!open) {
-            console.log("Dialog close attempt prevented - use explicit close button");
-            // Uncomment the line below to allow normal closing behavior again
-            // setIsDialogOpen(false);
+            console.log("Dialog close attempt - using internal state setter");
+            setInternalState(prev => ({...prev, isOpen: false}));
             return;
           }
-          setIsDialogOpen(open);
+          
+          // When opening, set the state
+          setInternalState(prev => ({...prev, isOpen: true}));
         }}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="icon" onClick={() => setIsDialogOpen(true)}>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("Edit button clicked");
+              setInternalState(prev => ({...prev, isOpen: true}));
+              
+              // Initialize form with current values when opening
+              form.reset({
+                username: safeString(editUser.username),
+                fullName: safeString(editUser.fullName),
+                email: safeString(editUser.email),
+                employeeId: safeString(editUser.employeeId),
+                role: editUser.role,
+                phoneNumber: safeString(editUser.phoneNumber),
+                locationId: editUser.locationId ? String(editUser.locationId) : "none",
+                managerId: editUser.managerId ? String(editUser.managerId) : "none",
+                dateOfJoining: safeString(editUser.dateOfJoining),
+                dateOfBirth: safeString(editUser.dateOfBirth),
+                education: safeString(editUser.education),
+                category: editUser.category || "active",
+                processes: [],
+              });
+            }}>
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
@@ -799,9 +833,11 @@ export function UserManagement() {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 console.log("Explicit close button clicked");
-                setIsDialogOpen(false);
+                setInternalState(prev => ({...prev, isOpen: false}));
               }}
               type="button"
             >
@@ -849,7 +885,8 @@ export function UserManagement() {
                     id: editUser.id,
                     data: cleanedData
                   });
-                  setIsDialogOpen(false);
+                  // Close dialog on successful submission
+                  setInternalState(prev => ({...prev, isOpen: false}));
                 } catch (error) {
                   console.error('Error updating user:', error);
                 }
