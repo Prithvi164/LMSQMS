@@ -149,10 +149,23 @@ export function FixedEditUserModal({
     if (selectedLOBs.length > 0) {
       const filtered = processes.filter(p => selectedLOBs.includes(p.lineOfBusinessId));
       setFilteredProcesses(filtered);
+
+      // When LOBs change, update processes in form to include only those in selected LOBs
+      const currentProcessIds = form.getValues("processes") || [];
+      
+      // Keep only processes that exist in currently selected LOBs
+      const validProcessIds = currentProcessIds.filter(id => 
+        filtered.some(p => p.id === id)
+      );
+      
+      // Set form value to sync UI state with form state
+      form.setValue("processes", validProcessIds);
     } else {
       setFilteredProcesses([]);
+      // If no LOBs selected, clear processes as well
+      form.setValue("processes", []);
     }
-  }, [selectedLOBs, processes]);
+  }, [selectedLOBs, processes, form]);
   
   // Monitor dropdown states
   useEffect(() => {
@@ -646,17 +659,18 @@ export function FixedEditUserModal({
                                   key={process.id}
                                   value={process.name}
                                   onSelect={() => {
+                                    const currentProcesses = form.getValues("processes") || [];
                                     const isSelected = currentProcesses.includes(process.id);
+                                    
+                                    // Update the processes in the form
                                     if (isSelected) {
-                                      form.setValue(
-                                        "processes",
-                                        currentProcesses.filter(id => id !== process.id)
-                                      );
+                                      const updatedProcesses = currentProcesses.filter(id => id !== process.id);
+                                      form.setValue("processes", updatedProcesses);
+                                      console.log('Process removed:', process.id, 'Updated processes list:', updatedProcesses);
                                     } else {
-                                      form.setValue(
-                                        "processes",
-                                        [...currentProcesses, process.id]
-                                      );
+                                      const updatedProcesses = [...currentProcesses, process.id];
+                                      form.setValue("processes", updatedProcesses);
+                                      console.log('Process added:', process.id, 'Updated processes list:', updatedProcesses);
                                     }
                                   }}
                                 >
@@ -664,12 +678,12 @@ export function FixedEditUserModal({
                                     <div
                                       className={cn(
                                         "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        currentProcesses.includes(process.id)
+                                        form.getValues("processes")?.includes(process.id)
                                           ? "bg-primary border-primary text-primary-foreground"
                                           : "border-input"
                                       )}
                                     >
-                                      {currentProcesses.includes(process.id) && <Check className="h-3 w-3" />}
+                                      {form.getValues("processes")?.includes(process.id) && <Check className="h-3 w-3" />}
                                     </div>
                                     {process.name}
                                   </div>
