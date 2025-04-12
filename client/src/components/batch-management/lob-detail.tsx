@@ -227,6 +227,10 @@ export function LobDetail() {
 
   const deleteLobMutation = useMutation({
     mutationFn: async () => {
+      if (!effectivePermission) {
+        throw new Error('You do not have permission to delete a line of business');
+      }
+      
       const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses/${selectedLob.id}`, {
         method: 'DELETE',
       });
@@ -321,13 +325,14 @@ export function LobDetail() {
                   <TooltipTrigger asChild>
                     <Button
                       onClick={() => setIsCreateDialogOpen(true)}
+                      disabled={!effectivePermission}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add New LOB
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    <p>Add a new line of business</p>
+                    <p>{effectivePermission ? 'Add a new line of business' : 'You do not have permission to add a line of business'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -363,13 +368,14 @@ export function LobDetail() {
                                     size="icon"
                                     onClick={() => handleEdit(lob)}
                                     className="h-7 w-7 p-0 text-blue-600"
+                                    disabled={!effectivePermission}
                                   >
                                     <Edit className="h-4 w-4" />
                                     <span className="sr-only">Edit LOB</span>
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                  <p>Edit Line of Business</p>
+                                  <p>{effectivePermission ? 'Edit Line of Business' : 'You do not have permission to edit a line of business'}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -382,13 +388,14 @@ export function LobDetail() {
                                     size="icon"
                                     onClick={() => handleDelete(lob)}
                                     className="h-7 w-7 p-0 text-destructive"
+                                    disabled={!effectivePermission}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                     <span className="sr-only">Delete LOB</span>
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                  <p>Delete Line of Business</p>
+                                  <p>{effectivePermission ? 'Delete Line of Business' : 'You do not have permission to delete a line of business'}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
