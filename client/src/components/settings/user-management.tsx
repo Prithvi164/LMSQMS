@@ -705,10 +705,11 @@ export function UserManagement() {
           })
           .filter(Boolean);
         
-        // Use Array.from to convert Set to array to avoid typescript issues
-        setSelectedLOBs(Array.from(new Set(lobIds)));
+        // Filter out undefined values and convert to numbers array
+        const validLobIds = lobIds.filter((id): id is number => typeof id === 'number');
+        setSelectedLOBs(Array.from(new Set(validLobIds)));
         console.log('Loaded processes:', processIds);
-        console.log('Loaded LOBs:', Array.from(new Set(lobIds)));
+        console.log('Loaded LOBs:', Array.from(new Set(validLobIds)));
       } catch (error) {
         console.error('Error loading user processes:', error);
         // If there's an error, don't let it crash the component
@@ -747,7 +748,7 @@ export function UserManagement() {
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -759,10 +760,17 @@ export function UserManagement() {
               <form onSubmit={form.handleSubmit(async (data) => {
                 try {
                   // Clean up the data before submission
+                  // Ensure proper type conversion for form data
+                  const locationId = data.locationId === "none" ? null : 
+                    typeof data.locationId === 'string' ? parseInt(data.locationId) : data.locationId;
+                  
+                  const managerId = data.managerId === "none" ? null : 
+                    typeof data.managerId === 'string' ? parseInt(data.managerId) : data.managerId;
+                  
                   const cleanedData = {
                     ...data,
-                    locationId: data.locationId === "none" ? null : parseInt(data.locationId),
-                    managerId: data.managerId === "none" ? null : parseInt(data.managerId),
+                    locationId,
+                    managerId,
                     processes: data.processes || [],
                   };
 
@@ -1029,8 +1037,8 @@ export function UserManagement() {
                               : "Select line of business..."}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()}>
-                          <Command onPointerDownOutside={(e) => e.preventDefault()}>
+                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()} onInteractOutside={(e) => e.preventDefault()}>
+                          <Command>
                             <CommandInput placeholder="Search line of business..." />
                             <CommandEmpty>No line of business found.</CommandEmpty>
                             <CommandGroup className="max-h-60 overflow-y-auto">
@@ -1087,8 +1095,8 @@ export function UserManagement() {
                               : "Select processes..."}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()}>
-                          <Command onPointerDownOutside={(e) => e.preventDefault()}>
+                        <PopoverContent className="w-96 p-0" onClick={(e) => e.stopPropagation()} onInteractOutside={(e) => e.preventDefault()}>
+                          <Command>
                             <CommandInput placeholder="Search processes..." />
                             <CommandEmpty>No processes found.</CommandEmpty>
                             <CommandGroup className="max-h-60 overflow-y-auto">
