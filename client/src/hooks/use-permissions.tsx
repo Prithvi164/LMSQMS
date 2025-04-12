@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import type { RolePermission } from "@shared/schema";
+import { defaultPermissions } from "@shared/permissions";
 
 type PermissionsContextType = {
   hasPermission: (permission: string) => boolean;
@@ -27,11 +28,19 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     // Owner has all permissions
     if (user.role === 'owner') return true;
 
-    // Log permission check for debugging
-    console.log('Checking permission:', permission, 'for role:', user.role, 
-                'Has permission:', rolePermissions.permissions.includes(permission));
+    // Enhanced logging for debugging
+    const hasPermission = rolePermissions.permissions.includes(permission);
+    console.log(`Permission check: "${permission}" for role: "${user.role}" - Result: ${hasPermission}`);
+    console.log(`All permissions for role ${user.role}:`, rolePermissions.permissions);
+    
+    // Specific check for manage_holidaylist
+    if (permission === 'manage_holidaylist') {
+      console.log('HOLIDAY PERMISSION CHECK - Default permissions include it?', 
+                 defaultPermissions[user.role as keyof typeof defaultPermissions]?.includes('manage_holidaylist'));
+      console.log('HOLIDAY PERMISSION CHECK - Actual permissions include it?', hasPermission);
+    }
 
-    return rolePermissions.permissions.includes(permission);
+    return hasPermission;
   };
 
   const hasAnyPermission = (permissions: string[]): boolean => {
