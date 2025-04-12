@@ -361,15 +361,48 @@ export function RolePermissions() {
     }
   }, [selectedRole, rolePermissions]);
 
+  // Define hierarchical permission relationships
+  const permissionHierarchy = {
+    // User Management: manage_users is the parent permission
+    'manage_users': ['view_users', 'edit_users', 'delete_users', 'upload_users', 'add_users'],
+  };
+
   const handlePermissionToggle = useCallback((permission: string) => {
     // Determine if this is enabling or disabling the permission
     const isEnabling = !currentRolePermissions.includes(permission);
     const action = isEnabling ? "enable" : "disable";
     
     // Calculate the new permissions array
-    const newPermissions = isEnabling
+    let newPermissions = isEnabling
       ? [...currentRolePermissions, permission]
       : currentRolePermissions.filter((p: string) => p !== permission);
+    
+    // Handle hierarchical permissions
+    if (permission === 'manage_users') {
+      // If enabling the parent permission, enable all child permissions
+      if (isEnabling) {
+        permissionHierarchy['manage_users'].forEach(childPermission => {
+          if (!newPermissions.includes(childPermission)) {
+            newPermissions.push(childPermission);
+          }
+        });
+      } 
+      // If disabling the parent permission, disable all child permissions
+      else {
+        newPermissions = newPermissions.filter(p => 
+          !permissionHierarchy['manage_users'].includes(p)
+        );
+      }
+    } 
+    // If toggling a child permission of "manage_users"
+    else if (permissionHierarchy['manage_users'].includes(permission)) {
+      if (isEnabling) {
+        // No need to adjust other permissions when enabling a child
+      } else {
+        // If disabling a child permission, also disable the parent permission
+        newPermissions = newPermissions.filter(p => p !== 'manage_users');
+      }
+    }
     
     // Filter out any obsolete quiz-specific permissions
     const obsoletePermissions = ['edit_quiz', 'delete_quiz', 'create_quiz'];
@@ -421,6 +454,9 @@ export function RolePermissions() {
     
     let newPermissions = [...currentRolePermissions];
     
+    // Check if we're dealing with the User Management category
+    const isUserManagementCategory = validPermissions.includes('manage_users' as PermissionType);
+    
     if (enabled) {
       // Add all permissions from this category that aren't already enabled
       validPermissions.forEach(p => {
@@ -428,9 +464,25 @@ export function RolePermissions() {
           newPermissions.push(p);
         }
       });
+      
+      // If enabling all User Management permissions, add all child permissions too
+      if (isUserManagementCategory) {
+        permissionHierarchy['manage_users'].forEach(childPermission => {
+          if (!newPermissions.includes(childPermission)) {
+            newPermissions.push(childPermission);
+          }
+        });
+      }
     } else {
       // Remove all permissions from this category
       newPermissions = newPermissions.filter(p => !validPermissions.includes(p as PermissionType));
+      
+      // If disabling all User Management permissions, remove all child permissions too
+      if (isUserManagementCategory) {
+        newPermissions = newPermissions.filter(p => 
+          !permissionHierarchy['manage_users'].includes(p)
+        );
+      }
     }
     
     // Set the pending permission change to show in confirmation dialog
@@ -442,7 +494,7 @@ export function RolePermissions() {
     
     // Open the confirmation dialog
     setConfirmationOpen(true);
-  }, [currentRolePermissions]);
+  }, [currentRolePermissions, permissionHierarchy]);
 
   const filterPermissions = (permissions: string[]) => {
     // Filter out course related permissions
