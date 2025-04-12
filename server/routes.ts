@@ -2227,7 +2227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updatedUser = await storage.updateUser(userId, updateData);
         
         // If processes were included, update them separately
-        if (processIds && processIds.length >= 0) {
+        if (processIds !== undefined) {
           console.log(`Updating processes for user ${userId}:`, processIds);
           await storage.updateUserProcesses(userId, processIds, userToUpdate.organizationId);
         }
