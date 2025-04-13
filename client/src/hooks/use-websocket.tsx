@@ -15,13 +15,15 @@ export function useWebSocket(userId?: number, sessionId?: string) {
   const messageQueueRef = useRef<any[]>([]);
 
   // Create a WebSocket connection
-  const connect = useCallback(() => {
-    // Don't attempt to connect if userId is not available
-    if (!userId) {
-      console.log('Not connecting WebSocket - userId not available');
-      setStatus('closed');
-      return Promise.resolve(false); // Return a resolved promise to prevent unhandled rejections
-    }
+  const connect = useCallback((): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+      // Don't attempt to connect if userId is not available
+      if (!userId) {
+        console.log('Not connecting WebSocket - userId not available');
+        setStatus('closed');
+        resolve(false);
+        return;
+      }
 
     // Close any existing connection
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
@@ -113,7 +115,9 @@ export function useWebSocket(userId?: number, sessionId?: string) {
           
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('Attempting to reconnect WebSocket...');
-            connect();
+            connect().catch(error => {
+              console.error('Error during reconnection attempt:', error);
+            });
           }, 5000); // Try to reconnect after 5 seconds
         }
       };
@@ -121,11 +125,14 @@ export function useWebSocket(userId?: number, sessionId?: string) {
       socket.onerror = (error) => {
         setStatus('error');
         console.error('WebSocket error:', error);
+        reject(error);
       };
     } catch (error) {
       setStatus('error');
       console.error('Error creating WebSocket connection:', error);
+      reject(error);
     }
+    });
   }, [userId, sessionId]);
 
   /**
@@ -143,11 +150,9 @@ export function useWebSocket(userId?: number, sessionId?: string) {
       
       // If socket is closed or in error state, try to reconnect
       if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED || socketRef.current.readyState === WebSocket.CLOSING) {
-        try {
-          connect();
-        } catch (error) {
+        connect().catch(error => {
           console.error('Error reconnecting WebSocket:', error);
-        }
+        });
       }
       return false;
     }
@@ -189,11 +194,9 @@ export function useWebSocket(userId?: number, sessionId?: string) {
 
   // Initialize the connection when the component mounts or when userId/sessionId changes
   useEffect(() => {
-    try {
-      connect();
-    } catch (error) {
+    connect().catch(error => {
       console.error('Error initializing WebSocket connection:', error);
-    }
+    });
     
     // Clean up when unmounting
     return () => {
