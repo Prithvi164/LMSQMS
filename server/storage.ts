@@ -500,6 +500,62 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  async getUserActiveSessions(userId: number): Promise<UserSession[]> {
+    try {
+      return await db
+        .select()
+        .from(userSessions)
+        .where(and(
+          eq(userSessions.userId, userId),
+          eq(userSessions.status, 'active')
+        ))
+        .orderBy(desc(userSessions.loginAt)) as UserSession[];
+    } catch (error) {
+      console.error('Error getting user active sessions:', error);
+      throw error;
+    }
+  }
+  
+  async getUserPendingApprovalSessions(userId: number): Promise<UserSession[]> {
+    try {
+      return await db
+        .select()
+        .from(userSessions)
+        .where(and(
+          eq(userSessions.userId, userId),
+          eq(userSessions.status, 'pending_approval')
+        ))
+        .orderBy(desc(userSessions.loginAt)) as UserSession[];
+    } catch (error) {
+      console.error('Error getting user pending approval sessions:', error);
+      throw error;
+    }
+  }
+  
+  async expireAllUserSessionsExcept(userId: number, exceptSessionId: string): Promise<number> {
+    try {
+      const result = await db
+        .update(userSessions)
+        .set({
+          status: 'expired',
+          lastActivityAt: new Date()
+        })
+        .where(and(
+          eq(userSessions.userId, userId),
+          ne(userSessions.sessionId, exceptSessionId),
+          or(
+            eq(userSessions.status, 'active'),
+            eq(userSessions.status, 'pending_approval')
+          )
+        ));
+      
+      return result.rowCount || 0;
+    } catch (error) {
+      console.error('Error expiring user sessions:', error);
+      throw error;
+    }
+  }
 
   async getUserSessions(userId: number): Promise<UserSession[]> {
     try {
