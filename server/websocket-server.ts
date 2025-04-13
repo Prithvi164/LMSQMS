@@ -78,9 +78,15 @@ export function setupWebSocketServer(server: Server) {
           const existingSessions = userConnections.get(data.userId);
           
           if (existingSessions && existingSessions.size > 0) {
+            console.log(`Found ${existingSessions.size} existing sessions for user ${data.userId}`);
+            let activeSessions = 0;
+            
             // Send request to all existing sessions
             for (const [sessionId, connection] of existingSessions) {
               if (sessionId !== data.sessionId && connection.readyState === WebSocket.OPEN) {
+                console.log(`Sending session request to existing session ${sessionId}`);
+                activeSessions++;
+                
                 const requestMessage: SessionMessage = {
                   type: 'session_request',
                   sessionId: data.sessionId,
@@ -91,13 +97,35 @@ export function setupWebSocketServer(server: Server) {
                 };
                 
                 connection.send(JSON.stringify(requestMessage));
-                
-                // Update the session status to pending approval
-                await storage.updateUserSessionStatus(
-                  data.sessionId, 
-                  'pending_approval'
-                );
+              } else {
+                console.log(`Skipping session ${sessionId}: ${connection.readyState === WebSocket.OPEN ? 'is the requesting session' : 'not open'}`);
               }
+            }
+            
+            // If we actually notified active sessions, mark this as pending approval
+            if (activeSessions > 0) {
+              console.log(`Updated session ${data.sessionId} status to pending_approval`);
+              // Update the session status to pending approval
+              await storage.updateUserSessionStatus(
+                data.sessionId, 
+                'pending_approval'
+              );
+            } else {
+              // No active sessions to notify, approve automatically
+              console.log(`No active sessions to notify for user ${data.userId}, approving automatically`);
+              const approvalMessage: SessionMessage = {
+                type: 'session_approval',
+                sessionId: data.sessionId,
+                userId: data.userId
+              };
+              
+              ws.send(JSON.stringify(approvalMessage));
+              
+              // Update the session status to approved
+              await storage.updateUserSessionStatus(
+                data.sessionId, 
+                'approved'
+              );
             }
           } else {
             // No existing sessions, approve automatically

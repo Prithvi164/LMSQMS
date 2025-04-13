@@ -7,6 +7,10 @@ export type WebSocketStatus = 'connecting' | 'open' | 'closing' | 'closed' | 'er
  * Hook for managing WebSocket connections to handle session transfers
  */
 export function useWebSocket(userId?: number, sessionId?: string) {
+  // Try to get session ID from props or fall back to sessionStorage
+  const [localSessionId, setLocalSessionId] = useState<string | undefined>(
+    sessionId || (typeof window !== 'undefined' ? window.sessionStorage.getItem('sessionId') || undefined : undefined)
+  );
   const [status, setStatus] = useState<WebSocketStatus>('closed');
   const [lastMessage, setLastMessage] = useState<any>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -47,8 +51,11 @@ export function useWebSocket(userId?: number, sessionId?: string) {
       
       // Connect to our WebSocket server with userId and sessionId as query parameters
       let wsUrl = `${protocol}//${host}/ws/sessions?userId=${userId}`;
-      if (sessionId) {
-        wsUrl += `&sessionId=${sessionId}`;
+      // Use either the passed sessionId or the one from local state (which might have come from sessionStorage)
+      const effectiveSessionId = sessionId || localSessionId;
+      if (effectiveSessionId) {
+        wsUrl += `&sessionId=${effectiveSessionId}`;
+        console.log('Using session ID for WebSocket connection:', effectiveSessionId);
       }
       
       console.log('Connecting to WebSocket:', wsUrl);
@@ -61,13 +68,14 @@ export function useWebSocket(userId?: number, sessionId?: string) {
         console.log('WebSocket connection established');
         
         // Register the session immediately when the connection opens
-        if (userId && sessionId) {
+        const effectiveSessionId = sessionId || localSessionId;
+        if (userId && effectiveSessionId) {
           socket.send(JSON.stringify({
             type: 'register',
             userId,
-            sessionId
+            sessionId: effectiveSessionId
           }));
-          console.log('Registered session:', { userId, sessionId });
+          console.log('Registered session:', { userId, sessionId: effectiveSessionId });
         }
         
         // Send any queued messages
@@ -180,17 +188,19 @@ export function useWebSocket(userId?: number, sessionId?: string) {
   }, [userId, sendMessage]);
   
   const sendSessionRequest = useCallback((deviceInfo?: string, ipAddress?: string, userAgent?: string) => {
-    if (!userId || !sessionId) return false;
+    // Use either the passed sessionId or the one from local state that might have come from sessionStorage
+    const effectiveSessionId = sessionId || localSessionId;
+    if (!userId || !effectiveSessionId) return false;
     
     return sendMessage({
       type: 'session_request',
-      sessionId,
+      sessionId: effectiveSessionId,
       userId,
       deviceInfo,
       ipAddress,
       userAgent
     });
-  }, [userId, sessionId, sendMessage]);
+  }, [userId, sessionId, localSessionId, sendMessage]);
 
   // Initialize the connection when the component mounts or when userId/sessionId changes
   useEffect(() => {

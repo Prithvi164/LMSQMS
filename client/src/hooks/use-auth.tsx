@@ -54,6 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // If the response includes a session ID, store it
         if (userData?.sessionId) {
           setSessionId(userData.sessionId);
+          
+          // Store in sessionStorage for persistence across page refreshes
+          try {
+            window.sessionStorage.setItem('sessionId', userData.sessionId);
+            console.log('Session ID stored in sessionStorage:', userData.sessionId);
+          } catch (storageError) {
+            console.error('Failed to store sessionId in sessionStorage:', storageError);
+          }
         }
         
         return userData;
