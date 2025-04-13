@@ -1,9 +1,11 @@
 import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { PermissionsProvider } from "@/hooks/use-permissions";
+import { setupScaleHandling } from "@/lib/scale-handler";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
@@ -50,47 +52,57 @@ function Router() {
   }
 
   return (
-    <div className="flex">
+    <div className="flex h-full w-full overflow-hidden">
       {user && !isAuthPage && !isSettingsPage && <SidebarNav />}
-      <main className={`transition-all duration-300 ${user && !isSettingsPage ? "flex-1" : "w-full"}`}>
+      <main className={`transition-all duration-300 ${user && !isSettingsPage ? "flex-1" : "w-full"} flex flex-col overflow-hidden`}>
         {user && !isAuthPage && !isSettingsPage && (
-          <div className="p-4 border-b flex justify-end">
+          <div className="p-2 sm:p-4 border-b flex justify-end items-center shrink-0">
             <UserProfile />
           </div>
         )}
-        <Switch>
-          <Route path="/auth" component={AuthPage} />
-          <Route path="/forgot-password" component={ForgotPasswordPage} />
-          <Route path="/reset-password" component={ResetPasswordPage} />
-          <ProtectedRoute path="/" component={Dashboard} />
-
-          <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
-          <ProtectedRoute path="/performance" component={Performance} />
-          <ProtectedRoute path="/settings" component={Settings} />
-          <ProtectedRoute path="/batch-management" component={() => <BatchDetail onCreateBatch={() => {}} />} />
-          <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
-          <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
-          <ProtectedRoute path="/batch-dashboard/:batchId" component={BatchDashboardPage} />
-          <ProtectedRoute path="/quiz-management" component={QuizManagement} />
-          <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} />
-          <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} />
-          <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
-          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
-          <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
-          <ProtectedRoute path="/conduct-evaluation" component={PermissionGuardedConductEvaluation} /> 
-          <ProtectedRoute path="/evaluation-feedback" component={PermissionGuardedEvaluationFeedback} />
-          <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
-          <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
-          <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
-          <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />
-          <Route component={NotFound} />
-        </Switch>
+        <div className="overflow-auto flex-1">
+          <Switch>
+            <Route path="/auth" component={AuthPage} />
+            <Route path="/forgot-password" component={ForgotPasswordPage} />
+            <Route path="/reset-password" component={ResetPasswordPage} />
+            <ProtectedRoute path="/" component={Dashboard} />
+            <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
+            <ProtectedRoute path="/performance" component={Performance} />
+            <ProtectedRoute path="/settings" component={Settings} />
+            <ProtectedRoute path="/batch-management" component={() => <BatchDetail onCreateBatch={() => {}} />} />
+            <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
+            <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
+            <ProtectedRoute path="/batch-dashboard/:batchId" component={BatchDashboardPage} />
+            <ProtectedRoute path="/quiz-management" component={QuizManagement} />
+            <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} />
+            <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} />
+            <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
+            <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
+            <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
+            <ProtectedRoute path="/conduct-evaluation" component={PermissionGuardedConductEvaluation} /> 
+            <ProtectedRoute path="/evaluation-feedback" component={PermissionGuardedEvaluationFeedback} />
+            <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
+            <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
+            <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
+            <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />
+            <Route component={NotFound} />
+          </Switch>
+        </div>
       </main>
     </div>
   );
 }
 
 function App() {
+  // Set up scale handling when the component mounts
+  useEffect(() => {
+    // Initialize scale handler
+    const cleanup = setupScaleHandling();
+    
+    // Clean up event listeners when component unmounts
+    return cleanup;
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
