@@ -1775,8 +1775,54 @@ export class DatabaseStorage implements IStorage {
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
-    return user;
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
+      return user;
+    } catch (error) {
+      // If the error is about missing enable_rls, retry with explicit column selection
+      if (error instanceof Error && error.message.includes('enable_rls')) {
+        console.log('Working around missing enable_rls column in getUser...');
+        
+        // Select all columns except enableRLS
+        const result = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            password: users.password,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            role: users.role,
+            category: users.category,
+            locationId: users.locationId,
+            email: users.email,
+            education: users.education,
+            dateOfJoining: users.dateOfJoining,
+            phoneNumber: users.phoneNumber,
+            dateOfBirth: users.dateOfBirth,
+            lastWorkingDay: users.lastWorkingDay,
+            organizationId: users.organizationId,
+            managerId: users.managerId,
+            active: users.active,
+            certified: users.certified,
+            createdAt: users.createdAt,
+            onboardingCompleted: users.onboardingCompleted,
+            resetPasswordToken: users.resetPasswordToken,
+            resetPasswordExpires: users.resetPasswordExpires,
+          })
+          .from(users)
+          .where(eq(users.id, id));
+          
+        // Add default enableRLS value
+        if (result[0]) {
+          return {
+            ...result[0],
+            enableRLS: false,
+          } as User;
+        }
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -2094,17 +2140,61 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listUsers(organizationId: number, includeInactive: boolean = false): Promise<User[]> {
-    let query = db
-      .select()
-      .from(users)
-      .where(eq(users.organizationId, organizationId));
-
-    // Only include active users unless specifically requested
-    if (!includeInactive) {
-      query = query.where(eq(users.active, true));
+    try {
+      let query = db
+        .select()
+        .from(users)
+        .where(eq(users.organizationId, organizationId));
+  
+      // Only include active users unless specifically requested
+      if (!includeInactive) {
+        query = query.where(eq(users.active, true));
+      }
+  
+      return await query as User[];
+    } catch (error) {
+      // If the error is about missing enable_rls, retry with explicit column selection
+      if (error instanceof Error && error.message.includes('enable_rls')) {
+        console.log('Working around missing enable_rls column in listUsers...');
+        
+        // Select all columns except enableRLS
+        const result = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            password: users.password,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            role: users.role,
+            category: users.category,
+            locationId: users.locationId,
+            email: users.email,
+            education: users.education,
+            dateOfJoining: users.dateOfJoining,
+            phoneNumber: users.phoneNumber,
+            dateOfBirth: users.dateOfBirth,
+            lastWorkingDay: users.lastWorkingDay,
+            organizationId: users.organizationId,
+            managerId: users.managerId,
+            active: users.active,
+            certified: users.certified,
+            createdAt: users.createdAt,
+            onboardingCompleted: users.onboardingCompleted,
+            resetPasswordToken: users.resetPasswordToken,
+            resetPasswordExpires: users.resetPasswordExpires,
+          })
+          .from(users)
+          .where(eq(users.organizationId, organizationId))
+          .where(includeInactive ? undefined : eq(users.active, true));
+        
+        // Add default enableRLS value
+        return result.map(user => ({
+          ...user,
+          enableRLS: false,
+        })) as User[];
+      }
+      throw error;
     }
-
-    return await query as User[];
   }
 
   // User Process operations
@@ -2257,12 +2347,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async hasOrganizationOwner(organizationId: number): Promise<boolean> {
-    const [owner] = await db
-      .select()
-      .from(users)
-      .where(eq(users.organizationId, organizationId))
-      .where(eq(users.role, 'owner')) as User[];
-    return !!owner;
+    try {
+      const [owner] = await db
+        .select()
+        .from(users)
+        .where(eq(users.organizationId, organizationId))
+        .where(eq(users.role, 'owner')) as User[];
+      return !!owner;
+    } catch (error) {
+      // If the error is about missing enable_rls, retry with explicit column selection
+      if (error instanceof Error && error.message.includes('enable_rls')) {
+        console.log('Working around missing enable_rls column in hasOrganizationOwner...');
+        
+        // Select just the minimal columns needed for this check
+        const result = await db
+          .select({
+            id: users.id,
+            role: users.role,
+          })
+          .from(users)
+          .where(eq(users.organizationId, organizationId))
+          .where(eq(users.role, 'owner'));
+          
+        return result.length > 0;
+      }
+      throw error;
+    }
   }
 
   // Organization settings operations
