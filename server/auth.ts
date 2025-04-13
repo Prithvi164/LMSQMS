@@ -645,4 +645,190 @@ export function setupAuth(app: Express) {
         return 'Unknown session status';
     }
   }
+  
+  // Get all active sessions for a user
+  app.get("/api/user/active-sessions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const activeSessions = await storage.getUserActiveSessions(req.user.id);
+      
+      return res.status(200).json({
+        sessions: activeSessions.map(session => ({
+          sessionId: session.sessionId,
+          loginAt: session.loginAt,
+          lastActivityAt: session.lastActivityAt,
+          device: session.deviceInfo || 'Unknown Device'
+        }))
+      });
+    } catch (error) {
+      console.error("Error fetching active sessions:", error);
+      return res.status(500).json({ message: "Failed to fetch active sessions" });
+    }
+  });
+  
+  // Get all pending approval sessions for a user
+  app.get("/api/user/pending-sessions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const pendingSessions = await storage.getUserPendingApprovalSessions(req.user.id);
+      
+      return res.status(200).json({
+        sessions: pendingSessions.map(session => ({
+          sessionId: session.sessionId,
+          loginAt: session.loginAt,
+          lastActivityAt: session.lastActivityAt,
+          device: session.deviceInfo || 'Unknown Device'
+        }))
+      });
+    } catch (error) {
+      console.error("Error fetching pending sessions:", error);
+      return res.status(500).json({ message: "Failed to fetch pending sessions" });
+    }
+  });
+  
+  // Notify all active sessions about a login attempt
+  app.post("/api/user/notify-login-attempt", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { sessionId, deviceInfo, ipAddress, userAgent } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+      
+      // Update the session status to pending approval
+      await storage.updateUserSessionStatus(sessionId, 'pending_approval');
+      
+      // Get all active sessions for this user
+      const activeSessions = await storage.getUserActiveSessions(req.user.id);
+      
+      // If no active sessions, auto-approve this one
+      if (activeSessions.length === 0) {
+        // Update the session status to approved
+        await storage.updateUserSessionStatus(sessionId, 'approved');
+        
+        return res.status(200).json({
+          status: 'approved',
+          message: 'No active sessions found, login approved automatically',
+          notifiedSessions: 0
+        });
+      }
+      
+      // If we reach here, there are active sessions
+      return res.status(200).json({
+        status: 'pending_approval',
+        message: 'Login attempt notification sent to active sessions',
+        notifiedSessions: activeSessions.length
+      });
+    } catch (error) {
+      console.error("Error notifying login attempt:", error);
+      return res.status(500).json({ message: "Failed to notify login attempt" });
+    }
+  });
+  
+  // Get all sessions for a user
+  app.get("/api/user/all-sessions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessions = await storage.getUserSessions(req.user.id);
+      
+      return res.status(200).json({
+        sessions: sessions.map(session => ({
+          sessionId: session.sessionId,
+          status: session.status,
+          loginAt: session.loginAt,
+          lastActivityAt: session.lastActivityAt,
+          device: session.deviceInfo || 'Unknown Device',
+          expiresAt: session.expiresAt
+        }))
+      });
+    } catch (error) {
+      console.error("Error fetching all sessions:", error);
+      return res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+  
+  // Expire all other sessions
+  app.post("/api/user/expire-other-sessions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // The current session ID
+      const currentSessionId = req.body.sessionId || 
+        (typeof req.session !== 'undefined' ? req.session.id : null);
+      
+      if (!currentSessionId) {
+        return res.status(400).json({ message: "Current session ID is required" });
+      }
+      
+      // Expire all other sessions
+      const expiredCount = await storage.expireAllUserSessionsExcept(req.user.id, currentSessionId);
+      
+      return res.status(200).json({
+        message: `Expired ${expiredCount} other sessions`,
+        expiredCount
+      });
+    } catch (error) {
+      console.error("Error expiring other sessions:", error);
+      return res.status(500).json({ message: "Failed to expire other sessions" });
+    }
+  });
+  
+  // Session check endpoint to verify if the current session is still valid
+  app.get("/api/user/session-check", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Get the current session ID
+      const sessionId = typeof req.session !== 'undefined' ? req.session.id : null;
+      
+      if (!sessionId) {
+        return res.status(401).json({ message: "No session ID found" });
+      }
+      
+      // Check if this session is still valid
+      const session = await storage.getUserSession(sessionId);
+      
+      if (!session) {
+        return res.status(401).json({ message: "Session not found" });
+      }
+      
+      // Check session status
+      if (session.status !== 'active') {
+        return res.status(403).json({ 
+          message: "Session is no longer active", 
+          status: session.status
+        });
+      }
+      
+      // Update last activity time
+      await storage.updateSessionLastActivity(sessionId);
+      
+      return res.status(200).json({ 
+        message: "Session is valid",
+        userId: req.user.id,
+        sessionId,
+        status: session.status
+      });
+    } catch (error) {
+      console.error("Session check error:", error);
+      return res.status(500).json({ message: "Failed to check session status" });
+    }
+  });
 }
