@@ -7,13 +7,23 @@ import { type User, type InsertUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-type LoginData = Pick<InsertUser, "username" | "password">;
+export type LoginData = {
+  username: string;
+  password: string;
+  deviceInfo?: string;
+};
+
+export type LoginResponse = User & {
+  sessionId?: string;
+  status?: 'active' | 'pending_approval' | 'approved' | 'denied' | 'expired';
+  message?: string;
+};
 
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
-  login: (data: LoginData) => Promise<void>;
+  login: (data: LoginData) => Promise<LoginResponse | undefined>;
   register: (data: InsertUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -164,7 +174,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         login: async (data) => {
-          await loginMutation.mutateAsync(data);
+          const response = await loginMutation.mutateAsync(data);
+          
+          // Only update the user in the query cache if this is an active session
+          if (response && (!response.status || response.status === 'active')) {
+            queryClient.setQueryData(["/api/user"], response);
+          }
+          
+          return response;
         },
         register: async (data) => {
           await registerMutation.mutateAsync(data);

@@ -38,9 +38,7 @@ export function SessionTransferModal({
   const handleApprove = async () => {
     try {
       setStatus('loading');
-      await apiRequest(`/api/session/${sessionId}/approve`, {
-        method: 'POST'
-      });
+      await apiRequest("POST", `/api/session/${sessionId}/approve`);
       setStatus('approved');
       toast({
         title: "Session transfer approved",
@@ -64,9 +62,7 @@ export function SessionTransferModal({
   const handleDeny = async () => {
     try {
       setStatus('loading');
-      await apiRequest(`/api/session/${sessionId}/deny`, {
-        method: 'POST'
-      });
+      await apiRequest("POST", `/api/session/${sessionId}/deny`);
       setStatus('denied');
       toast({
         title: "Session transfer denied",
@@ -163,9 +159,10 @@ export function SessionPendingApproval({ sessionId }: SessionPendingApprovalProp
   useEffect(() => {
     const checkSessionStatus = async () => {
       try {
-        const response = await apiRequest(`/api/session/${sessionId}/status`);
+        const response = await apiRequest("GET", `/api/session/${sessionId}/status`);
+        const data = await response.json();
         
-        if (response.status === 'approved') {
+        if (data.status === 'approved') {
           setStatus('approved');
           toast({
             title: "Session Approved",
@@ -176,14 +173,14 @@ export function SessionPendingApproval({ sessionId }: SessionPendingApprovalProp
           setTimeout(() => {
             window.location.href = '/login';
           }, 2000);
-        } else if (response.status === 'denied') {
+        } else if (data.status === 'denied') {
           setStatus('denied');
           toast({
             title: "Session Denied",
             description: "Your session access has been denied.",
             variant: "destructive",
           });
-        } else if (response.status !== 'pending_approval') {
+        } else if (data.status !== 'pending_approval') {
           setStatus('error');
           toast({
             title: "Session Error",
@@ -197,6 +194,10 @@ export function SessionPendingApproval({ sessionId }: SessionPendingApprovalProp
       }
     };
 
+    // Check immediately on component mount
+    checkSessionStatus();
+    
+    // Then set up interval for periodic checks
     const interval = setInterval(checkSessionStatus, 2000);
     return () => clearInterval(interval);
   }, [sessionId, toast]);
@@ -217,7 +218,7 @@ export function SessionPendingApproval({ sessionId }: SessionPendingApprovalProp
             <span className="text-sm font-medium">Session Status:</span>
             <Badge variant={
               status === 'pending' ? 'outline' : 
-              status === 'approved' ? 'success' :
+              status === 'approved' ? 'default' :
               'destructive'
             }>
               {status === 'pending' ? 'Pending Approval' : 
