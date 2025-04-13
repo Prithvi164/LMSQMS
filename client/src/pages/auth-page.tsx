@@ -25,7 +25,7 @@ export default function AuthPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { login, register, user } = useAuth();
-  const [pendingSession, setPendingSession] = useState<{ sessionId: string } | null>(null);
+  const [pendingSession, setPendingSession] = useState<{ sessionId: string; userId?: number } | null>(null);
   const [deviceInfo, setDeviceInfo] = useState("");
 
   // Get basic device info
@@ -55,7 +55,10 @@ export default function AuthPage() {
   if (pendingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <SessionPendingApproval sessionId={pendingSession.sessionId} />
+        <SessionPendingApproval 
+          sessionId={pendingSession.sessionId} 
+          userId={pendingSession.userId} 
+        />
       </div>
     );
   }
@@ -76,7 +79,10 @@ export default function AuthPage() {
         
         // Check if the response indicates a pending session approval
         if (response && response.status === 'pending_approval' && response.sessionId) {
-          setPendingSession({ sessionId: response.sessionId });
+          setPendingSession({ 
+            sessionId: response.sessionId,
+            userId: response.userId 
+          });
           return;
         }
         

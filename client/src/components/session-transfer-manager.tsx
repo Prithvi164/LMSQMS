@@ -15,8 +15,11 @@ export function SessionTransferManager() {
     deviceInfo: string;
   } | null>(null);
   
-  // Connect to WebSocket for session transfers
-  const { lastMessage, status: wsStatus } = useWebSocket(user?.id);
+  // Connect to WebSocket for session transfers with current session info
+  const { lastMessage, status: wsStatus } = useWebSocket(
+    user?.id, 
+    typeof window !== 'undefined' ? window.sessionStorage.getItem('sessionId') || undefined : undefined
+  );
   
   // Listen for session request messages
   useEffect(() => {
