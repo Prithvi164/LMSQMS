@@ -49,6 +49,14 @@ export const roleEnum = pgEnum('role', [
   'trainee'
 ]);
 
+export const userSessionStatusEnum = pgEnum('user_session_status', [
+  'active',
+  'pending_approval',
+  'approved',
+  'denied',
+  'expired'
+]);
+
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
@@ -114,14 +122,7 @@ export const audioFileStatusEnum = pgEnum('audio_file_status', [
   'archived'
 ]);
 
-// User session status enum
-export const userSessionStatusEnum = pgEnum('user_session_status', [
-  'active',
-  'pending_approval',
-  'approved',
-  'denied',
-  'expired'
-]);
+// The userSessionStatusEnum is already defined at the top of the file
 
 export const audioLanguageEnum = pgEnum('audio_language', [
   'english',

@@ -466,6 +466,114 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // User Session operations
+  async createUserSession(session: {
+    userId: number;
+    sessionId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceInfo?: string;
+    expiresAt: Date;
+    organizationId: number;
+  }): Promise<UserSession> {
+    try {
+      const [newSession] = await db
+        .insert(userSessions)
+        .values(session)
+        .returning() as UserSession[];
+      return newSession;
+    } catch (error) {
+      console.error('Error creating user session:', error);
+      throw error;
+    }
+  }
+
+  async getUserSession(sessionId: string): Promise<UserSession | undefined> {
+    try {
+      const [session] = await db
+        .select()
+        .from(userSessions)
+        .where(eq(userSessions.sessionId, sessionId)) as UserSession[];
+      return session;
+    } catch (error) {
+      console.error('Error getting user session:', error);
+      throw error;
+    }
+  }
+
+  async getUserSessions(userId: number): Promise<UserSession[]> {
+    try {
+      return await db
+        .select()
+        .from(userSessions)
+        .where(eq(userSessions.userId, userId))
+        .orderBy(desc(userSessions.loginAt)) as UserSession[];
+    } catch (error) {
+      console.error('Error getting user sessions:', error);
+      throw error;
+    }
+  }
+
+  async getUserActiveSession(userId: number): Promise<UserSession | undefined> {
+    try {
+      const [session] = await db
+        .select()
+        .from(userSessions)
+        .where(and(
+          eq(userSessions.userId, userId),
+          eq(userSessions.status, 'active')
+        ))
+        .orderBy(desc(userSessions.loginAt))
+        .limit(1) as UserSession[];
+      return session;
+    } catch (error) {
+      console.error('Error getting user active session:', error);
+      throw error;
+    }
+  }
+
+  async updateUserSessionStatus(sessionId: string, status: string): Promise<void> {
+    try {
+      await db
+        .update(userSessions)
+        .set({
+          status: status as any,
+          lastActivityAt: new Date()
+        })
+        .where(eq(userSessions.sessionId, sessionId));
+    } catch (error) {
+      console.error('Error updating user session status:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserSession(sessionId: string): Promise<void> {
+    try {
+      await db
+        .delete(userSessions)
+        .where(eq(userSessions.sessionId, sessionId));
+    } catch (error) {
+      console.error('Error deleting user session:', error);
+      throw error;
+    }
+  }
+
+  async cleanupExpiredSessions(): Promise<number> {
+    try {
+      const now = new Date();
+      const result = await db
+        .delete(userSessions)
+        .where(or(
+          lte(userSessions.expiresAt, now),
+          eq(userSessions.status, 'expired')
+        ))
+        .returning();
+      return result.length;
+    } catch (error) {
+      console.error('Error cleaning up expired sessions:', error);
+      throw error;
+    }
+  }
   // Audio File operations
   async createAudioFile(file: InsertAudioFile): Promise<AudioFile> {
     try {
