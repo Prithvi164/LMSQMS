@@ -76,43 +76,60 @@ export function setupWebSocketServer(server: Server) {
         else if (data.type === 'session_request') {
           // A new session is requesting approval from an existing session
           const existingSessions = userConnections.get(data.userId);
+          console.log(`Processing session request for user ${data.userId} from session ${data.sessionId}`);
           
+          // First, update the session status to pending approval
+          await storage.updateUserSessionStatus(
+            data.sessionId, 
+            'pending_approval'
+          );
+          
+          // Check if there are any active existing sessions
           if (existingSessions && existingSessions.size > 0) {
             console.log(`Found ${existingSessions.size} existing sessions for user ${data.userId}`);
             let activeSessions = 0;
+            let connectionErrors = 0;
             
             // Send request to all existing sessions
             for (const [sessionId, connection] of existingSessions) {
-              if (sessionId !== data.sessionId && connection.readyState === WebSocket.OPEN) {
-                console.log(`Sending session request to existing session ${sessionId}`);
-                activeSessions++;
-                
-                const requestMessage: SessionMessage = {
-                  type: 'session_request',
-                  sessionId: data.sessionId,
-                  userId: data.userId,
-                  deviceInfo: data.deviceInfo,
-                  ipAddress: data.ipAddress,
-                  userAgent: data.userAgent
-                };
-                
-                connection.send(JSON.stringify(requestMessage));
+              if (sessionId !== data.sessionId) {
+                try {
+                  if (connection.readyState === WebSocket.OPEN) {
+                    console.log(`Sending session request to existing session ${sessionId}`);
+                    activeSessions++;
+                    
+                    const requestMessage: SessionMessage = {
+                      type: 'session_request',
+                      sessionId: data.sessionId,
+                      userId: data.userId,
+                      deviceInfo: data.deviceInfo,
+                      ipAddress: data.ipAddress,
+                      userAgent: data.userAgent
+                    };
+                    
+                    connection.send(JSON.stringify(requestMessage));
+                  } else {
+                    console.log(`Skipping session ${sessionId}: not open (readyState: ${connection.readyState})`);
+                    connectionErrors++;
+                    
+                    // Remove dead connections
+                    if (connection.readyState === WebSocket.CLOSED || connection.readyState === WebSocket.CLOSING) {
+                      console.log(`Removing dead connection for session ${sessionId}`);
+                      existingSessions.delete(sessionId);
+                    }
+                  }
+                } catch (err) {
+                  console.error(`Error sending to session ${sessionId}:`, err);
+                  connectionErrors++;
+                }
               } else {
-                console.log(`Skipping session ${sessionId}: ${connection.readyState === WebSocket.OPEN ? 'is the requesting session' : 'not open'}`);
+                console.log(`Skipping session ${sessionId}: is the requesting session`);
               }
             }
             
-            // If we actually notified active sessions, mark this as pending approval
-            if (activeSessions > 0) {
-              console.log(`Updated session ${data.sessionId} status to pending_approval`);
-              // Update the session status to pending approval
-              await storage.updateUserSessionStatus(
-                data.sessionId, 
-                'pending_approval'
-              );
-            } else {
-              // No active sessions to notify, approve automatically
-              console.log(`No active sessions to notify for user ${data.userId}, approving automatically`);
+            // If we couldn't notify any active sessions due to connection issues, auto-approve
+            if (activeSessions === 0) {
+              console.log(`No active sessions available for user ${data.userId}, approving automatically. Connection errors: ${connectionErrors}`);
               const approvalMessage: SessionMessage = {
                 type: 'session_approval',
                 sessionId: data.sessionId,
@@ -126,9 +143,27 @@ export function setupWebSocketServer(server: Server) {
                 data.sessionId, 
                 'approved'
               );
+              
+              // Expire all other sessions
+              for (const [otherSessionId, connection] of existingSessions) {
+                if (otherSessionId !== data.sessionId) {
+                  await storage.updateUserSessionStatus(otherSessionId, 'expired');
+                  try {
+                    if (connection.readyState === WebSocket.OPEN) {
+                      connection.send(JSON.stringify({
+                        type: 'session_expired',
+                        message: 'Your session has been transferred to another device'
+                      }));
+                    }
+                  } catch (e) {
+                    console.error(`Error notifying expired session ${otherSessionId}:`, e);
+                  }
+                }
+              }
             }
           } else {
             // No existing sessions, approve automatically
+            console.log(`No existing sessions found for user ${data.userId}, approving automatically`);
             const approvalMessage: SessionMessage = {
               type: 'session_approval',
               sessionId: data.sessionId,

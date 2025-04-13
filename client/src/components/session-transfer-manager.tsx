@@ -21,8 +21,18 @@ export function SessionTransferManager() {
     typeof window !== 'undefined' ? window.sessionStorage.getItem('sessionId') || undefined : undefined
   );
   
+  // Log WebSocket status changes for debugging
+  useEffect(() => {
+    console.log(`WebSocket status changed to: ${wsStatus}`, { 
+      userId: user?.id, 
+      sessionId: typeof window !== 'undefined' ? window.sessionStorage.getItem('sessionId') : undefined 
+    });
+  }, [wsStatus, user?.id]);
+
   // Listen for session request messages
   useEffect(() => {
+    console.log('Last message received:', lastMessage);
+    
     if (lastMessage && lastMessage.type === 'session_request') {
       console.log('Session transfer request received:', lastMessage);
       
@@ -34,11 +44,24 @@ export function SessionTransferManager() {
         `Time: ${new Date().toLocaleString()}`
       ].join('\n');
       
+      // Always display the modal with audio notification
+      try {
+        // Play a notification sound if possible
+        const audio = new Audio('/notification.mp3');
+        audio.play().catch(err => console.log('Could not play notification sound:', err));
+      } catch (e) {
+        console.log('Audio notification not supported');
+      }
+      
       // Set the pending transfer which will show the approval modal
       setPendingTransfer({
         sessionId: lastMessage.sessionId,
         deviceInfo
       });
+    } else if (lastMessage && lastMessage.type === 'session_expired') {
+      // Handle session expiration (when another device is approved)
+      console.log('Session expired notification received');
+      window.location.href = '/login?expired=true';
     }
   }, [lastMessage]);
   
