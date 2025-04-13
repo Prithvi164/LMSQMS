@@ -32,7 +32,6 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import { SessionTransferManager } from "@/components/session-transfer-manager";
 import { BatchDetailsPage } from "@/components/batch-management/batch-details-page";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
 import { BatchDashboardPage } from "@/pages/batch-dashboard-page";
@@ -109,7 +108,6 @@ function App() {
       <AuthProvider>
         <PermissionsProvider>
           <Router />
-          <SessionTransferManager />
           <Toaster />
         </PermissionsProvider>
       </AuthProvider>

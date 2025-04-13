@@ -49,14 +49,6 @@ export const roleEnum = pgEnum('role', [
   'trainee'
 ]);
 
-export const userSessionStatusEnum = pgEnum('user_session_status', [
-  'active',
-  'pending_approval',
-  'approved',
-  'denied',
-  'expired'
-]);
-
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
@@ -121,8 +113,6 @@ export const audioFileStatusEnum = pgEnum('audio_file_status', [
   'evaluated',
   'archived'
 ]);
-
-// The userSessionStatusEnum is already defined at the top of the file
 
 export const audioLanguageEnum = pgEnum('audio_language', [
   'english',
@@ -1019,40 +1009,7 @@ export const users = pgTable("users", {
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   resetPasswordToken: text("reset_password_token"),
   resetPasswordExpires: timestamp("reset_password_expires"),
-  enableRLS: boolean("enable_rls").default(false),
 });
-
-// User sessions for managing concurrent logins
-export const userSessions = pgTable("user_sessions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  sessionId: text("session_id").notNull().unique(),
-  status: userSessionStatusEnum("status").default('active').notNull(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  deviceInfo: text("device_info"),
-  loginAt: timestamp("login_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-});
-
-export type UserSession = InferSelectModel<typeof userSessions>;
-
-export const userSessionsRelations = relations(userSessions, ({ one }) => ({
-  user: one(users, {
-    fields: [userSessions.userId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [userSessions.organizationId],
-    references: [organizations.id],
-  }),
-}));
 
 export type User = InferSelectModel<typeof users>;
 

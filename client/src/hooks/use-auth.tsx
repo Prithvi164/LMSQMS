@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useContext } from "react";
 import {
   useQuery,
   useMutation,
@@ -6,26 +6,14 @@ import {
 import { type User, type InsertUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useWebSocket } from "@/hooks/use-websocket";
 
-export type LoginData = {
-  username: string;
-  password: string;
-  deviceInfo?: string;
-};
-
-export type LoginResponse = User & {
-  sessionId?: string;
-  userId?: number;
-  status?: 'active' | 'pending_approval' | 'approved' | 'denied' | 'expired';
-  message?: string;
-};
+type LoginData = Pick<InsertUser, "username" | "password">;
 
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
-  login: (data: LoginData) => Promise<LoginResponse | undefined>;
+  login: (data: LoginData) => Promise<void>;
   register: (data: InsertUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -35,9 +23,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
-  
-  // Fetch the current user
   const {
     data: user,
     error,
@@ -49,65 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/user", { credentials: "include" });
         if (res.status === 401) return null;
         if (!res.ok) throw new Error("Failed to fetch user");
-        const userData = await res.json();
-        
-        // If the response includes a session ID, store it
-        if (userData?.sessionId) {
-          setSessionId(userData.sessionId);
-          
-          // Store in sessionStorage for persistence across page refreshes
-          try {
-            window.sessionStorage.setItem('sessionId', userData.sessionId);
-            console.log('Session ID stored in sessionStorage:', userData.sessionId);
-          } catch (storageError) {
-            console.error('Failed to store sessionId in sessionStorage:', storageError);
-          }
-        }
-        
-        return userData;
+        return res.json();
       } catch (err) {
         throw err;
       }
     },
   });
-  
-  // Connect to WebSocket for session management if user is logged in
-  const { status: wsStatus, lastMessage, sendMessage } = useWebSocket(
-    user?.id,
-    sessionId
-  );
-  
-  // Handle WebSocket messages
-  useEffect(() => {
-    if (lastMessage) {
-      console.log('WebSocket message received in auth context:', lastMessage);
-      
-      // Handle session expiration/transfer
-      if (lastMessage.type === 'session_expired') {
-        toast({
-          title: "Session Expired",
-          description: lastMessage.message || "Your session has been transferred to another device.",
-          variant: "destructive",
-        });
-        
-        // Force logout
-        queryClient.setQueryData(["/api/user"], null);
-        window.location.href = '/login';
-      }
-      
-      // Handle new session requests
-      if (lastMessage.type === 'session_request') {
-        toast({
-          title: "New Login Attempt",
-          description: "Someone is trying to log in to your account from another device.",
-          variant: "default",
-        });
-        
-        // You would show the approval modal here or dispatch an event
-        // We'll handle this in the UI components
-      }
-    }
-  }, [lastMessage, toast]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
@@ -120,11 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    onSuccess: (response: LoginResponse) => {
-      // Only update the user in the query cache if this is an active session
-      if (!response.status || response.status === 'active') {
-        queryClient.setQueryData(["/api/user"], response);
-      }
+    onSuccess: (user: User) => {
+      queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
       toast({
@@ -235,14 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         login: async (data) => {
-          const response = await loginMutation.mutateAsync(data);
-          
-          // Only update the user in the query cache if this is an active session
-          if (response && (!response.status || response.status === 'active')) {
-            queryClient.setQueryData(["/api/user"], response);
-          }
-          
-          return response;
+          await loginMutation.mutateAsync(data);
         },
         register: async (data) => {
           await registerMutation.mutateAsync(data);

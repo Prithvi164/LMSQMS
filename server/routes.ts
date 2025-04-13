@@ -44,7 +44,6 @@ import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { updateBatchStatuses } from './services/batch-status-service';
 import azureAudioFilesRouter from './routes/azure-audio-files';
-import { setupWebSocketServer } from './websocket-server';
 
 // Helper function to check if a user has access to a specific batch or its template
 async function userHasBatchAccess(userId: number, batchId: number | null | undefined): Promise<boolean> {
@@ -8054,12 +8053,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create the HTTP server
-  const server = createServer(app);
-  
-  // Set up WebSocket server for session management
-  console.log("Setting up WebSocket server for session management");
-  setupWebSocketServer(server);
-  
-  return server;
+  return createServer(app);
 }

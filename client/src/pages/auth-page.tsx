@@ -18,49 +18,17 @@ import { type LoginData } from "@/hooks/use-auth";
 import { type InsertUser } from "@shared/schema";
 import { SiOpenai } from "react-icons/si";
 import { BarChart2, Users, GraduationCap } from "lucide-react";
-import { SessionPendingApproval } from "@/components/session-transfer-modal";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { login, register, user } = useAuth();
-  const [pendingSession, setPendingSession] = useState<{ sessionId: string; userId?: number } | null>(null);
-  const [deviceInfo, setDeviceInfo] = useState("");
-
-  // Get basic device info
-  // Initialize device info on component mount
-  useState(() => {
-    try {
-      const info = [
-        navigator.platform || 'Unknown Platform',
-        navigator.userAgent || 'Unknown User Agent',
-        `${window.screen.width}x${window.screen.height}`,
-        new Date().toLocaleString()
-      ].join(' | ');
-      setDeviceInfo(info);
-    } catch (error) {
-      setDeviceInfo('Unknown Device');
-      console.error('Error getting device info:', error);
-    }
-  });
 
   // Redirect if already logged in
   if (user) {
     navigate("/");
     return null;
-  }
-
-  // Show pending session approval screen if needed
-  if (pendingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <SessionPendingApproval 
-          sessionId={pendingSession.sessionId} 
-          userId={pendingSession.userId} 
-        />
-      </div>
-    );
   }
 
   const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -72,20 +40,8 @@ export default function AuthPage() {
         const loginData: LoginData = {
           username: formData.get("username") as string,
           password: formData.get("password") as string,
-          deviceInfo: deviceInfo,
         };
-        
-        const response = await login(loginData);
-        
-        // Check if the response indicates a pending session approval
-        if (response && response.status === 'pending_approval' && response.sessionId) {
-          setPendingSession({ 
-            sessionId: response.sessionId,
-            userId: response.userId 
-          });
-          return;
-        }
-        
+        await login(loginData);
       } else {
         const registrationData: InsertUser = {
           username: formData.get("username") as string,

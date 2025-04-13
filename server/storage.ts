@@ -1,7 +1,7 @@
 import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
-import { batchStatusEnum, attendance, permissionEnum, userSessionStatusEnum } from "@shared/schema";
+import { batchStatusEnum, attendance, permissionEnum } from "@shared/schema";
 import {
   users,
   organizations,
@@ -20,7 +20,6 @@ import {
   audioFileAllocations,
   audioFileBatchAllocations,
   evaluationFeedback,
-  userSessions,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -29,7 +28,6 @@ import {
   type InsertOrganization,
   type OrganizationProcess,
   type InsertOrganizationProcess,
-  type UserSession,
   type OrganizationBatch,
   type InsertOrganizationBatch,
   type UserBatchProcess,
@@ -106,27 +104,6 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
-  
-  // User Session operations
-  createUserSession(session: {
-    userId: number;
-    sessionId: string;
-    ipAddress?: string;
-    userAgent?: string;
-    deviceInfo?: string;
-    expiresAt: Date;
-    organizationId: number;
-  }): Promise<UserSession>;
-  getUserSession(sessionId: string): Promise<UserSession | undefined>;
-  getUserSessions(userId: number): Promise<UserSession[]>;
-  getUserActiveSession(userId: number): Promise<UserSession | undefined>;
-  getUserActiveSessions(userId: number): Promise<UserSession[]>;
-  getUserPendingApprovalSessions(userId: number): Promise<UserSession[]>;
-  updateUserSessionStatus(sessionId: string, status: string): Promise<void>;
-  updateSessionLastActivity(sessionId: string): Promise<void>;
-  expireAllUserSessionsExcept(userId: number, exceptSessionId: string): Promise<number>;
-  deleteUserSession(sessionId: string): Promise<void>;
-  cleanupExpiredSessions(): Promise<number>;
   
   // Permission operations
   getUserPermissions(userId: number): Promise<string[]>;
@@ -387,7 +364,6 @@ export interface IStorage {
   getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback | undefined>;
   getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined>;
   updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback>;
-  
   getPendingEvaluationFeedback(agentId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
   getPendingApprovalEvaluationFeedback(reportingHeadId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
 
@@ -470,230 +446,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // User Session operations
-  async createUserSession(session: {
-    userId: number;
-    sessionId: string;
-    ipAddress?: string;
-    userAgent?: string;
-    deviceInfo?: string;
-    expiresAt: Date;
-    organizationId: number;
-  }): Promise<UserSession> {
-    try {
-      const [newSession] = await db
-        .insert(userSessions)
-        .values(session)
-        .returning() as UserSession[];
-      return newSession;
-    } catch (error) {
-      console.error('Error creating user session:', error);
-      throw error;
-    }
-  }
-
-  async getUserSession(sessionId: string): Promise<UserSession | undefined> {
-    try {
-      const [session] = await db
-        .select()
-        .from(userSessions)
-        .where(eq(userSessions.sessionId, sessionId)) as UserSession[];
-      return session;
-    } catch (error) {
-      console.error('Error getting user session:', error);
-      throw error;
-    }
-  }
-  
-  async getUserActiveSessions(userId: number): Promise<UserSession[]> {
-    try {
-      return await db
-        .select()
-        .from(userSessions)
-        .where(and(
-          eq(userSessions.userId, userId),
-          eq(userSessions.status, 'active')
-        ))
-        .orderBy(desc(userSessions.loginAt)) as UserSession[];
-    } catch (error) {
-      console.error('Error getting user active sessions:', error);
-      throw error;
-    }
-  }
-  
-  async getUserPendingApprovalSessions(userId: number): Promise<UserSession[]> {
-    try {
-      return await db
-        .select()
-        .from(userSessions)
-        .where(and(
-          eq(userSessions.userId, userId),
-          eq(userSessions.status, 'pending_approval')
-        ))
-        .orderBy(desc(userSessions.loginAt)) as UserSession[];
-    } catch (error) {
-      console.error('Error getting user pending approval sessions:', error);
-      throw error;
-    }
-  }
-  
-  async expireAllUserSessionsExcept(userId: number, exceptSessionId: string): Promise<number> {
-    try {
-      const result = await db
-        .update(userSessions)
-        .set({
-          status: 'expired',
-          lastActivityAt: new Date()
-        })
-        .where(and(
-          eq(userSessions.userId, userId),
-          ne(userSessions.sessionId, exceptSessionId),
-          or(
-            eq(userSessions.status, 'active'),
-            eq(userSessions.status, 'pending_approval')
-          )
-        ));
-      
-      return result.rowCount || 0;
-    } catch (error) {
-      console.error('Error expiring user sessions:', error);
-      throw error;
-    }
-  }
-
-  async getUserSessions(userId: number): Promise<UserSession[]> {
-    try {
-      return await db
-        .select()
-        .from(userSessions)
-        .where(eq(userSessions.userId, userId))
-        .orderBy(desc(userSessions.loginAt)) as UserSession[];
-    } catch (error) {
-      console.error('Error getting user sessions:', error);
-      throw error;
-    }
-  }
-
-  async getUserActiveSession(userId: number): Promise<UserSession | undefined> {
-    try {
-      const [session] = await db
-        .select()
-        .from(userSessions)
-        .where(and(
-          eq(userSessions.userId, userId),
-          eq(userSessions.status, 'active')
-        ))
-        .orderBy(desc(userSessions.loginAt))
-        .limit(1) as UserSession[];
-      return session;
-    } catch (error) {
-      console.error('Error getting user active session:', error);
-      throw error;
-    }
-  }
-
-  async updateUserSessionStatus(sessionId: string, status: string): Promise<void> {
-    try {
-      await db
-        .update(userSessions)
-        .set({
-          status: status as any,
-          lastActivityAt: new Date()
-        })
-        .where(eq(userSessions.sessionId, sessionId));
-    } catch (error) {
-      console.error('Error updating user session status:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Update last activity timestamp for a session
-   * This helps track active sessions and implement session timeout
-   */
-  async updateSessionLastActivity(sessionId: string): Promise<void> {
-    try {
-      await db
-        .update(userSessions)
-        .set({
-          lastActivityAt: new Date()
-        })
-        .where(eq(userSessions.sessionId, sessionId));
-    } catch (error) {
-      console.error('Error updating session last activity:', error);
-      throw error;
-    }
-  }
-
-  async deleteUserSession(sessionId: string): Promise<void> {
-    try {
-      await db
-        .delete(userSessions)
-        .where(eq(userSessions.sessionId, sessionId));
-    } catch (error) {
-      console.error('Error deleting user session:', error);
-      throw error;
-    }
-  }
-
-  async cleanupExpiredSessions(): Promise<number> {
-    try {
-      const now = new Date();
-      const result = await db
-        .delete(userSessions)
-        .where(or(
-          lte(userSessions.expiresAt, now),
-          eq(userSessions.status, 'expired')
-        ))
-        .returning();
-      return result.length;
-    } catch (error) {
-      console.error('Error cleaning up expired sessions:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Clean up sessions that have been inactive for a certain period of time
-   * @param inactivityThreshold Time in milliseconds after which a session is considered inactive
-   * @returns Number of sessions that were marked as expired
-   */
-  async cleanupInactiveSessions(inactivityThreshold: number = 30 * 60 * 1000): Promise<number> {
-    try {
-      const cutoffTime = new Date(Date.now() - inactivityThreshold);
-      
-      // Find sessions that have been inactive for longer than the threshold
-      // but only if they are in 'active' status
-      const inactiveSessions = await db
-        .select()
-        .from(userSessions)
-        .where(and(
-          lt(userSessions.lastActivityAt, cutoffTime),
-          eq(userSessions.status, 'active')
-        ));
-      
-      if (inactiveSessions.length === 0) {
-        return 0;
-      }
-      
-      // Mark the inactive sessions as expired
-      const sessionIds = inactiveSessions.map(session => session.sessionId);
-      const result = await db
-        .update(userSessions)
-        .set({
-          status: 'expired',
-          updatedAt: new Date()
-        })
-        .where(inArray(userSessions.sessionId, sessionIds))
-        .returning();
-      
-      console.log(`Marked ${result.length} inactive sessions as expired`);
-      return result.length;
-    } catch (error) {
-      console.error('Error cleaning up inactive sessions:', error);
-      throw error;
-    }
-  }
   // Audio File operations
   async createAudioFile(file: InsertAudioFile): Promise<AudioFile> {
     try {
@@ -1895,166 +1647,26 @@ export class DatabaseStorage implements IStorage {
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    try {
-      const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
-      return user;
-    } catch (error) {
-      // If the error is about missing enable_rls, retry with explicit column selection
-      if (error instanceof Error && error.message.includes('enable_rls')) {
-        console.log('Working around missing enable_rls column in getUser...');
-        
-        // Select all columns except enableRLS
-        const result = await db
-          .select({
-            id: users.id,
-            username: users.username,
-            password: users.password,
-            fullName: users.fullName,
-            employeeId: users.employeeId,
-            role: users.role,
-            category: users.category,
-            locationId: users.locationId,
-            email: users.email,
-            education: users.education,
-            dateOfJoining: users.dateOfJoining,
-            phoneNumber: users.phoneNumber,
-            dateOfBirth: users.dateOfBirth,
-            lastWorkingDay: users.lastWorkingDay,
-            organizationId: users.organizationId,
-            managerId: users.managerId,
-            active: users.active,
-            certified: users.certified,
-            createdAt: users.createdAt,
-            onboardingCompleted: users.onboardingCompleted,
-            resetPasswordToken: users.resetPasswordToken,
-            resetPasswordExpires: users.resetPasswordExpires,
-          })
-          .from(users)
-          .where(eq(users.id, id));
-          
-        // Add default enableRLS value
-        if (result[0]) {
-          return {
-            ...result[0],
-            enableRLS: false,
-          } as User;
-        }
-        return undefined;
-      }
-      throw error;
-    }
+    const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    try {
-      // Make the username lookup case-insensitive, but handle missing columns
-      const query = db
-        .select()
-        .from(users)
-        .where(sql`LOWER(${users.username}) = LOWER(${username})`);
-        
-      const result = await query as User[];
-      return result[0];
-    } catch (error) {
-      // If the error is about missing enable_rls, retry with explicit column selection
-      if (error instanceof Error && error.message.includes('enable_rls')) {
-        console.log('Working around missing enable_rls column...');
-        
-        // Select all columns except enableRLS
-        const result = await db
-          .select({
-            id: users.id,
-            username: users.username,
-            password: users.password,
-            fullName: users.fullName,
-            employeeId: users.employeeId,
-            role: users.role,
-            category: users.category,
-            locationId: users.locationId,
-            email: users.email,
-            education: users.education,
-            dateOfJoining: users.dateOfJoining,
-            phoneNumber: users.phoneNumber,
-            dateOfBirth: users.dateOfBirth,
-            lastWorkingDay: users.lastWorkingDay,
-            organizationId: users.organizationId,
-            managerId: users.managerId,
-            active: users.active,
-            certified: users.certified,
-            createdAt: users.createdAt,
-            onboardingCompleted: users.onboardingCompleted,
-            resetPasswordToken: users.resetPasswordToken,
-            resetPasswordExpires: users.resetPasswordExpires,
-          })
-          .from(users)
-          .where(sql`LOWER(${users.username}) = LOWER(${username})`);
-          
-        // Add default enableRLS value
-        if (result[0]) {
-          return {
-            ...result[0],
-            enableRLS: false,
-          } as User;
-        }
-        return undefined;
-      }
-      throw error;
-    }
+    // Make the username lookup case-insensitive
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`LOWER(${users.username}) = LOWER(${username})`) as User[];
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    try {
-      // Make the email lookup case-insensitive
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(sql`LOWER(${users.email}) = LOWER(${email})`) as User[];
-      return user;
-    } catch (error) {
-      // If the error is about missing enable_rls, retry with explicit column selection
-      if (error instanceof Error && error.message.includes('enable_rls')) {
-        console.log('Working around missing enable_rls column in getUserByEmail...');
-        
-        // Select all columns except enableRLS
-        const result = await db
-          .select({
-            id: users.id,
-            username: users.username,
-            password: users.password,
-            fullName: users.fullName,
-            employeeId: users.employeeId,
-            role: users.role,
-            category: users.category,
-            locationId: users.locationId,
-            email: users.email,
-            education: users.education,
-            dateOfJoining: users.dateOfJoining,
-            phoneNumber: users.phoneNumber,
-            dateOfBirth: users.dateOfBirth,
-            lastWorkingDay: users.lastWorkingDay,
-            organizationId: users.organizationId,
-            managerId: users.managerId,
-            active: users.active,
-            certified: users.certified,
-            createdAt: users.createdAt,
-            onboardingCompleted: users.onboardingCompleted,
-            resetPasswordToken: users.resetPasswordToken,
-            resetPasswordExpires: users.resetPasswordExpires,
-          })
-          .from(users)
-          .where(sql`LOWER(${users.email}) = LOWER(${email})`);
-          
-        // Add default enableRLS value
-        if (result[0]) {
-          return {
-            ...result[0],
-            enableRLS: false,
-          } as User;
-        }
-        return undefined;
-      }
-      throw error;
-    }
+    // Make the email lookup case-insensitive
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`LOWER(${users.email}) = LOWER(${email})`) as User[];
+    return user;
   }
 
   async createUser(user: InsertUser): Promise<User> {
@@ -2260,61 +1872,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listUsers(organizationId: number, includeInactive: boolean = false): Promise<User[]> {
-    try {
-      let query = db
-        .select()
-        .from(users)
-        .where(eq(users.organizationId, organizationId));
-  
-      // Only include active users unless specifically requested
-      if (!includeInactive) {
-        query = query.where(eq(users.active, true));
-      }
-  
-      return await query as User[];
-    } catch (error) {
-      // If the error is about missing enable_rls, retry with explicit column selection
-      if (error instanceof Error && error.message.includes('enable_rls')) {
-        console.log('Working around missing enable_rls column in listUsers...');
-        
-        // Select all columns except enableRLS
-        const result = await db
-          .select({
-            id: users.id,
-            username: users.username,
-            password: users.password,
-            fullName: users.fullName,
-            employeeId: users.employeeId,
-            role: users.role,
-            category: users.category,
-            locationId: users.locationId,
-            email: users.email,
-            education: users.education,
-            dateOfJoining: users.dateOfJoining,
-            phoneNumber: users.phoneNumber,
-            dateOfBirth: users.dateOfBirth,
-            lastWorkingDay: users.lastWorkingDay,
-            organizationId: users.organizationId,
-            managerId: users.managerId,
-            active: users.active,
-            certified: users.certified,
-            createdAt: users.createdAt,
-            onboardingCompleted: users.onboardingCompleted,
-            resetPasswordToken: users.resetPasswordToken,
-            resetPasswordExpires: users.resetPasswordExpires,
-          })
-          .from(users)
-          .where(eq(users.organizationId, organizationId))
-          .where(includeInactive ? undefined : eq(users.active, true));
-        
-        // Add default enableRLS value
-        return result.map(user => ({
-          ...user,
-          enableRLS: false,
-        })) as User[];
-      }
-      throw error;
+    let query = db
+      .select()
+      .from(users)
+      .where(eq(users.organizationId, organizationId));
+
+    // Only include active users unless specifically requested
+    if (!includeInactive) {
+      query = query.where(eq(users.active, true));
     }
+
+    return await query as User[];
   }
 
   // User Process operations
@@ -2467,32 +2035,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async hasOrganizationOwner(organizationId: number): Promise<boolean> {
-    try {
-      const [owner] = await db
-        .select()
-        .from(users)
-        .where(eq(users.organizationId, organizationId))
-        .where(eq(users.role, 'owner')) as User[];
-      return !!owner;
-    } catch (error) {
-      // If the error is about missing enable_rls, retry with explicit column selection
-      if (error instanceof Error && error.message.includes('enable_rls')) {
-        console.log('Working around missing enable_rls column in hasOrganizationOwner...');
-        
-        // Select just the minimal columns needed for this check
-        const result = await db
-          .select({
-            id: users.id,
-            role: users.role,
-          })
-          .from(users)
-          .where(eq(users.organizationId, organizationId))
-          .where(eq(users.role, 'owner'));
-          
-        return result.length > 0;
-      }
-      throw error;
-    }
+    const [owner] = await db
+      .select()
+      .from(users)
+      .where(eq(users.organizationId, organizationId))
+      .where(eq(users.role, 'owner')) as User[];
+    return !!owner;
   }
 
   // Organization settings operations
