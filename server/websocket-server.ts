@@ -306,6 +306,54 @@ export function setupWebSocketServer(server: Server) {
     }
   }, 30 * 60 * 1000); // Run every 30 minutes
   
+  // Set up a periodic task to clean up inactive sessions
+  setInterval(async () => {
+    try {
+      // Consider a session inactive if there's been no activity for 20 minutes
+      const inactivityThreshold = 20 * 60 * 1000; // 20 minutes in milliseconds
+      const inactiveCount = await storage.cleanupInactiveSessions(inactivityThreshold);
+      
+      if (inactiveCount > 0) {
+        console.log(`Marked ${inactiveCount} inactive sessions as expired`);
+        
+        // Notify any connected clients about their expired sessions
+        for (const [userId, sessions] of userConnections) {
+          for (const [sessionId, ws] of sessions) {
+            try {
+              // Check if this session is still valid
+              const session = await storage.getUserSession(sessionId);
+              
+              // If session is marked as expired, notify the client
+              if (session && session.status === 'expired') {
+                const disconnectMessage: SessionMessage = {
+                  type: 'session_disconnected',
+                  sessionId,
+                  userId
+                };
+                
+                ws.send(JSON.stringify(disconnectMessage));
+                console.log(`Notified user ${userId} of expired session ${sessionId} due to inactivity`);
+                
+                // Close the WebSocket connection
+                setTimeout(() => {
+                  try {
+                    ws.close();
+                  } catch (e) {
+                    console.error('Error closing WebSocket:', e);
+                  }
+                }, 1000);
+              }
+            } catch (error) {
+              console.error(`Error checking session validity for ${sessionId}:`, error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up inactive sessions:', error);
+    }
+  }, 5 * 60 * 1000); // Run every 5 minutes
+  
   console.log('WebSocket server initialized');
   return wss;
 }

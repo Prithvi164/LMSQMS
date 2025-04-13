@@ -652,6 +652,48 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  /**
+   * Clean up sessions that have been inactive for a certain period of time
+   * @param inactivityThreshold Time in milliseconds after which a session is considered inactive
+   * @returns Number of sessions that were marked as expired
+   */
+  async cleanupInactiveSessions(inactivityThreshold: number = 30 * 60 * 1000): Promise<number> {
+    try {
+      const cutoffTime = new Date(Date.now() - inactivityThreshold);
+      
+      // Find sessions that have been inactive for longer than the threshold
+      // but only if they are in 'active' status
+      const inactiveSessions = await db
+        .select()
+        .from(userSessions)
+        .where(and(
+          lt(userSessions.lastActivityAt, cutoffTime),
+          eq(userSessions.status, 'active')
+        ));
+      
+      if (inactiveSessions.length === 0) {
+        return 0;
+      }
+      
+      // Mark the inactive sessions as expired
+      const sessionIds = inactiveSessions.map(session => session.sessionId);
+      const result = await db
+        .update(userSessions)
+        .set({
+          status: 'expired',
+          updatedAt: new Date()
+        })
+        .where(inArray(userSessions.sessionId, sessionIds))
+        .returning();
+      
+      console.log(`Marked ${result.length} inactive sessions as expired`);
+      return result.length;
+    } catch (error) {
+      console.error('Error cleaning up inactive sessions:', error);
+      throw error;
+    }
+  }
   // Audio File operations
   async createAudioFile(file: InsertAudioFile): Promise<AudioFile> {
     try {
