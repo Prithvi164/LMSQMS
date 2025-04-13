@@ -606,7 +606,7 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
+  
   /**
    * Update last activity timestamp for a session
    * This helps track active sessions and implement session timeout
