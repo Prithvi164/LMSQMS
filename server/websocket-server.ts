@@ -47,7 +47,11 @@ function removeConnection(userId: number | undefined, sessionId: string | undefi
 }
 
 export function setupWebSocketServer(server: Server) {
-  const wss = new WebSocketServer({ server });
+  // Use a specific path to prevent conflict with Vite's WebSocket
+  const wss = new WebSocketServer({ 
+    server,
+    path: '/ws/sessions'
+  });
 
   wss.on('connection', (ws: WebSocketWithSession) => {
     console.log('WebSocket connection established');
