@@ -300,6 +300,7 @@ export function setupAuth(app: Express) {
           return res.status(202).json({ 
             status: 'pending_approval',
             sessionId: session.sessionId,
+            userId: user.id,
             message: 'This account is already logged in on another device. Waiting for approval.'
           });
         } else {

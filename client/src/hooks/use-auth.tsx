@@ -16,6 +16,7 @@ export type LoginData = {
 
 export type LoginResponse = User & {
   sessionId?: string;
+  userId?: number;
   status?: 'active' | 'pending_approval' | 'approved' | 'denied' | 'expired';
   message?: string;
 };

@@ -16,13 +16,20 @@ export function useWebSocket(userId?: number, sessionId?: string) {
 
   // Create a WebSocket connection
   const connect = useCallback(() => {
+    // Don't attempt to connect if userId is not available
     if (!userId) {
+      console.log('Not connecting WebSocket - userId not available');
+      setStatus('closed');
       return;
     }
 
     // Close any existing connection
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
-      socketRef.current.close();
+      try {
+        socketRef.current.close();
+      } catch (error) {
+        console.error('Error closing existing WebSocket:', error);
+      }
     }
     
     // Clear any existing heartbeat interval
