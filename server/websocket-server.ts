@@ -1,4 +1,4 @@
-import WebSocket from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { storage } from './storage';
 import { userSessionStatusEnum } from '@shared/schema';
@@ -47,7 +47,7 @@ function removeConnection(userId: number | undefined, sessionId: string | undefi
 }
 
 export function setupWebSocketServer(server: Server) {
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocketServer({ server });
 
   wss.on('connection', (ws: WebSocketWithSession) => {
     console.log('WebSocket connection established');
