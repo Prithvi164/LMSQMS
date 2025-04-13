@@ -260,8 +260,8 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
+  app.post("/api/login", async (req, res, next) => {
+    passport.authenticate("local", async (err: any, user: Express.User | false, info: any) => {
       if (err) {
         console.error("Login error:", err);
         return res.status(500).json({ message: "Internal server error" });
@@ -269,17 +269,79 @@ export function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
       }
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Login session error:", err);
-          return res.status(500).json({ message: "Session error" });
+      
+      try {
+        // Get client information from request
+        const deviceInfo = req.body.deviceInfo || 'Unknown Device';
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'] || 'Unknown Browser';
+        
+        // Create a unique session ID
+        const sessionId = randomBytes(32).toString('hex');
+        
+        // Check if user already has an active session
+        const existingSession = await storage.getUserActiveSession(user.id);
+        
+        if (existingSession) {
+          // Create a new session with pending status
+          const session = await storage.createUserSession({
+            userId: user.id,
+            sessionId: sessionId,
+            status: 'pending_approval',
+            ipAddress,
+            userAgent,
+            deviceInfo,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            organizationId: user.organizationId,
+            loginAt: new Date()
+          });
+          
+          // Return pending status so frontend can show approval screen
+          return res.status(202).json({ 
+            status: 'pending_approval',
+            sessionId: session.sessionId,
+            message: 'This account is already logged in on another device. Waiting for approval.'
+          });
+        } else {
+          // No existing session, log in normally
+          const session = await storage.createUserSession({
+            userId: user.id,
+            sessionId: sessionId,
+            status: 'active',
+            ipAddress,
+            userAgent,
+            deviceInfo,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            organizationId: user.organizationId,
+            loginAt: new Date()
+          });
+          
+          // Login the user
+          req.login(user, (err) => {
+            if (err) {
+              console.error("Login session error:", err);
+              return res.status(500).json({ message: "Session error" });
+            }
+            
+            // Store session ID in user session
+            if (req.session) {
+              req.session.sessionId = sessionId;
+            }
+            
+            return res.json({ 
+              ...user,
+              sessionId: session.sessionId 
+            });
+          });
         }
-        return res.json(user);
-      });
+      } catch (error) {
+        console.error("Session management error:", error);
+        return res.status(500).json({ message: "Failed to manage user session" });
+      }
     })(req, res, next);
   });
 
-  app.post("/api/logout", (req, res) => {
+  app.post("/api/logout", async (req, res) => {
     try {
       if (!req.session) {
         return res.status(200).json({ message: "Already logged out" });
@@ -291,6 +353,23 @@ export function setupAuth(app: Express) {
           return res.status(200).json({ message: "Already logged out" });
         });
         return;
+      }
+      
+      // Clean up user session in our custom sessions table
+      try {
+        // Get the sessionId from the session store
+        const sessionId = req.session.sessionId;
+        
+        if (sessionId) {
+          // Update the session status to 'expired'
+          await storage.updateUserSessionStatus(sessionId, 'expired');
+          console.log(`User session ${sessionId} marked as expired`);
+        } else {
+          console.log('No session ID found in request session');
+        }
+      } catch (sessionError) {
+        console.error('Error updating user session status:', sessionError);
+        // Continue with logout even if session cleanup fails
       }
 
       req.logout((err) => {
@@ -438,4 +517,131 @@ export function setupAuth(app: Express) {
       return res.status(500).json({ message: "Failed to validate token" });
     }
   });
+  
+  // Session management endpoints
+  
+  // Check session status
+  app.get("/api/session/:sessionId/status", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+      
+      const session = await storage.getUserSession(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      return res.status(200).json({ 
+        status: session.status,
+        message: getSessionStatusMessage(session.status)
+      });
+    } catch (error) {
+      console.error("Session status check error:", error);
+      return res.status(500).json({ message: "Failed to check session status" });
+    }
+  });
+  
+  // Approve session
+  app.post("/api/session/:sessionId/approve", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const pendingSession = await storage.getUserSession(sessionId);
+      
+      if (!pendingSession) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (pendingSession.userId !== req.user.id) {
+        return res.status(403).json({ message: "You can only approve sessions for your own account" });
+      }
+      
+      if (pendingSession.status !== 'pending_approval') {
+        return res.status(400).json({ message: "Only pending sessions can be approved" });
+      }
+      
+      // Get the current active session
+      const activeSession = await storage.getUserActiveSession(req.user.id);
+      
+      if (!activeSession) {
+        return res.status(400).json({ message: "No active session found to transfer from" });
+      }
+      
+      // Update the pending session to approved
+      await storage.updateUserSessionStatus(sessionId, 'approved');
+      
+      // End the current active session
+      await storage.updateUserSessionStatus(activeSession.sessionId, 'expired');
+      
+      return res.status(200).json({ 
+        message: "Session transfer approved",
+        status: 'approved'
+      });
+    } catch (error) {
+      console.error("Session approval error:", error);
+      return res.status(500).json({ message: "Failed to approve session" });
+    }
+  });
+  
+  // Deny session
+  app.post("/api/session/:sessionId/deny", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const pendingSession = await storage.getUserSession(sessionId);
+      
+      if (!pendingSession) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (pendingSession.userId !== req.user.id) {
+        return res.status(403).json({ message: "You can only deny sessions for your own account" });
+      }
+      
+      if (pendingSession.status !== 'pending_approval') {
+        return res.status(400).json({ message: "Only pending sessions can be denied" });
+      }
+      
+      // Update the pending session to denied
+      await storage.updateUserSessionStatus(sessionId, 'denied');
+      
+      return res.status(200).json({ 
+        message: "Session transfer denied",
+        status: 'denied' 
+      });
+    } catch (error) {
+      console.error("Session denial error:", error);
+      return res.status(500).json({ message: "Failed to deny session" });
+    }
+  });
+  
+  // Helper function to get session status message
+  function getSessionStatusMessage(status: string): string {
+    switch (status) {
+      case 'active':
+        return 'Session is active';
+      case 'pending_approval':
+        return 'Waiting for approval from your active session';
+      case 'approved':
+        return 'Session has been approved and is now active';
+      case 'denied':
+        return 'Session access has been denied';
+      case 'expired':
+        return 'Session has expired';
+      default:
+        return 'Unknown session status';
+    }
+  }
 }
