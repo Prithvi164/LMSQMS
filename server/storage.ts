@@ -120,7 +120,11 @@ export interface IStorage {
   getUserSession(sessionId: string): Promise<UserSession | undefined>;
   getUserSessions(userId: number): Promise<UserSession[]>;
   getUserActiveSession(userId: number): Promise<UserSession | undefined>;
+  getUserActiveSessions(userId: number): Promise<UserSession[]>;
+  getUserPendingApprovalSessions(userId: number): Promise<UserSession[]>;
   updateUserSessionStatus(sessionId: string, status: string): Promise<void>;
+  updateSessionLastActivity(sessionId: string): Promise<void>;
+  expireAllUserSessionsExcept(userId: number, exceptSessionId: string): Promise<number>;
   deleteUserSession(sessionId: string): Promise<void>;
   cleanupExpiredSessions(): Promise<number>;
   
@@ -599,6 +603,24 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userSessions.sessionId, sessionId));
     } catch (error) {
       console.error('Error updating user session status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update last activity timestamp for a session
+   * This helps track active sessions and implement session timeout
+   */
+  async updateSessionLastActivity(sessionId: string): Promise<void> {
+    try {
+      await db
+        .update(userSessions)
+        .set({
+          lastActivityAt: new Date()
+        })
+        .where(eq(userSessions.sessionId, sessionId));
+    } catch (error) {
+      console.error('Error updating session last activity:', error);
       throw error;
     }
   }
