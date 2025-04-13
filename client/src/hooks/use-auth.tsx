@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import {
   useQuery,
   useMutation,
@@ -6,6 +6,7 @@ import {
 import { type User, type InsertUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useWebSocket } from "@/hooks/use-websocket";
 
 export type LoginData = {
   username: string;
@@ -33,6 +34,9 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+  
+  // Fetch the current user
   const {
     data: user,
     error,
@@ -44,12 +48,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/user", { credentials: "include" });
         if (res.status === 401) return null;
         if (!res.ok) throw new Error("Failed to fetch user");
-        return res.json();
+        const userData = await res.json();
+        
+        // If the response includes a session ID, store it
+        if (userData?.sessionId) {
+          setSessionId(userData.sessionId);
+        }
+        
+        return userData;
       } catch (err) {
         throw err;
       }
     },
   });
+  
+  // Connect to WebSocket for session management if user is logged in
+  const { status: wsStatus, lastMessage, sendMessage } = useWebSocket(
+    user?.id,
+    sessionId
+  );
+  
+  // Handle WebSocket messages
+  useEffect(() => {
+    if (lastMessage) {
+      console.log('WebSocket message received in auth context:', lastMessage);
+      
+      // Handle session expiration/transfer
+      if (lastMessage.type === 'session_expired') {
+        toast({
+          title: "Session Expired",
+          description: lastMessage.message || "Your session has been transferred to another device.",
+          variant: "destructive",
+        });
+        
+        // Force logout
+        queryClient.setQueryData(["/api/user"], null);
+        window.location.href = '/login';
+      }
+      
+      // Handle new session requests
+      if (lastMessage.type === 'session_request') {
+        toast({
+          title: "New Login Attempt",
+          description: "Someone is trying to log in to your account from another device.",
+          variant: "default",
+        });
+        
+        // You would show the approval modal here or dispatch an event
+        // We'll handle this in the UI components
+      }
+    }
+  }, [lastMessage, toast]);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
