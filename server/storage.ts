@@ -107,6 +107,23 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
   
+  // User Session operations
+  createUserSession(session: {
+    userId: number;
+    sessionId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceInfo?: string;
+    expiresAt: Date;
+    organizationId: number;
+  }): Promise<UserSession>;
+  getUserSession(sessionId: string): Promise<UserSession | undefined>;
+  getUserSessions(userId: number): Promise<UserSession[]>;
+  getUserActiveSession(userId: number): Promise<UserSession | undefined>;
+  updateUserSessionStatus(sessionId: string, status: string): Promise<void>;
+  deleteUserSession(sessionId: string): Promise<void>;
+  cleanupExpiredSessions(): Promise<number>;
+  
   // Permission operations
   getUserPermissions(userId: number): Promise<string[]>;
   
@@ -366,23 +383,6 @@ export interface IStorage {
   getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback | undefined>;
   getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined>;
   updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback>;
-  
-  // User Session operations
-  createUserSession(session: {
-    userId: number;
-    sessionId: string;
-    ipAddress?: string;
-    userAgent?: string;
-    deviceInfo?: string;
-    expiresAt: Date;
-    organizationId: number;
-  }): Promise<UserSession>;
-  getUserSession(sessionId: string): Promise<UserSession | undefined>;
-  getUserSessions(userId: number): Promise<UserSession[]>;
-  getUserActiveSession(userId: number): Promise<UserSession | undefined>;
-  updateUserSessionStatus(sessionId: string, status: string): Promise<void>;
-  deleteUserSession(sessionId: string): Promise<void>;
-  cleanupExpiredSessions(): Promise<number>;
   
   getPendingEvaluationFeedback(agentId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
   getPendingApprovalEvaluationFeedback(reportingHeadId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;

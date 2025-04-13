@@ -20,6 +20,32 @@ interface WebSocketWithSession extends WebSocket {
 // Map to store active connections by userId
 const userConnections: Map<number, Map<string, WebSocketWithSession>> = new Map();
 
+/**
+ * Find a WebSocket connection by userId and sessionId
+ */
+function findConnectionBySessionId(userId: number, sessionId: string): WebSocketWithSession | undefined {
+  const userSessions = userConnections.get(userId);
+  if (userSessions) {
+    return userSessions.get(sessionId);
+  }
+  return undefined;
+}
+
+/**
+ * Remove a WebSocket connection when it's closed
+ */
+function removeConnection(userId: number | undefined, sessionId: string | undefined) {
+  if (userId && sessionId && userConnections.has(userId)) {
+    const userSessions = userConnections.get(userId);
+    if (userSessions) {
+      userSessions.delete(sessionId);
+      if (userSessions.size === 0) {
+        userConnections.delete(userId);
+      }
+    }
+  }
+}
+
 export function setupWebSocketServer(server: Server) {
   const wss = new WebSocket.Server({ server });
 
@@ -65,7 +91,7 @@ export function setupWebSocketServer(server: Server) {
                 // Update the session status to pending approval
                 await storage.updateUserSessionStatus(
                   data.sessionId, 
-                  userSessionStatusEnum.enumValues[1] // 'pending_approval'
+                  'pending_approval'
                 );
               }
             }
@@ -82,7 +108,7 @@ export function setupWebSocketServer(server: Server) {
             // Update the session status to approved
             await storage.updateUserSessionStatus(
               data.sessionId, 
-              userSessionStatusEnum.enumValues[2] // 'approved'
+              'approved'
             );
           }
         } 
@@ -104,20 +130,22 @@ export function setupWebSocketServer(server: Server) {
               // Update the old session status to expired
               await storage.updateUserSessionStatus(
                 ws.sessionId, 
-                userSessionStatusEnum.enumValues[4] // 'expired'
+                'expired'
               );
               
-              // Remove the connection from the map
-              userConnections.get(data.userId)?.delete(ws.sessionId);
-              
-              // Close the connection
+              // Close the current WebSocket connection
+              const closeMessage = {
+                type: 'session_expired',
+                message: 'Your session has been transferred to another device'
+              };
+              ws.send(JSON.stringify(closeMessage));
               ws.close();
             }
             
-            // Update the new session status to approved
+            // Update the new session status to active
             await storage.updateUserSessionStatus(
               data.sessionId, 
-              userSessionStatusEnum.enumValues[2] // 'approved'
+              'active'
             );
           }
         } 
@@ -134,18 +162,24 @@ export function setupWebSocketServer(server: Server) {
             
             newSessionConnection.send(JSON.stringify(denialMessage));
             
-            // Update the session status to denied
+            // Update the new session status to denied
             await storage.updateUserSessionStatus(
               data.sessionId, 
-              userSessionStatusEnum.enumValues[3] // 'denied'
+              'denied'
             );
             
-            // Remove the connection from the map
-            userConnections.get(data.userId)?.delete(data.sessionId);
-            
-            // Close the connection
+            // Close the connection for the denied session
             newSessionConnection.close();
           }
+        }
+        else if (data.type === 'heartbeat') {
+          // Update last activity time
+          if (ws.sessionId) {
+            await storage.updateUserSessionStatus(ws.sessionId, 'active');
+          }
+          
+          // Return the heartbeat
+          ws.send(JSON.stringify({ type: 'heartbeat_ack' }));
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
@@ -153,46 +187,57 @@ export function setupWebSocketServer(server: Server) {
     });
     
     ws.on('close', async () => {
-      console.log('WebSocket connection closed');
+      // Handle disconnection
+      console.log(`WebSocket disconnected: userId=${ws.userId}, sessionId=${ws.sessionId}`);
       
       if (ws.userId && ws.sessionId) {
-        // Remove the connection from the map
-        userConnections.get(ws.userId)?.delete(ws.sessionId);
-        
-        if (userConnections.get(ws.userId)?.size === 0) {
-          userConnections.delete(ws.userId);
-        }
-        
-        // Update the session status to expired
-        await storage.updateUserSessionStatus(
-          ws.sessionId, 
-          userSessionStatusEnum.enumValues[4] // 'expired'
-        );
-        
-        // Notify other sessions that this session has disconnected
-        const otherSessions = userConnections.get(ws.userId);
-        if (otherSessions) {
-          for (const [sessionId, connection] of otherSessions) {
-            if (connection.readyState === WebSocket.OPEN) {
-              const disconnectMessage: SessionMessage = {
-                type: 'session_disconnected',
-                sessionId: ws.sessionId,
-                userId: ws.userId
-              };
-              
-              connection.send(JSON.stringify(disconnectMessage));
+        try {
+          // Update session status to expired
+          await storage.updateUserSessionStatus(
+            ws.sessionId, 
+            'expired'
+          );
+          
+          // Notify other sessions that this one has disconnected
+          const userSessions = userConnections.get(ws.userId);
+          if (userSessions) {
+            for (const [sessionId, connection] of userSessions) {
+              if (sessionId !== ws.sessionId && connection.readyState === WebSocket.OPEN) {
+                const disconnectMessage: SessionMessage = {
+                  type: 'session_disconnected',
+                  sessionId: ws.sessionId,
+                  userId: ws.userId
+                };
+                connection.send(JSON.stringify(disconnectMessage));
+              }
             }
           }
+          
+          // Remove the connection from the map
+          removeConnection(ws.userId, ws.sessionId);
+        } catch (error) {
+          console.error('Error handling WebSocket disconnect:', error);
         }
       }
     });
+    
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+    });
   });
+  
+  // Set up a periodic task to clean up expired sessions
+  setInterval(async () => {
+    try {
+      const cleanedCount = await storage.cleanupExpiredSessions();
+      if (cleanedCount > 0) {
+        console.log(`Cleaned up ${cleanedCount} expired sessions`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up expired sessions:', error);
+    }
+  }, 30 * 60 * 1000); // Run every 30 minutes
   
   console.log('WebSocket server initialized');
   return wss;
-}
-
-// Helper function to find a connection by session ID
-function findConnectionBySessionId(userId: number, sessionId: string): WebSocketWithSession | undefined {
-  return userConnections.get(userId)?.get(sessionId);
 }
