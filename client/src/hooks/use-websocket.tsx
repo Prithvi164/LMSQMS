@@ -20,7 +20,7 @@ export function useWebSocket(userId?: number, sessionId?: string) {
     if (!userId) {
       console.log('Not connecting WebSocket - userId not available');
       setStatus('closed');
-      return;
+      return Promise.resolve(false); // Return a resolved promise to prevent unhandled rejections
     }
 
     // Close any existing connection
@@ -143,7 +143,11 @@ export function useWebSocket(userId?: number, sessionId?: string) {
       
       // If socket is closed or in error state, try to reconnect
       if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED || socketRef.current.readyState === WebSocket.CLOSING) {
-        connect();
+        try {
+          connect();
+        } catch (error) {
+          console.error('Error reconnecting WebSocket:', error);
+        }
       }
       return false;
     }
@@ -185,7 +189,11 @@ export function useWebSocket(userId?: number, sessionId?: string) {
 
   // Initialize the connection when the component mounts or when userId/sessionId changes
   useEffect(() => {
-    connect();
+    try {
+      connect();
+    } catch (error) {
+      console.error('Error initializing WebSocket connection:', error);
+    }
     
     // Clean up when unmounting
     return () => {
