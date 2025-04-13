@@ -242,7 +242,8 @@ export function setupWebSocketServer(server: Server) {
         else if (data.type === 'heartbeat') {
           // Update last activity time
           if (ws.sessionId) {
-            await storage.updateUserSessionStatus(ws.sessionId, 'active');
+            // Only update the last activity time without changing the status
+            await storage.updateSessionLastActivity(ws.sessionId);
           }
           
           // Return the heartbeat
