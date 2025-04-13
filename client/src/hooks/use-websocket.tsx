@@ -194,9 +194,14 @@ export function useWebSocket(userId?: number, sessionId?: string) {
 
   // Initialize the connection when the component mounts or when userId/sessionId changes
   useEffect(() => {
-    connect().catch(error => {
-      console.error('Error initializing WebSocket connection:', error);
-    });
+    // Only try to connect if we have userId
+    if (userId) {
+      connect().catch(error => {
+        console.error('Error initializing WebSocket connection:', error);
+      });
+    } else {
+      console.log('Not connecting WebSocket - userId not available');
+    }
     
     // Clean up when unmounting
     return () => {
