@@ -51,6 +51,16 @@ export function useWebSocket(userId?: number, sessionId?: string) {
         setStatus('open');
         console.log('WebSocket connection established');
         
+        // Register the session immediately when the connection opens
+        if (userId && sessionId) {
+          socket.send(JSON.stringify({
+            type: 'register',
+            userId,
+            sessionId
+          }));
+          console.log('Registered session:', { userId, sessionId });
+        }
+        
         // Send any queued messages
         while (messageQueueRef.current.length > 0) {
           const queuedMessage = messageQueueRef.current.shift();
@@ -152,6 +162,19 @@ export function useWebSocket(userId?: number, sessionId?: string) {
       userId
     });
   }, [userId, sendMessage]);
+  
+  const sendSessionRequest = useCallback((deviceInfo?: string, ipAddress?: string, userAgent?: string) => {
+    if (!userId || !sessionId) return false;
+    
+    return sendMessage({
+      type: 'session_request',
+      sessionId,
+      userId,
+      deviceInfo,
+      ipAddress,
+      userAgent
+    });
+  }, [userId, sessionId, sendMessage]);
 
   // Initialize the connection when the component mounts or when userId/sessionId changes
   useEffect(() => {
@@ -182,6 +205,7 @@ export function useWebSocket(userId?: number, sessionId?: string) {
     sendMessage,
     sendSessionApproval,
     sendSessionDenial,
+    sendSessionRequest,
     connect
   };
 }
