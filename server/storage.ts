@@ -1780,21 +1780,115 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    // Make the username lookup case-insensitive
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(sql`LOWER(${users.username}) = LOWER(${username})`) as User[];
-    return user;
+    try {
+      // Make the username lookup case-insensitive, but handle missing columns
+      const query = db
+        .select()
+        .from(users)
+        .where(sql`LOWER(${users.username}) = LOWER(${username})`);
+        
+      const result = await query as User[];
+      return result[0];
+    } catch (error) {
+      // If the error is about missing enable_rls, retry with explicit column selection
+      if (error instanceof Error && error.message.includes('enable_rls')) {
+        console.log('Working around missing enable_rls column...');
+        
+        // Select all columns except enableRLS
+        const result = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            password: users.password,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            role: users.role,
+            category: users.category,
+            locationId: users.locationId,
+            email: users.email,
+            education: users.education,
+            dateOfJoining: users.dateOfJoining,
+            phoneNumber: users.phoneNumber,
+            dateOfBirth: users.dateOfBirth,
+            lastWorkingDay: users.lastWorkingDay,
+            organizationId: users.organizationId,
+            managerId: users.managerId,
+            active: users.active,
+            certified: users.certified,
+            createdAt: users.createdAt,
+            onboardingCompleted: users.onboardingCompleted,
+            resetPasswordToken: users.resetPasswordToken,
+            resetPasswordExpires: users.resetPasswordExpires,
+          })
+          .from(users)
+          .where(sql`LOWER(${users.username}) = LOWER(${username})`);
+          
+        // Add default enableRLS value
+        if (result[0]) {
+          return {
+            ...result[0],
+            enableRLS: false,
+          } as User;
+        }
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    // Make the email lookup case-insensitive
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(sql`LOWER(${users.email}) = LOWER(${email})`) as User[];
-    return user;
+    try {
+      // Make the email lookup case-insensitive
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(sql`LOWER(${users.email}) = LOWER(${email})`) as User[];
+      return user;
+    } catch (error) {
+      // If the error is about missing enable_rls, retry with explicit column selection
+      if (error instanceof Error && error.message.includes('enable_rls')) {
+        console.log('Working around missing enable_rls column in getUserByEmail...');
+        
+        // Select all columns except enableRLS
+        const result = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            password: users.password,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            role: users.role,
+            category: users.category,
+            locationId: users.locationId,
+            email: users.email,
+            education: users.education,
+            dateOfJoining: users.dateOfJoining,
+            phoneNumber: users.phoneNumber,
+            dateOfBirth: users.dateOfBirth,
+            lastWorkingDay: users.lastWorkingDay,
+            organizationId: users.organizationId,
+            managerId: users.managerId,
+            active: users.active,
+            certified: users.certified,
+            createdAt: users.createdAt,
+            onboardingCompleted: users.onboardingCompleted,
+            resetPasswordToken: users.resetPasswordToken,
+            resetPasswordExpires: users.resetPasswordExpires,
+          })
+          .from(users)
+          .where(sql`LOWER(${users.email}) = LOWER(${email})`);
+          
+        // Add default enableRLS value
+        if (result[0]) {
+          return {
+            ...result[0],
+            enableRLS: false,
+          } as User;
+        }
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async createUser(user: InsertUser): Promise<User> {

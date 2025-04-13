@@ -29,14 +29,20 @@ export default function AuthPage() {
   const [deviceInfo, setDeviceInfo] = useState("");
 
   // Get basic device info
+  // Initialize device info on component mount
   useState(() => {
-    const info = [
-      navigator.platform,
-      navigator.userAgent,
-      `${window.screen.width}x${window.screen.height}`,
-      new Date().toLocaleString()
-    ].join(' | ');
-    setDeviceInfo(info);
+    try {
+      const info = [
+        navigator.platform || 'Unknown Platform',
+        navigator.userAgent || 'Unknown User Agent',
+        `${window.screen.width}x${window.screen.height}`,
+        new Date().toLocaleString()
+      ].join(' | ');
+      setDeviceInfo(info);
+    } catch (error) {
+      setDeviceInfo('Unknown Device');
+      console.error('Error getting device info:', error);
+    }
   });
 
   // Redirect if already logged in
@@ -69,7 +75,7 @@ export default function AuthPage() {
         const response = await login(loginData);
         
         // Check if the response indicates a pending session approval
-        if (response && response.status === 'pending_approval') {
+        if (response && response.status === 'pending_approval' && response.sessionId) {
           setPendingSession({ sessionId: response.sessionId });
           return;
         }

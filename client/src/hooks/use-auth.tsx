@@ -62,8 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: (response: LoginResponse) => {
+      // Only update the user in the query cache if this is an active session
+      if (!response.status || response.status === 'active') {
+        queryClient.setQueryData(["/api/user"], response);
+      }
     },
     onError: (error: Error) => {
       toast({
