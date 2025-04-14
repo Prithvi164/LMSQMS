@@ -761,13 +761,43 @@ export function AttendanceBreakdown({
                         <Legend />
                       </RechartsPieChart>
                     </ResponsiveContainer>
+                  ) : chartType === 'line' ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <RechartsLineChart 
+                        data={prepareOverallChartData()}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="value" name="Count" stroke="#8884d8" />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
                   ) : (
-                    <div className="mt-4">
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Overall attendance statistics for all batch phases
-                      </p>
-                    </div>
+                    // Bar Chart (default)
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        data={prepareOverallChartData()}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="value" name="Count" fill="#8884d8">
+                          {prepareOverallChartData().map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   )}
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Overall attendance statistics for all batch phases
+                  </p>
                 </div>
               </div>
             </div>
