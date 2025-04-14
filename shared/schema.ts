@@ -22,6 +22,11 @@ export const quizStatusEnum = pgEnum('quiz_status', [
   'expired'
 ]);
 
+export const quizTypeEnum = pgEnum('quiz_type', [
+  'internal', 
+  'final'
+]);
+
 export const batchCategoryEnum = pgEnum('batch_category', [
   'new_training',
   'upskill'
@@ -256,6 +261,7 @@ export const quizTemplates = pgTable("quiz_templates", {
   questionCount: integer("question_count").notNull(),
   categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(),
   difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(),
+  quizType: quizTypeEnum("quiz_type").default('internal').notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
@@ -291,7 +297,8 @@ export const quizzes = pgTable("quizzes", {
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
-  status: quizStatusEnum("status").default('in_progress').notNull(),
+  status: quizStatusEnum("status").default('active').notNull(),
+  quizType: quizTypeEnum("quiz_type").default('internal').notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
   oneTimeOnly: boolean("one_time_only").default(false).notNull(),
