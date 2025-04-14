@@ -2743,7 +2743,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processId: quizzes.processId,
           processName: organizationProcesses.name,
           startTime: quizzes.startTime,
-          endTime: quizzes.endTime
+          endTime: quizzes.endTime,
+          oneTimeOnly: quizzes.oneTimeOnly,
+          quizType: quizzes.quizType
         })
         .from(quizzes)
         .innerJoin(

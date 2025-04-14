@@ -154,59 +154,79 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: Quiz) => (
-          <Card key={quiz.quiz_id}>
-            <CardHeader>
-              <CardTitle>{quiz.quiz_name}</CardTitle>
-              <CardDescription>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge variant="secondary">
-                    Time: {quiz.timeLimit} min
-                  </Badge>
-                  <Badge variant="secondary">
-                    Pass: {quiz.passingScore}%
-                  </Badge>
-                  {quiz.oneTimeOnly && (
-                    <Badge variant="destructive">
-                      One-Time Only
+        {quizzes.map((quiz: Quiz) => {
+          // Log per-quiz debugging information
+          console.log(`Quiz ${quiz.quiz_id} (${quiz.quiz_name}):`, {
+            oneTimeOnly: quiz.oneTimeOnly,
+            hasAttempts: quizAttempts[quiz.quiz_id]?.length > 0,
+            attemptsCount: quizAttempts[quiz.quiz_id]?.length || 0,
+            attempts: quizAttempts[quiz.quiz_id] || []
+          });
+          
+          // Logic to determine button state
+          const hasAttempted = quizAttempts[quiz.quiz_id]?.length > 0;
+          const isOneTimeQuiz = !!quiz.oneTimeOnly;
+          const shouldDisableButton = isOneTimeQuiz && hasAttempted;
+          
+          return (
+            <Card key={quiz.quiz_id}>
+              <CardHeader>
+                <CardTitle>{quiz.quiz_name}</CardTitle>
+                <CardDescription>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge variant="secondary">
+                      Time: {quiz.timeLimit} min
                     </Badge>
-                  )}
-                </div>
-                <div className="mt-2 text-sm text-muted-foreground">
-                  Process: {quiz.processName}
-                </div>
-                <div className="mt-2 text-sm">
-                  <div className="text-muted-foreground">
-                    <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
+                    <Badge variant="secondary">
+                      Pass: {quiz.passingScore}%
+                    </Badge>
+                    {isOneTimeQuiz && (
+                      <Badge variant="destructive">
+                        One-Time Only
+                      </Badge>
+                    )}
                   </div>
-                  {quiz.oneTimeOnly && (
-                    <div className="mt-2 text-destructive font-medium">
-                      ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Process: {quiz.processName}
+                  </div>
+                  <div className="mt-2 text-sm">
+                    <div className="text-muted-foreground">
+                      <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
                     </div>
-                  )}
-                </div>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {quiz.oneTimeOnly && quizAttempts[quiz.quiz_id]?.length > 0 ? (
-                <Button 
-                  className="w-full"
-                  variant="outline"
-                  disabled
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" /> Close Quiz
-                </Button>
-              ) : (
-                <Button 
-                  className="w-full"
-                  onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
-                >
-                  Start Quiz
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                    {isOneTimeQuiz && (
+                      <div className="mt-2 text-destructive font-medium">
+                        ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
+                      </div>
+                    )}
+                    {shouldDisableButton && (
+                      <div className="mt-2 text-info font-medium">
+                        You have already taken this quiz.
+                      </div>
+                    )}
+                  </div>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {shouldDisableButton ? (
+                  <Button 
+                    className="w-full"
+                    variant="outline"
+                    disabled
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
+                  </Button>
+                ) : (
+                  <Button 
+                    className="w-full"
+                    onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
+                  >
+                    Start Quiz
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
