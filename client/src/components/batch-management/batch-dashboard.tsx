@@ -424,32 +424,14 @@ const calculateBatchMetrics = (
   
   // Attendance data is now calculated correctly
   
-  // Daily attendance - Show both today and historical data
+  // Daily attendance - Only using actual attendance data
   const dailyAttendance: DailyAttendance[] = [];
   
-  // Get current date and previous date for the two days we have data for
+  // Get current date
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
   const totalTrainees = trainees.length || 0;
   
-  // Add historical data for March 29, 2025 (if we have the batch historical attendance)
-  // The first day attendance: 9 present, 1 absent
-  if (historicalAttendance && daysCompleted > 1) {
-    dailyAttendance.push({
-      date: '2025-03-29', // First day of attendance
-      presentCount: 9, // From the CSV data: 9 present
-      absentCount: 1,  // From the CSV data: 1 absent
-      lateCount: 0, 
-      leaveCount: 0,
-      attendanceRate: 90, // 9/10 = 90%
-      totalTrainees
-    });
-  }
-  
-  // Add today's attendance data with actual counts from trainees (March 30, 2025)
-  // The second day attendance: 4 present, 6 absent
+  // Add today's attendance data with actual counts from trainees
   dailyAttendance.push({
     date: format(today, 'yyyy-MM-dd'),
     presentCount: attendanceStats.presentCount,
@@ -462,79 +444,53 @@ const calculateBatchMetrics = (
   
   // Daily attendance data
   
-  // Phase-wise attendance with historical data
+  // Phase-wise attendance - Only showing actual data for current phase
   const phaseAttendance: PhaseAttendance[] = [];
   
-  // Add data for both phases: induction and training
-  if (historicalAttendance) {
-    // Induction phase attendance (March 29, 2025)
-    // The first day attendance: 9 present, 1 absent
+  // Add data for the current phase only
+  if (batch && historicalAttendance) {
+    // Get the current phase from the batch status
+    const currentPhaseName = formatPhaseName(batch.status);
+    
+    // Add current phase attendance
     phaseAttendance.push({
-      phase: "Induction",
-      presentCount: 9, // From the CSV data
-      absentCount: 1,  // From the CSV data
-      lateCount: 0, 
-      leaveCount: 0,
-      attendanceRate: 90, // 9/10 = 90%
-      totalDays: 1,
-      totalRecords: 10 // 10 trainees * 1 day
-    });
-
-    // Training phase attendance (March 30, 2025)
-    // The second day attendance: 4 present, 6 absent
-    phaseAttendance.push({
-      phase: "Training",
+      phase: currentPhaseName,
       presentCount: attendanceStats.presentCount,
       absentCount: attendanceStats.absentCount,
       lateCount: attendanceStats.lateCount,
       leaveCount: attendanceStats.leaveCount,
       attendanceRate: attendanceStats.attendanceRate,
-      totalDays: 1,
-      totalRecords: totalTrainees
+      totalDays: daysCompleted,
+      totalRecords: totalTrainees * daysCompleted
     });
   }
   
   // Phase attendance data is correctly processed
   
-  // Trainee-wise attendance - Including historical data
-  // Based on the CSV data and current day's data
+  // Trainee-wise attendance - Only using actual data
   const traineeAttendance: TraineeAttendance[] = trainees.map((trainee) => {
-    // Use trainee ID to determine historical attendance pattern
-    // Trainee IDs 339-347 were present on day 1, 348 was absent
-    // Trainee IDs 339-342 were present on day 2, 343-348 were absent
-    
     // Initialize counters
     let presentCount = 0;
     let absentCount = 0;
     let lateCount = 0;
     let leaveCount = 0;
     
-    // Add historical data for first day (March 29)
-    if (trainee.id >= 339 && trainee.id <= 347) {
-      // IDs 339-347 were present on day 1
-      presentCount += 1;
-    } else if (trainee.id === 348) {
-      // ID 348 was absent on day 1
-      absentCount += 1;
-    }
-    
-    // Add data for second day (March 30 - today)
     // Use current status from the trainees data
     if (trainee.status) {
       const status = trainee.status.toLowerCase();
       if (status === 'present') {
-        presentCount += 1;
+        presentCount = 1;
       } else if (status === 'absent') {
-        absentCount += 1;
+        absentCount = 1;
       } else if (status === 'late') {
-        lateCount += 1;
+        lateCount = 1;
       } else if (status === 'leave') {
-        leaveCount += 1;
+        leaveCount = 1;
       }
     }
     
-    // Calculate attendance rate based on the 2 days
-    const totalDays = 2; // We have 2 days of data
+    // Calculate attendance rate based on actual attendance
+    const totalDays = 1; // Using only today's data
     const attendedDays = presentCount + (lateCount * 0.5);
     const attendanceRate = Math.round((attendedDays / totalDays) * 100);
     
