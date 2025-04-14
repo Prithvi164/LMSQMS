@@ -3,7 +3,15 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +26,12 @@ import type { Question, QuizTemplate, OrganizationBatch } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Alert,
+  AlertCircle,
+  AlertDescription,
+  AlertTitle
+} from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye, ShieldAlert } from "lucide-react";
 
@@ -1662,16 +1676,26 @@ export function QuizManagement() {
                   Trainees will have access to this quiz for {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} after generation.
                 </p>
               </div>
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Time-bound Quiz</AlertTitle>
-                <AlertDescription>
-                  This quiz will be available to trainees from the moment it's generated until {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} later. 
-                  The quiz timer of {quizTemplates.find(t => t.id === selectedTemplateId)?.timeLimit || 0} minutes begins when a trainee starts the quiz.
-                </AlertDescription>
-              </Alert>
+              <div className="relative w-full rounded-lg border p-4 bg-background text-foreground mt-2">
+                <div className="flex items-start">
+                  <div className="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h5 className="mb-1 font-medium leading-none tracking-tight">Time-bound Quiz</h5>
+                    <div className="text-sm">
+                      This quiz will be available to trainees from the moment it's generated until {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} later. 
+                      The quiz timer of {quizTemplates.find(t => t.id === selectedTemplateId)?.timeLimit || 0} minutes begins when a trainee starts the quiz.
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <DialogFooter className="mt-6">
+            <div className="flex justify-end space-x-4 mt-6">
               <Button variant="outline" onClick={() => setIsGenerateDialogOpen(false)}>
                 Cancel
               </Button>
@@ -1694,7 +1718,7 @@ export function QuizManagement() {
                   'Generate Quiz'
                 )}
               </Button>
-            </DialogFooter>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
