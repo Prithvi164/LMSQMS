@@ -84,22 +84,25 @@ export function MyQuizzesPage() {
     const fetchAttemptsForQuizzes = async () => {
       const attemptsMap: Record<number, QuizAttempt[]> = {};
       
-      // For each one-time quiz, check if there's already an attempt
+      // Fetch attempts for all quizzes
       for (const quiz of quizzes) {
-        if (quiz.oneTimeOnly) {
-          try {
-            const response = await fetch(`/api/quizzes/${quiz.quiz_id}/attempts`);
-            if (response.ok) {
-              const attempts = await response.json();
-              attemptsMap[quiz.quiz_id] = attempts;
-              console.log(`Quiz ${quiz.quiz_id} has ${attempts.length} attempts`);
-            }
-          } catch (err) {
-            console.error(`Error fetching attempts for quiz ${quiz.quiz_id}:`, err);
+        try {
+          console.log(`Fetching attempts for quiz ${quiz.quiz_id}...`);
+          const response = await fetch(`/api/quizzes/${quiz.quiz_id}/attempts`);
+          if (response.ok) {
+            const attempts = await response.json();
+            console.log(`Quiz ${quiz.quiz_id} attempts data:`, attempts);
+            attemptsMap[quiz.quiz_id] = attempts;
+            console.log(`Quiz ${quiz.quiz_id} has ${attempts.length} attempts`);
+          } else {
+            console.warn(`Failed to fetch attempts for quiz ${quiz.quiz_id}. Status: ${response.status}`);
           }
+        } catch (err) {
+          console.error(`Error fetching attempts for quiz ${quiz.quiz_id}:`, err);
         }
       }
       
+      console.log("Final attempts map:", attemptsMap);
       setQuizAttempts(attemptsMap);
     };
     
@@ -190,7 +193,7 @@ export function MyQuizzesPage() {
                   variant="outline"
                   disabled
                 >
-                  <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
+                  <CheckCircle className="mr-2 h-4 w-4" /> Close Quiz
                 </Button>
               ) : (
                 <Button 
