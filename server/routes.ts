@@ -6805,6 +6805,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message || "Failed to fetch attendance overview" });
     }
   });
+  
+  // Get daily attendance history for a specific batch
+  app.get("/api/organizations/:orgId/batches/:batchId/attendance/history", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
+      }
+      
+      // Get attendance history data for this specific batch
+      const historyData = await storage.getBatchAttendanceHistory(orgId, batchId);
+      
+      res.json(historyData);
+    } catch (error: any) {
+      console.error("Error fetching batch attendance history:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch batch attendance history" });
+    }
+  });
 
   // Add question routes
   app.post("/api/questions", async (req, res) => {

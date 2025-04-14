@@ -400,6 +400,17 @@ export interface IStorage {
     attendanceRate: number;
   }>;
   
+  // Get day-by-day attendance history for a specific batch
+  getBatchAttendanceHistory(organizationId: number, batchId: number): Promise<{
+    date: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    totalTrainees: number;
+  }[]>;
+  
   // Audio File operations
   createAudioFile(file: InsertAudioFile): Promise<AudioFile>;
   getAudioFile(id: number): Promise<AudioFile | undefined>;
@@ -4749,6 +4760,105 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getBatchAttendanceHistory(organizationId: number, batchId: number): Promise<{
+    date: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    totalTrainees: number;
+  }[]> {
+    try {
+      console.log('Fetching attendance history for batch:', batchId);
+      
+      // Get all trainees in the batch to calculate total
+      const batchTrainees = await db
+        .select()
+        .from(trainees)
+        .where(eq(trainees.batchId, batchId))
+        .where(eq(trainees.organizationId, organizationId));
+        
+      const totalTraineesInBatch = batchTrainees.length;
+      
+      if (totalTraineesInBatch === 0) {
+        return []; // No trainees in batch, return empty array
+      }
+      
+      // Get trainee IDs for the query
+      const traineeIds = batchTrainees.map(trainee => trainee.id);
+      
+      // Get all attendance records for these trainees
+      const attendanceRecords = await db
+        .select()
+        .from(attendance)
+        .where(inArray(attendance.traineeId, traineeIds))
+        .where(eq(attendance.organizationId, organizationId));
+      
+      if (attendanceRecords.length === 0) {
+        return []; // No attendance records, return empty array
+      }
+      
+      // Group attendance records by date
+      const attendanceByDate = new Map<string, { 
+        present: number, 
+        absent: number, 
+        late: number, 
+        leave: number 
+      }>();
+      
+      // Initialize the map with all dates that have records
+      attendanceRecords.forEach(record => {
+        const date = record.date;
+        if (!attendanceByDate.has(date)) {
+          attendanceByDate.set(date, { present: 0, absent: 0, late: 0, leave: 0 });
+        }
+        
+        const stats = attendanceByDate.get(date)!;
+        
+        // Increment the appropriate counter based on attendance status
+        switch(record.status) {
+          case 'present':
+            stats.present++;
+            break;
+          case 'absent':
+            stats.absent++;
+            break;
+          case 'late':
+            stats.late++;
+            break;
+          case 'leave':
+            stats.leave++;
+            break;
+        }
+      });
+      
+      // Convert the map to array of daily attendance objects
+      const result = Array.from(attendanceByDate.entries()).map(([date, stats]) => {
+        const totalMarked = stats.present + stats.absent + stats.late + stats.leave;
+        const attendanceRate = totalMarked > 0 
+          ? Math.round((stats.present + stats.late) / totalMarked * 100) 
+          : 0;
+        
+        return {
+          date,
+          presentCount: stats.present,
+          absentCount: stats.absent,
+          lateCount: stats.late,
+          leaveCount: stats.leave,
+          attendanceRate,
+          totalTrainees: totalTraineesInBatch
+        };
+      });
+      
+      // Sort by date (newest first)
+      return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } catch (error) {
+      console.error('Error fetching batch attendance history:', error);
+      throw error;
+    }
+  }
+  
   async getBatchAttendanceOverview(organizationId: number, options?: { 
     batchIds?: number[]; 
     dateRange?: { from: string; to: string };
