@@ -140,7 +140,7 @@ export function AttendanceBreakdown({
   const [breakdownTab, setBreakdownTab] = useState("overall");
   
   // Chart type and sorting state
-  const [chartType, setChartType] = useState<ChartType>('bar');
+  const [chartType] = useState<ChartType>('bar'); // Always using bar chart
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [sortField, setSortField] = useState<SortField>('rate');
   
@@ -455,34 +455,11 @@ export function AttendanceBreakdown({
     }
   };
   
-  // Chart control panel component
-  const ChartControls = ({ onChangeChartType }: { onChangeChartType: (type: ChartType) => void }) => (
+  // Chart control panel component - only sorting controls now
+  const ChartControls = () => (
     <div className="flex flex-wrap gap-2 mb-4 justify-between items-center">
       <div className="flex gap-2">
-        <Button 
-          variant={chartType === 'bar' ? 'default' : 'outline'} 
-          size="sm"
-          onClick={() => onChangeChartType('bar')}
-        >
-          <BarChart3 className="h-4 w-4 mr-2" />
-          Bar
-        </Button>
-        <Button 
-          variant={chartType === 'pie' ? 'default' : 'outline'} 
-          size="sm"
-          onClick={() => onChangeChartType('pie')}
-        >
-          <PieChart className="h-4 w-4 mr-2" />
-          Pie
-        </Button>
-        <Button 
-          variant={chartType === 'line' ? 'default' : 'outline'} 
-          size="sm"
-          onClick={() => onChangeChartType('line')}
-        >
-          <LineChart className="h-4 w-4 mr-2" />
-          Line
-        </Button>
+        {/* Bar chart is the only option now */}
       </div>
       
       {/* Additional controls specific to trainee tab */}
