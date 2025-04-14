@@ -1,52 +1,75 @@
+import { format } from "date-fns";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
-  BarChart as BarChartIcon,
+  AlertCircle,
+  BarChart3,
+  BarChartIcon,
   Calendar,
   CheckCircle,
   Clock,
-  AlertCircle,
-  Users,
-  ArrowLeft,
-  ArrowRight,
+  Eye,
   Search,
-  Filter,
   SortAsc,
   SortDesc,
-  Download,
-  PieChart,
-  LineChart,
-  BarChart3,
-  ArrowDown10,
-  ArrowUp10,
-  Eye
+  Users,
 } from "lucide-react";
-import { format, parseISO, isValid } from "date-fns";
 import {
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
   BarChart,
   Bar,
   PieChart as RechartsPieChart,
   Pie,
-  LineChart as RechartsLineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell
+  Cell,
 } from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// Type definitions
+// Define color constants
+const COLORS = {
+  present: "#16a34a", // Green-600
+  absent: "#dc2626",  // Red-600
+  late: "#ca8a04",    // Yellow-600
+  leave: "#2563eb",   // Blue-600
+  background: "#f1f5f9" // Slate-100
+};
+
+// Attendance data interfaces
 type DailyAttendance = {
   date: string;
   presentCount: number;
@@ -91,40 +114,31 @@ type BatchAttendanceOverview = {
   traineeAttendance: TraineeAttendance[];
 };
 
-// Color constants for charts
-const COLORS = {
-  present: '#22c55e', // green-500
-  absent: '#ef4444',  // red-500
-  late: '#eab308',    // yellow-500
-  leave: '#3b82f6',   // blue-500
-  background: '#f3f4f6' // gray-100
-};
-
 type ChartType = 'bar' | 'pie' | 'line';
 type SortOrder = 'asc' | 'desc';
 type SortField = 'name' | 'present' | 'absent' | 'late' | 'leave' | 'rate';
 
-// Attendance detail dialog component
+// Custom Dialog component for attendance details
 function AttendanceDetailDialog({ 
   title, 
-  children, 
-  trigger,
-  description
+  description, 
+  trigger, 
+  children 
 }: { 
-  title: string;
+  title: string; 
+  description: string; 
+  trigger: React.ReactNode; 
   children: React.ReactNode;
-  trigger: React.ReactNode;
-  description?: string;
 }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description && <CardDescription>{description}</CardDescription>}
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {children}
       </DialogContent>
@@ -132,6 +146,7 @@ function AttendanceDetailDialog({
   );
 }
 
+// Main component
 export function AttendanceBreakdown({ 
   attendanceData 
 }: { 
@@ -290,7 +305,7 @@ export function AttendanceBreakdown({
   };
   
   // Render the appropriate chart based on type and data
-  const renderChart = (data: any[], type: ChartType) => {
+  const renderChart = (data: any[]) => {
     if (data.length === 0) return null;
     
     // Height based on number of items (with a minimum)
@@ -300,158 +315,52 @@ export function AttendanceBreakdown({
     // or overall data (has 'name', 'value' properties)
     const hasAttendanceBreakdown = data.length > 0 && 'present' in data[0];
     
-    switch (type) {
-      case 'pie':
-        if (hasAttendanceBreakdown) {
-          // For daily attendance, we need to transform the data
-          // Convert to pie chart format by taking the most recent day's data
-          const latestDay = data[data.length - 1];
-          const pieData = [
-            { name: 'Present', value: latestDay.present, color: COLORS.present },
-            { name: 'Absent', value: latestDay.absent, color: COLORS.absent },
-            { name: 'Late', value: latestDay.late, color: COLORS.late },
-            { name: 'Leave', value: latestDay.leave, color: COLORS.leave }
-          ];
-          
-          return (
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsPieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  outerRadius={120}
-                  fill="#8884d8"
-                  dataKey="value"
-                  nameKey="name"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-          );
-        } else {
-          // For overview data with name/value format
-          return (
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsPieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  outerRadius={120}
-                  fill="#8884d8"
-                  dataKey="value"
-                  nameKey="name"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || COLORS.background} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-          );
-        }
-        
-      case 'line':
-        if (hasAttendanceBreakdown) {
-          return (
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsLineChart
-                data={data}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey={data[0].date ? 'date' : 'name'} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="present" stroke={COLORS.present} name="Present" />
-                <Line type="monotone" dataKey="absent" stroke={COLORS.absent} name="Absent" />
-                <Line type="monotone" dataKey="late" stroke={COLORS.late} name="Late" />
-                <Line type="monotone" dataKey="leave" stroke={COLORS.leave} name="Leave" />
-                <Line type="monotone" dataKey="rate" stroke="#6366f1" name="Attendance Rate" />
-              </RechartsLineChart>
-            </ResponsiveContainer>
-          );
-        } else {
-          // For overall data
-          return (
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsLineChart
-                data={data}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="value" stroke="#8884d8" name="Count" />
-              </RechartsLineChart>
-            </ResponsiveContainer>
-          );
-        }
-        
-      case 'bar':
-      default:
-        if (hasAttendanceBreakdown) {
-          return (
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart
-                data={data}
-                layout="vertical"
-                margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis 
-                  type="category" 
-                  dataKey={data[0].date ? 'date' : 'name'} 
-                  width={100}
-                />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="present" fill={COLORS.present} name="Present" />
-                <Bar dataKey="absent" fill={COLORS.absent} name="Absent" />
-                <Bar dataKey="late" fill={COLORS.late} name="Late" />
-                <Bar dataKey="leave" fill={COLORS.leave} name="Leave" />
-              </BarChart>
-            </ResponsiveContainer>
-          );
-        } else {
-          // For overall data
-          return (
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart
-                data={data}
-                layout="vertical"
-                margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="name" width={100} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#8884d8" name="Count">
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || COLORS.background} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          );
-        }
+    if (hasAttendanceBreakdown) {
+      return (
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" />
+            <YAxis 
+              type="category" 
+              dataKey={data[0].date ? 'date' : 'name'} 
+              width={100}
+            />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="present" fill={COLORS.present} name="Present" />
+            <Bar dataKey="absent" fill={COLORS.absent} name="Absent" />
+            <Bar dataKey="late" fill={COLORS.late} name="Late" />
+            <Bar dataKey="leave" fill={COLORS.leave} name="Leave" />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    } else {
+      // For overall data
+      return (
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" />
+            <YAxis type="category" dataKey="name" width={100} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="value" fill="#8884d8" name="Count">
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color || COLORS.background} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      );
     }
   };
   
@@ -798,67 +707,9 @@ export function AttendanceBreakdown({
               </div>
                 
               <div className="mt-4">
-                <ChartControls onChangeChartType={setChartType} />
+                <ChartControls />
                 <div>
-                  {chartType === 'pie' ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RechartsPieChart>
-                        <Pie
-                          data={prepareOverallChartData()}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={true}
-                          outerRadius={120}
-                          fill="#8884d8"
-                          dataKey="value"
-                          nameKey="name"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {prepareOverallChartData().map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  ) : chartType === 'line' ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RechartsLineChart 
-                        data={prepareOverallChartData()}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="value" name="Count" stroke="#8884d8" />
-                      </RechartsLineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    // Bar Chart (default)
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart
-                        data={prepareOverallChartData()}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="value" name="Count" fill="#8884d8">
-                          {prepareOverallChartData().map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Overall attendance statistics for all batch phases
-                  </p>
+                  {renderChart(prepareOverallChartData())}
                 </div>
               </div>
             </div>
@@ -866,204 +717,167 @@ export function AttendanceBreakdown({
           
           {/* Daily attendance tab */}
           <TabsContent value="daily">
-            {attendanceData.dailyAttendance.length > 0 ? (
-              <div className="space-y-6">
-                <p className="text-xs text-slate-500 italic mb-3">
-                  Showing day-by-day attendance breakdown for the selected batch
-                </p>
-                <ChartControls onChangeChartType={setChartType} />
+            <div className="space-y-6">
+              <p className="text-xs text-slate-500 italic mb-3">
+                Showing day-by-day attendance breakdown for the entire training period
+              </p>
                 
-                {/* Daily attendance chart */}
-                {renderChart(prepareDailyChartData(), chartType)}
+              <div className="mt-4">
+                <ChartControls />
+                <div>
+                  {renderChart(prepareDailyChartData())}
+                </div>
+              </div>
                 
-                <div className="border rounded">
+              <div className="mt-6">
+                <h3 className="text-md font-medium mb-3">Daily Attendance Records</h3>
+                <div className="border rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Present</TableHead>
-                        <TableHead>Absent</TableHead>
-                        <TableHead>Late</TableHead>
-                        <TableHead>Leave</TableHead>
-                        <TableHead>Rate</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
                     <TableBody>
-                      {[...attendanceData.dailyAttendance]
-                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                        .map((day) => (
-                        <TableRow key={day.date}>
-                          <TableCell>{format(new Date(day.date), 'MMM d, yyyy')}</TableCell>
-                          <TableCell className="text-green-600">{day.presentCount}</TableCell>
-                          <TableCell className="text-red-600">{day.absentCount}</TableCell>
-                          <TableCell className="text-yellow-600">{day.lateCount}</TableCell>
-                          <TableCell className="text-blue-600">{day.leaveCount}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <span className="mr-2">{day.attendanceRate}%</span>
-                              <Progress value={day.attendanceRate} className="h-2 w-16" />
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <AttendanceDetailDialog
-                              title={`Daily Attendance: ${format(new Date(day.date), 'MMMM d, yyyy')}`}
-                              description="Detailed attendance breakdown for this day"
-                              trigger={
-                                <Button variant="ghost" size="sm" onClick={() => setSelectedDay(day)}>
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Details
-                                </Button>
-                              }
-                            >
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <DetailTable details={formatAttendanceDetails('day', day)} />
-                                  </div>
-                                  <div>
-                                    <h3 className="text-md font-medium mb-2">Attendance Distribution</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                      <RechartsPieChart>
-                                        <Pie
-                                          data={[
-                                            { name: 'Present', value: day.presentCount, color: COLORS.present },
-                                            { name: 'Absent', value: day.absentCount, color: COLORS.absent },
-                                            { name: 'Late', value: day.lateCount, color: COLORS.late },
-                                            { name: 'Leave', value: day.leaveCount, color: COLORS.leave }
-                                          ]}
-                                          cx="50%"
-                                          cy="50%"
-                                          labelLine={true}
-                                          outerRadius={100}
-                                          fill="#8884d8"
-                                          dataKey="value"
-                                          nameKey="name"
-                                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                        >
-                                          {[
-                                            { name: 'Present', value: day.presentCount, color: COLORS.present },
-                                            { name: 'Absent', value: day.absentCount, color: COLORS.absent },
-                                            { name: 'Late', value: day.lateCount, color: COLORS.late },
-                                            { name: 'Leave', value: day.leaveCount, color: COLORS.leave }
-                                          ].map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                          ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend />
-                                      </RechartsPieChart>
-                                    </ResponsiveContainer>
-                                  </div>
-                                </div>
-                              </div>
-                            </AttendanceDetailDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {attendanceData.dailyAttendance
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map((day, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{format(new Date(day.date), 'MMM d, yyyy')}</TableCell>
+                            <TableCell className="text-green-600 font-medium">
+                              {day.presentCount} Present
+                            </TableCell>
+                            <TableCell className="text-red-600 font-medium">
+                              {day.absentCount} Absent
+                            </TableCell>
+                            <TableCell className="text-yellow-600 font-medium">
+                              {day.lateCount} Late
+                            </TableCell>
+                            <TableCell className="text-blue-600 font-medium">
+                              {day.leaveCount} Leave
+                            </TableCell>
+                            <TableCell className="font-bold">
+                              {day.attendanceRate}%
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setSelectedDay(day)}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                Details
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                No daily attendance data available
-              </div>
-            )}
+                
+              {/* Dialog for detailed day view */}
+              {selectedDay && (
+                <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Daily Attendance: {format(new Date(selectedDay.date), 'MMM d, yyyy')}
+                      </DialogTitle>
+                      <DialogDescription>
+                        Detailed attendance breakdown for this training day
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                      <DetailTable 
+                        details={formatAttendanceDetails('day', selectedDay)} 
+                      />
+                      
+                      <div className="mt-4">
+                        <h3 className="text-md font-medium mb-2">Day Attendance Distribution</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <RechartsPieChart>
+                            <Pie
+                              data={[
+                                { name: 'Present', value: selectedDay.presentCount, color: COLORS.present },
+                                { name: 'Absent', value: selectedDay.absentCount, color: COLORS.absent },
+                                { name: 'Late', value: selectedDay.lateCount, color: COLORS.late },
+                                { name: 'Leave', value: selectedDay.leaveCount, color: COLORS.leave }
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={true}
+                              outerRadius={120}
+                              fill="#8884d8"
+                              dataKey="value"
+                              nameKey="name"
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            >
+                              {[
+                                { name: 'Present', value: selectedDay.presentCount, color: COLORS.present },
+                                { name: 'Absent', value: selectedDay.absentCount, color: COLORS.absent },
+                                { name: 'Late', value: selectedDay.lateCount, color: COLORS.late },
+                                { name: 'Leave', value: selectedDay.leaveCount, color: COLORS.leave }
+                              ].map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </TabsContent>
           
           {/* Phase attendance tab */}
           <TabsContent value="phase">
-            {attendanceData.phaseAttendance.length > 0 ? (
-              <div className="space-y-6">
-                <p className="text-xs text-slate-500 italic mb-3">
-                  Showing phase-wise attendance breakdown for the selected batch
-                </p>
-                <ChartControls onChangeChartType={setChartType} />
+            <div className="space-y-6">
+              <p className="text-xs text-slate-500 italic mb-3">
+                Showing phase-wise attendance breakdown for the entire training journey
+              </p>
                 
-                {/* Phase attendance chart */}
-                {renderChart(preparePhaseChartData(), chartType)}
+              <div className="mt-4">
+                <ChartControls />
+                <div>
+                  {renderChart(preparePhaseChartData())}
+                </div>
+              </div>
                 
-                <div className="border rounded">
+              <div className="mt-6">
+                <h3 className="text-md font-medium mb-3">Phase Attendance Records</h3>
+                <div className="border rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Phase</TableHead>
-                        <TableHead>Present</TableHead>
-                        <TableHead>Absent</TableHead>
-                        <TableHead>Late</TableHead>
-                        <TableHead>Leave</TableHead>
-                        <TableHead>Rate</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
                     <TableBody>
-                      {attendanceData.phaseAttendance.map((phase) => (
-                        <TableRow key={phase.phase}>
-                          <TableCell>{phase.phase}</TableCell>
-                          <TableCell className="text-green-600">{phase.presentCount}</TableCell>
-                          <TableCell className="text-red-600">{phase.absentCount}</TableCell>
-                          <TableCell className="text-yellow-600">{phase.lateCount}</TableCell>
-                          <TableCell className="text-blue-600">{phase.leaveCount}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <span className="mr-2">{phase.attendanceRate}%</span>
-                              <Progress value={phase.attendanceRate} className="h-2 w-16" />
-                            </div>
+                      {attendanceData.phaseAttendance.map((phase, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium capitalize">
+                            {phase.phase}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <AttendanceDetailDialog
-                              title={`Phase Attendance: ${phase.phase}`}
-                              description="Detailed attendance breakdown for this phase"
-                              trigger={
-                                <Button variant="ghost" size="sm" onClick={() => setSelectedPhase(phase)}>
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Details
-                                </Button>
-                              }
+                          <TableCell className="text-green-600 font-medium">
+                            {phase.presentCount} Present
+                          </TableCell>
+                          <TableCell className="text-red-600 font-medium">
+                            {phase.absentCount} Absent
+                          </TableCell>
+                          <TableCell className="text-yellow-600 font-medium">
+                            {phase.lateCount} Late
+                          </TableCell>
+                          <TableCell className="text-blue-600 font-medium">
+                            {phase.leaveCount} Leave
+                          </TableCell>
+                          <TableCell className="font-bold">
+                            {phase.attendanceRate}%
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedPhase(phase)}
                             >
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <DetailTable details={formatAttendanceDetails('phase', phase)} />
-                                  </div>
-                                  <div>
-                                    <h3 className="text-md font-medium mb-2">Attendance Distribution</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                      <RechartsPieChart>
-                                        <Pie
-                                          data={[
-                                            { name: 'Present', value: phase.presentCount, color: COLORS.present },
-                                            { name: 'Absent', value: phase.absentCount, color: COLORS.absent },
-                                            { name: 'Late', value: phase.lateCount, color: COLORS.late },
-                                            { name: 'Leave', value: phase.leaveCount, color: COLORS.leave }
-                                          ]}
-                                          cx="50%"
-                                          cy="50%"
-                                          labelLine={true}
-                                          outerRadius={100}
-                                          fill="#8884d8"
-                                          dataKey="value"
-                                          nameKey="name"
-                                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                        >
-                                          {[
-                                            { name: 'Present', value: phase.presentCount, color: COLORS.present },
-                                            { name: 'Absent', value: phase.absentCount, color: COLORS.absent },
-                                            { name: 'Late', value: phase.lateCount, color: COLORS.late },
-                                            { name: 'Leave', value: phase.leaveCount, color: COLORS.leave }
-                                          ].map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                          ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend />
-                                      </RechartsPieChart>
-                                    </ResponsiveContainer>
-                                  </div>
-                                </div>
-                              </div>
-                            </AttendanceDetailDialog>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Details
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1071,143 +885,97 @@ export function AttendanceBreakdown({
                   </Table>
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                No phase attendance data available
-              </div>
-            )}
+                
+              {/* Dialog for detailed phase view */}
+              {selectedPhase && (
+                <Dialog open={!!selectedPhase} onOpenChange={() => setSelectedPhase(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Phase Attendance: {selectedPhase.phase}
+                      </DialogTitle>
+                      <DialogDescription>
+                        Detailed attendance breakdown for this training phase
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                      <DetailTable 
+                        details={formatAttendanceDetails('phase', selectedPhase)} 
+                      />
+                      
+                      <div className="mt-4">
+                        <h3 className="text-md font-medium mb-2">Phase Attendance Distribution</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <RechartsPieChart>
+                            <Pie
+                              data={[
+                                { name: 'Present', value: selectedPhase.presentCount, color: COLORS.present },
+                                { name: 'Absent', value: selectedPhase.absentCount, color: COLORS.absent },
+                                { name: 'Late', value: selectedPhase.lateCount, color: COLORS.late },
+                                { name: 'Leave', value: selectedPhase.leaveCount, color: COLORS.leave }
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={true}
+                              outerRadius={120}
+                              fill="#8884d8"
+                              dataKey="value"
+                              nameKey="name"
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            >
+                              {[
+                                { name: 'Present', value: selectedPhase.presentCount, color: COLORS.present },
+                                { name: 'Absent', value: selectedPhase.absentCount, color: COLORS.absent },
+                                { name: 'Late', value: selectedPhase.lateCount, color: COLORS.late },
+                                { name: 'Leave', value: selectedPhase.leaveCount, color: COLORS.leave }
+                              ].map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </TabsContent>
           
           {/* Trainee attendance tab */}
           <TabsContent value="trainee">
-            {attendanceData.traineeAttendance.length > 0 ? (
-              <div className="space-y-6">
-                <p className="text-xs text-slate-500 italic mb-3">
-                  Showing trainee-by-trainee attendance breakdown for the selected batch
-                </p>
-                <div className="flex flex-wrap gap-2 justify-between items-center">
-                  <div className="flex gap-2">
-                    <div className="relative w-full max-w-sm">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="search"
-                        placeholder="Search trainees..."
-                        className="pl-8 w-full"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  
-                  <ChartControls onChangeChartType={setChartType} />
+            <div className="space-y-6">
+              <p className="text-xs text-slate-500 italic mb-3">
+                Showing trainee-wise attendance breakdown for the entire training program
+              </p>
+              
+              <div className="mb-3">
+                <div className="relative w-full">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search trainees..."
+                    className="w-full bg-background pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
+              </div>
                 
-                {/* Trainee attendance chart - showing top 10 only for clarity */}
-                {renderChart(prepareTraineeChartData(), chartType)}
+              <div className="mt-4">
+                  <ChartControls />
+                  <div>
+                    {renderChart(prepareTraineeChartData())}
+                  </div>
+              </div>
                 
-                <div className="border rounded">
+              <div className="mt-6">
+                <h3 className="text-md font-medium mb-3">Trainee Attendance Records</h3>
+                <div className="border rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setSortField('name');
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                            }}
-                            className="flex items-center -ml-3"
-                          >
-                            Trainee
-                            {sortField === 'name' && (
-                              sortOrder === 'asc' ? <ArrowUp10 className="ml-1 h-4 w-4" /> : <ArrowDown10 className="ml-1 h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setSortField('present');
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                            }}
-                            className="flex items-center -ml-3"
-                          >
-                            Present
-                            {sortField === 'present' && (
-                              sortOrder === 'asc' ? <ArrowUp10 className="ml-1 h-4 w-4" /> : <ArrowDown10 className="ml-1 h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setSortField('absent');
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                            }}
-                            className="flex items-center -ml-3"
-                          >
-                            Absent
-                            {sortField === 'absent' && (
-                              sortOrder === 'asc' ? <ArrowUp10 className="ml-1 h-4 w-4" /> : <ArrowDown10 className="ml-1 h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setSortField('late');
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                            }}
-                            className="flex items-center -ml-3"
-                          >
-                            Late
-                            {sortField === 'late' && (
-                              sortOrder === 'asc' ? <ArrowUp10 className="ml-1 h-4 w-4" /> : <ArrowDown10 className="ml-1 h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setSortField('leave');
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                            }}
-                            className="flex items-center -ml-3"
-                          >
-                            Leave
-                            {sortField === 'leave' && (
-                              sortOrder === 'asc' ? <ArrowUp10 className="ml-1 h-4 w-4" /> : <ArrowDown10 className="ml-1 h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                              setSortField('rate');
-                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                            }}
-                            className="flex items-center -ml-3"
-                          >
-                            Rate
-                            {sortField === 'rate' && (
-                              sortOrder === 'asc' ? <ArrowUp10 className="ml-1 h-4 w-4" /> : <ArrowDown10 className="ml-1 h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
                     <TableBody>
                       {attendanceData.traineeAttendance
                         .filter(trainee => 
@@ -1247,79 +1015,41 @@ export function AttendanceBreakdown({
                               break;
                           }
                           
-                          // Sort numerically for non-string values
                           if (typeof valueA === 'number' && typeof valueB === 'number') {
                             return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
                           }
                           
                           return 0;
                         })
-                        .map((trainee) => (
-                          <TableRow key={trainee.traineeId}>
-                            <TableCell>{trainee.traineeName}</TableCell>
-                            <TableCell className="text-green-600">{trainee.presentCount}</TableCell>
-                            <TableCell className="text-red-600">{trainee.absentCount}</TableCell>
-                            <TableCell className="text-yellow-600">{trainee.lateCount}</TableCell>
-                            <TableCell className="text-blue-600">{trainee.leaveCount}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <span className="mr-2">{trainee.attendanceRate}%</span>
-                                <Progress value={trainee.attendanceRate} className="h-2 w-16" />
-                              </div>
+                        .map((trainee, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">
+                              {trainee.traineeName}
                             </TableCell>
-                            <TableCell className="text-right">
-                              <AttendanceDetailDialog
-                                title={`Trainee Attendance: ${trainee.traineeName}`}
-                                description="Detailed attendance breakdown for this trainee"
-                                trigger={
-                                  <Button variant="ghost" size="sm" onClick={() => setSelectedTrainee(trainee)}>
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    Details
-                                  </Button>
-                                }
+                            <TableCell className="text-green-600 font-medium">
+                              {trainee.presentCount} Present
+                            </TableCell>
+                            <TableCell className="text-red-600 font-medium">
+                              {trainee.absentCount} Absent
+                            </TableCell>
+                            <TableCell className="text-yellow-600 font-medium">
+                              {trainee.lateCount} Late
+                            </TableCell>
+                            <TableCell className="text-blue-600 font-medium">
+                              {trainee.leaveCount} Leave
+                            </TableCell>
+                            <TableCell className="font-bold">
+                              {trainee.attendanceRate}%
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setSelectedTrainee(trainee)}
                               >
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <DetailTable details={formatAttendanceDetails('trainee', trainee)} />
-                                    </div>
-                                    <div>
-                                      <h3 className="text-md font-medium mb-2">Attendance Distribution</h3>
-                                      <ResponsiveContainer width="100%" height={300}>
-                                        <RechartsPieChart>
-                                          <Pie
-                                            data={[
-                                              { name: 'Present', value: trainee.presentCount, color: COLORS.present },
-                                              { name: 'Absent', value: trainee.absentCount, color: COLORS.absent },
-                                              { name: 'Late', value: trainee.lateCount, color: COLORS.late },
-                                              { name: 'Leave', value: trainee.leaveCount, color: COLORS.leave }
-                                            ]}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={true}
-                                            outerRadius={100}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                            nameKey="name"
-                                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                          >
-                                            {[
-                                              { name: 'Present', value: trainee.presentCount, color: COLORS.present },
-                                              { name: 'Absent', value: trainee.absentCount, color: COLORS.absent },
-                                              { name: 'Late', value: trainee.lateCount, color: COLORS.late },
-                                              { name: 'Leave', value: trainee.leaveCount, color: COLORS.leave }
-                                            ].map((entry, index) => (
-                                              <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                          </Pie>
-                                          <Tooltip />
-                                          <Legend />
-                                        </RechartsPieChart>
-                                      </ResponsiveContainer>
-                                    </div>
-                                  </div>
-                                </div>
-                              </AttendanceDetailDialog>
+                                <Eye className="h-3 w-3 mr-1" />
+                                Details
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1327,11 +1057,64 @@ export function AttendanceBreakdown({
                   </Table>
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                No trainee attendance data available
-              </div>
-            )}
+                
+              {/* Dialog for detailed trainee view */}
+              {selectedTrainee && (
+                <Dialog open={!!selectedTrainee} onOpenChange={() => setSelectedTrainee(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Trainee Attendance: {selectedTrainee.traineeName}
+                      </DialogTitle>
+                      <DialogDescription>
+                        Detailed attendance breakdown for this trainee
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                      <DetailTable 
+                        details={formatAttendanceDetails('trainee', selectedTrainee)} 
+                      />
+                      
+                      <div className="mt-4">
+                        <h3 className="text-md font-medium mb-2">Trainee Attendance Distribution</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <RechartsPieChart>
+                            <Pie
+                              data={[
+                                { name: 'Present', value: selectedTrainee.presentCount, color: COLORS.present },
+                                { name: 'Absent', value: selectedTrainee.absentCount, color: COLORS.absent },
+                                { name: 'Late', value: selectedTrainee.lateCount, color: COLORS.late },
+                                { name: 'Leave', value: selectedTrainee.leaveCount, color: COLORS.leave }
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={true}
+                              outerRadius={120}
+                              fill="#8884d8"
+                              dataKey="value"
+                              nameKey="name"
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            >
+                              {[
+                                { name: 'Present', value: selectedTrainee.presentCount, color: COLORS.present },
+                                { name: 'Absent', value: selectedTrainee.absentCount, color: COLORS.absent },
+                                { name: 'Late', value: selectedTrainee.lateCount, color: COLORS.late },
+                                { name: 'Leave', value: selectedTrainee.leaveCount, color: COLORS.leave }
+                              ].map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>
