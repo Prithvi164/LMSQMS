@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-react";
+import { Clock, CheckCircle } from "lucide-react";
 
 // Define quiz type
 interface Quiz {
@@ -26,10 +27,21 @@ interface Quiz {
   oneTimeOnly?: boolean;
 }
 
+// Define quiz attempt interface
+interface QuizAttempt {
+  id: number;
+  quizId: number;
+  score: number;
+  completedAt: string;
+}
+
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  // Store a map of which quizzes have attempts
+  const [quizAttempts, setQuizAttempts] = useState<Record<number, QuizAttempt[]>>({});
 
   // Add debug logs
   console.log("Current user:", user);
@@ -65,8 +77,38 @@ export function MyQuizzesPage() {
     enabled: !!user && user.category === 'trainee',
   });
 
+  // Fetch attempts for each quiz when quizzes are loaded
+  useEffect(() => {
+    if (!quizzes || quizzes.length === 0 || !user) return;
+    
+    const fetchAttemptsForQuizzes = async () => {
+      const attemptsMap: Record<number, QuizAttempt[]> = {};
+      
+      // For each one-time quiz, check if there's already an attempt
+      for (const quiz of quizzes) {
+        if (quiz.oneTimeOnly) {
+          try {
+            const response = await fetch(`/api/quizzes/${quiz.quiz_id}/attempts`);
+            if (response.ok) {
+              const attempts = await response.json();
+              attemptsMap[quiz.quiz_id] = attempts;
+              console.log(`Quiz ${quiz.quiz_id} has ${attempts.length} attempts`);
+            }
+          } catch (err) {
+            console.error(`Error fetching attempts for quiz ${quiz.quiz_id}:`, err);
+          }
+        }
+      }
+      
+      setQuizAttempts(attemptsMap);
+    };
+    
+    fetchAttemptsForQuizzes();
+  }, [quizzes, user]);
+
   // Debug logs
   console.log("Query state:", { isLoading, error, quizzes });
+  console.log("Quiz attempts:", quizAttempts);
 
   if (isLoading) {
     return (
@@ -142,12 +184,22 @@ export function MyQuizzesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
-                className="w-full"
-                onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
-              >
-                Start Quiz
-              </Button>
+              {quiz.oneTimeOnly && quizAttempts[quiz.quiz_id]?.length > 0 ? (
+                <Button 
+                  className="w-full"
+                  variant="outline"
+                  disabled
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
+                </Button>
+              ) : (
+                <Button 
+                  className="w-full"
+                  onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
+                >
+                  Start Quiz
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

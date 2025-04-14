@@ -36,6 +36,27 @@ export function QuizTakingPage() {
     enabled: !!quizId,
   });
 
+  // Check for previous attempts if this is a one-time quiz
+  useEffect(() => {
+    if (quiz?.oneTimeOnly) {
+      const checkPreviousAttempts = async () => {
+        try {
+          const response = await fetch(`/api/quizzes/${quizId}/attempts`);
+          if (response.ok) {
+            const attempts = await response.json();
+            if (attempts.length > 0) {
+              setSubmissionError("You have already attempted this one-time quiz");
+              setPreviousAttempt(attempts[0]);
+            }
+          }
+        } catch (err) {
+          console.error("Error checking previous attempts:", err);
+        }
+      };
+      checkPreviousAttempts();
+    }
+  }, [quiz, quizId]);
+
   // Set end time when quiz data is loaded
   useEffect(() => {
     if (quiz?.timeLimit) {
@@ -168,7 +189,7 @@ export function QuizTakingPage() {
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       {quiz.oneTimeOnly && (
-        <Alert variant="warning" className="mb-4">
+        <Alert className="mb-4 border-amber-500 bg-amber-50 text-amber-800">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>One-Time Quiz</AlertTitle>
           <AlertDescription>
