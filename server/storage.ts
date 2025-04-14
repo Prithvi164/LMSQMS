@@ -4029,10 +4029,22 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`Found ${questionsList.length} questions for quiz ${id}`);
 
-      // Return quiz with questions
+      // Shuffle questions if specified in quiz settings
+      let finalQuestionsList = [...questionsList];
+      
+      if (quiz.shuffleQuestions) {
+        // Fisher-Yates shuffle algorithm
+        for (let i = finalQuestionsList.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [finalQuestionsList[i], finalQuestionsList[j]] = [finalQuestionsList[j], finalQuestionsList[i]];
+        }
+        console.log(`Shuffled questions for quiz ${id} as specified in settings`);
+      }
+      
+      // Return quiz with questions (shuffled if needed)
       return {
         ...quiz,
-        questions: questionsList
+        questions: finalQuestionsList
       };
 
     } catch (error) {
