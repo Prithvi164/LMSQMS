@@ -23,6 +23,7 @@ interface Quiz {
   processName: string;
   startTime: string;
   endTime: string;
+  oneTimeOnly?: boolean;
 }
 
 export function MyQuizzesPage() {
@@ -119,6 +120,11 @@ export function MyQuizzesPage() {
                   <Badge variant="secondary">
                     Pass: {quiz.passingScore}%
                   </Badge>
+                  {quiz.oneTimeOnly && (
+                    <Badge variant="destructive">
+                      One-Time Only
+                    </Badge>
+                  )}
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   Process: {quiz.processName}
@@ -127,6 +133,11 @@ export function MyQuizzesPage() {
                   <div className="text-muted-foreground">
                     <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
                   </div>
+                  {quiz.oneTimeOnly && (
+                    <div className="mt-2 text-destructive font-medium">
+                      ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
+                    </div>
+                  )}
                 </div>
               </CardDescription>
             </CardHeader>
