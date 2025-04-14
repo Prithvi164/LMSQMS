@@ -2729,7 +2729,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
           processId: quizzes.processId,
-          processName: organizationProcesses.name
+          processName: organizationProcesses.name,
+          startTime: quizzes.startTime,
+          endTime: quizzes.endTime
         })
         .from(quizzes)
         .innerJoin(
@@ -2740,7 +2742,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(organizationProcesses.organizationId, req.user.organizationId),
             eq(quizzes.status, 'active'),
-            inArray(quizzes.processId, assignedProcessIds)
+            inArray(quizzes.processId, assignedProcessIds),
+            // Only return quizzes that haven't expired yet
+            gte(quizzes.endTime, new Date())
           )
         );
 

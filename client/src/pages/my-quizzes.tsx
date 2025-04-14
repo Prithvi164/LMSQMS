@@ -21,6 +21,8 @@ interface Quiz {
   passingScore: number;
   processId: number;
   processName: string;
+  startTime: string;
+  endTime: string;
 }
 
 export function MyQuizzesPage() {
@@ -120,6 +122,11 @@ export function MyQuizzesPage() {
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   Process: {quiz.processName}
+                </div>
+                <div className="mt-2 text-sm">
+                  <div className="text-muted-foreground">
+                    <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
+                  </div>
                 </div>
               </CardDescription>
             </CardHeader>
