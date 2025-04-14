@@ -8164,5 +8164,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get adjacent batch IDs (previous and next)
+  app.get("/api/organizations/:orgId/batches/:batchId/adjacent", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      
+      // Check user organization access
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({
+          message: "You can only access batches in your own organization"
+        });
+      }
+      
+      // Get all batches for the organization to find adjacent IDs
+      // Sort by name for a consistent navigation order
+      const allBatches = await storage.listBatches(orgId);
+      
+      // Filter based on user permissions if needed
+      let accessibleBatches = allBatches;
+
+      // For non-admin, non-owner, filter batches by permissions
+      if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+        // Get batches where user is assigned as trainer
+        const trainerBatches = allBatches.filter(batch => batch.trainerId === req.user?.id);
+        
+        // Get batches where user is assigned as a trainee
+        const traineeAssignments = await storage.getUserBatchProcesses(req.user.id);
+        const traineeBatchIds = traineeAssignments.map(assignment => assignment.batchId);
+        
+        // Combine trainer and trainee batches
+        const userBatchIds = new Set([
+          ...trainerBatches.map(batch => batch.id),
+          ...traineeBatchIds
+        ]);
+        
+        accessibleBatches = allBatches.filter(batch => userBatchIds.has(batch.id));
+      }
+      
+      // Sort by name for consistent navigation
+      accessibleBatches.sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Find the index of the current batch
+      const currentIndex = accessibleBatches.findIndex(batch => batch.id === batchId);
+      
+      // If batch not found or not accessible
+      if (currentIndex === -1) {
+        return res.status(404).json({ message: "Batch not found or not accessible" });
+      }
+      
+      // Find previous and next batch IDs
+      const previousBatch = currentIndex > 0 ? accessibleBatches[currentIndex - 1] : null;
+      const nextBatch = currentIndex < accessibleBatches.length - 1 ? accessibleBatches[currentIndex + 1] : null;
+      
+      res.json({
+        previousBatch: previousBatch ? {
+          id: previousBatch.id,
+          name: previousBatch.name
+        } : null,
+        nextBatch: nextBatch ? {
+          id: nextBatch.id,
+          name: nextBatch.name
+        } : null
+      });
+    } catch (error: any) {
+      console.error("Error fetching adjacent batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }
