@@ -294,6 +294,7 @@ export const quizzes = pgTable("quizzes", {
   status: quizStatusEnum("status").default('in_progress').notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
+  oneTimeOnly: boolean("one_time_only").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -400,6 +401,7 @@ export const insertQuizSchema = createInsertSchema(quizzes)
     status: z.enum(['active', 'completed', 'expired']).default('active'),
     startTime: z.date(),
     endTime: z.date(),
+    oneTimeOnly: z.boolean().default(false),
   });
 
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)

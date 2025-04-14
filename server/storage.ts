@@ -315,6 +315,7 @@ export interface IStorage {
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
+  getQuizAttemptsByUser(userId: number, quizId: number): Promise<QuizAttempt[]>;
   getBatchQuizAttempts(batchId: number): Promise<QuizAttempt[]>;
 
   // Add new methods for quiz responses

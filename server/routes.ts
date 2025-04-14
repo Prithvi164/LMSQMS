@@ -2569,6 +2569,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
+      // Check if the quiz is oneTimeOnly and if the user has already attempted it
+      if (quiz.oneTimeOnly) {
+        const previousAttempts = await storage.getQuizAttemptsByUser(req.user.id, quizId);
+        if (previousAttempts && previousAttempts.length > 0) {
+          return res.status(403).json({
+            message: "This quiz can only be attempted once. You have already submitted an attempt.",
+            previousAttempt: previousAttempts[0]
+          });
+        }
+      }
+
       // Calculate score
       let correctAnswers = 0;
       const scoredAnswers = quiz.questions.map(question => {
