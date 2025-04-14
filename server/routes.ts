@@ -3518,6 +3518,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
+      // For one-time quizzes, check if user has already attempted this quiz
+      if (quiz.oneTimeOnly) {
+        console.log(`Checking previous attempts for one-time quiz ${quizId} by user ${req.user.id}`);
+        const previousAttempts = await storage.getQuizAttemptsByUser(req.user.id, quizId);
+        
+        if (previousAttempts.length > 0) {
+          return res.status(403).json({ 
+            message: "This quiz can only be taken once. You have already attempted it.",
+            previousAttempt: previousAttempts[0]
+          });
+        }
+      }
+
       // Calculate score
       let correctAnswers = 0;
       const results = quiz.questions.map(question => {

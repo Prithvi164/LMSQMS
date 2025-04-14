@@ -4097,6 +4097,37 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Failed to fetch quiz attempt");
     }
   }
+  
+  async getQuizAttemptsByUser(userId: number, quizId: number): Promise<QuizAttempt[]> {
+    try {
+      console.log(`Fetching quiz attempts for user ${userId} and quiz ${quizId}`);
+
+      // Get all attempts for this user and quiz
+      const attempts = await db
+        .select({
+          id: quizAttempts.id,
+          quizId: quizAttempts.quizId,
+          userId: quizAttempts.userId,
+          score: quizAttempts.score,
+          completedAt: quizAttempts.completedAt,
+          organizationId: quizAttempts.organizationId
+        })
+        .from(quizAttempts)
+        .where(
+          and(
+            eq(quizAttempts.userId, userId),
+            eq(quizAttempts.quizId, quizId)
+          )
+        )
+        .orderBy(desc(quizAttempts.completedAt));
+      
+      console.log(`Found ${attempts.length} attempts for user ${userId} on quiz ${quizId}`);
+      return attempts;
+    } catch (error) {
+      console.error("Error in getQuizAttemptsByUser:", error);
+      throw new Error("Failed to fetch quiz attempts for user");
+    }
+  }
 
   async getBatchQuizAttempts(batchId: number): Promise<QuizAttempt[]> {
     try {
