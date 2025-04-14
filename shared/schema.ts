@@ -262,6 +262,7 @@ export const quizTemplates = pgTable("quiz_templates", {
   categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(),
   difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(),
   quizType: quizTypeEnum("quiz_type").default('internal').notNull(),
+  oneTimeOnly: boolean("one_time_only").default(false).notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
@@ -383,6 +384,8 @@ export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
     questionCount: z.number().int().positive("Must select at least one question"),
     categoryDistribution: z.record(z.string(), z.number()).optional(),
     difficultyDistribution: z.record(z.string(), z.number()).optional(),
+    oneTimeOnly: z.boolean().default(false),
+    quizType: z.enum(['internal', 'final']).default('internal'),
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
     batchId: z.number().int().positive("Batch is required").optional(),
