@@ -78,6 +78,7 @@ const quizTemplateSchema = z.object({
   passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
   shuffleQuestions: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
+  oneTimeOnly: z.boolean().default(false),
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
   processId: z.number().min(1, "Process is required"),
@@ -170,7 +171,8 @@ export function QuizManagement() {
       questionCount: 10,
       passingScore: 70,
       shuffleQuestions: false,
-      shuffleOptions: false
+      shuffleOptions: false,
+      oneTimeOnly: false
     }
   });
 
@@ -1337,6 +1339,31 @@ export function QuizManagement() {
                                   </div>
                                 )}
                               />
+
+                              <FormField
+                                control={templateForm.control}
+                                name="oneTimeOnly"
+                                render={({ field }) => (
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <Label htmlFor="one-time-only" className="flex items-center gap-2">
+                                        One-Time Only Quiz
+                                        <span className="inline-block">
+                                          <Badge variant="destructive" className="ml-2">Restricted</Badge>
+                                        </span>
+                                      </Label>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Trainees only get one attempt to complete this quiz
+                                      </p>
+                                    </div>
+                                    <Switch
+                                      id="one-time-only"
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                    />
+                                  </div>
+                                )}
+                              />
                             </div>
 
                             <div className="space-y-4">
@@ -1513,7 +1540,8 @@ export function QuizManagement() {
                                 timeLimit: template.timeLimit,
                                 passingScore: template.passingScore,
                                 shuffleQuestions: template.shuffleQuestions,
-                                shuffleOptions: template.shuffleOptions
+                                shuffleOptions: template.shuffleOptions,
+                                oneTimeOnly: template.oneTimeOnly
                               };
                               previewRandomQuestions(previewData);
                               // Open the preview dialog
@@ -1760,7 +1788,8 @@ export function QuizManagement() {
                         timeLimit: 10,
                         passingScore: 70,
                         shuffleQuestions: true,
-                        shuffleOptions: true
+                        shuffleOptions: true,
+                        oneTimeOnly: false
                       };
                       previewRandomQuestions(lastTemplateData);
                     }}
