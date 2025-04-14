@@ -588,16 +588,22 @@ export function QuizManagement() {
     });
   };
 
+  // State for quiz duration selection
+  const [selectedDuration, setSelectedDuration] = useState<number>(1);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+
   // Update the generateQuizMutation to provide better feedback
   const generateQuizMutation = useMutation({
-    mutationFn: async (templateId: number) => {
+    mutationFn: async ({ templateId, durationInHours }: { templateId: number; durationInHours: number }) => {
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: 'active'
+          status: 'active',
+          durationInHours 
         })
       });
       if (!response.ok) {
@@ -610,12 +616,21 @@ export function QuizManagement() {
       // Store the newly generated quiz ID
       const generatedQuizId = data.id;
       
+      // Close the dialog
+      setIsGenerateDialogOpen(false);
+      
+      // Clear the selection
+      setSelectedTemplateId(null);
+      
       queryClient.invalidateQueries({ queryKey: ['/api/quizzes'] });
       toast({
         title: "Success",
         description: (
           <div className="flex flex-col gap-2">
             <p>Quiz #{generatedQuizId} has been generated and is now available to trainees</p>
+            <p className="text-sm text-muted-foreground">
+              Available from {new Date(data.startTime).toLocaleString()} to {new Date(data.endTime).toLocaleString()}
+            </p>
             <a 
               href={`/quiz/${generatedQuizId}`} 
               className="text-blue-500 underline hover:text-blue-700 font-medium"
