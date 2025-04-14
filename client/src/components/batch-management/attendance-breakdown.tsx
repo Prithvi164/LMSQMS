@@ -163,7 +163,14 @@ export function AttendanceBreakdown({
   };
   
   const prepareDailyChartData = () => {
-    return attendanceData.dailyAttendance.map(day => ({
+    console.log('Daily attendance data:', attendanceData.dailyAttendance);
+    
+    // Sort the array by date (oldest first) to ensure proper visualization
+    const sortedData = [...attendanceData.dailyAttendance].sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+    
+    return sortedData.map(day => ({
       date: format(new Date(day.date), 'MMM d'),
       present: day.presentCount,
       absent: day.absentCount,
@@ -792,7 +799,9 @@ export function AttendanceBreakdown({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attendanceData.dailyAttendance.map((day) => (
+                      {[...attendanceData.dailyAttendance]
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                        .map((day) => (
                         <TableRow key={day.date}>
                           <TableCell>{format(new Date(day.date), 'MMM d, yyyy')}</TableCell>
                           <TableCell className="text-green-600">{day.presentCount}</TableCell>
