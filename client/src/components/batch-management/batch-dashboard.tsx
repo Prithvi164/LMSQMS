@@ -435,25 +435,140 @@ const calculateBatchMetrics = (
     console.log('No daily attendance history data available');
   }
   
-  // Phase-wise attendance - Only showing actual data for current phase
+  // Phase-wise attendance - Show data for all completed phases
   const phaseAttendance: PhaseAttendance[] = [];
   
-  // Add data for the current phase only
-  if (batch && historicalAttendance) {
-    // Get the current phase from the batch status
-    const currentPhaseName = formatPhaseName(batch.status);
+  // Define the phase sequence
+  const phaseSequence: BatchPhase[] = ['induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed'];
+  
+  if (batch && historicalAttendance && dailyAttendanceHistory.length > 0) {
+    // Get the current phase index
+    const currentPhaseIndex = phaseSequence.indexOf(batch.status);
     
-    // Add current phase attendance
-    phaseAttendance.push({
-      phase: currentPhaseName,
-      presentCount: attendanceStats.presentCount,
-      absentCount: attendanceStats.absentCount,
-      lateCount: attendanceStats.lateCount,
-      leaveCount: attendanceStats.leaveCount,
-      attendanceRate: attendanceStats.attendanceRate,
-      totalDays: daysCompleted,
-      totalRecords: trainees.length * daysCompleted
-    });
+    // Function to get attendance in a specific date range
+    const getPhaseAttendanceStats = (startDate?: string, endDate?: string) => {
+      if (!startDate) return null;
+      
+      // Filter attendance records that fall within this phase's date range
+      const phaseRecords = dailyAttendanceHistory.filter(record => {
+        const recordDate = new Date(record.date);
+        const phaseStart = new Date(startDate);
+        const phaseEnd = endDate ? new Date(endDate) : new Date();
+        
+        return recordDate >= phaseStart && recordDate <= phaseEnd;
+      });
+      
+      if (phaseRecords.length === 0) return null;
+      
+      // Calculate attendance stats for this phase
+      const presentCount = phaseRecords.reduce((sum, record) => sum + record.presentCount, 0);
+      const absentCount = phaseRecords.reduce((sum, record) => sum + record.absentCount, 0);
+      const lateCount = phaseRecords.reduce((sum, record) => sum + record.lateCount, 0);
+      const leaveCount = phaseRecords.reduce((sum, record) => sum + record.leaveCount, 0);
+      const totalCount = presentCount + absentCount + lateCount + leaveCount;
+      const attendanceRate = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+      
+      return {
+        presentCount,
+        absentCount,
+        lateCount,
+        leaveCount,
+        attendanceRate,
+        totalDays: phaseRecords.length,
+        totalRecords: totalCount
+      };
+    };
+    
+    // Add induction phase if it has attendance data
+    if (batch.inductionStartDate) {
+      const inductionStats = getPhaseAttendanceStats(
+        batch.inductionStartDate,
+        batch.inductionEndDate || batch.trainingStartDate
+      );
+      
+      if (inductionStats) {
+        phaseAttendance.push({
+          phase: 'Induction',
+          ...inductionStats
+        });
+      }
+    }
+    
+    // Add training phase if it has attendance data
+    if (batch.trainingStartDate) {
+      const trainingStats = getPhaseAttendanceStats(
+        batch.trainingStartDate,
+        batch.trainingEndDate || batch.certificationStartDate
+      );
+      
+      if (trainingStats) {
+        phaseAttendance.push({
+          phase: 'Training',
+          ...trainingStats
+        });
+      }
+    }
+    
+    // Add certification phase if it has attendance data
+    if (batch.certificationStartDate) {
+      const certificationStats = getPhaseAttendanceStats(
+        batch.certificationStartDate,
+        batch.certificationEndDate || batch.ojtStartDate
+      );
+      
+      if (certificationStats) {
+        phaseAttendance.push({
+          phase: 'Certification',
+          ...certificationStats
+        });
+      }
+    }
+    
+    // Add OJT phase if it has attendance data
+    if (batch.ojtStartDate) {
+      const ojtStats = getPhaseAttendanceStats(
+        batch.ojtStartDate,
+        batch.ojtEndDate || batch.ojtCertificationStartDate
+      );
+      
+      if (ojtStats) {
+        phaseAttendance.push({
+          phase: 'OJT',
+          ...ojtStats
+        });
+      }
+    }
+    
+    // Add OJT Certification phase if it has attendance data
+    if (batch.ojtCertificationStartDate) {
+      const ojtCertStats = getPhaseAttendanceStats(
+        batch.ojtCertificationStartDate,
+        batch.ojtCertificationEndDate
+      );
+      
+      if (ojtCertStats) {
+        phaseAttendance.push({
+          phase: 'OJT Certification',
+          ...ojtCertStats
+        });
+      }
+    }
+    
+    // If no phases have attendance data yet, add current phase with current stats
+    if (phaseAttendance.length === 0) {
+      phaseAttendance.push({
+        phase: formatPhaseName(batch.status),
+        presentCount: attendanceStats.presentCount,
+        absentCount: attendanceStats.absentCount,
+        lateCount: attendanceStats.lateCount,
+        leaveCount: attendanceStats.leaveCount,
+        attendanceRate: attendanceStats.attendanceRate,
+        totalDays: daysCompleted,
+        totalRecords: trainees.length * daysCompleted
+      });
+    }
+    
+    console.log('Phase attendance data:', phaseAttendance);
   }
   
   // Phase attendance data is correctly processed
