@@ -46,6 +46,7 @@ export function MyQuizzesPage() {
   // Add debug logs
   console.log("Current user:", user);
   console.log("User category:", user?.category);
+  console.log("Debug - quiz attempt state:", quizAttempts);
 
   // Fetch available quizzes for the trainee
   const { data: quizzes = [], isLoading, error } = useQuery<Quiz[]>({

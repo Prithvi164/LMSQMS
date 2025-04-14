@@ -2993,6 +2993,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get attempts for a specific quiz by the current user
+  app.get("/api/quizzes/:quizId/attempts", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const quizId = parseInt(req.params.quizId);
+      console.log(`Fetching quiz attempts for user ${req.user.id} and quiz ${quizId}`);
+
+      if (isNaN(quizId)) {
+        return res.status(400).json({ message: "Invalid quiz ID" });
+      }
+
+      const attempts = await storage.getQuizAttemptsByUser(req.user.id, quizId);
+      console.log(`Retrieved ${attempts.length} attempts for user ${req.user.id} on quiz ${quizId}`);
+      res.json(attempts);
+    } catch (error) {
+      console.error("Error fetching quiz attempts:", error);
+      res.status(500).json({ message: "Failed to fetch quiz attempts" });
+    }
+  });
+
   app.get("/api/batches/:batchId/quiz-attempts", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
