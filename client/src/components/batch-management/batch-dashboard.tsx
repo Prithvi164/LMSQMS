@@ -322,7 +322,8 @@ const calculateBatchMetrics = (
     lateCount: number;
     leaveCount: number;
     attendanceRate: number;
-  }
+  },
+  dailyAttendanceHistory: DailyAttendance[] = []
 ): BatchMetrics => {
   const currentDate = new Date();
   const startDate = new Date(batch.startDate);
@@ -516,7 +517,7 @@ const calculateBatchMetrics = (
     lateCount: finalAttendanceStats.lateCount,
     leaveCount: finalAttendanceStats.leaveCount,
     attendanceRate: finalAttendanceStats.attendanceRate,
-    dailyAttendance,
+    dailyAttendance: dailyAttendanceHistory,
     phaseAttendance,
     traineeAttendance
   };
