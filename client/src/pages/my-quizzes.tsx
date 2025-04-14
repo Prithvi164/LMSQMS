@@ -25,6 +25,7 @@ interface Quiz {
   startTime: string;
   endTime: string;
   oneTimeOnly?: boolean;
+  quizType: 'internal' | 'final';
 }
 
 // Define quiz attempt interface
@@ -150,83 +151,139 @@ export function MyQuizzesPage() {
     );
   }
 
+  // Filter quizzes by type
+  const internalQuizzes = quizzes.filter(quiz => quiz.quizType === 'internal');
+  const finalQuizzes = quizzes.filter(quiz => quiz.quizType === 'final');
+
+  // Function to render a quiz card
+  const renderQuizCard = (quiz: Quiz) => {
+    // Log per-quiz debugging information
+    console.log(`Quiz ${quiz.quiz_id} (${quiz.quiz_name}):`, {
+      oneTimeOnly: quiz.oneTimeOnly,
+      hasAttempts: quizAttempts[quiz.quiz_id]?.length > 0,
+      attemptsCount: quizAttempts[quiz.quiz_id]?.length || 0,
+      attempts: quizAttempts[quiz.quiz_id] || [],
+      quizType: quiz.quizType
+    });
+    
+    // Logic to determine button state
+    const hasAttempted = quizAttempts[quiz.quiz_id]?.length > 0;
+    const isOneTimeQuiz = !!quiz.oneTimeOnly;
+    const shouldDisableButton = isOneTimeQuiz && hasAttempted;
+    
+    return (
+      <Card key={quiz.quiz_id}>
+        <CardHeader>
+          <CardTitle>{quiz.quiz_name}</CardTitle>
+          <CardDescription>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Badge variant="secondary">
+                Time: {quiz.timeLimit} min
+              </Badge>
+              <Badge variant="secondary">
+                Pass: {quiz.passingScore}%
+              </Badge>
+              {isOneTimeQuiz && (
+                <Badge variant="destructive">
+                  One-Time Only
+                </Badge>
+              )}
+              <Badge variant={quiz.quizType === 'internal' ? 'outline' : 'default'}>
+                {quiz.quizType === 'internal' ? 'Practice' : 'Assessment'}
+              </Badge>
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground">
+              Process: {quiz.processName}
+            </div>
+            <div className="mt-2 text-sm">
+              <div className="text-muted-foreground">
+                <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
+              </div>
+              {isOneTimeQuiz && (
+                <div className="mt-2 text-destructive font-medium">
+                  ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
+                </div>
+              )}
+              {shouldDisableButton && (
+                <div className="mt-2 text-info font-medium">
+                  You have already taken this quiz.
+                </div>
+              )}
+            </div>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {shouldDisableButton ? (
+            <Button 
+              className="w-full"
+              variant="outline"
+              disabled
+            >
+              <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
+            </Button>
+          ) : (
+            <Button 
+              className="w-full"
+              onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
+            >
+              Start Quiz
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: Quiz) => {
-          // Log per-quiz debugging information
-          console.log(`Quiz ${quiz.quiz_id} (${quiz.quiz_name}):`, {
-            oneTimeOnly: quiz.oneTimeOnly,
-            hasAttempts: quizAttempts[quiz.quiz_id]?.length > 0,
-            attemptsCount: quizAttempts[quiz.quiz_id]?.length || 0,
-            attempts: quizAttempts[quiz.quiz_id] || []
-          });
-          
-          // Logic to determine button state
-          const hasAttempted = quizAttempts[quiz.quiz_id]?.length > 0;
-          const isOneTimeQuiz = !!quiz.oneTimeOnly;
-          const shouldDisableButton = isOneTimeQuiz && hasAttempted;
-          
-          return (
-            <Card key={quiz.quiz_id}>
-              <CardHeader>
-                <CardTitle>{quiz.quiz_name}</CardTitle>
-                <CardDescription>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="secondary">
-                      Time: {quiz.timeLimit} min
-                    </Badge>
-                    <Badge variant="secondary">
-                      Pass: {quiz.passingScore}%
-                    </Badge>
-                    {isOneTimeQuiz && (
-                      <Badge variant="destructive">
-                        One-Time Only
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    Process: {quiz.processName}
-                  </div>
-                  <div className="mt-2 text-sm">
-                    <div className="text-muted-foreground">
-                      <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
-                    </div>
-                    {isOneTimeQuiz && (
-                      <div className="mt-2 text-destructive font-medium">
-                        ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
-                      </div>
-                    )}
-                    {shouldDisableButton && (
-                      <div className="mt-2 text-info font-medium">
-                        You have already taken this quiz.
-                      </div>
-                    )}
-                  </div>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {shouldDisableButton ? (
-                  <Button 
-                    className="w-full"
-                    variant="outline"
-                    disabled
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
-                  </Button>
-                ) : (
-                  <Button 
-                    className="w-full"
-                    onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
-                  >
-                    Start Quiz
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+      
+      {/* Internal Practice Quizzes Section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <span className="inline-block w-3 h-3 rounded-full bg-muted-foreground mr-2"></span>
+          Practice Quizzes
+          <span className="ml-2 text-sm font-normal text-muted-foreground">
+            (Use these for practice and self-assessment)
+          </span>
+        </h2>
+        {internalQuizzes.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {internalQuizzes.map(renderQuizCard)}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-6">
+              <p className="text-center text-muted-foreground">
+                No practice quizzes are currently available.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      
+      {/* Final Assessment Quizzes Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <span className="inline-block w-3 h-3 rounded-full bg-primary mr-2"></span>
+          Assessment Quizzes 
+          <span className="ml-2 text-sm font-normal text-muted-foreground">
+            (These are final assessments that count toward certification)
+          </span>
+        </h2>
+        {finalQuizzes.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {finalQuizzes.map(renderQuizCard)}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-6">
+              <p className="text-center text-muted-foreground">
+                No assessment quizzes are currently available.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
