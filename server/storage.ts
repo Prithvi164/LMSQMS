@@ -4206,7 +4206,8 @@ export class DatabaseStorage implements IStorage {
         }
       });
 
-      const score = (correctCount / attempt.answers.length) * 100;
+      // Ensure score is an integer as per database schema requirement
+      const score = Math.round((correctCount / attempt.answers.length) * 100);
 
       // Start a transaction to create both attempt and responses
       return await db.transaction(async (tx) => {
