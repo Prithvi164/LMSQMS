@@ -167,6 +167,16 @@ export function QuizTakingPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
+      {quiz.oneTimeOnly && (
+        <Alert variant="warning" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>One-Time Quiz</AlertTitle>
+          <AlertDescription>
+            This is a one-time quiz. You will not be able to retake it once submitted.
+            Make sure you're ready before starting and review your answers carefully before submitting.
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
