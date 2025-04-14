@@ -424,15 +424,8 @@ const calculateBatchMetrics = (
   
   // Attendance data is now calculated correctly
   
-  // Daily attendance data from the new API endpoint
-  // This will use the attendance.updated_at date to group records by day
-  const { 
-    data: dailyAttendance = [], 
-    isLoading: dailyAttendanceLoading 
-  } = useQuery<DailyAttendance[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/history`],
-    enabled: !!user?.organizationId && !!batchId && !!batch,
-  });
+  // Don't call API or use hooks inside this function
+  // We'll pass the daily attendance data from the parent component
   
   // Daily attendance data
   
@@ -453,7 +446,7 @@ const calculateBatchMetrics = (
       leaveCount: attendanceStats.leaveCount,
       attendanceRate: attendanceStats.attendanceRate,
       totalDays: daysCompleted,
-      totalRecords: totalTrainees * daysCompleted
+      totalRecords: trainees.length * daysCompleted
     });
   }
   
@@ -816,11 +809,20 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   
   // Historical attendance data is now correctly filtered by batch ID
   
+  // Fetch day-by-day attendance history using the new API endpoint
+  const {
+    data: dailyAttendanceHistory = [],
+    isLoading: dailyAttendanceLoading
+  } = useQuery<DailyAttendance[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/history`],
+    enabled: !!user?.organizationId && !!batchId && !!batch,
+  });
+  
   // Remove duplicate function as it's now implemented in calculateBatchMetrics
   
   // Calculate batch metrics if batch data is available
-  // Pass historical attendance data if available
-  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees, historicalAttendance) : null;
+  // Pass historical attendance data if available and daily attendance data
+  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees, historicalAttendance, dailyAttendanceHistory) : null;
   
   // Get trainees with progress calculations
   const traineesWithProgress = trainees.map(trainee => {
