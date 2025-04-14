@@ -29,6 +29,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { BatchTimeline } from "./batch-timeline";
+import { BatchNavigation } from "./batch-navigation";
 import { format, differenceInDays, isAfter, isBefore, isEqual, isSameDay } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -1045,6 +1046,8 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
         </div>
         
         <div className="flex gap-2 items-center">
+          {/* Add batch navigation component */}
+          {user && <BatchNavigation orgId={user.organizationId} batchId={batch.id} />}
           {batch.trainer && (
             <div className="flex items-center bg-muted rounded-full px-3 py-1 text-sm">
               <GraduationCap className="h-4 w-4 mr-2" />
