@@ -155,6 +155,15 @@ export function MyQuizzesPage() {
   const internalQuizzes = quizzes.filter(quiz => quiz.quizType === 'internal');
   const finalQuizzes = quizzes.filter(quiz => quiz.quizType === 'final');
 
+  // Group quizzes by name to display them side by side
+  const groupedQuizzes: Record<string, Quiz[]> = {};
+  quizzes.forEach(quiz => {
+    if (!groupedQuizzes[quiz.quiz_name]) {
+      groupedQuizzes[quiz.quiz_name] = [];
+    }
+    groupedQuizzes[quiz.quiz_name].push(quiz);
+  });
+
   // Function to render a quiz card
   const renderQuizCard = (quiz: Quiz) => {
     // Log per-quiz debugging information
@@ -172,65 +181,65 @@ export function MyQuizzesPage() {
     const shouldDisableButton = isOneTimeQuiz && hasAttempted;
     
     return (
-      <Card key={quiz.quiz_id}>
-        <CardHeader>
-          <CardTitle>{quiz.quiz_name}</CardTitle>
-          <CardDescription>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Badge variant="secondary">
-                Time: {quiz.timeLimit} min
+      <div className="w-full">
+        <div className="flex justify-between mb-2">
+          <div>
+            <Badge variant="secondary">
+              Time: {quiz.timeLimit} min
+            </Badge>
+            <Badge variant="secondary" className="ml-2">
+              Pass: {quiz.passingScore}%
+            </Badge>
+            {isOneTimeQuiz && (
+              <Badge variant="destructive" className="ml-2">
+                One-Time Only
               </Badge>
-              <Badge variant="secondary">
-                Pass: {quiz.passingScore}%
-              </Badge>
-              {isOneTimeQuiz && (
-                <Badge variant="destructive">
-                  One-Time Only
-                </Badge>
-              )}
-              <Badge variant={quiz.quizType === 'internal' ? 'outline' : 'default'}>
-                {quiz.quizType === 'internal' ? 'Practice' : 'Assessment'}
-              </Badge>
-            </div>
-            <div className="mt-2 text-sm text-muted-foreground">
-              Process: {quiz.processName}
-            </div>
-            <div className="mt-2 text-sm">
-              <div className="text-muted-foreground">
-                <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
-              </div>
-              {isOneTimeQuiz && (
-                <div className="mt-2 text-destructive font-medium">
-                  ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
-                </div>
-              )}
-              {shouldDisableButton && (
-                <div className="mt-2 text-info font-medium">
-                  You have already taken this quiz.
-                </div>
-              )}
-            </div>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {shouldDisableButton ? (
-            <Button 
-              className="w-full"
-              variant="outline"
-              disabled
-            >
-              <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
-            </Button>
-          ) : (
-            <Button 
-              className="w-full"
-              onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
-            >
-              Start Quiz
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </div>
+          <Badge variant={quiz.quizType === 'internal' ? 'outline' : 'default'}>
+            {quiz.quizType === 'internal' ? 'Practice' : 'Assessment'}
+          </Badge>
+        </div>
+        
+        <div className="mb-2 text-sm text-muted-foreground">
+          Process: {quiz.processName}
+        </div>
+        
+        <div className="mb-2 text-sm">
+          <div className="text-muted-foreground">
+            <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
+          </div>
+        </div>
+        
+        {isOneTimeQuiz && (
+          <div className="mb-2 text-destructive text-sm font-medium">
+            ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
+          </div>
+        )}
+        
+        {shouldDisableButton && (
+          <div className="mb-2 text-info text-sm font-medium">
+            You have already taken this quiz.
+          </div>
+        )}
+        
+        {shouldDisableButton ? (
+          <Button 
+            className="w-full"
+            variant="outline"
+            disabled
+          >
+            <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
+          </Button>
+        ) : (
+          <Button 
+            className="w-full"
+            onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
+          >
+            Start Quiz
+          </Button>
+        )}
+      </div>
     );
   };
 
@@ -238,52 +247,98 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       
-      {/* Internal Practice Quizzes Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <span className="inline-block w-3 h-3 rounded-full bg-muted-foreground mr-2"></span>
-          Practice Quizzes
-          <span className="ml-2 text-sm font-normal text-muted-foreground">
-            (Use these for practice and self-assessment)
-          </span>
-        </h2>
-        {internalQuizzes.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {internalQuizzes.map(renderQuizCard)}
+      <div className="space-y-8">
+        {/* Practice Quizzes Section */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <span className="inline-block w-3 h-3 rounded-full bg-muted-foreground mr-2"></span>
+            Practice Quizzes
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              (Use these for practice and self-assessment)
+            </span>
+          </h2>
+          
+          <div className="space-y-4">
+            {Object.entries(groupedQuizzes).map(([quizName, quizzesInGroup]) => {
+              // Skip if there are no practice quizzes in this group
+              const practiceQuizzes = quizzesInGroup.filter(q => q.quizType === 'internal');
+              if (practiceQuizzes.length === 0) return null;
+              
+              return (
+                <Card key={quizName}>
+                  <CardHeader>
+                    <CardTitle>{quizName}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {practiceQuizzes.map((quiz) => (
+                        <div key={quiz.quiz_id}>
+                          {renderQuizCard(quiz)}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {internalQuizzes.length === 0 && (
+              <Card>
+                <CardContent className="py-6">
+                  <p className="text-center text-muted-foreground">
+                    No practice quizzes are currently available.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        ) : (
-          <Card>
-            <CardContent className="py-6">
-              <p className="text-center text-muted-foreground">
-                No practice quizzes are currently available.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-      
-      {/* Final Assessment Quizzes Section */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <span className="inline-block w-3 h-3 rounded-full bg-primary mr-2"></span>
-          Assessment Quizzes 
-          <span className="ml-2 text-sm font-normal text-muted-foreground">
-            (These are final assessments that count toward certification)
-          </span>
-        </h2>
-        {finalQuizzes.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {finalQuizzes.map(renderQuizCard)}
+        </div>
+        
+        {/* Assessment Quizzes Section */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <span className="inline-block w-3 h-3 rounded-full bg-primary mr-2"></span>
+            Assessment Quizzes 
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              (These are final assessments that count toward certification)
+            </span>
+          </h2>
+          
+          <div className="space-y-4">
+            {Object.entries(groupedQuizzes).map(([quizName, quizzesInGroup]) => {
+              // Skip if there are no final assessment quizzes in this group
+              const assessmentQuizzes = quizzesInGroup.filter(q => q.quizType === 'final');
+              if (assessmentQuizzes.length === 0) return null;
+              
+              return (
+                <Card key={quizName}>
+                  <CardHeader>
+                    <CardTitle>{quizName}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {assessmentQuizzes.map((quiz) => (
+                        <div key={quiz.quiz_id}>
+                          {renderQuizCard(quiz)}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {finalQuizzes.length === 0 && (
+              <Card>
+                <CardContent className="py-6">
+                  <p className="text-center text-muted-foreground">
+                    No assessment quizzes are currently available.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        ) : (
-          <Card>
-            <CardContent className="py-6">
-              <p className="text-center text-muted-foreground">
-                No assessment quizzes are currently available.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        </div>
       </div>
     </div>
   );
