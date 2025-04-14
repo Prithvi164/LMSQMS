@@ -79,6 +79,7 @@ const quizTemplateSchema = z.object({
   shuffleQuestions: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
   oneTimeOnly: z.boolean().default(false),
+  quizType: z.enum(["internal", "final"]).default("internal"),
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
   processId: z.number().min(1, "Process is required"),
@@ -172,7 +173,8 @@ export function QuizManagement() {
       passingScore: 70,
       shuffleQuestions: false,
       shuffleOptions: false,
-      oneTimeOnly: false
+      oneTimeOnly: false,
+      quizType: "internal"
     }
   });
 
@@ -597,6 +599,8 @@ export function QuizManagement() {
       passingScore: template.passingScore,
       shuffleQuestions: template.shuffleQuestions,
       shuffleOptions: template.shuffleOptions,
+      oneTimeOnly: template.oneTimeOnly,
+      quizType: template.quizType || "internal",
       processId: template.processId,
       batchId: template.batchId,
       categoryDistribution: template.categoryDistribution || {},
