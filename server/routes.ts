@@ -2595,7 +2595,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      const score = (correctAnswers / quiz.questions.length) * 100;
+      // Calculate score and round to integer (DB field is integer type)
+      const score = Math.round((correctAnswers / quiz.questions.length) * 100);
 
       // Create quiz attempt record
       const attempt = await storage.createQuizAttempt({
@@ -3548,7 +3549,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      const score = (correctAnswers / quiz.questions.length) * 100;
+      // Calculate score and round to integer (DB field is integer type)
+      const score = Math.round((correctAnswers / quiz.questions.length) * 100);
 
       // Save quiz attempt
       const attempt = await storage.createQuizAttempt({
