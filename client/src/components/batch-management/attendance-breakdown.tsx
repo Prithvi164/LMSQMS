@@ -296,78 +296,162 @@ export function AttendanceBreakdown({
     // Height based on number of items (with a minimum)
     const chartHeight = Math.max(300, data.length * 40);
     
+    // Determine if we're dealing with daily/phase data (has 'present', 'absent', etc.)
+    // or overall data (has 'name', 'value' properties)
+    const hasAttendanceBreakdown = data.length > 0 && 'present' in data[0];
+    
     switch (type) {
       case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <RechartsPieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey="value"
-                nameKey="name"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color || COLORS.background} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </RechartsPieChart>
-          </ResponsiveContainer>
-        );
+        if (hasAttendanceBreakdown) {
+          // For daily attendance, we need to transform the data
+          // Convert to pie chart format by taking the most recent day's data
+          const latestDay = data[data.length - 1];
+          const pieData = [
+            { name: 'Present', value: latestDay.present, color: COLORS.present },
+            { name: 'Absent', value: latestDay.absent, color: COLORS.absent },
+            { name: 'Late', value: latestDay.late, color: COLORS.late },
+            { name: 'Leave', value: latestDay.leave, color: COLORS.leave }
+          ];
+          
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          );
+        } else {
+          // For overview data with name/value format
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || COLORS.background} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          );
+        }
         
       case 'line':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <RechartsLineChart
-              data={data}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={data[0].date ? 'date' : 'name'} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="present" stroke={COLORS.present} />
-              <Line type="monotone" dataKey="absent" stroke={COLORS.absent} />
-              <Line type="monotone" dataKey="late" stroke={COLORS.late} />
-              <Line type="monotone" dataKey="leave" stroke={COLORS.leave} />
-              <Line type="monotone" dataKey="rate" stroke="#6366f1" />
-            </RechartsLineChart>
-          </ResponsiveContainer>
-        );
+        if (hasAttendanceBreakdown) {
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsLineChart
+                data={data}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey={data[0].date ? 'date' : 'name'} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="present" stroke={COLORS.present} name="Present" />
+                <Line type="monotone" dataKey="absent" stroke={COLORS.absent} name="Absent" />
+                <Line type="monotone" dataKey="late" stroke={COLORS.late} name="Late" />
+                <Line type="monotone" dataKey="leave" stroke={COLORS.leave} name="Leave" />
+                <Line type="monotone" dataKey="rate" stroke="#6366f1" name="Attendance Rate" />
+              </RechartsLineChart>
+            </ResponsiveContainer>
+          );
+        } else {
+          // For overall data
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsLineChart
+                data={data}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="value" stroke="#8884d8" name="Count" />
+              </RechartsLineChart>
+            </ResponsiveContainer>
+          );
+        }
         
       case 'bar':
       default:
-        return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis 
-                type="category" 
-                dataKey={data[0].date ? 'date' : 'name'} 
-                width={100}
-              />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="present" fill={COLORS.present} name="Present" />
-              <Bar dataKey="absent" fill={COLORS.absent} name="Absent" />
-              <Bar dataKey="late" fill={COLORS.late} name="Late" />
-              <Bar dataKey="leave" fill={COLORS.leave} name="Leave" />
-            </BarChart>
-          </ResponsiveContainer>
-        );
+        if (hasAttendanceBreakdown) {
+          return (
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart
+                data={data}
+                layout="vertical"
+                margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis 
+                  type="category" 
+                  dataKey={data[0].date ? 'date' : 'name'} 
+                  width={100}
+                />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="present" fill={COLORS.present} name="Present" />
+                <Bar dataKey="absent" fill={COLORS.absent} name="Absent" />
+                <Bar dataKey="late" fill={COLORS.late} name="Late" />
+                <Bar dataKey="leave" fill={COLORS.leave} name="Leave" />
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        } else {
+          // For overall data
+          return (
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart
+                data={data}
+                layout="vertical"
+                margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" width={100} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#8884d8" name="Count">
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || COLORS.background} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        }
     }
   };
   
