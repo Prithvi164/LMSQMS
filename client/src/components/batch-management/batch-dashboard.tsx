@@ -424,57 +424,15 @@ const calculateBatchMetrics = (
   
   // Attendance data is now calculated correctly
   
-  // Daily attendance data - include historical data when available
+  // Daily attendance data - include batch-specific historical data
   const dailyAttendance: DailyAttendance[] = [];
   
-  // Get current date and previous dates
+  // Get current date
   const today = new Date();
   const totalTrainees = trainees.length || 0;
   
-  // If we have batch with 2+ days completed, and historical attendance data exists,
-  // Include historical attendance data from API or database
-  if (daysCompleted > 1 && historicalAttendance) {
-    // Get previous dates (for historical data)
-    // Note: this will pull from actual data records in the database
-    // Get dates from batch start date until yesterday
-    const startDate = new Date(batch.startDate);
-    
-    // Create array of all dates from start to yesterday
-    const previousDates: Date[] = [];
-    const tempDate = new Date(startDate);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    // Add all dates between start date and yesterday
-    while (tempDate <= yesterday) {
-      previousDates.push(new Date(tempDate));
-      tempDate.setDate(tempDate.getDate() + 1);
-    }
-    
-    // For each previous date that has attendance records, add it to dailyAttendance
-    // (The actual data should come from the database query through the API)
-    previousDates.forEach((date, index) => {
-      // Check API response for attendance data for this date
-      // If available, use that instead of generating
-      const dateStr = format(date, 'yyyy-MM-dd');
-      
-      // The server provides historical attendance records in the API response
-      // For now, just add placeholder to ensure the UI shows the dates
-      // This should be replaced with actual attendance records when available through API
-      dailyAttendance.push({
-        date: dateStr,
-        presentCount: historicalAttendance.presentCount || 0,
-        absentCount: historicalAttendance.absentCount || 0,
-        lateCount: historicalAttendance.lateCount || 0,
-        leaveCount: historicalAttendance.leaveCount || 0,
-        attendanceRate: historicalAttendance.attendanceRate || 0,
-        totalTrainees
-      });
-    });
-  }
-  
   // Add today's attendance data with actual counts from trainees
-  dailyAttendance.push({
+  const todayAttendance = {
     date: format(today, 'yyyy-MM-dd'),
     presentCount: attendanceStats.presentCount,
     absentCount: attendanceStats.absentCount,
@@ -482,7 +440,27 @@ const calculateBatchMetrics = (
     leaveCount: attendanceStats.leaveCount,
     attendanceRate: attendanceStats.attendanceRate,
     totalTrainees
-  });
+  };
+  
+  // If batch data is available and the batch has started
+  if (batch && batch.startDate) {
+    // We need to fetch the batch-specific attendance data for all previous days
+    // This should be implemented as a new API endpoint or added to the existing one
+    
+    // For the current implementation, we'll add today's data
+    // and leave the API integration for the next update
+    dailyAttendance.push(todayAttendance);
+    
+    // TODO: Implement API call to get historical attendance data by batch and date range
+    // The structure should be:
+    // GET /api/organizations/{orgId}/batches/{batchId}/attendance/history?startDate={startDate}&endDate={endDate}
+    
+    // For now, just log a message to remind about implementing this feature
+    console.log("To display day-by-day attendance breakdown, implement a batch-specific historical attendance API.");
+  } else {
+    // If no batch data, just add today's attendance
+    dailyAttendance.push(todayAttendance);
+  }
   
   // Daily attendance data
   
