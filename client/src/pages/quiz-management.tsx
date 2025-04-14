@@ -1460,7 +1460,8 @@ export function QuizManagement() {
                               size="sm"
                               onClick={() => {
                                 if (generateQuizMutation.isPending) return;
-                                generateQuizMutation.mutate(template.id);
+                                setSelectedTemplateId(template.id);
+                                setIsGenerateDialogOpen(true);
                               }}
                               disabled={generateQuizMutation.isPending}
                             >
@@ -1624,6 +1625,79 @@ export function QuizManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Quiz Generation Dialog */}
+      <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Generate Quiz</DialogTitle>
+            <DialogDescription>
+              Set the duration for how long trainees will have access to take this quiz.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="duration-select">Quiz Availability Duration</Label>
+                <Select 
+                  value={selectedDuration.toString()} 
+                  onValueChange={(value) => setSelectedDuration(parseInt(value))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="2">2 hours</SelectItem>
+                    <SelectItem value="4">4 hours</SelectItem>
+                    <SelectItem value="8">8 hours</SelectItem>
+                    <SelectItem value="12">12 hours</SelectItem>
+                    <SelectItem value="24">24 hours (1 day)</SelectItem>
+                    <SelectItem value="48">48 hours (2 days)</SelectItem>
+                    <SelectItem value="72">72 hours (3 days)</SelectItem>
+                    <SelectItem value="168">1 week</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Trainees will have access to this quiz for {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} after generation.
+                </p>
+              </div>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Time-bound Quiz</AlertTitle>
+                <AlertDescription>
+                  This quiz will be available to trainees from the moment it's generated until {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} later. 
+                  The quiz timer of {quizTemplates.find(t => t.id === selectedTemplateId)?.timeLimit || 0} minutes begins when a trainee starts the quiz.
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter className="mt-6">
+              <Button variant="outline" onClick={() => setIsGenerateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (!selectedTemplateId || generateQuizMutation.isPending) return;
+                  generateQuizMutation.mutate({ 
+                    templateId: selectedTemplateId, 
+                    durationInHours: selectedDuration 
+                  });
+                }}
+                disabled={generateQuizMutation.isPending}
+              >
+                {generateQuizMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  'Generate Quiz'
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Preview Questions Dialog */}
       <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>

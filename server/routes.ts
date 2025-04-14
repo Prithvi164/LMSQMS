@@ -3346,7 +3346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processId: template.processId,
         status: 'active',
         startTime: new Date(),
-        endTime: new Date(Date.now() + template.timeLimit * 60 * 1000)
+        endTime: new Date(Date.now() + (req.body.durationInHours || 24) * 60 * 60 * 1000)
       });
 
       res.status(201).json(quiz);
