@@ -428,7 +428,12 @@ const calculateBatchMetrics = (
   // Don't call API or use hooks inside this function
   // We'll pass the daily attendance data from the parent component
   
-  // Daily attendance data
+  // Use daily attendance history data fetched from the API
+  if (dailyAttendanceHistory && dailyAttendanceHistory.length > 0) {
+    console.log('Using daily attendance history data:', dailyAttendanceHistory);
+  } else {
+    console.log('No daily attendance history data available');
+  }
   
   // Phase-wise attendance - Only showing actual data for current phase
   const phaseAttendance: PhaseAttendance[] = [];

@@ -4775,9 +4775,8 @@ export class DatabaseStorage implements IStorage {
       // Get all trainees in the batch to calculate total
       const batchTrainees = await db
         .select()
-        .from(trainees)
-        .where(eq(trainees.batchId, batchId))
-        .where(eq(trainees.organizationId, organizationId));
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.batchId, batchId));
         
       const totalTraineesInBatch = batchTrainees.length;
       
@@ -4785,14 +4784,11 @@ export class DatabaseStorage implements IStorage {
         return []; // No trainees in batch, return empty array
       }
       
-      // Get trainee IDs for the query
-      const traineeIds = batchTrainees.map(trainee => trainee.id);
-      
-      // Get all attendance records for these trainees
+      // Get all attendance records for this batch directly
       const attendanceRecords = await db
         .select()
         .from(attendance)
-        .where(inArray(attendance.traineeId, traineeIds))
+        .where(eq(attendance.batchId, batchId))
         .where(eq(attendance.organizationId, organizationId));
       
       if (attendanceRecords.length === 0) {
