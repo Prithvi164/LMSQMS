@@ -1254,6 +1254,44 @@ export function QuizManagement() {
 
                             <FormField
                               control={templateForm.control}
+                              name="quizType"
+                              render={({ field }) => (
+                                <FormItem className="space-y-3">
+                                  <FormLabel>Quiz Type</FormLabel>
+                                  <FormControl>
+                                    <RadioGroup
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value}
+                                      className="flex flex-col space-y-1"
+                                    >
+                                      <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                          <RadioGroupItem value="internal" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          Internal (Practice)
+                                        </FormLabel>
+                                      </FormItem>
+                                      <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                          <RadioGroupItem value="final" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          Final (Assessment)
+                                        </FormLabel>
+                                      </FormItem>
+                                    </RadioGroup>
+                                  </FormControl>
+                                  <FormDescription>
+                                    Internal quizzes are for practice, while Final quizzes are used for formal assessments.
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={templateForm.control}
                               name="timeLimit"
                               render={({ field }) => (
                                 <FormItem>
