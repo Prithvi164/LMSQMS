@@ -6671,6 +6671,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
       
+  // Get batch-specific attendance data with day-by-day breakdown
+  app.get("/api/organizations/:orgId/batches/:batchId/attendance/history", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
+      }
+      
+      // Check if user has access to the batch
+      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "You don't have access to this batch" });
+      }
+
+      console.log(`Fetching attendance history for batch: ${batchId}`);
+      
+      // Get all attendance records for this batch
+      const attendanceRecords = await db.query.attendance.findMany({
+        where: eq(attendance.batchId, batchId),
+        orderBy: (attendance, { asc }) => [asc(attendance.date)]
+      });
+      
+      // Group attendance by date
+      const groupedByDate = new Map();
+      
+      for (const record of attendanceRecords) {
+        // Format date as ISO string for consistent grouping
+        const date = record.date ? new Date(record.date).toISOString().split('T')[0] : 
+                    record.updated_at ? new Date(record.updated_at).toISOString().split('T')[0] : 
+                    null;
+        
+        if (!date) continue;
+        
+        if (!groupedByDate.has(date)) {
+          groupedByDate.set(date, {
+            date,
+            presentCount: 0,
+            absentCount: 0,
+            lateCount: 0,
+            leaveCount: 0,
+            totalTrainees: 0
+          });
+        }
+        
+        const dateGroup = groupedByDate.get(date);
+        dateGroup.totalTrainees++;
+        
+        switch (record.status?.toLowerCase()) {
+          case 'present':
+            dateGroup.presentCount++;
+            break;
+          case 'absent':
+            dateGroup.absentCount++;
+            break;
+          case 'late':
+            dateGroup.lateCount++;
+            break;
+          case 'leave':
+            dateGroup.leaveCount++;
+            break;
+          default:
+            // If no status, count as absent
+            dateGroup.absentCount++;
+        }
+      }
+      
+      // Calculate attendance rate for each day
+      for (const [date, data] of groupedByDate) {
+        const attended = data.presentCount + (data.lateCount * 0.5);
+        data.attendanceRate = Math.round((attended / data.totalTrainees) * 100);
+      }
+      
+      // Convert to array and sort by date
+      const dailyBreakdown = Array.from(groupedByDate.values())
+        .sort((a, b) => a.date.localeCompare(b.date));
+      
+      res.json(dailyBreakdown);
+    } catch (error) {
+      console.error('Error getting batch attendance history:', error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Get aggregated attendance overview stats for the dashboard
   app.get("/api/organizations/:orgId/attendance/overview", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });

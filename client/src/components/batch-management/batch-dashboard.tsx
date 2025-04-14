@@ -424,43 +424,15 @@ const calculateBatchMetrics = (
   
   // Attendance data is now calculated correctly
   
-  // Daily attendance data - include batch-specific historical data
-  const dailyAttendance: DailyAttendance[] = [];
-  
-  // Get current date
-  const today = new Date();
-  const totalTrainees = trainees.length || 0;
-  
-  // Add today's attendance data with actual counts from trainees
-  const todayAttendance = {
-    date: format(today, 'yyyy-MM-dd'),
-    presentCount: attendanceStats.presentCount,
-    absentCount: attendanceStats.absentCount,
-    lateCount: attendanceStats.lateCount,
-    leaveCount: attendanceStats.leaveCount,
-    attendanceRate: attendanceStats.attendanceRate,
-    totalTrainees
-  };
-  
-  // If batch data is available and the batch has started
-  if (batch && batch.startDate) {
-    // We need to fetch the batch-specific attendance data for all previous days
-    // This should be implemented as a new API endpoint or added to the existing one
-    
-    // For the current implementation, we'll add today's data
-    // and leave the API integration for the next update
-    dailyAttendance.push(todayAttendance);
-    
-    // TODO: Implement API call to get historical attendance data by batch and date range
-    // The structure should be:
-    // GET /api/organizations/{orgId}/batches/{batchId}/attendance/history?startDate={startDate}&endDate={endDate}
-    
-    // For now, just log a message to remind about implementing this feature
-    console.log("To display day-by-day attendance breakdown, implement a batch-specific historical attendance API.");
-  } else {
-    // If no batch data, just add today's attendance
-    dailyAttendance.push(todayAttendance);
-  }
+  // Daily attendance data from the new API endpoint
+  // This will use the attendance.updated_at date to group records by day
+  const { 
+    data: dailyAttendance = [], 
+    isLoading: dailyAttendanceLoading 
+  } = useQuery<DailyAttendance[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/history`],
+    enabled: !!user?.organizationId && !!batchId && !!batch,
+  });
   
   // Daily attendance data
   
