@@ -89,7 +89,18 @@ export function LocationDetail() {
   const { hasPermission } = usePermissions();
 
   // Use the tour hook for managing tour state
-  const { isOpen: showTour, startTour, completeTour, skipTour } = useTour('locationManagement');
+  const { 
+    isOpen: showTour, 
+    startTour, 
+    completeTour, 
+    skipTour, 
+    isAllowed 
+  } = useTour('locationManagement', {
+    // Optionally restrict to specific users
+    userEmails: ['prithvi.raj@cloudpoint.co.in'],
+    // Auto-start tour if not previously completed
+    autoStart: false
+  });
 
   // First fetch organization
   const { data: organization } = useQuery({
@@ -991,24 +1002,26 @@ export function LocationDetail() {
         />
       )}
       
-      {/* Help button to start tour */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="fixed bottom-4 right-4 rounded-full w-10 h-10 bg-purple-600 hover:bg-purple-700 text-white"
-              onClick={startTour}
-            >
-              <HelpCircle className="h-5 w-5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            <p>Start Interactive Tour</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {/* Help button to start tour - only shown to allowed users */}
+      {isAllowed && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="fixed bottom-4 right-4 rounded-full w-10 h-10 bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+                onClick={startTour}
+              >
+                <HelpCircle className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Start Interactive Tour</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }
