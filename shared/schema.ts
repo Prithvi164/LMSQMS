@@ -54,6 +54,10 @@ export const roleEnum = pgEnum('role', [
   'trainee'
 ]);
 
+// Product tour related enums
+export const tourPositionEnum = pgEnum('tour_position', ['top', 'right', 'bottom', 'left']);
+export const tourTriggerTypeEnum = pgEnum('tour_trigger_type', ['automatic', 'manual']);
+
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
