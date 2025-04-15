@@ -44,6 +44,8 @@ import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { updateBatchStatuses } from './services/batch-status-service';
 import azureAudioFilesRouter from './routes/azure-audio-files';
+import { validateAttendanceDate } from './utils/attendance-utils';
+import { getHolidaysInRange } from './services/holiday-service';
 
 // Helper function to check if a user has access to a specific batch or its template
 async function userHasBatchAccess(userId: number, batchId: number | null | undefined): Promise<boolean> {
@@ -4858,7 +4860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update attendance endpoint 
+  // Update attendance endpoint with date validation and auto-marking
   app.post("/api/attendance", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -4900,12 +4902,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create or update attendance record
+      // Fetch batch details to validate the date
+      const [batchDetails] = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.id, batchId));
+
+      if (!batchDetails) {
+        return res.status(404).json({
+          message: "Batch not found"
+        });
+      }
+
+      // Get holidays for the batch's organization if holidays are considered
+      const holidays = batchDetails.considerHolidays 
+        ? await getHolidaysInRange(
+            req.user.organizationId,
+            batchDetails.startDate,
+            batchDetails.endDate
+          )
+        : [];
+
+      // Validate if the date is appropriate for attendance marking
+      const dateValidation = validateAttendanceDate(date, batchDetails, holidays);
+
+      if (!dateValidation.isValid) {
+        return res.status(400).json({
+          message: "Date validation failed",
+          reason: dateValidation.reason
+        });
+      }
+
+      // If auto-marking is applicable, override the status
+      let finalStatus = status;
+      if (dateValidation.autoMarkedStatus) {
+        finalStatus = dateValidation.autoMarkedStatus;
+        // If user is trying to mark something other than the auto-marked status, warn them
+        if (status !== finalStatus) {
+          console.log(`Auto-marking attendance as ${finalStatus} for date ${date} (user tried to mark as ${status})`);
+        }
+      }
+
+      // Create or update attendance record with potentially auto-marked status
       const [result] = await db
         .insert(attendance)
         .values({
           traineeId,
-          status,
+          status: finalStatus,
           date,
           batchId,
           phase,
@@ -4917,15 +4960,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .onConflictDoUpdate({
           target: [attendance.traineeId, attendance.date, attendance.batchId],
           set: {
-            status,
+            status: finalStatus,
             phase,
             updatedAt: new Date()
           }
         })
         .returning();
 
-      console.log('Attendance record saved:', result);
-      return res.json(result);
+      // Include information about auto-marking in the response
+      const response = {
+        ...result,
+        autoMarked: finalStatus !== status,
+        originalStatus: finalStatus !== status ? status : undefined
+      };
+
+      console.log('Attendance record saved:', response);
+      return res.json(response);
     } catch (error: any) {
       console.error("Error saving attendance record:", error);
       // Log error without trying to access variables that might be undefined
