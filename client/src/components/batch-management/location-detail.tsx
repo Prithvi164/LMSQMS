@@ -15,6 +15,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useTour } from "@/hooks/use-tour";
+import { Tour, TourStep } from "@/components/ui/tour";
+import { HelpCircle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -44,12 +53,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   Plus,
   Loader2,
   Pencil,
@@ -61,7 +64,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tour, type TourStep } from "@/components/ui/tour";
 
 // Form validation schema
 const locationFormSchema = z.object({
@@ -86,10 +88,8 @@ export function LocationDetail() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
 
-  const [showTour, setShowTour] = useState(() => {
-    const hasSeenTour = localStorage.getItem("locationManagementTourComplete");
-    return !hasSeenTour;
-  });
+  // Use the tour hook for managing tour state
+  const { isOpen: showTour, startTour, completeTour, skipTour } = useTour('locationManagement');
 
   // First fetch organization
   const { data: organization } = useQuery({
@@ -399,15 +399,7 @@ export function LocationDetail() {
     },
   ];
 
-  const handleTourComplete = () => {
-    localStorage.setItem("locationManagementTourComplete", "true");
-    setShowTour(false);
-  };
-
-  const handleTourSkip = () => {
-    localStorage.setItem("locationManagementTourComplete", "true");
-    setShowTour(false);
-  };
+  // Tour handlers now use the functions from our hook
 
   // Check if user has permission to manage locations
   const canManageLocations = hasPermission("manage_locations");
@@ -994,10 +986,29 @@ export function LocationDetail() {
         <Tour
           steps={tourSteps}
           isOpen={showTour}
-          onComplete={handleTourComplete}
-          onSkip={handleTourSkip}
+          onComplete={completeTour}
+          onSkip={skipTour}
         />
       )}
+      
+      {/* Help button to start tour */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="fixed bottom-4 right-4 rounded-full w-10 h-10 bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={startTour}
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Start Interactive Tour</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }
