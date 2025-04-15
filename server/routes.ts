@@ -8292,5 +8292,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Product Tour routes
+  app.get('/api/tours', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const organizationId = req.user.organizationId;
+      const tours = await storage.listTours(organizationId);
+      res.json(tours);
+    } catch (error: any) {
+      console.error("Error fetching tours:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get('/api/tours/available', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { role } = req.query;
+      
+      if (!role) {
+        return res.status(400).json({ message: "Role is required" });
+      }
+      
+      const organizationId = req.user.organizationId;
+      const tours = await storage.listToursForRole(role as string, organizationId);
+      res.json(tours);
+    } catch (error: any) {
+      console.error("Error fetching available tours:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get('/api/tours/:id', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const tourId = parseInt(req.params.id, 10);
+      const tour = await storage.getTour(tourId);
+      
+      if (!tour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+      
+      // Check if user has access to this tour (same organization)
+      if (tour.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You don't have access to this tour" });
+      }
+      
+      res.json(tour);
+    } catch (error: any) {
+      console.error("Error fetching tour:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post('/api/tours', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      // Verify user has admin permission
+      if (!['owner', 'admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "You don't have permission to create tours" });
+      }
+      
+      const organizationId = req.user.organizationId;
+      
+      // Create the tour
+      const tourData = {
+        ...req.body,
+        organizationId,
+        steps: [], // Will be created separately
+      };
+      
+      // Initial validation
+      if (!tourData.name || !tourData.targetRole || !tourData.startUrl) {
+        return res.status(400).json({ message: "Name, target role, and start URL are required" });
+      }
+      
+      // Remove steps from the tour data to save them separately
+      const steps = req.body.steps || [];
+      delete tourData.steps;
+      
+      // Create tour
+      const newTour = await storage.createTour(tourData);
+      
+      // Create steps for the tour
+      const createdSteps = await Promise.all(
+        steps.map(async (step: any, index: number) => {
+          return storage.createTourStep({
+            ...step,
+            tourId: newTour.id,
+            stepOrder: index,
+            targetElement: step.targetElement || null,
+            skipIf: step.skipIf || null,
+          });
+        })
+      );
+      
+      // Return the complete tour with steps
+      res.status(201).json({
+        ...newTour,
+        steps: createdSteps
+      });
+    } catch (error: any) {
+      console.error("Error creating tour:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put('/api/tours/:id', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const tourId = parseInt(req.params.id, 10);
+      
+      // Verify user has admin permission
+      if (!['owner', 'admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "You don't have permission to update tours" });
+      }
+      
+      // Get existing tour to check organization
+      const existingTour = await storage.getTour(tourId);
+      
+      if (!existingTour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+      
+      // Check if user has access to this tour (same organization)
+      if (existingTour.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You don't have access to this tour" });
+      }
+      
+      // Update tour data
+      const tourData = { ...req.body };
+      delete tourData.steps; // Handle steps separately
+      
+      // Update tour
+      const updatedTour = await storage.updateTour(tourId, tourData);
+      
+      // If steps were provided, update them
+      if (req.body.steps && Array.isArray(req.body.steps)) {
+        // Delete existing steps
+        const existingSteps = await storage.listTourSteps(tourId);
+        await Promise.all(existingSteps.map(step => storage.deleteTourStep(step.id)));
+        
+        // Create new steps
+        const createdSteps = await Promise.all(
+          req.body.steps.map(async (step: any, index: number) => {
+            return storage.createTourStep({
+              ...step,
+              tourId: updatedTour.id,
+              stepOrder: index,
+              targetElement: step.targetElement || null,
+              skipIf: step.skipIf || null,
+            });
+          })
+        );
+        
+        // Return the updated tour with new steps
+        return res.json({
+          ...updatedTour,
+          steps: createdSteps
+        });
+      }
+      
+      // Return the updated tour
+      res.json(updatedTour);
+    } catch (error: any) {
+      console.error("Error updating tour:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete('/api/tours/:id', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const tourId = parseInt(req.params.id, 10);
+      
+      // Verify user has admin permission
+      if (!['owner', 'admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "You don't have permission to delete tours" });
+      }
+      
+      // Get existing tour to check organization
+      const existingTour = await storage.getTour(tourId);
+      
+      if (!existingTour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+      
+      // Check if user has access to this tour (same organization)
+      if (existingTour.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You don't have access to this tour" });
+      }
+      
+      // Delete tour (this will cascade delete tour steps as well)
+      await storage.deleteTour(tourId);
+      
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting tour:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get('/api/tours/progress', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const userId = req.user.id;
+      const progress = await storage.listTourProgressForUser(userId);
+      res.json(progress);
+    } catch (error: any) {
+      console.error("Error fetching tour progress:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post('/api/tours/progress', async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const userId = req.user.id;
+      const { tourId, currentStep, completed } = req.body;
+      
+      if (!tourId) {
+        return res.status(400).json({ message: "Tour ID is required" });
+      }
+      
+      // Create or update tour progress
+      const progressData = {
+        userId,
+        tourId,
+        currentStep: currentStep || 0,
+        completed: !!completed
+      };
+      
+      const progress = await storage.createTourProgress(progressData);
+      res.json(progress);
+    } catch (error: any) {
+      console.error("Error updating tour progress:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }

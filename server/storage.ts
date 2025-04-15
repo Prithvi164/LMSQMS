@@ -5452,6 +5452,313 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Product Tour operations
+  async createTour(tour: InsertProductTour): Promise<ProductTour> {
+    try {
+      const [newTour] = await db
+        .insert(product_tours)
+        .values({
+          ...tour,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as ProductTour[];
+      return newTour;
+    } catch (error) {
+      console.error('Error creating tour:', error);
+      throw error;
+    }
+  }
+
+  async getTour(id: number): Promise<ProductTour | undefined> {
+    try {
+      const [tour] = await db
+        .select()
+        .from(product_tours)
+        .where(eq(product_tours.id, id)) as ProductTour[];
+      
+      if (!tour) return undefined;
+      
+      // Get the steps for this tour
+      const steps = await this.listTourSteps(id);
+      
+      return {
+        ...tour,
+        steps
+      };
+    } catch (error) {
+      console.error('Error getting tour:', error);
+      throw error;
+    }
+  }
+
+  async listTours(organizationId: number): Promise<ProductTour[]> {
+    try {
+      const tours = await db
+        .select()
+        .from(product_tours)
+        .where(eq(product_tours.organizationId, organizationId))
+        .orderBy(product_tours.name) as ProductTour[];
+      
+      // Get steps for each tour
+      const toursWithSteps = await Promise.all(
+        tours.map(async (tour) => {
+          const steps = await this.listTourSteps(tour.id);
+          return {
+            ...tour,
+            steps
+          };
+        })
+      );
+      
+      return toursWithSteps;
+    } catch (error) {
+      console.error('Error listing tours:', error);
+      throw error;
+    }
+  }
+
+  async listToursForRole(role: string, organizationId: number): Promise<ProductTour[]> {
+    try {
+      const tours = await db
+        .select()
+        .from(product_tours)
+        .where(eq(product_tours.organizationId, organizationId))
+        .where(eq(product_tours.targetRole, role))
+        .where(eq(product_tours.isActive, true))
+        .orderBy(product_tours.name) as ProductTour[];
+      
+      // Get steps for each tour
+      const toursWithSteps = await Promise.all(
+        tours.map(async (tour) => {
+          const steps = await this.listTourSteps(tour.id);
+          return {
+            ...tour,
+            steps
+          };
+        })
+      );
+      
+      return toursWithSteps;
+    } catch (error) {
+      console.error('Error listing tours for role:', error);
+      throw error;
+    }
+  }
+
+  async updateTour(id: number, tour: Partial<InsertProductTour>): Promise<ProductTour> {
+    try {
+      const [updatedTour] = await db
+        .update(product_tours)
+        .set({
+          ...tour,
+          updatedAt: new Date()
+        })
+        .where(eq(product_tours.id, id))
+        .returning() as ProductTour[];
+      
+      if (!updatedTour) {
+        throw new Error('Tour not found');
+      }
+      
+      // Get the steps for this tour
+      const steps = await this.listTourSteps(id);
+      
+      return {
+        ...updatedTour,
+        steps
+      };
+    } catch (error) {
+      console.error('Error updating tour:', error);
+      throw error;
+    }
+  }
+
+  async deleteTour(id: number): Promise<void> {
+    try {
+      // Delete all steps associated with this tour first
+      await db
+        .delete(tour_steps)
+        .where(eq(tour_steps.tourId, id));
+      
+      // Delete all progress records associated with this tour
+      await db
+        .delete(user_tour_progress)
+        .where(eq(user_tour_progress.tourId, id));
+      
+      // Delete the tour
+      await db
+        .delete(product_tours)
+        .where(eq(product_tours.id, id));
+    } catch (error) {
+      console.error('Error deleting tour:', error);
+      throw error;
+    }
+  }
+
+  // Tour Step operations
+  async createTourStep(step: InsertTourStep): Promise<TourStep> {
+    try {
+      const [newStep] = await db
+        .insert(tour_steps)
+        .values({
+          ...step,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as TourStep[];
+      return newStep;
+    } catch (error) {
+      console.error('Error creating tour step:', error);
+      throw error;
+    }
+  }
+
+  async getTourStep(id: number): Promise<TourStep | undefined> {
+    try {
+      const [step] = await db
+        .select()
+        .from(tour_steps)
+        .where(eq(tour_steps.id, id)) as TourStep[];
+      return step;
+    } catch (error) {
+      console.error('Error getting tour step:', error);
+      throw error;
+    }
+  }
+
+  async listTourSteps(tourId: number): Promise<TourStep[]> {
+    try {
+      const steps = await db
+        .select()
+        .from(tour_steps)
+        .where(eq(tour_steps.tourId, tourId))
+        .orderBy(tour_steps.stepOrder, asc) as TourStep[];
+      return steps;
+    } catch (error) {
+      console.error('Error listing tour steps:', error);
+      throw error;
+    }
+  }
+
+  async updateTourStep(id: number, step: Partial<InsertTourStep>): Promise<TourStep> {
+    try {
+      const [updatedStep] = await db
+        .update(tour_steps)
+        .set({
+          ...step,
+          updatedAt: new Date()
+        })
+        .where(eq(tour_steps.id, id))
+        .returning() as TourStep[];
+      
+      if (!updatedStep) {
+        throw new Error('Tour step not found');
+      }
+      
+      return updatedStep;
+    } catch (error) {
+      console.error('Error updating tour step:', error);
+      throw error;
+    }
+  }
+
+  async deleteTourStep(id: number): Promise<void> {
+    try {
+      await db
+        .delete(tour_steps)
+        .where(eq(tour_steps.id, id));
+    } catch (error) {
+      console.error('Error deleting tour step:', error);
+      throw error;
+    }
+  }
+
+  // User Tour Progress operations
+  async createTourProgress(progress: InsertUserTourProgress): Promise<UserTourProgress> {
+    try {
+      // Check if progress already exists for this user and tour
+      const existingProgress = await this.getTourProgress(progress.userId, progress.tourId);
+      
+      if (existingProgress) {
+        // Update existing progress
+        return this.updateTourProgress(existingProgress.id, progress);
+      }
+      
+      // Create new progress record
+      const [newProgress] = await db
+        .insert(user_tour_progress)
+        .values({
+          ...progress,
+          lastAccessed: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as UserTourProgress[];
+      return newProgress;
+    } catch (error) {
+      console.error('Error creating tour progress:', error);
+      throw error;
+    }
+  }
+
+  async getTourProgress(userId: number, tourId: number): Promise<UserTourProgress | undefined> {
+    try {
+      const [progress] = await db
+        .select()
+        .from(user_tour_progress)
+        .where(eq(user_tour_progress.userId, userId))
+        .where(eq(user_tour_progress.tourId, tourId)) as UserTourProgress[];
+      return progress;
+    } catch (error) {
+      console.error('Error getting tour progress:', error);
+      throw error;
+    }
+  }
+
+  async listTourProgressForUser(userId: number): Promise<UserTourProgress[]> {
+    try {
+      const progress = await db
+        .select()
+        .from(user_tour_progress)
+        .where(eq(user_tour_progress.userId, userId)) as UserTourProgress[];
+      return progress;
+    } catch (error) {
+      console.error('Error listing tour progress for user:', error);
+      throw error;
+    }
+  }
+
+  async updateTourProgress(id: number, progress: Partial<InsertUserTourProgress>): Promise<UserTourProgress> {
+    try {
+      const updates: any = {
+        ...progress,
+        lastAccessed: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // If completed is set to true, add completedAt date
+      if (progress.completed === true) {
+        updates.completedAt = new Date();
+      }
+      
+      const [updatedProgress] = await db
+        .update(user_tour_progress)
+        .set(updates)
+        .where(eq(user_tour_progress.id, id))
+        .returning() as UserTourProgress[];
+      
+      if (!updatedProgress) {
+        throw new Error('Tour progress not found');
+      }
+      
+      return updatedProgress;
+    } catch (error) {
+      console.error('Error updating tour progress:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
