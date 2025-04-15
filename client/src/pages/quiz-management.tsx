@@ -1188,39 +1188,50 @@ export function QuizManagement() {
                             <FormField
                               control={templateForm.control}
                               name="batchId"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Restrict to Batch (Optional)</FormLabel>
-                                  <Select
-                                    onValueChange={(value) => field.onChange(value === "none" ? "none" : parseInt(value))}
-                                    defaultValue={field.value?.toString() || "none"}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder={batchesLoading ? "Loading..." : "Select a batch"} />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="none">No batch restriction (Available to all)</SelectItem>
-                                      {batchesLoading ? (
-                                        <SelectItem value="loading" disabled>Loading batches...</SelectItem>
-                                      ) : batches.length > 0 ? (
-                                        batches.map((batch) => (
-                                          <SelectItem key={batch.id} value={batch.id.toString()}>
-                                            {batch.name}
-                                          </SelectItem>
-                                        ))
-                                      ) : (
-                                        <SelectItem value="na" disabled>No batches available</SelectItem>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormDescription>
-                                    If selected, only trainees in this batch will be able to access this quiz template.
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
+                              render={({ field }) => {
+                                // Get the currently selected process ID from the form
+                                const selectedProcessId = templateForm.watch("processId");
+                                
+                                // Filter batches to only show those matching the selected process
+                                const filteredBatches = batches.filter(batch => 
+                                  // If no process is selected, show all batches
+                                  !selectedProcessId || batch.processId === selectedProcessId
+                                );
+                                
+                                return (
+                                  <FormItem>
+                                    <FormLabel>Restrict to Batch (Optional)</FormLabel>
+                                    <Select
+                                      onValueChange={(value) => field.onChange(value === "none" ? "none" : parseInt(value))}
+                                      defaultValue={field.value?.toString() || "none"}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder={batchesLoading ? "Loading..." : "Select a batch"} />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="none">No batch restriction (Available to all)</SelectItem>
+                                        {batchesLoading ? (
+                                          <SelectItem value="loading" disabled>Loading batches...</SelectItem>
+                                        ) : filteredBatches.length > 0 ? (
+                                          filteredBatches.map((batch) => (
+                                            <SelectItem key={batch.id} value={batch.id.toString()}>
+                                              {batch.name}
+                                            </SelectItem>
+                                          ))
+                                        ) : (
+                                          <SelectItem value="na" disabled>No batches available for selected process</SelectItem>
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                      If selected, only trainees in this batch will be able to access this quiz template.
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                );
+                              }}
                             />
 
 
