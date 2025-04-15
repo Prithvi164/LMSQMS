@@ -287,24 +287,14 @@ export default function TourManagementPage() {
     }
   };
 
-  // Check if user has access to this page
-  useEffect(() => {
-    if (user && !['admin', 'manager', 'team_lead'].includes(user.role)) {
-      toast({
-        title: 'Access Denied',
-        description: 'You do not have permission to access this page',
-        variant: 'destructive',
-      });
-    }
-  }, [user, toast]);
-
-  if (!user || !['admin', 'manager', 'team_lead'].includes(user.role)) {
+  // No role restrictions - all authenticated users can access this page
+  if (!user) {
     return (
       <div className="container mx-auto p-4">
         <Card>
           <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>You do not have permission to view this page.</CardDescription>
+            <CardTitle>Authentication Required</CardTitle>
+            <CardDescription>Please log in to access the Tour Management page.</CardDescription>
           </CardHeader>
         </Card>
       </div>
