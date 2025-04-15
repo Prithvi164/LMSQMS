@@ -602,9 +602,31 @@ export function QuizManagement() {
     }
   });
 
-  // Add query for quiz templates
+  // Add query for quiz templates with process filtering
   const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
     queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null],
+    queryFn: async () => {
+      const url = new URL('/api/quiz-templates', window.location.origin);
+      
+      // Add process ID to query params if a specific process is selected
+      if (selectedTemplateProcessId !== 'all') {
+        url.searchParams.append('processId', selectedTemplateProcessId);
+      }
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch quiz templates');
+      }
+      
+      const templates = await response.json();
+      
+      // If we need to filter on the client side as a fallback
+      if (selectedTemplateProcessId !== 'all') {
+        return templates.filter(t => t.processId === parseInt(selectedTemplateProcessId));
+      }
+      
+      return templates;
+    },
     enabled: !!user?.organizationId
   });
 
@@ -1557,32 +1579,38 @@ export function QuizManagement() {
               ) : (
                 <div className="grid gap-4">
                   {quizTemplates.map((template: QuizTemplate) => (
-                    <div key={template.id} className={`border rounded-lg p-4 shadow-sm hover:shadow-md transition-all ${template.quizType === "final" ? "border-l-4 border-l-red-500" : "border-l-4 border-l-blue-500"}`}>
+                    <div key={template.id} className={`border rounded-lg p-4 shadow-sm hover:shadow-md transition-all 
+                      ${template.quizType === "final" 
+                        ? "border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-transparent" 
+                        : "border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-transparent"}`}>
                       <div className="flex items-center justify-between">
                         <div className="w-full">
-                          <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-lg font-semibold text-primary">{template.name}</h3>
-                            <Badge variant={template.quizType === "final" ? "destructive" : "secondary"} className="ml-2">
+                          <div className="flex justify-between items-center mb-3">
+                            <h3 className={`text-lg font-semibold ${template.quizType === "final" ? "text-red-700" : "text-blue-700"}`}>
+                              {template.name}
+                            </h3>
+                            <Badge variant={template.quizType === "final" ? "destructive" : "secondary"} 
+                              className={`ml-2 ${template.quizType === "final" ? "bg-red-600" : "bg-blue-600"}`}>
                               {template.quizType === "final" ? "Final Quiz" : "Internal Quiz"}
                             </Badge>
                           </div>
                           {template.description && (
-                            <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
+                            <p className="text-sm text-muted-foreground mb-3 border-l-2 border-gray-200 pl-2">{template.description}</p>
                           )}
-                          <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          <div className="flex flex-wrap gap-2 my-3 p-2 rounded-md bg-white bg-opacity-70">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-sm">
                               <Clock className="w-3 h-3 mr-1" /> {template.timeLimit} min
                             </Badge>
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-sm">
                               <FileQuestion className="w-3 h-3 mr-1" /> {template.questionCount} questions
                             </Badge>
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shadow-sm">
                               <CheckCircle2 className="w-3 h-3 mr-1" /> {template.passingScore}% to pass
                             </Badge>
                           </div>
                           <QuizTemplateDetailsSection template={template} processes={processes} batches={batches} />
                         </div>
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-2 ml-4 backdrop-blur-sm bg-white bg-opacity-50 p-2 rounded-md">
                           {hasPermission('manage_quiz') ? (
                             <Button
                               variant="ghost"
@@ -1593,6 +1621,7 @@ export function QuizManagement() {
                                 setIsGenerateDialogOpen(true);
                               }}
                               disabled={generateQuizMutation.isPending}
+                              className={`text-amber-600 hover:text-amber-700 hover:bg-amber-50 ${template.quizType === "final" ? "bg-red-50" : "bg-blue-50"}`}
                             >
                               {generateQuizMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1636,6 +1665,7 @@ export function QuizManagement() {
                               // Open the preview dialog
                               setIsPreviewDialogOpen(true);
                             }}
+                            className={`text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 ${template.quizType === "final" ? "bg-red-50" : "bg-blue-50"}`}
                           >
                             <Eye className="h-4 w-4" />
                             <span className="ml-2">Preview</span>
@@ -1645,6 +1675,7 @@ export function QuizManagement() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditTemplate(template)}
+                              className={`text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 ${template.quizType === "final" ? "bg-red-50" : "bg-blue-50"}`}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -1664,6 +1695,7 @@ export function QuizManagement() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setDeletingTemplateId(template.id)}
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1955,38 +1987,103 @@ function QuizTemplateDetailsSection({ template, processes, batches }: QuizTempla
   // Find the batch if the template has a batchId
   const batch = template.batchId ? batches.find(b => b.id === template.batchId) : null;
   
+  // Get users data for finding trainer name
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ['/api/users'],
+    enabled: !!batch?.trainerId
+  });
+  
   // Find trainer name from batch trainer ID
   const getTrainerName = () => {
     if (!batch?.trainerId) return null;
     
-    // Since we don't have direct access to trainer name in the batch object,
-    // we need to fallback to just showing the trainer ID
+    // Find the trainer in the users array
+    const trainer = users.find(user => user.id === batch.trainerId);
+    
+    // Return trainer name if found, otherwise fallback to ID
+    if (trainer) {
+      return trainer.name || trainer.username || trainer.email;
+    }
+    
     return `Trainer #${batch.trainerId}`;
   };
   
   const trainerName = getTrainerName();
   
+  // Calculate additional quiz template stats
+  const hasCategory = !!template.categoryDistribution && Object.keys(template.categoryDistribution).length > 0;
+  const hasDifficulty = !!template.difficultyDistribution && Object.keys(template.difficultyDistribution).length > 0;
+  
   return (
-    <div className="mt-2 text-sm text-muted-foreground">
-      <div className="flex flex-wrap gap-2 mt-2">
+    <div className="mt-2 text-sm">
+      {/* Primary information badges */}
+      <div className="flex flex-wrap gap-2 mt-2 p-2 rounded-md bg-white bg-opacity-50 backdrop-blur-sm shadow-inner">
         {process && (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+          <Badge variant="outline" className="bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border-amber-200 shadow-sm">
             <Briefcase className="w-3 h-3 mr-1" /> {process.name}
           </Badge>
         )}
         
         {batch && (
-          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+          <Badge variant="outline" className="bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 border-indigo-200 shadow-sm">
             <CalendarDays className="w-3 h-3 mr-1" /> {batch.name}
           </Badge>
         )}
         
         {trainerName && (
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+          <Badge variant="outline" className="bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border-emerald-200 shadow-sm">
             <User className="w-3 h-3 mr-1" /> {trainerName}
           </Badge>
         )}
+
+        {/* Quiz settings badges */}
+        {template.shuffleQuestions && (
+          <Badge variant="outline" className="bg-gradient-to-r from-violet-50 to-violet-100 text-violet-700 border-violet-200 shadow-sm">
+            <FileQuestion className="w-3 h-3 mr-1" /> Shuffled Questions
+          </Badge>
+        )}
+        
+        {template.shuffleOptions && (
+          <Badge variant="outline" className="bg-gradient-to-r from-fuchsia-50 to-fuchsia-100 text-fuchsia-700 border-fuchsia-200 shadow-sm">
+            <FileQuestion className="w-3 h-3 mr-1" /> Shuffled Options
+          </Badge>
+        )}
+        
+        {template.oneTimeOnly && (
+          <Badge variant="outline" className="bg-gradient-to-r from-rose-50 to-rose-100 text-rose-700 border-rose-200 shadow-sm">
+            <FileQuestion className="w-3 h-3 mr-1" /> One-Time Only
+          </Badge>
+        )}
       </div>
+      
+      {/* Show distribution information if any */}
+      {(hasCategory || hasDifficulty) && (
+        <div className="mt-2 p-2 rounded-md bg-slate-50 bg-opacity-50 border border-slate-100 text-xs">
+          {hasCategory && (
+            <div className="flex items-center gap-1 mb-1">
+              <FileQuestion className="w-3 h-3 text-slate-500" />
+              <span className="text-slate-600 font-medium">Categories:</span>
+              <span className="text-slate-500">
+                {Object.entries(template.categoryDistribution || {})
+                  .map(([cat, count]) => `${cat} (${count})`)
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+          
+          {hasDifficulty && (
+            <div className="flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-slate-500" />
+              <span className="text-slate-600 font-medium">Difficulty:</span>
+              <span className="text-slate-500">
+                {Object.entries(template.difficultyDistribution || {})
+                  .map(([level, count]) => `Level ${level} (${count})`)
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
