@@ -29,12 +29,25 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Alert,
-  AlertCircle,
   AlertDescription,
   AlertTitle
 } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye, ShieldAlert } from "lucide-react";
+import { 
+  Pencil, 
+  Trash2, 
+  Loader2, 
+  PlayCircle, 
+  Edit, 
+  Eye, 
+  ShieldAlert, 
+  Clock, 
+  FileQuestion, 
+  CheckCircle2,
+  CalendarDays,
+  Briefcase,
+  User
+} from "lucide-react";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -1544,19 +1557,32 @@ export function QuizManagement() {
               ) : (
                 <div className="grid gap-4">
                   {quizTemplates.map((template: QuizTemplate) => (
-                    <div key={template.id} className="border rounded-lg p-4">
+                    <div key={template.id} className={`border rounded-lg p-4 shadow-sm hover:shadow-md transition-all ${template.quizType === "final" ? "border-l-4 border-l-red-500" : "border-l-4 border-l-blue-500"}`}>
                       <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold">{template.name}</h3>
-                          <p className="text-sm text-muted-foreground">{template.description}</p>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="secondary">Time: {template.timeLimit} min</Badge>
-                            <Badge variant="secondary">Questions: {template.questionCount}</Badge>
-                            <Badge variant="secondary">Pass: {template.passingScore}%</Badge>
+                        <div className="w-full">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-lg font-semibold text-primary">{template.name}</h3>
+                            <Badge variant={template.quizType === "final" ? "destructive" : "secondary"} className="ml-2">
+                              {template.quizType === "final" ? "Final Quiz" : "Internal Quiz"}
+                            </Badge>
+                          </div>
+                          {template.description && (
+                            <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-2 mb-3">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              <Clock className="w-3 h-3 mr-1" /> {template.timeLimit} min
+                            </Badge>
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              <FileQuestion className="w-3 h-3 mr-1" /> {template.questionCount} questions
+                            </Badge>
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> {template.passingScore}% to pass
+                            </Badge>
                           </div>
                           <QuizTemplateDetailsSection template={template} processes={processes} batches={batches} />
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 ml-4">
                           {hasPermission('manage_quiz') ? (
                             <Button
                               variant="ghost"
@@ -1929,24 +1955,35 @@ function QuizTemplateDetailsSection({ template, processes, batches }: QuizTempla
   // Find the batch if the template has a batchId
   const batch = template.batchId ? batches.find(b => b.id === template.batchId) : null;
   
+  // Find trainer name from batch trainer ID
+  const getTrainerName = () => {
+    if (!batch?.trainerId) return null;
+    
+    // Since we don't have direct access to trainer name in the batch object,
+    // we need to fallback to just showing the trainer ID
+    return `Trainer #${batch.trainerId}`;
+  };
+  
+  const trainerName = getTrainerName();
+  
   return (
     <div className="mt-2 text-sm text-muted-foreground">
-      <div className="flex flex-wrap gap-2 mt-1">
+      <div className="flex flex-wrap gap-2 mt-2">
         {process && (
-          <Badge variant="outline" className="bg-gray-100">
-            Process: {process.name}
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Briefcase className="w-3 h-3 mr-1" /> {process.name}
           </Badge>
         )}
         
         {batch && (
-          <Badge variant="outline" className="bg-gray-100">
-            Batch: {batch.name}
+          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+            <CalendarDays className="w-3 h-3 mr-1" /> {batch.name}
           </Badge>
         )}
         
-        {batch?.trainerId && (
-          <Badge variant="outline" className="bg-gray-100">
-            Trainer: Assigned
+        {trainerName && (
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            <User className="w-3 h-3 mr-1" /> {trainerName}
           </Badge>
         )}
       </div>
