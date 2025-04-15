@@ -93,6 +93,13 @@ type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 type FilterFormValues = z.infer<typeof filterFormSchema>;
 type TemplateFilterFormValues = z.infer<typeof templateFilterFormSchema>;
 
+// Component to display quiz template details including process name, batch name, and trainer
+interface QuizTemplateDetailsSectionProps {
+  template: QuizTemplate;
+  processes: Process[];
+  batches: OrganizationBatch[];
+}
+
 export function QuizManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1542,11 +1549,12 @@ export function QuizManagement() {
                         <div>
                           <h3 className="text-lg font-semibold">{template.name}</h3>
                           <p className="text-sm text-muted-foreground">{template.description}</p>
-                          <div className="flex gap-2 mt-2">
+                          <div className="flex flex-wrap gap-2 mt-2">
                             <Badge variant="secondary">Time: {template.timeLimit} min</Badge>
                             <Badge variant="secondary">Questions: {template.questionCount}</Badge>
                             <Badge variant="secondary">Pass: {template.passingScore}%</Badge>
                           </div>
+                          <QuizTemplateDetailsSection template={template} processes={processes} batches={batches} />
                         </div>
                         <div className="flex items-center gap-2">
                           {hasPermission('manage_quiz') ? (
@@ -1595,7 +1603,8 @@ export function QuizManagement() {
                                 passingScore: template.passingScore,
                                 shuffleQuestions: template.shuffleQuestions,
                                 shuffleOptions: template.shuffleOptions,
-                                oneTimeOnly: template.oneTimeOnly
+                                oneTimeOnly: template.oneTimeOnly,
+                                quizType: template.quizType
                               };
                               previewRandomQuestions(previewData);
                               // Open the preview dialog
@@ -1843,7 +1852,8 @@ export function QuizManagement() {
                         passingScore: 70,
                         shuffleQuestions: true,
                         shuffleOptions: true,
-                        oneTimeOnly: false
+                        oneTimeOnly: false,
+                        quizType: "internal"
                       };
                       previewRandomQuestions(lastTemplateData);
                     }}
@@ -1907,6 +1917,39 @@ export function QuizManagement() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Component to display additional information about a quiz template
+function QuizTemplateDetailsSection({ template, processes, batches }: QuizTemplateDetailsSectionProps) {
+  // Find the process corresponding to this template
+  const process = processes.find(p => p.id === template.processId);
+  
+  // Find the batch if the template has a batchId
+  const batch = template.batchId ? batches.find(b => b.id === template.batchId) : null;
+  
+  return (
+    <div className="mt-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap gap-2 mt-1">
+        {process && (
+          <Badge variant="outline" className="bg-gray-100">
+            Process: {process.name}
+          </Badge>
+        )}
+        
+        {batch && (
+          <Badge variant="outline" className="bg-gray-100">
+            Batch: {batch.name}
+          </Badge>
+        )}
+        
+        {batch?.trainerId && (
+          <Badge variant="outline" className="bg-gray-100">
+            Trainer: Assigned
+          </Badge>
+        )}
+      </div>
     </div>
   );
 }
