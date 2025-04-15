@@ -16,7 +16,6 @@ import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
 import TraineeManagement from "@/pages/trainee-management";
 import QuizManagement from "@/pages/quiz-management";
-import TourManagementPage from "@/pages/tour-management";
 import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
@@ -86,7 +85,6 @@ function Router() {
             <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
             <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
             <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />
-            <ProtectedRoute path="/tour-management" component={TourManagementPage} />
             <Route component={NotFound} />
           </Switch>
         </div>

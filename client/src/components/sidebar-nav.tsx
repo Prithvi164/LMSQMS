@@ -17,8 +17,7 @@ import {
   ChevronRight,
   Menu,
   MessageSquare,
-  FileAudio,
-  Compass
+  FileAudio
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -67,8 +66,6 @@ export function SidebarNav() {
       permission: 'view_trainee_management' },
     { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen, 
       permission: 'view_quiz' }, // Only show if user has view_quiz permission
-    { href: '/tour-management', label: 'Tour Management', icon: Compass,
-      permission: 'manage_batches' }, // Using manage_batches as permission since it's for admins
   ];
   
   // Define QMS features with permission checks
