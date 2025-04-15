@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne, asc } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { batchStatusEnum, attendance, permissionEnum } from "@shared/schema";
@@ -20,6 +20,9 @@ import {
   audioFileAllocations,
   audioFileBatchAllocations,
   evaluationFeedback,
+  product_tours,
+  tour_steps,
+  user_tour_progress,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -48,6 +51,12 @@ import {
   type AudioFileAllocation,
   type InsertAudioFileAllocation,
   type AudioFileBatchAllocation,
+  type ProductTour,
+  type InsertProductTour,
+  type TourStep,
+  type InsertTourStep,
+  type UserTourProgress,
+  type InsertUserTourProgress,
   type InsertAudioFileBatchAllocation,
   batchHistory,
   type BatchHistory,
@@ -365,6 +374,27 @@ export interface IStorage {
   getEvaluationFeedbackByEvaluationId(evaluationId: number): Promise<EvaluationFeedback | undefined>;
   getEvaluationFeedback(id: number): Promise<EvaluationFeedback | undefined>;
   updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback>;
+  
+  // Product Tour operations
+  createTour(tour: InsertProductTour): Promise<ProductTour>;
+  getTour(id: number): Promise<ProductTour | undefined>;
+  listTours(organizationId: number): Promise<ProductTour[]>;
+  listToursForRole(role: string, organizationId: number): Promise<ProductTour[]>;
+  updateTour(id: number, tour: Partial<InsertProductTour>): Promise<ProductTour>;
+  deleteTour(id: number): Promise<void>;
+  
+  // Tour Step operations
+  createTourStep(step: InsertTourStep): Promise<TourStep>;
+  getTourStep(id: number): Promise<TourStep | undefined>;
+  listTourSteps(tourId: number): Promise<TourStep[]>;
+  updateTourStep(id: number, step: Partial<InsertTourStep>): Promise<TourStep>;
+  deleteTourStep(id: number): Promise<void>;
+  
+  // User Tour Progress operations
+  createTourProgress(progress: InsertUserTourProgress): Promise<UserTourProgress>;
+  getTourProgress(userId: number, tourId: number): Promise<UserTourProgress | undefined>;
+  listTourProgressForUser(userId: number): Promise<UserTourProgress[]>;
+  updateTourProgress(id: number, progress: Partial<InsertUserTourProgress>): Promise<UserTourProgress>;
   getPendingEvaluationFeedback(agentId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
   getPendingApprovalEvaluationFeedback(reportingHeadId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
 
