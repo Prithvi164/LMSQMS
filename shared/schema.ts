@@ -2237,3 +2237,127 @@ export const evaluationScoresRelations = relations(evaluationScores, ({ one }) =
     references: [evaluationParameters.id],
   }),
 }));
+
+// Product tour related tables
+export const product_tours = pgTable("product_tours", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  targetRole: roleEnum("target_role").notNull(),
+  startUrl: text("start_url").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  triggerType: tourTriggerTypeEnum("trigger_type").default('automatic').notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tour_steps = pgTable("tour_steps", {
+  id: serial("id").primaryKey(),
+  tourId: integer("tour_id")
+    .references(() => product_tours.id)
+    .notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  targetElement: text("target_element"),
+  position: tourPositionEnum("position").default('bottom'),
+  stepOrder: integer("step_order").notNull(),
+  skipIf: text("skip_if"),
+});
+
+export const user_tour_progress = pgTable("user_tour_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  tourId: integer("tour_id")
+    .references(() => product_tours.id)
+    .notNull(),
+  completed: boolean("completed").default(false).notNull(),
+  currentStep: integer("current_step").default(0),
+  lastAccessed: timestamp("last_accessed").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+// Tour-related types
+export type ProductTour = InferSelectModel<typeof product_tours>;
+export type TourStep = InferSelectModel<typeof tour_steps>;
+export type UserTourProgress = InferSelectModel<typeof user_tour_progress>;
+
+// Tour-related schemas
+export const insertProductTourSchema = createInsertSchema(product_tours)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Tour name is required"),
+    description: z.string().optional(),
+    targetRole: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor', 'trainee']),
+    startUrl: z.string().min(1, "Start URL is required"),
+    isActive: z.boolean().default(true),
+    triggerType: z.enum(['automatic', 'manual']).default('automatic'),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export const insertTourStepSchema = createInsertSchema(tour_steps)
+  .omit({
+    id: true,
+  })
+  .extend({
+    tourId: z.number().int().positive("Tour is required"),
+    title: z.string().min(1, "Step title is required"),
+    content: z.string().min(1, "Step content is required"),
+    targetElement: z.string().optional(),
+    position: z.enum(['top', 'right', 'bottom', 'left']).default('bottom'),
+    stepOrder: z.number().int().min(0, "Step order is required"),
+    skipIf: z.string().optional(),
+  });
+
+export const insertUserTourProgressSchema = createInsertSchema(user_tour_progress)
+  .omit({
+    id: true,
+    lastAccessed: true,
+  })
+  .extend({
+    userId: z.number().int().positive("User is required"),
+    tourId: z.number().int().positive("Tour is required"),
+    completed: z.boolean().default(false),
+    currentStep: z.number().int().min(0).default(0),
+    completedAt: z.date().optional(),
+  });
+
+export type InsertProductTour = z.infer<typeof insertProductTourSchema>;
+export type InsertTourStep = z.infer<typeof insertTourStepSchema>;
+export type InsertUserTourProgress = z.infer<typeof insertUserTourProgressSchema>;
+
+// Tour relations
+export const productToursRelations = relations(product_tours, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [product_tours.organizationId],
+    references: [organizations.id],
+  }),
+  steps: many(tour_steps),
+  progress: many(user_tour_progress),
+}));
+
+export const tourStepsRelations = relations(tour_steps, ({ one }) => ({
+  tour: one(product_tours, {
+    fields: [tour_steps.tourId],
+    references: [product_tours.id],
+  }),
+}));
+
+export const userTourProgressRelations = relations(user_tour_progress, ({ one }) => ({
+  user: one(users, {
+    fields: [user_tour_progress.userId],
+    references: [users.id],
+  }),
+  tour: one(product_tours, {
+    fields: [user_tour_progress.tourId],
+    references: [product_tours.id],
+  }),
+}));
