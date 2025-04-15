@@ -40,6 +40,9 @@ export function MyQuizzesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  
+  // State for active tab selection
+  const [activeTab, setActiveTab] = useState<'practice' | 'assessment'>('practice');
 
   // Store a map of which quizzes have attempts
   const [quizAttempts, setQuizAttempts] = useState<Record<number, QuizAttempt[]>>({});
@@ -154,9 +157,6 @@ export function MyQuizzesPage() {
   // Filter quizzes by type
   const internalQuizzes = quizzes.filter(quiz => quiz.quizType === 'internal');
   const finalQuizzes = quizzes.filter(quiz => quiz.quizType === 'final');
-  
-  // State for active tab selection
-  const [activeTab, setActiveTab] = useState<'practice' | 'assessment'>('practice');
   
   // Function to render a quiz card
   const renderQuizCard = (quiz: Quiz) => {
