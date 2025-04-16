@@ -95,6 +95,10 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       `/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`,
       activeTab !== "all" ? { status: activeTab } : undefined,
     ],
+    onSuccess: (data) => {
+      console.log("Quiz attempts data:", data);
+      console.log("Final quiz attempts:", data?.filter(attempt => attempt.quiz?.quizType === 'final'));
+    }
   });
 
   // Mutation for scheduling refresher training
@@ -244,28 +248,32 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : quizAttempts && quizAttempts.length > 0 ? (
-              <Table>
-                <TableCaption>
-                  {activeTab === "all" 
-                    ? "All final assessment results" 
-                    : activeTab === "passed" 
-                      ? "Final assessments with passing scores" 
-                      : "Final assessments with failing scores"}
-                </TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Trainee</TableHead>
-                    <TableHead>Quiz</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {quizAttempts
-                    .filter((attempt: QuizAttempt) => attempt.quiz?.quizType === 'final')
-                    .map((attempt: QuizAttempt) => (
+              // Get only final quizzes
+              (() => {
+                const finalQuizAttempts = quizAttempts
+                  .filter((attempt: QuizAttempt) => attempt.quiz?.quizType === 'final');
+                
+                return finalQuizAttempts.length > 0 ? (
+                  <Table>
+                    <TableCaption>
+                      {activeTab === "all" 
+                        ? "All final assessment results" 
+                        : activeTab === "passed" 
+                          ? "Final assessments with passing scores" 
+                          : "Final assessments with failing scores"}
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Trainee</TableHead>
+                        <TableHead>Quiz</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {finalQuizAttempts.map((attempt: QuizAttempt) => (
                     <TableRow key={attempt.id}>
                       <TableCell className="font-medium">
                         {attempt.user?.fullName || `User ${attempt.userId}`}
@@ -332,9 +340,15 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                   ))}
                 </TableBody>
               </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No final quiz attempts found for this filter
+                  </div>
+                );
+              })()
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No final quiz attempts found for this filter
+                No quiz attempts found
               </div>
             )}
           </TabsContent>
