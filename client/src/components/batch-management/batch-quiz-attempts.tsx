@@ -57,6 +57,7 @@ type QuizAttempt = {
     name: string | null;
     description: string | null;
     passingScore: number | null;
+    quizType: 'internal' | 'final';
   };
 };
 
@@ -224,17 +225,17 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Trainee Assessment Results</CardTitle>
+        <CardTitle>Final Assessment Results</CardTitle>
         <CardDescription>
-          View quiz attempts and manage trainee progress
+          View final quiz results and manage trainee certifications
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
           <TabsList className="mb-4">
-            <TabsTrigger value="all">Recent Assessments</TabsTrigger>
-            <TabsTrigger value="passed">Passed Assessments</TabsTrigger>
-            <TabsTrigger value="failed">Failed Assessments</TabsTrigger>
+            <TabsTrigger value="all">All Final Assessments</TabsTrigger>
+            <TabsTrigger value="passed">Passed Final Assessments</TabsTrigger>
+            <TabsTrigger value="failed">Failed Final Assessments</TabsTrigger>
           </TabsList>
           
           <TabsContent value={activeTab}>
@@ -246,10 +247,10 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
               <Table>
                 <TableCaption>
                   {activeTab === "all" 
-                    ? "All recent assessment attempts" 
+                    ? "All final assessment results" 
                     : activeTab === "passed" 
-                      ? "Assessments with passing scores" 
-                      : "Assessments with failing scores"}
+                      ? "Final assessments with passing scores" 
+                      : "Final assessments with failing scores"}
                 </TableCaption>
                 <TableHeader>
                   <TableRow>
@@ -262,7 +263,9 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {quizAttempts.map((attempt: QuizAttempt) => (
+                  {quizAttempts
+                    .filter((attempt: QuizAttempt) => attempt.quiz?.quizType === 'final')
+                    .map((attempt: QuizAttempt) => (
                     <TableRow key={attempt.id}>
                       <TableCell className="font-medium">
                         {attempt.user?.fullName || `User ${attempt.userId}`}
@@ -331,7 +334,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
               </Table>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No quiz attempts found for this filter
+                No final quiz attempts found for this filter
               </div>
             )}
           </TabsContent>

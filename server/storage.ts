@@ -4161,7 +4161,8 @@ export class DatabaseStorage implements IStorage {
           quizDescription: quizzes.description,
           passingScore: quizzes.passingScore,
           userName: users.fullName,
-          passingScore: quizzes.passingScore
+          passingScore: quizzes.passingScore,
+          quizType: quizzes.quizType
         })
         .from(quizAttempts)
         .leftJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
@@ -4182,7 +4183,8 @@ export class DatabaseStorage implements IStorage {
           id: attempt.quizId,
           name: attempt.quizName,
           description: attempt.quizDescription,
-          passingScore: attempt.passingScore
+          passingScore: attempt.passingScore,
+          quizType: attempt.quizType
         },
         user: {
           fullName: attempt.userName
