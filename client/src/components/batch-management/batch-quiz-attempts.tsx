@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -93,16 +93,38 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     queryKey: [
       `/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`,
       statusFilter !== "all" ? { status: statusFilter } : undefined,
-    ]
+    ],
+    queryFn: async ({ queryKey }) => {
+      console.log('Query key for attempts:', queryKey);
+      // Build the URL with proper query parameters
+      const url = new URL(queryKey[0] as string, window.location.origin);
+      
+      // Add status filter if present
+      if (statusFilter !== "all") {
+        url.searchParams.append('status', statusFilter);
+      }
+      
+      console.log('Fetching quiz attempts with URL:', url.toString());
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch quiz attempts');
+      }
+      
+      return response.json();
+    }
   });
   
-  // Debug logging - Uncomment to trace the data
-  // React.useEffect(() => {
-  //   if (quizAttempts) {
-  //     console.log("Quiz attempts data:", quizAttempts);
-  //     console.log("Final quiz attempts:", quizAttempts?.filter((attempt: any) => attempt.quiz?.quizType === 'final'));
-  //   }
-  // }, [quizAttempts]);
+  // Enable debug logging to see data flow
+  React.useEffect(() => {
+    console.log("Status filter changed to:", statusFilter);
+    console.log("Quiz attempts:", quizAttempts);
+    if (quizAttempts) {
+      console.log("Final quiz attempts:", quizAttempts?.filter((attempt: any) => attempt.quiz?.quizType === 'final'));
+    }
+  }, [statusFilter, quizAttempts]);
 
   // Mutation for scheduling refresher training
   const scheduleRefresherMutation = useMutation({
@@ -245,7 +267,14 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
           </div>
           <Select 
             value={statusFilter} 
-            onValueChange={(value) => setStatusFilter(value as "all" | "passed" | "failed")}
+            onValueChange={(value) => {
+              console.log('Changing status filter to:', value);
+              setStatusFilter(value as "all" | "passed" | "failed");
+              // Force refetch with the new filter
+              queryClient.invalidateQueries({ 
+                queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`] 
+              });
+            }}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by status" />
