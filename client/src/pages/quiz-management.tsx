@@ -202,6 +202,25 @@ export function QuizManagement() {
   const inactiveQuestions = useMemo(() => {
     return allQuestions.filter(q => !q.active);
   }, [allQuestions]);
+  
+  // Filter questions based on search term
+  const filteredActiveQuestions = useMemo(() => {
+    if (!searchTerm.trim()) return activeQuestions;
+    return activeQuestions.filter(q => 
+      q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.process?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [activeQuestions, searchTerm]);
+  
+  const filteredInactiveQuestions = useMemo(() => {
+    if (!searchTerm.trim()) return inactiveQuestions;
+    return inactiveQuestions.filter(q => 
+      q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.process?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [inactiveQuestions, searchTerm]);
 
   const templateForm = useForm<QuizTemplateFormValues>({
     resolver: zodResolver(quizTemplateSchema),
@@ -627,6 +646,9 @@ export function QuizManagement() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
+  // Add search functionality
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
   // Add state for tracking unique categories from questions
   const categories = useMemo(() => {
     if (!allQuestions) return new Set<string>();
@@ -879,6 +901,31 @@ export function QuizManagement() {
                       )}
                     />
                   </div>
+                  <div className="flex-1">
+                    <FormItem>
+                      <FormLabel>Search Questions</FormLabel>
+                      <div className="flex items-center relative">
+                        <Input
+                          type="text"
+                          placeholder="Search by question, category, or process"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pr-10"
+                        />
+                        {searchTerm && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 h-7 w-7"
+                            onClick={() => setSearchTerm("")}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </FormItem>
+                  </div>
                   <div className="flex items-end">
                     <Dialog open={isAddQuestionOpen} onOpenChange={(open) => {
                       setIsAddQuestionOpen(open);
@@ -1127,9 +1174,11 @@ export function QuizManagement() {
                     </h3>
                     {activeQuestions.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No active questions found.</p>
+                    ) : filteredActiveQuestions.length === 0 && searchTerm ? (
+                      <p className="text-sm text-muted-foreground">No active questions match your search.</p>
                     ) : (
                       <div className="grid gap-4">
-                        {activeQuestions.map((question: QuestionWithProcess) => (
+                        {filteredActiveQuestions.map((question: QuestionWithProcess) => (
                     <Card key={question.id} className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="space-y-1">
