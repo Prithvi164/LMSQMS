@@ -168,8 +168,8 @@ export function QuizManagement() {
           console.log('[Quiz Management] Fetching all questions (no process filter)');
         }
         
-        // Always include inactive questions in the management interface
-        url.searchParams.append('includeInactive', 'true');
+        // Only show active questions by default
+        // No includeInactive parameter means only active questions will be returned
 
         const response = await fetch(url, {
           credentials: 'include'
