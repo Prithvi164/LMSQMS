@@ -15,7 +15,7 @@ import ResetPasswordPage from "@/pages/reset-password";
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
 import TraineeManagement from "@/pages/trainee-management";
-import QuizManagement from "@/pages/quiz-management";
+import { QuizManagement } from "@/pages/quiz-management";
 import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
