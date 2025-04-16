@@ -463,6 +463,309 @@ export function QuizManagement() {
     setIsTemplateDialogOpen(true);
   };
 
+  // QuestionForm Component Definition
+  function QuestionForm({ 
+    question, 
+    processes, 
+    onSubmit, 
+    onCancel 
+  }: { 
+    question: Question | null; 
+    processes: Process[]; 
+    onSubmit: (data: QuestionFormValues) => void; 
+    onCancel: () => void;
+  }) {
+    const [questionType, setQuestionType] = useState(question?.type || "multiple_choice");
+    
+    const form = useForm<QuestionFormValues>({
+      resolver: zodResolver(questionFormSchema),
+      defaultValues: {
+        id: question?.id,
+        question: question?.question || "",
+        type: question?.type || "multiple_choice",
+        options: question?.options || [],
+        correctAnswer: question?.correctAnswer || "",
+        explanation: question?.explanation || "",
+        processId: question?.processId || null,
+        category: question?.category || "",
+        difficulty: question?.difficulty || "medium",
+        active: question?.active !== false,
+      },
+    });
+
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Question input */}
+          <FormField
+            control={form.control}
+            name="question"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Question</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Enter the question text"
+                    className="min-h-[100px]"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Question type selector */}
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Question Type</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    setQuestionType(value as "multiple_choice" | "true_false" | "short_answer");
+                  }}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select question type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                    <SelectItem value="true_false">True/False</SelectItem>
+                    <SelectItem value="short_answer">Short Answer</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Options for multiple choice */}
+          {questionType === "multiple_choice" && (
+            <FormField
+              control={form.control}
+              name="options"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Options (one per line)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter each option on a new line"
+                      className="min-h-[100px]"
+                      value={Array.isArray(field.value) ? field.value.join("\n") : field.value}
+                      onChange={(e) => {
+                        const options = e.target.value.split("\n").map(opt => opt.trim()).filter(opt => opt.length > 0);
+                        field.onChange(options);
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Enter each option on a new line. These will be displayed as choices.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* Correct answer field */}
+          <FormField
+            control={form.control}
+            name="correctAnswer"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Correct Answer</FormLabel>
+                {questionType === "multiple_choice" ? (
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select the correct option" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Array.isArray(form.watch("options")) &&
+                        form.watch("options").map((option, index) => (
+                          <SelectItem key={index} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                ) : questionType === "true_false" ? (
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select True or False" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="true">True</SelectItem>
+                      <SelectItem value="false">False</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <FormControl>
+                    <Input
+                      placeholder="Enter the correct answer"
+                      {...field}
+                    />
+                  </FormControl>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Explanation field */}
+          <FormField
+            control={form.control}
+            name="explanation"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Explanation (Optional)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Enter an explanation for the correct answer"
+                    className="min-h-[100px]"
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  This will be shown to learners after they answer the question.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Process selector */}
+          <FormField
+            control={form.control}
+            name="processId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Process</FormLabel>
+                <Select
+                  onValueChange={(value) => field.onChange(value === "" ? null : Number(value))}
+                  defaultValue={field.value ? field.value.toString() : ""}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a process" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {processes.map((process: any) => (
+                      <SelectItem key={process.id} value={process.id.toString()}>
+                        {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Associate this question with a specific process.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Category field */}
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category (Optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g., Customer Service, Technical"
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Categorize this question for better organization.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Difficulty selector */}
+          <FormField
+            control={form.control}
+            name="difficulty"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Difficulty</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select difficulty level" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="easy">Easy</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Active toggle */}
+          <FormField
+            control={form.control}
+            name="active"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Active</FormLabel>
+                  <FormDescription>
+                    Only active questions can be included in quizzes.
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {/* Form actions */}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              {question ? "Update Question" : "Create Question"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
+    );
+  }
+
   return (
     <div className="container max-w-7xl mx-auto py-6">
       <div className="mb-6">
