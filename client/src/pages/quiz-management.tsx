@@ -657,8 +657,8 @@ export function QuizManagement() {
               <FormItem>
                 <FormLabel>Process</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(value === "" ? null : Number(value))}
-                  defaultValue={field.value ? field.value.toString() : ""}
+                  onValueChange={(value) => field.onChange(value === "null" ? null : Number(value))}
+                  defaultValue={field.value ? field.value.toString() : "null"}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -793,8 +793,8 @@ export function QuizManagement() {
                         <FormItem>
                           <FormLabel>Filter by Process</FormLabel>
                           <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            onValueChange={(value) => field.onChange(value === "all" ? "" : value)}
+                            defaultValue={field.value === "" ? "all" : field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -1413,8 +1413,8 @@ export function QuizManagement() {
                   <FormItem>
                     <FormLabel>Process</FormLabel>
                     <Select
-                      onValueChange={(value) => field.onChange(value === "" ? null : Number(value))}
-                      defaultValue={field.value ? field.value.toString() : ""}
+                      onValueChange={(value) => field.onChange(value === "null" ? null : Number(value))}
+                      defaultValue={field.value ? field.value.toString() : "null"}
                     >
                       <FormControl>
                         <SelectTrigger>
