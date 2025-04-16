@@ -4,27 +4,23 @@ import { setupVite, serveStatic, log } from "./vite";
 import rateLimit from 'express-rate-limit';
 import { startBatchStatusCron } from './cron/batch-status-cron';
 import { initializeEmailService } from './email-service';
+import logger from './utils/logger';
 
-// Add debug logging
-const DEBUG = true;
-function debugLog(message: string) {
-  if (DEBUG) {
-    console.log(`[DEBUG] ${new Date().toISOString()}: ${message}`);
-  }
-}
+// Environment check
+const isProduction = process.env.NODE_ENV === 'production';
 
-debugLog("Starting server initialization");
+logger.debug("Starting server initialization");
 
 const app = express();
-debugLog("Express app created");
+logger.debug("Express app created");
 
 // Configure trust proxy - Add this before other middleware
 app.set('trust proxy', 1);
-debugLog("Trust proxy configured");
+logger.debug("Trust proxy configured");
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-debugLog("Basic middleware setup complete");
+logger.debug("Basic middleware setup complete");
 
 // Configure rate limiting
 const limiter = rateLimit({
@@ -37,7 +33,7 @@ const limiter = rateLimit({
 
 // Apply rate limiting to API routes
 app.use('/api', limiter);
-debugLog("Rate limiting configured");
+logger.debug("Rate limiting configured");
 
 // Enhanced request logging middleware
 app.use((req, res, next) => {
@@ -67,13 +63,13 @@ app.use((req, res, next) => {
 
   next();
 });
-debugLog("Request logging middleware setup complete");
+logger.debug("Request logging middleware setup complete");
 
 // Add a test route to verify server is handling requests
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", mode: app.get("env") });
 });
-debugLog("Health check route added");
+logger.debug("Health check route added");
 
 // Serve static files from the public directory
 app.use(express.static('public'));
@@ -84,22 +80,22 @@ app.get('/ultra-simple-template.xlsx', (_req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="ultra-simple-template.xlsx"');
   res.sendFile('ultra-simple-template.xlsx', { root: '.' });
 });
-debugLog("Static file routes added");
+logger.debug("Static file routes added");
 
 (async () => {
   try {
-    debugLog("Starting async initialization");
+    logger.debug("Starting async initialization");
 
     // Create HTTP server explicitly
-    debugLog("Registering routes...");
+    logger.debug("Registering routes...");
     const server = await registerRoutes(app);
-    debugLog("Routes registered successfully");
+    logger.debug("Routes registered successfully");
 
     // Start the batch status update cron job
-    debugLog("Starting batch status cron job...");
+    logger.debug("Starting batch status cron job...");
     startBatchStatusCron();
     log("Started batch status update cron job");
-    debugLog("Batch status cron job started");
+    logger.debug("Batch status cron job started");
 
     // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -108,21 +104,21 @@ debugLog("Static file routes added");
       log(`Error: ${message}`);
       res.status(status).json({ message });
     });
-    debugLog("Error handling middleware setup complete");
+    logger.debug("Error handling middleware setup complete");
 
     // Detect environment
     const nodeEnv = process.env.NODE_ENV || "development";
     app.set("env", nodeEnv);
-    debugLog(`Environment set to: ${app.get("env")}`);
+    logger.debug(`Environment set to: ${app.get("env")}`);
 
     if (app.get("env") === "development") {
-      debugLog("Setting up Vite middleware for development");
+      logger.debug("Setting up Vite middleware for development");
       await setupVite(app, server);
-      debugLog("Vite middleware setup complete");
+      logger.debug("Vite middleware setup complete");
     } else {
-      debugLog("Setting up static file serving for production");
+      logger.debug("Setting up static file serving for production");
       serveStatic(app);
-      debugLog("Static file serving setup complete");
+      logger.debug("Static file serving setup complete");
     }
 
     // Setup server listening
@@ -130,10 +126,10 @@ debugLog("Static file routes added");
       // In production environments (like Replit deployment), always use the provided PORT
       if (app.get("env") !== "development") {
         const port = parseInt(process.env.PORT || '8080');
-        debugLog(`Using production port: ${port}`);
+        logger.debug(`Using production port: ${port}`);
         await new Promise<void>((resolve) => {
           server.listen(port, '0.0.0.0', () => {
-            debugLog(`Server listening on port ${port} in production mode`);
+            logger.debug(`Server listening on port ${port} in production mode`);
             resolve();
           });
         });
@@ -151,7 +147,7 @@ debugLog("Static file routes added");
           return port;
         } catch (error: any) {
           if (error.code === 'EADDRINUSE' && port < 5010) {
-            debugLog(`Port ${port} in use, trying ${port + 1}`);
+            logger.debug(`Port ${port} in use, trying ${port + 1}`);
             return tryPort(port + 1);
           }
           throw error;
@@ -159,17 +155,17 @@ debugLog("Static file routes added");
       };
 
       const startPort = parseInt(process.env.PORT || '5001');
-      debugLog(`Attempting to start server on port ${startPort}`);
+      logger.debug(`Attempting to start server on port ${startPort}`);
       return tryPort(startPort);
     };
 
     const port = await startListening();
     log(`Server running in ${app.get("env")} mode`);
     log(`API and client being served on port ${port}`);
-    debugLog("Server started successfully");
+    logger.debug("Server started successfully");
 
   } catch (error) {
-    debugLog(`Fatal error during initialization: ${error}`);
+    logger.error(`Fatal error during initialization: ${error}`);
     log(`Failed to start server: ${error}`);
     process.exit(1);
   }

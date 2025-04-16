@@ -214,18 +214,18 @@ export function findNextWorkingDay(
   considerHolidays: boolean = true,
   holidays: Holiday[] = []
 ): Date {
-  console.log(`🔍 Finding next working day after ${format(date, 'yyyy-MM-dd')}`);
-  console.log(`   Weekly off days: ${weeklyOffDays.join(', ')}`);
-  console.log(`   Consider holidays: ${considerHolidays}`);
+  logger.debug(`🔍 Finding next working day after ${format(date, 'yyyy-MM-dd')}`);
+  logger.debug(`   Weekly off days: ${weeklyOffDays.join(', ')}`);
+  logger.debug(`   Consider holidays: ${considerHolidays}`);
   
   // Check if the given date is already a working day
   const isOffDay = isNonWorkingDay(date, weeklyOffDays, considerHolidays, holidays);
   if (!isOffDay) {
-    console.log(`✅ ${format(date, 'yyyy-MM-dd')} is already a working day`);
+    logger.debug(`✅ ${format(date, 'yyyy-MM-dd')} is already a working day`);
     return date;
   }
   
-  console.log(`❌ ${format(date, 'yyyy-MM-dd')} is a non-working day, searching for next working day...`);
+  logger.debug(`❌ ${format(date, 'yyyy-MM-dd')} is a non-working day, searching for next working day...`);
   
   // Keep adding days until we find a working day
   let currentDate = new Date(date);
@@ -234,15 +234,15 @@ export function findNextWorkingDay(
   while (isNonWorkingDay(currentDate, weeklyOffDays, considerHolidays, holidays)) {
     attempts++;
     currentDate = addDays(currentDate, 1);
-    console.log(`   Checking ${format(currentDate, 'yyyy-MM-dd')} (${currentDate.toLocaleDateString('en-US', { weekday: 'long' })})...`);
+    logger.debug(`   Checking ${format(currentDate, 'yyyy-MM-dd')} (${currentDate.toLocaleDateString('en-US', { weekday: 'long' })})...`);
     
     if (attempts > 10) {
-      console.warn('⚠️ Excessive iterations looking for a working day, possible infinite loop');
+      logger.warn('⚠️ Excessive iterations looking for a working day, possible infinite loop');
       break;
     }
   }
   
-  console.log(`✅ Found next working day: ${format(currentDate, 'yyyy-MM-dd')}`);
+  logger.debug(`✅ Found next working day: ${format(currentDate, 'yyyy-MM-dd')}`);
   return currentDate;
 }
 
@@ -265,22 +265,22 @@ export function calculatePhaseDates({
   considerHolidays?: boolean;
   holidays?: Holiday[];
 }) {
-  console.log('🧮 CALCULATING PHASE DATES');
-  console.log(`📆 Start Date: ${typeof startDate === 'string' ? startDate : format(startDate, 'yyyy-MM-dd')}`);
-  console.log(`🔄 Weekly Off Days: ${weeklyOffDays.join(', ')}`);
-  console.log(`🏖️ Consider Holidays: ${considerHolidays}`);
-  console.log(`🗓️ Holidays count: ${holidays?.length || 0}`);
-  console.log('📋 Phase durations (working days):');
-  console.log(`   Induction: ${phaseDurations.induction}`);
-  console.log(`   Training: ${phaseDurations.training}`);
-  console.log(`   Certification: ${phaseDurations.certification}`);
-  console.log(`   OJT: ${phaseDurations.ojt}`);
-  console.log(`   OJT Certification: ${phaseDurations.ojtCertification}`);
+  logger.debug('🧮 CALCULATING PHASE DATES');
+  logger.debug(`📆 Start Date: ${typeof startDate === 'string' ? startDate : format(startDate, 'yyyy-MM-dd')}`);
+  logger.debug(`🔄 Weekly Off Days: ${weeklyOffDays.join(', ')}`);
+  logger.debug(`🏖️ Consider Holidays: ${considerHolidays}`);
+  logger.debug(`🗓️ Holidays count: ${holidays?.length || 0}`);
+  logger.debug('📋 Phase durations (working days):');
+  logger.debug(`   Induction: ${phaseDurations.induction}`);
+  logger.debug(`   Training: ${phaseDurations.training}`);
+  logger.debug(`   Certification: ${phaseDurations.certification}`);
+  logger.debug(`   OJT: ${phaseDurations.ojt}`);
+  logger.debug(`   OJT Certification: ${phaseDurations.ojtCertification}`);
   
   if (considerHolidays && holidays && holidays.length > 0) {
-    console.log('🏖️ Holidays included in calculation:');
+    logger.debug('🏖️ Holidays included in calculation:');
     holidays.forEach((h, i) => {
-      console.log(`   ${i+1}. ${h.name}: ${h.date} (Recurring: ${h.isRecurring})`);
+      logger.debug(`   ${i+1}. ${h.name}: ${h.date} (Recurring: ${h.isRecurring})`);
     });
   }
   
@@ -289,10 +289,10 @@ export function calculatePhaseDates({
   // Check if the start date is a non-working day (weekly off or holiday)
   // If so, find the next working day
   start = findNextWorkingDay(start, weeklyOffDays, considerHolidays, holidays);
-  console.log(`✅ Adjusted start date: ${format(start, 'yyyy-MM-dd')}`);
+  logger.debug(`✅ Adjusted start date: ${format(start, 'yyyy-MM-dd')}`);
   
   // Induction Phase
-  console.log('🔍 Calculating INDUCTION PHASE:');
+  logger.debug('🔍 Calculating INDUCTION PHASE:');
   const inductionStart = start;
   const inductionEnd = calculateWorkingDays(
     inductionStart,
@@ -304,7 +304,7 @@ export function calculatePhaseDates({
   );
   
   // Training Phase
-  console.log('🔍 Calculating TRAINING PHASE:');
+  logger.debug('🔍 Calculating TRAINING PHASE:');
   const trainingStart = phaseDurations.induction === 0 ? inductionEnd : 
     calculateWorkingDays(inductionEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const trainingEnd = calculateWorkingDays(
@@ -317,7 +317,7 @@ export function calculatePhaseDates({
   );
   
   // Certification Phase
-  console.log('🔍 Calculating CERTIFICATION PHASE:');
+  logger.debug('🔍 Calculating CERTIFICATION PHASE:');
   const certificationStart = phaseDurations.training === 0 ? trainingEnd : 
     calculateWorkingDays(trainingEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const certificationEnd = calculateWorkingDays(
@@ -330,7 +330,7 @@ export function calculatePhaseDates({
   );
   
   // OJT Phase
-  console.log('🔍 Calculating OJT PHASE:');
+  logger.debug('🔍 Calculating OJT PHASE:');
   const ojtStart = phaseDurations.certification === 0 ? certificationEnd : 
     calculateWorkingDays(certificationEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const ojtEnd = calculateWorkingDays(
@@ -343,7 +343,7 @@ export function calculatePhaseDates({
   );
   
   // OJT Certification Phase
-  console.log('🔍 Calculating OJT CERTIFICATION PHASE:');
+  logger.debug('🔍 Calculating OJT CERTIFICATION PHASE:');
   const ojtCertificationStart = phaseDurations.ojt === 0 ? ojtEnd : 
     calculateWorkingDays(ojtEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const ojtCertificationEnd = calculateWorkingDays(
@@ -356,17 +356,17 @@ export function calculatePhaseDates({
   );
   
   // Handover to Ops
-  console.log('🔍 Calculating HANDOVER DATE:');
+  logger.debug('🔍 Calculating HANDOVER DATE:');
   const handoverToOps = phaseDurations.ojtCertification === 0 ? ojtCertificationEnd : 
     calculateWorkingDays(ojtCertificationEnd, 1, weeklyOffDays, considerHolidays, holidays);
   
-  console.log('📅 FINAL CALCULATED PHASE DATES:');
-  console.log(`   Induction: ${format(inductionStart, 'yyyy-MM-dd')} to ${format(inductionEnd, 'yyyy-MM-dd')}`);
-  console.log(`   Training: ${format(trainingStart, 'yyyy-MM-dd')} to ${format(trainingEnd, 'yyyy-MM-dd')}`);
-  console.log(`   Certification: ${format(certificationStart, 'yyyy-MM-dd')} to ${format(certificationEnd, 'yyyy-MM-dd')}`);
-  console.log(`   OJT: ${format(ojtStart, 'yyyy-MM-dd')} to ${format(ojtEnd, 'yyyy-MM-dd')}`);
-  console.log(`   OJT Certification: ${format(ojtCertificationStart, 'yyyy-MM-dd')} to ${format(ojtCertificationEnd, 'yyyy-MM-dd')}`);
-  console.log(`   Handover: ${format(handoverToOps, 'yyyy-MM-dd')}`);
+  logger.debug('📅 FINAL CALCULATED PHASE DATES:');
+  logger.debug(`   Induction: ${format(inductionStart, 'yyyy-MM-dd')} to ${format(inductionEnd, 'yyyy-MM-dd')}`);
+  logger.debug(`   Training: ${format(trainingStart, 'yyyy-MM-dd')} to ${format(trainingEnd, 'yyyy-MM-dd')}`);
+  logger.debug(`   Certification: ${format(certificationStart, 'yyyy-MM-dd')} to ${format(certificationEnd, 'yyyy-MM-dd')}`);
+  logger.debug(`   OJT: ${format(ojtStart, 'yyyy-MM-dd')} to ${format(ojtEnd, 'yyyy-MM-dd')}`);
+  logger.debug(`   OJT Certification: ${format(ojtCertificationStart, 'yyyy-MM-dd')} to ${format(ojtCertificationEnd, 'yyyy-MM-dd')}`);
+  logger.debug(`   Handover: ${format(handoverToOps, 'yyyy-MM-dd')}`);
   
   return {
     inductionStart,
