@@ -153,9 +153,9 @@ export function QuizManagement() {
     enabled: !!user?.organizationId
   });
 
-  // Update the questions query with detailed logging
-  const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
-    queryKey: ['/api/questions', selectedProcessId],
+  // Update the questions query with detailed logging to include all questions (active and inactive)
+  const { data: allQuestions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
+    queryKey: ['/api/questions', selectedProcessId, true], // Add true to include inactive questions
     queryFn: async () => {
       try {
         const url = new URL('/api/questions', window.location.origin);
@@ -168,8 +168,8 @@ export function QuizManagement() {
           console.log('[Quiz Management] Fetching all questions (no process filter)');
         }
         
-        // Only show active questions by default
-        // No includeInactive parameter means only active questions will be returned
+        // Include both active and inactive questions
+        url.searchParams.append('includeInactive', 'true');
 
         const response = await fetch(url, {
           credentials: 'include'
@@ -182,7 +182,7 @@ export function QuizManagement() {
         console.log('[Quiz Management] API Response:', {
           selectedProcess: selectedProcessId,
           questionCount: data.length,
-          questions: data.map(q => ({ id: q.id, processId: q.processId }))
+          questions: data.map((q: QuestionWithProcess) => ({ id: q.id, processId: q.processId, active: q.active }))
         });
 
         return data;
@@ -193,6 +193,15 @@ export function QuizManagement() {
     },
     enabled: !!user?.organizationId,
   });
+  
+  // Separate questions into active and inactive
+  const activeQuestions = useMemo(() => {
+    return allQuestions.filter(q => q.active);
+  }, [allQuestions]);
+  
+  const inactiveQuestions = useMemo(() => {
+    return allQuestions.filter(q => !q.active);
+  }, [allQuestions]);
 
   const templateForm = useForm<QuizTemplateFormValues>({
     resolver: zodResolver(quizTemplateSchema),
@@ -620,9 +629,9 @@ export function QuizManagement() {
 
   // Add state for tracking unique categories from questions
   const categories = useMemo(() => {
-    if (!questions) return new Set<string>();
-    return new Set(questions.map(q => q.category));
-  }, [questions]);
+    if (!allQuestions) return new Set<string>();
+    return new Set(allQuestions.map((q: QuestionWithProcess) => q.category));
+  }, [allQuestions]);
 
   const difficulties = [1, 2, 3, 4, 5];
 
@@ -1106,11 +1115,21 @@ export function QuizManagement() {
 
               {questionsLoading ? (
                 <p>Loading questions...</p>
-              ) : questions?.length === 0 ? (
+              ) : allQuestions?.length === 0 ? (
                 <p>No questions found for the selected process.</p>
               ) : (
-                <div className="grid gap-4">
-                  {questions?.map((question: QuestionWithProcess) => (
+                <div className="space-y-6">
+                  {/* Active Questions Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center">
+                      <span className="mr-2">Active Questions</span>
+                      <Badge>{activeQuestions.length}</Badge>
+                    </h3>
+                    {activeQuestions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No active questions found.</p>
+                    ) : (
+                      <div className="grid gap-4">
+                        {activeQuestions.map((question: QuestionWithProcess) => (
                     <Card key={question.id} className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="space-y-1">
@@ -1121,9 +1140,7 @@ export function QuizManagement() {
                                 Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
                               </Badge>
                             )}
-                            <Badge variant={question.active ? "default" : "destructive"}>
-                              {question.active ? "Active" : "Inactive"}
-                            </Badge>
+                            <Badge variant="default">Active</Badge>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1150,7 +1167,7 @@ export function QuizManagement() {
 
                           {hasPermission('manage_quiz') && (
                             <Button
-                              variant={question.active ? "outline" : "secondary"}
+                              variant="outline"
                               size="sm"
                               onClick={() => toggleQuestionActiveMutation.mutate({ 
                                 id: question.id, 
@@ -1160,12 +1177,10 @@ export function QuizManagement() {
                             >
                               {toggleQuestionActiveMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              ) : question.active ? (
-                                <EyeOff className="h-4 w-4 mr-1" />
                               ) : (
-                                <Eye className="h-4 w-4 mr-1" />
+                                <EyeOff className="h-4 w-4 mr-1" />
                               )}
-                              {question.active ? "Deactivate" : "Activate"}
+                              Deactivate
                             </Button>
                           )}
                           
@@ -1247,7 +1262,158 @@ export function QuizManagement() {
                         )}
                       </div>
                     </Card>
-                  ))}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inactive Questions Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center">
+                      <span className="mr-2">Inactive Questions</span>
+                      <Badge variant="outline">{inactiveQuestions.length}</Badge>
+                    </h3>
+                    {inactiveQuestions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No inactive questions found.</p>
+                    ) : (
+                      <div className="grid gap-4">
+                        {inactiveQuestions.map((question: QuestionWithProcess) => (
+                          <Card key={question.id} className="p-4 border-dashed">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="space-y-1">
+                                <h3 className="font-medium text-lg text-muted-foreground">{question.question}</h3>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {question.processId && (
+                                    <Badge variant="outline">
+                                      Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="destructive">Inactive</Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {hasPermission('manage_quiz') ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditQuestion(question)}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    className="opacity-50"
+                                  >
+                                    <ShieldAlert className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Button>
+                                )}
+
+                                {hasPermission('manage_quiz') && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => toggleQuestionActiveMutation.mutate({ 
+                                      id: question.id, 
+                                      currentState: question.active 
+                                    })}
+                                    disabled={toggleQuestionActiveMutation.isPending}
+                                  >
+                                    {toggleQuestionActiveMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : (
+                                      <Eye className="h-4 w-4 mr-1" />
+                                    )}
+                                    Activate
+                                  </Button>
+                                )}
+                                
+                                {hasPermission('manage_quiz') ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-600"
+                                    onClick={() => setDeletingQuestionId(question.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    className="opacity-50"
+                                  >
+                                    <ShieldAlert className="h-4 w-4 mr-1" />
+                                    Delete
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 opacity-75">
+                              {question.type === 'multiple_choice' && (
+                                <div className="ml-4 space-y-1">
+                                  {question.options.map((option, index) => (
+                                    <div
+                                      key={index}
+                                      className={`flex items-center gap-2 p-2 rounded-md ${
+                                        option === question.correctAnswer
+                                          ? 'bg-green-100/50 dark:bg-green-900/10'
+                                          : ''
+                                        }`}
+                                    >
+                                      <span className="w-6">{String.fromCharCode(65 + index)}.</span>
+                                      <span>{option}</span>
+                                      {option === question.correctAnswer && (
+                                        <span className="text-sm text-green-600/70 dark:text-green-400/70 ml-2">
+                                          (Correct)
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {question.type === 'true_false' && (
+                                <div className="ml-4 space-y-1">
+                                  <div className={`p-2 rounded-md ${
+                                    'true' === question.correctAnswer ? 'bg-green-100/50 dark:bg-green-900/10' : ''
+                                  }`}>
+                                    True {question.correctAnswer === 'true' && '(Correct)'}
+                                  </div>
+                                  <div className={`p-2 rounded-md ${
+                                    'false' === question.correctAnswer ? 'bg-green-100/50 dark:bg-green-900/10' : ''
+                                  }`}>
+                                    False {question.correctAnswer === 'false' && '(Correct)'}
+                                  </div>
+                                </div>
+                              )}
+
+                              {question.type === 'short_answer' && (
+                                <div className="ml-4 p-2 bg-green-100/50 dark:bg-green-900/10 rounded-md">
+                                  <span className="font-medium">Correct Answer: </span>
+                                  {question.correctAnswer}
+                                </div>
+                              )}
+
+                              {question.explanation && (
+                                <div className="mt-2 p-3 bg-muted/30 rounded-md">
+                                  <span className="font-medium">Explanation: </span>
+                                  {question.explanation}
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
