@@ -4,14 +4,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
+  Copy,
+  Edit,
+  Loader2,
+  PlusCircle,
+  Pencil,
+  Trash2,
+  EyeOff,
+  Eye,
+  ShieldAlert,
+  AlertTriangle
+} from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,7 +29,16 @@ import type { Question, QuizTemplate, OrganizationBatch } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -38,21 +50,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Copy,
-  Edit,
-  Loader2,
-  PlusCircle,
-  Pencil,
-  Trash2,
-  EyeOff,
-  Eye,
-  ShieldAlert,
-  AlertTriangle
-} from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
-// Define interfaces first
+// Define interfaces
 interface Process {
   id: number;
   name: string;
@@ -112,9 +112,6 @@ const quizTemplateSchema = z.object({
   ).optional(),
   batchId: z.number().nullable(),
   active: z.boolean().default(true),
-  shuffleQuestions: z.boolean().default(true),
-  shuffleOptions: z.boolean().default(true),
-  quizType: z.enum(["internal", "final"]).default("internal"),
 });
 
 const filterFormSchema = z.object({
@@ -125,7 +122,7 @@ const templateFilterFormSchema = z.object({
   processId: z.string().optional(),
 });
 
-// Main component for Quiz Management
+// MAIN COMPONENT FOR QUIZ MANAGEMENT PAGE
 export function QuizManagement() {
   // Basic initialization
   const { toast } = useToast();
@@ -145,32 +142,6 @@ export function QuizManagement() {
   const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
 
-  // Forms for filtering
-  const filterForm = useForm<FilterFormValues>({
-    defaultValues: {
-      processId: '',
-    }
-  });
-
-  const templateFilterForm = useForm<TemplateFilterFormValues>({
-    defaultValues: {
-      processId: '',
-    }
-  });
-
-  // Watch for changes to processId in filter forms
-  const watchProcessId = filterForm.watch('processId');
-  const watchTemplateProcessId = templateFilterForm.watch('processId');
- 
-  // Effect to update selected process IDs when filter forms change
-  if (watchProcessId !== '' && Number(watchProcessId) !== selectedProcessId) {
-    setSelectedProcessId(Number(watchProcessId));
-  }
-  
-  if (watchTemplateProcessId !== '' && Number(watchTemplateProcessId) !== selectedTemplateProcessId) {
-    setSelectedTemplateProcessId(Number(watchTemplateProcessId));
-  }
-
   // Data Queries
   const { data: processes = [] } = useQuery({
     queryKey: ['/api/processes'],
@@ -180,14 +151,38 @@ export function QuizManagement() {
     queryKey: ['/api/organization-batches'],
   });
 
+  const filterForm = useForm({
+    defaultValues: {
+      processId: '',
+    }
+  });
+
+  const templateFilterForm = useForm({
+    defaultValues: {
+      processId: '',
+    }
+  });
+
+  // Watch for changes to processId in filter forms
+  const watchProcessId = filterForm.watch('processId');
+  const watchTemplateProcessId = templateFilterForm.watch('processId');
+
+  // Effect to update selected process IDs when filter forms change
+  if (watchProcessId !== '' && Number(watchProcessId) !== selectedProcessId) {
+    setSelectedProcessId(Number(watchProcessId));
+  }
+  
+  if (watchTemplateProcessId !== '' && Number(watchTemplateProcessId) !== selectedTemplateProcessId) {
+    setSelectedTemplateProcessId(Number(watchTemplateProcessId));
+  }
+
   // Query for questions with process filter
   const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
     queryKey: ['/api/questions', selectedProcessId],
     queryFn: async () => {
       try {
         const url = new URL('/api/questions', window.location.origin);
-        url.searchParams.append('includeInactive', 'true');
-        
+
         if (selectedProcessId) {
           url.searchParams.append('processId', selectedProcessId.toString());
           console.log('[Quiz Management] Fetching questions with URL:', url.toString());
@@ -196,6 +191,9 @@ export function QuizManagement() {
           console.log('[Quiz Management] Fetching all questions (no process filter)');
         }
         
+        // Only show active questions by default
+        // No includeInactive parameter means only active questions will be returned
+
         const response = await fetch(url, {
           credentials: 'include'
         });
@@ -207,7 +205,7 @@ export function QuizManagement() {
         console.log('[Quiz Management] API Response:', {
           selectedProcess: selectedProcessId,
           questionCount: data.length,
-          questions: data.map((q: any) => ({ id: q.id, processId: q.processId }))
+          questions: data.map(q => ({ id: q.id, processId: q.processId }))
         });
         return data;
       } catch (error) {
@@ -241,7 +239,7 @@ export function QuizManagement() {
       }
     },
   });
-
+  
   // Mutation for updating/creating questions
   const updateQuestionMutation = useMutation({
     mutationFn: async (data: Partial<Question>) => {
@@ -316,153 +314,6 @@ export function QuizManagement() {
     },
   });
 
-  // Mutation for deleting quiz templates
-  const deleteTemplateMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest({
-        url: `/api/quiz-templates/${id}`,
-        method: 'DELETE',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
-      toast({
-        title: "Success",
-        description: "Quiz template deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete quiz template: " + error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutation for updating/creating quiz templates
-  const updateTemplateMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest({
-        url: data.id ? `/api/quiz-templates/${data.id}` : '/api/quiz-templates',
-        method: data.id ? 'PATCH' : 'POST',
-        data,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
-      toast({
-        title: "Success",
-        description: "Quiz template saved successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: "Failed to save quiz template: " + error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Form submission handlers
-  const onSubmitQuestion = async (data: QuestionFormValues) => {
-    try {
-      // Convert string options to array if it's a multiple choice question
-      let formattedData = { ...data };
-      
-      if (data.type === "multiple_choice" && typeof data.options === "string") {
-        formattedData.options = (data.options as unknown as string)
-          .split("\n")
-          .map(option => option.trim())
-          .filter(option => option.length > 0);
-      }
-      
-      console.log('[Quiz Management] Submitting question:', formattedData);
-      
-      // Handle question submission
-      await updateQuestionMutation.mutateAsync({
-        ...formattedData,
-        processId: formattedData.processId || null,
-        organizationId: 1, // Default organization ID
-      });
-      
-      // Reset editing state
-      setEditingQuestion(null);
-    } catch (error) {
-      console.error('[Quiz Management] Error submitting question:', error);
-    }
-  };
-
-  const onSubmitTemplate = async (data: QuizTemplateFormValues) => {
-    try {
-      // Format the batchId (convert "none" to null)
-      const formattedData = {
-        ...data,
-        organizationId: 1, // Default organization ID
-        batchId: data.batchId === "none" ? null : data.batchId,
-      };
-      
-      console.log('[Quiz Management] Submitting template:', formattedData);
-      
-      // Handle template submission
-      await updateTemplateMutation.mutateAsync(formattedData);
-      
-      // Reset editing state
-      setEditingTemplate(null);
-    } catch (error) {
-      console.error('[Quiz Management] Error submitting template:', error);
-    }
-  };
-
-  // Preview random questions for a template
-  const previewRandomQuestions = async (data: QuizTemplateFormValues) => {
-    try {
-      // Format the request data
-      const requestData = {
-        ...data,
-        batchId: data.batchId === "none" ? null : data.batchId,
-        preview: true, // Indicate this is a preview request
-      };
-      
-      // Get random questions based on template criteria
-      const response = await apiRequest({
-        url: '/api/quiz-templates/preview-questions',
-        method: 'POST',
-        data: requestData,
-      });
-      
-      // Update preview state
-      setPreviewQuestions(response?.questions || []);
-      setIsQuestionPreviewOpen(true);
-    } catch (error) {
-      console.error('[Quiz Management] Error previewing random questions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to preview random questions",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handler for editing a question
-  const handleEditQuestion = (question: Question) => {
-    setEditingQuestion(question);
-    setIsQuestionDialogOpen(true);
-  };
-
-  // Handler for editing a template
-  const handleEditTemplate = (template: QuizTemplate) => {
-    // Convert null batchId to "none" for the form
-    const templateWithFormattedBatchId = {
-      ...template,
-      batchId: template.batchId === null ? "none" : template.batchId,
-    };
-    
-    setEditingTemplate(templateWithFormattedBatchId as any);
-    setIsTemplateDialogOpen(true);
-  };
-
   return (
     <div className="container max-w-7xl mx-auto py-6">
       <div className="mb-6">
@@ -500,7 +351,7 @@ export function QuizManagement() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="">All Processes</SelectItem>
-                              {processes.map((process: any) => (
+                              {processes.map((process) => (
                                 <SelectItem key={process.id} value={process.id.toString()}>
                                   {process.name}
                                 </SelectItem>
@@ -525,69 +376,37 @@ export function QuizManagement() {
                       </Button>
                     </div>
                   )}
+
+                  {/* Question Dialog */}
+                  <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>
+                          {editingQuestion ? "Edit Question" : "Add New Question"}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {editingQuestion
+                            ? "Update the question details below."
+                            : "Create a new question for quizzes."}
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <QuestionForm
+                        question={editingQuestion}
+                        processes={processes}
+                        onSubmit={(data) => {
+                          onSubmitQuestion(data);
+                          setIsQuestionDialogOpen(false);
+                        }}
+                        onCancel={() => setIsQuestionDialogOpen(false)}
+                      />
+                    </DialogContent>
+                  </Dialog>
                 </form>
               </Form>
 
-              {/* Question Dialog */}
-              <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingQuestion ? "Edit Question" : "Add New Question"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {editingQuestion
-                        ? "Update the question details below."
-                        : "Create a new question for quizzes."}
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <QuestionForm
-                    question={editingQuestion}
-                    processes={processes}
-                    onSubmit={(data: any) => {
-                      onSubmitQuestion(data);
-                      setIsQuestionDialogOpen(false);
-                    }}
-                    onCancel={() => setIsQuestionDialogOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
-
-              {/* Delete Question Confirmation */}
-              <AlertDialog 
-                open={deletingQuestionId !== null} 
-                onOpenChange={(isOpen) => !isOpen && setDeletingQuestionId(null)}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the question.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        if (deletingQuestionId) {
-                          deleteQuestionMutation.mutate(deletingQuestionId);
-                          setDeletingQuestionId(null);
-                        }
-                      }}
-                      className="bg-red-500 hover:bg-red-600"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
               {questionsLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-muted-foreground">Loading questions...</span>
-                </div>
+                <p>Loading questions...</p>
               ) : questions?.length === 0 ? (
                 <p>No questions found for the selected process.</p>
               ) : (
@@ -615,7 +434,7 @@ export function QuizManagement() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {question.processId && (
                                     <Badge variant="outline">
-                                      Process: {processes.find((p: any) => p.id === question.processId)?.name || 'Unknown Process'}
+                                      Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
                                     </Badge>
                                   )}
                                   <Badge variant="default">Active</Badge>
@@ -770,7 +589,7 @@ export function QuizManagement() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {question.processId && (
                                     <Badge variant="outline">
-                                      Process: {processes.find((p: any) => p.id === question.processId)?.name || 'Unknown Process'}
+                                      Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
                                     </Badge>
                                   )}
                                   <Badge variant="destructive">Inactive</Badge>
@@ -908,316 +727,9 @@ export function QuizManagement() {
         </TabsContent>
 
         <TabsContent value="templates">
-          <Card className="p-4">
-            <div className="flex flex-col gap-4">
-              {/* Template content goes here */}
-            </div>
-          </Card>
+          {/* Templates content goes here */}
         </TabsContent>
       </Tabs>
-
-      {/* Question Form Component Definition */}
-      {function QuestionForm({ 
-        question, 
-        processes, 
-        onSubmit, 
-        onCancel 
-      }: { 
-        question: Question | null; 
-        processes: Process[]; 
-        onSubmit: (data: QuestionFormValues) => void; 
-        onCancel: () => void;
-      }) {
-        const [questionType, setQuestionType] = useState(question?.type || "multiple_choice");
-        
-        const form = useForm<QuestionFormValues>({
-          resolver: zodResolver(questionFormSchema),
-          defaultValues: {
-            id: question?.id,
-            question: question?.question || "",
-            type: question?.type || "multiple_choice",
-            options: question?.options || [],
-            correctAnswer: question?.correctAnswer || "",
-            explanation: question?.explanation || "",
-            processId: question?.processId || null,
-            category: question?.category || "",
-            difficulty: question?.difficulty || "medium",
-            active: question?.active !== false,
-          },
-        });
-
-        return (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {/* Question input */}
-              <FormField
-                control={form.control}
-                name="question"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Question</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter the question text"
-                        className="min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Question type selector */}
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Question Type</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setQuestionType(value as "multiple_choice" | "true_false" | "short_answer");
-                      }}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select question type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                        <SelectItem value="true_false">True/False</SelectItem>
-                        <SelectItem value="short_answer">Short Answer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Options for multiple choice */}
-              {questionType === "multiple_choice" && (
-                <FormField
-                  control={form.control}
-                  name="options"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Options (one per line)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter each option on a new line"
-                          className="min-h-[100px]"
-                          value={Array.isArray(field.value) ? field.value.join("\n") : field.value}
-                          onChange={(e) => {
-                            const options = e.target.value.split("\n").map(opt => opt.trim()).filter(opt => opt.length > 0);
-                            field.onChange(options);
-                          }}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter each option on a new line. These will be displayed as choices.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* Correct answer field */}
-              <FormField
-                control={form.control}
-                name="correctAnswer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correct Answer</FormLabel>
-                    {questionType === "multiple_choice" ? (
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select the correct option" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Array.isArray(form.watch("options")) &&
-                            form.watch("options").map((option, index) => (
-                              <SelectItem key={index} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    ) : questionType === "true_false" ? (
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select True or False" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="true">True</SelectItem>
-                          <SelectItem value="false">False</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <FormControl>
-                        <Input
-                          placeholder="Enter the correct answer"
-                          {...field}
-                        />
-                      </FormControl>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Explanation field */}
-              <FormField
-                control={form.control}
-                name="explanation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Explanation (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter an explanation for the correct answer"
-                        className="min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      This will be shown to learners after they answer the question.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Process selector */}
-              <FormField
-                control={form.control}
-                name="processId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Process</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(value === "" ? null : Number(value))}
-                      defaultValue={field.value ? field.value.toString() : ""}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a process" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">None</SelectItem>
-                        {processes.map((process) => (
-                          <SelectItem key={process.id} value={process.id.toString()}>
-                            {process.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Associate this question with a specific process.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Category field */}
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g., Customer Service, Technical"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Categorize this question for better organization.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Difficulty selector */}
-              <FormField
-                control={form.control}
-                name="difficulty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Difficulty</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select difficulty level" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="easy">Easy</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="hard">Hard</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Active toggle */}
-              <FormField
-                control={form.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active</FormLabel>
-                      <FormDescription>
-                        Only active questions can be included in quizzes.
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {/* Form actions */}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onCancel}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {question ? "Update Question" : "Create Question"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        );
-      }}
     </div>
   );
 }
