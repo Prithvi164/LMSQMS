@@ -417,7 +417,7 @@ export function QuizManagement() {
           throw new Error(errorData.message || 'Failed to add question');
         }
 
-        await queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId, true] });
 
         toast({
           title: "Success",
@@ -682,7 +682,7 @@ export function QuizManagement() {
     filterForm.setValue('processId', value);
     // Force refetch questions with new process filter
     queryClient.invalidateQueries({
-      queryKey: ['/api/questions', value === 'all' ? null : parseInt(value)]
+      queryKey: ['/api/questions', value === 'all' ? null : parseInt(value), true]
     });
   };
 
