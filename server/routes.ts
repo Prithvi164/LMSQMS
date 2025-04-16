@@ -3393,6 +3393,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         oneTimeOnly: template.oneTimeOnly,
         quizType: template.quizType || 'internal'
       });
+      
+      // Increment the generation count for this template
+      await storage.updateQuizTemplate(templateId, {
+        generationCount: (template.generationCount || 0) + 1
+      });
 
       res.status(201).json(quiz);
     } catch (error: any) {

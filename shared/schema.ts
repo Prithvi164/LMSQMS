@@ -263,6 +263,7 @@ export const quizTemplates = pgTable("quiz_templates", {
   difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(),
   quizType: quizTypeEnum("quiz_type").default('internal').notNull(),
   oneTimeOnly: boolean("one_time_only").default(false).notNull(),
+  generationCount: integer("generation_count").default(0).notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
