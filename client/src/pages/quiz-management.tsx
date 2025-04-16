@@ -48,7 +48,8 @@ import {
   CalendarDays,
   Briefcase,
   User,
-  BarChart
+  BarChart,
+  X
 } from "lucide-react";
 
 // Process filter form schema
@@ -128,7 +129,7 @@ export function QuizManagement() {
   const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<QuizTemplate | null>(null);
   const [deletingQuizId, setDeletingQuizId] = useState<number | null>(null);
-
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   // Create a form for the process filter
   const filterForm = useForm<FilterFormValues>({
@@ -646,8 +647,7 @@ export function QuizManagement() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
-  // Add search functionality
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  // Search functionality is already defined at the top of component
 
   // Add state for tracking unique categories from questions
   const categories = useMemo(() => {
@@ -1324,9 +1324,11 @@ export function QuizManagement() {
                     </h3>
                     {inactiveQuestions.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No inactive questions found.</p>
+                    ) : filteredInactiveQuestions.length === 0 && searchTerm ? (
+                      <p className="text-sm text-muted-foreground">No inactive questions match your search.</p>
                     ) : (
                       <div className="grid gap-4">
-                        {inactiveQuestions.map((question: QuestionWithProcess) => (
+                        {filteredInactiveQuestions.map((question: QuestionWithProcess) => (
                           <Card key={question.id} className="p-4 border-dashed">
                             <div className="flex justify-between items-start mb-2">
                               <div className="space-y-1">
