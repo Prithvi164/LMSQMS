@@ -237,6 +237,7 @@ export const questions = pgTable("questions", {
   explanation: text("explanation"),
   difficultyLevel: integer("difficulty_level").notNull(),
   category: text("category").notNull(),
+  active: boolean("active").default(true).notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
@@ -364,6 +365,7 @@ export const insertQuestionSchema = createInsertSchema(questions)
     explanation: z.string().optional(),
     difficultyLevel: z.number().int().min(1).max(5),
     category: z.string().min(1, "Category is required"),
+    active: z.boolean().default(true),
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),

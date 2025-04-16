@@ -2515,15 +2515,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const processId = req.query.processId ? parseInt(req.query.processId as string) : null;
-      console.log('Fetching questions with process filter:', processId);
+      // Check if we should include inactive questions
+      const includeInactive = req.query.includeInactive === 'true';
+      console.log(`Fetching questions with process filter: ${processId}, includeInactive: ${includeInactive}`);
 
       let questions;
       if (processId) {
         // If processId is provided, filter questions by process
-        questions = await storage.listQuestionsByProcess(req.user.organizationId, processId);
+        questions = await storage.listQuestionsByProcess(req.user.organizationId, processId, includeInactive);
       } else {
         // If no processId, get all questions for the organization
-        questions = await storage.listQuestions(req.user.organizationId);
+        questions = await storage.listQuestions(req.user.organizationId, includeInactive);
       }
 
       console.log(`Retrieved ${questions.length} questions for process ${processId || 'all'}`);
@@ -2644,6 +2646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         categoryDistribution?: Record<string, number>;
         difficultyDistribution?: Record<string, number>;
         processId?: number;
+        includeInactive?: boolean;
       } = { count };
 
       // Parse category distribution if provided
@@ -2680,6 +2683,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!isNaN(processId) && processId > 0) {
           options.processId = processId;
         }
+      }
+      
+      // Parse includeInactive parameter if provided
+      if (req.query.includeInactive) {
+        options.includeInactive = req.query.includeInactive === 'true';
       }
 
       console.log('Getting random questions with options:', options);
@@ -2843,6 +2851,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedQuestion);
     } catch (error: any) {
       console.error("Error updating question:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Toggle question active state
+  app.patch("/api/questions/:id/toggle-active", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const questionId = parseInt(req.params.id);
+      if (isNaN(questionId)) {
+        return res.status(400).json({ message: "Invalid question ID" });
+      }
+
+      // Get the existing question to verify ownership and check current active state
+      const existingQuestion = await storage.getQuestionById(questionId);
+      if (!existingQuestion) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      // Verify organization ownership
+      if (existingQuestion.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Toggle the active state
+      const newActiveState = !existingQuestion.active;
+      
+      // Update the question with the new active state
+      const updatedQuestion = await storage.updateQuestion(questionId, {
+        active: newActiveState
+      });
+
+      res.json({
+        message: `Question ${newActiveState ? 'activated' : 'deactivated'} successfully`,
+        question: updatedQuestion
+      });
+    } catch (error: any) {
+      console.error("Error toggling question active state:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -6968,8 +7017,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
+      // Check if we should include inactive questions
+      const includeInactive = req.query.includeInactive === 'true';
+      console.log(`Fetching questions with includeInactive=${includeInactive}`);
+      
       // Get questions for the user's organization  
-      const questions = await storage.listQuestions(req.user.organizationId);
+      const questions = await storage.listQuestions(req.user.organizationId, includeInactive);
       res.json(questions);
     } catch (error: any) {
       console.error("Error fetching questions:", error);

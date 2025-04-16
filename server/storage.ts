@@ -295,7 +295,7 @@ export interface IStorage {
 
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
-  listQuestions(organizationId: number): Promise<Question[]>;
+  listQuestions(organizationId: number, includeInactive?: boolean): Promise<Question[]>;
   getRandomQuestions(
     organizationId: number,
     options: {
@@ -305,7 +305,7 @@ export interface IStorage {
       processId?: number;
     }
   ): Promise<Question[]>;
-  listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
+  listQuestionsByProcess(organizationId: number, processId: number, includeInactive?: boolean): Promise<Question[]>;
   updateQuestion(id: number, question: Partial<Question>): Promise<Question>;
   deleteQuestion(id: number): Promise<void>;
   getQuestionById(id: number): Promise<Question | undefined>;
@@ -3691,12 +3691,12 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listQuestions(organizationId: number): Promise<Question[]> {
+  async listQuestions(organizationId: number, includeInactive: boolean = false): Promise<Question[]> {
     try {
-      console.log(`Fetching all questions for organization ${organizationId}`);
+      console.log(`Fetching questions for organization ${organizationId}, includeInactive: ${includeInactive}`);
 
       // Select all columns explicitly and use the correct table reference
-      const results = await db
+      let query = db
         .select({
           id: questions.id,
           question: questions.question,
@@ -3706,6 +3706,7 @@ export class DatabaseStorage implements IStorage {
           explanation: questions.explanation,
           difficultyLevel: questions.difficultyLevel,
           category: questions.category,
+          active: questions.active,
           organizationId: questions.organizationId,
           createdBy: questions.createdBy,
           processId: questions.processId,
@@ -3713,7 +3714,14 @@ export class DatabaseStorage implements IStorage {
           updatedAt: questions.updatedAt
         })
         .from(questions)
-        .where(eq(questions.organizationId, organizationId)) as Question[];
+        .where(eq(questions.organizationId, organizationId));
+        
+      // If we're not including inactive questions, add the active filter
+      if (!includeInactive) {
+        query = query.where(eq(questions.active, true));
+      }
+      
+      const results = await query as Question[];
 
       console.log(`Found ${results.length} questions`);
       return results;
@@ -3735,11 +3743,16 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Getting random questions with options:', options);
 
-      // Base query for questions
+      // Base query for questions (only active questions)
       let query = db
         .select()
         .from(questions)
-        .where(eq(questions.organizationId, organizationId));
+        .where(
+          and(
+            eq(questions.organizationId, organizationId),
+            eq(questions.active, true)
+          )
+        );
 
       if (options.processId) {
         query = query.where(eq(questions.processId, options.processId));
@@ -3809,11 +3822,11 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {
+  async listQuestionsByProcess(organizationId: number, processId: number, includeInactive: boolean = false): Promise<Question[]> {
     try {
-      console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
+      console.log(`Fetching questions for organization ${organizationId} and process ${processId}, includeInactive: ${includeInactive}`);
 
-      const results = await db
+      let query = db
         .select()
         .from(questions)
         .where(
@@ -3821,7 +3834,14 @@ export class DatabaseStorage implements IStorage {
             eq(questions.organizationId, organizationId),
             eq(questions.processId, processId)
           )
-        ) as Question[];
+        );
+        
+      // If we're not including inactive questions, add the active filter
+      if (!includeInactive) {
+        query = query.where(eq(questions.active, true));
+      }
+      
+      const results = await query as Question[];
 
       console.log(`Found ${results.length} questions for process ${processId}`);
       return results;

@@ -40,6 +40,7 @@ import {
   PlayCircle, 
   Edit, 
   Eye, 
+  EyeOff,
   ShieldAlert, 
   Clock, 
   FileQuestion, 
@@ -70,6 +71,7 @@ interface Process {
 
 interface QuestionWithProcess extends Question {
   process?: Process;
+  active: boolean;
 }
 
 // Question form schema
@@ -165,8 +167,13 @@ export function QuizManagement() {
         } else {
           console.log('[Quiz Management] Fetching all questions (no process filter)');
         }
+        
+        // Always include inactive questions in the management interface
+        url.searchParams.append('includeInactive', 'true');
 
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          credentials: 'include'
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch questions');
         }
@@ -220,6 +227,7 @@ export function QuizManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data.question),
+        credentials: 'include'
       });
       if (!response.ok) {
         throw new Error('Failed to update question');
@@ -248,6 +256,7 @@ export function QuizManagement() {
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/questions/${id}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
       if (!response.ok) {
         throw new Error('Failed to delete question');
@@ -260,6 +269,49 @@ export function QuizManagement() {
         description: "Question deleted successfully",
       });
       setDeletingQuestionId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Add toggle active mutation
+  const toggleQuestionActiveMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/questions/${id}/toggle-active`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        // If the response is 401, it's an authentication error
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please refresh the page and try again.');
+        }
+        
+        // Try to parse error message from response, but handle case where it's not JSON
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to toggle question active state');
+        } catch (e) {
+          // If we can't parse the response as JSON, throw a generic error
+          throw new Error(`Failed to toggle question active state: ${response.statusText}`);
+        }
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      toast({
+        title: "Success",
+        description: data.message || "Question state updated successfully",
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -306,6 +358,7 @@ export function QuizManagement() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(questionData),
+          credentials: 'include'
         });
 
         if (!response.ok) {
@@ -372,6 +425,7 @@ export function QuizManagement() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(templateData),
+          credentials: 'include'
         });
 
         if (!response.ok) {
@@ -405,6 +459,7 @@ export function QuizManagement() {
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/quiz-templates/${id}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
 
       // Even if we get an error, if the template is gone, consider it a success
@@ -452,6 +507,7 @@ export function QuizManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data.template),
+        credentials: 'include'
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -488,6 +544,7 @@ export function QuizManagement() {
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/quizzes/${id}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -542,7 +599,9 @@ export function QuizManagement() {
         params.append('difficultyDistribution', JSON.stringify(data.difficultyDistribution));
       }
 
-      const response = await fetch(`/api/random-questions?${params}`);
+      const response = await fetch(`/api/random-questions?${params}`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error('Failed to get random questions');
       }
@@ -614,7 +673,9 @@ export function QuizManagement() {
         url.searchParams.append('processId', selectedTemplateProcessId);
       }
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch quiz templates');
       }
@@ -668,7 +729,8 @@ export function QuizManagement() {
         body: JSON.stringify({
           status: 'active',
           durationInHours 
-        })
+        }),
+        credentials: 'include'
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -1011,13 +1073,16 @@ export function QuizManagement() {
                       <div className="flex justify-between items-start mb-2">
                         <div className="space-y-1">
                           <h3 className="font-medium text-lg">{question.question}</h3>
-                          {question.processId && (
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {question.processId && (
                               <Badge variant="outline">
                                 Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
                               </Badge>
-                            </div>
-                          )}
+                            )}
+                            <Badge variant={question.active ? "default" : "destructive"}>
+                              {question.active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {hasPermission('manage_quiz') ? (
@@ -1038,6 +1103,23 @@ export function QuizManagement() {
                             >
                               <ShieldAlert className="h-4 w-4 mr-1" />
                               Edit
+                            </Button>
+                          )}
+
+                          {hasPermission('manage_quiz') && (
+                            <Button
+                              variant={question.active ? "outline" : "secondary"}
+                              size="sm"
+                              onClick={() => toggleQuestionActiveMutation.mutate(question.id)}
+                            >
+                              {toggleQuestionActiveMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : question.active ? (
+                                <EyeOff className="h-4 w-4 mr-1" />
+                              ) : (
+                                <Eye className="h-4 w-4 mr-1" />
+                              )}
+                              {question.active ? "Deactivate" : "Activate"}
                             </Button>
                           )}
                           
