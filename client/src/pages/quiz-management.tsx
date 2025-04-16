@@ -282,6 +282,8 @@ export function QuizManagement() {
   // Add toggle active mutation
   const toggleQuestionActiveMutation = useMutation({
     mutationFn: async (id: number) => {
+      console.log(`Attempting to toggle question ${id} active state`);
+      
       const response = await fetch(`/api/questions/${id}/toggle-active`, {
         method: 'PATCH',
         credentials: 'include',
@@ -289,24 +291,48 @@ export function QuizManagement() {
           'Content-Type': 'application/json'
         }
       });
+      
+      // Log the response details for debugging
+      console.log(`Toggle response status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
+      
       if (!response.ok) {
         // If the response is 401, it's an authentication error
         if (response.status === 401) {
+          console.error('Authentication error when toggling question state');
           throw new Error('Authentication failed. Please refresh the page and try again.');
         }
         
         // Try to parse error message from response, but handle case where it's not JSON
-        try {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to toggle question active state');
-        } catch (e) {
-          // If we can't parse the response as JSON, throw a generic error
-          throw new Error(`Failed to toggle question active state: ${response.statusText}`);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            console.error('Server returned error:', errorData);
+            throw new Error(errorData.message || 'Failed to toggle question active state');
+          } catch (e) {
+            console.error('Error parsing JSON response:', e);
+            throw new Error(`Failed to toggle question active state: ${response.statusText}`);
+          }
+        } else {
+          // If the response is not JSON, log and handle accordingly
+          const text = await response.text();
+          console.error('Received non-JSON response:', text);
+          throw new Error('Server returned an unexpected response. Please try again later.');
         }
       }
-      return response.json();
+      
+      try {
+        const data = await response.json();
+        console.log('Toggle successful:', data);
+        return data;
+      } catch (e) {
+        console.error('Error parsing success response:', e);
+        return { message: "Operation completed, but response could not be parsed" };
+      }
     },
     onSuccess: (data) => {
+      console.log('Toggle successful, invalidating queries...');
+      // Invalidate the questions query to refetch the updated data
       queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
       toast({
         title: "Success",
@@ -314,6 +340,7 @@ export function QuizManagement() {
       });
     },
     onError: (error: Error) => {
+      console.error('Error in toggle active mutation:', error);
       toast({
         title: "Error",
         description: error.message,

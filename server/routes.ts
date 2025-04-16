@@ -2857,35 +2857,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Toggle question active state
   app.patch("/api/questions/:id/toggle-active", async (req, res) => {
+    console.log("Toggle active request received for question ID:", req.params.id);
+    console.log("Auth user:", req.user);
+    
     if (!req.user || !req.user.organizationId) {
+      console.log("Unauthorized access attempt - no user or organization ID");
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     try {
       const questionId = parseInt(req.params.id);
       if (isNaN(questionId)) {
+        console.log("Invalid question ID:", req.params.id);
         return res.status(400).json({ message: "Invalid question ID" });
       }
 
+      console.log("Looking up question with ID:", questionId);
+      
       // Get the existing question to verify ownership and check current active state
       const existingQuestion = await storage.getQuestionById(questionId);
       if (!existingQuestion) {
+        console.log("Question not found with ID:", questionId);
         return res.status(404).json({ message: "Question not found" });
       }
 
+      console.log("Found question:", existingQuestion.id, existingQuestion.question.substring(0, 30));
+      
       // Verify organization ownership
       if (existingQuestion.organizationId !== req.user.organizationId) {
+        console.log("Access denied - organization mismatch", {
+          questionOrg: existingQuestion.organizationId,
+          userOrg: req.user.organizationId
+        });
         return res.status(403).json({ message: "Access denied" });
       }
 
       // Toggle the active state
       const newActiveState = !existingQuestion.active;
+      console.log("Toggling question active state from", existingQuestion.active, "to", newActiveState);
       
       // Update the question with the new active state
       const updatedQuestion = await storage.updateQuestion(questionId, {
         active: newActiveState
       });
 
+      console.log("Question updated successfully");
+      
       res.json({
         message: `Question ${newActiveState ? 'activated' : 'deactivated'} successfully`,
         question: updatedQuestion
