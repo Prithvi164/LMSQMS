@@ -281,8 +281,8 @@ export function QuizManagement() {
   
   // Add toggle active mutation
   const toggleQuestionActiveMutation = useMutation({
-    mutationFn: async (id: number) => {
-      console.log(`Attempting to toggle question ${id} active state`);
+    mutationFn: async ({ id, currentState }: { id: number, currentState: boolean }) => {
+      console.log(`Attempting to toggle question ${id} active state from ${currentState} to ${!currentState}`);
       
       const response = await fetch(`/api/questions/${id}/toggle-active`, {
         method: 'PATCH',
@@ -321,19 +321,34 @@ export function QuizManagement() {
         }
       }
       
+      const text = await response.text();
+      let data;
+      
       try {
-        const data = await response.json();
-        console.log('Toggle successful:', data);
-        return data;
+        // Only try to parse as JSON if there's actually content to parse
+        if (text.trim()) {
+          data = JSON.parse(text);
+          console.log('Toggle successful:', data);
+        } else {
+          // Handle empty response
+          data = { message: "Question status updated successfully" };
+        }
       } catch (e) {
         console.error('Error parsing success response:', e);
-        return { message: "Operation completed, but response could not be parsed" };
+        // Provide a more helpful message
+        data = { 
+          message: currentState ? "Question deactivated successfully" : "Question activated successfully",
+          parseFailed: true 
+        };
       }
+      
+      return { ...data, id, newState: !currentState };
     },
     onSuccess: (data) => {
-      console.log('Toggle successful, invalidating queries...');
+      console.log('Toggle successful, invalidating queries...', data);
       // Invalidate the questions query to refetch the updated data
       queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      
       toast({
         title: "Success",
         description: data.message || "Question state updated successfully",
@@ -1137,7 +1152,11 @@ export function QuizManagement() {
                             <Button
                               variant={question.active ? "outline" : "secondary"}
                               size="sm"
-                              onClick={() => toggleQuestionActiveMutation.mutate(question.id)}
+                              onClick={() => toggleQuestionActiveMutation.mutate({ 
+                                id: question.id, 
+                                currentState: question.active 
+                              })}
+                              disabled={toggleQuestionActiveMutation.isPending}
                             >
                               {toggleQuestionActiveMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
