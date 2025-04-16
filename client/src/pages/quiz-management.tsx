@@ -1213,7 +1213,690 @@ export function QuizManagement() {
         <TabsContent value="templates">
           <Card className="p-4">
             <div className="flex flex-col gap-4">
-              {/* Template content goes here */}
+              {/* Template Filter Form */}
+              <Form {...templateFilterForm}>
+                <form className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <FormField
+                      control={templateFilterForm.control}
+                      name="processId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Filter by Process</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(value === "all" ? "" : value)}
+                            defaultValue={field.value === "" ? "all" : field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a process" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="all">All Processes</SelectItem>
+                              {processes.map((process: any) => (
+                                <SelectItem key={process.id} value={process.id.toString()}>
+                                  {process.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {hasPermission('manage_quiz') && (
+                    <div className="flex items-end">
+                      <Button
+                        onClick={() => {
+                          setEditingTemplate(null);
+                          setIsTemplateDialogOpen(true);
+                        }}
+                      >
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        Create Template
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              </Form>
+
+              {/* Template Dialog */}
+              <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingTemplate ? "Edit Quiz Template" : "Create Quiz Template"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingTemplate
+                        ? "Update the quiz template details below."
+                        : "Create a template for generating quizzes with random questions based on specified criteria."}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <Form {...templateForm}>
+                    <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
+                      {/* Template name */}
+                      <FormField
+                        control={templateForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Template Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter a descriptive name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Description */}
+                      <FormField
+                        control={templateForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter a description of this template"
+                                className="min-h-[80px]"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Total Questions */}
+                      <FormField
+                        control={templateForm.control}
+                        name="totalQuestions"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Total Questions</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min={1} 
+                                max={50}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                value={field.value}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Number of questions to include in each generated quiz.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Time Limit */}
+                      <FormField
+                        control={templateForm.control}
+                        name="timeLimit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Time Limit (minutes)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min={1} 
+                                max={180}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                value={field.value}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Time allowed for completing the quiz (0 means no time limit).
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Process Selection */}
+                      <FormField
+                        control={templateForm.control}
+                        name="processId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process</FormLabel>
+                            <Select
+                              onValueChange={(value) => field.onChange(value === "null" ? null : Number(value))}
+                              defaultValue={field.value ? field.value.toString() : "null"}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a process" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="null">Any Process</SelectItem>
+                                {processes.map((process: any) => (
+                                  <SelectItem key={process.id} value={process.id.toString()}>
+                                    {process.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Specify a process to draw questions from, or 'Any Process' to include all.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Passing Score */}
+                      <FormField
+                        control={templateForm.control}
+                        name="passingScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Passing Score (%)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min={1} 
+                                max={100}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                value={field.value}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Minimum percentage required to pass the quiz.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Difficulty Distribution */}
+                      <div className="space-y-2">
+                        <FormLabel>Difficulty Distribution</FormLabel>
+                        <div className="grid grid-cols-3 gap-4">
+                          <FormField
+                            control={templateForm.control}
+                            name="easyPercentage"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Easy (%)</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                    value={field.value}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={templateForm.control}
+                            name="mediumPercentage"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Medium (%)</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                    value={field.value}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={templateForm.control}
+                            name="hardPercentage"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Hard (%)</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                    value={field.value}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <FormDescription>
+                          Percentages should add up to 100%.
+                        </FormDescription>
+                      </div>
+
+                      {/* Batch Restriction */}
+                      <FormField
+                        control={templateForm.control}
+                        name="restrictToBatch"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">Restrict to Specific Batch</FormLabel>
+                              <FormDescription>
+                                When enabled, the quiz will only be available to trainees in the selected batch.
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      {templateForm.watch('restrictToBatch') && (
+                        <FormField
+                          control={templateForm.control}
+                          name="batchId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Batch</FormLabel>
+                              <Select
+                                onValueChange={(value) => field.onChange(Number(value))}
+                                defaultValue={field.value ? field.value.toString() : undefined}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a batch" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {batches.map((batch: any) => (
+                                    <SelectItem key={batch.id} value={batch.id.toString()}>
+                                      {batch.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+
+                      {/* Preview button and Form actions */}
+                      <div className="flex items-center justify-between">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const data = templateForm.getValues();
+                            previewRandomQuestions(data);
+                          }}
+                          disabled={previewQuestionsQuery.isPending}
+                        >
+                          {previewQuestionsQuery.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading Preview...
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Preview Questions
+                            </>
+                          )}
+                        </Button>
+
+                        <div className="space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsTemplateDialogOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit" disabled={createTemplateMutation.isPending}>
+                            {createTemplateMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : editingTemplate ? (
+                              "Update Template"
+                            ) : (
+                              "Create Template"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Template Preview Dialog */}
+              <Dialog open={previewQuestions.length > 0} onOpenChange={(open) => !open && setPreviewQuestions([])}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Question Preview</DialogTitle>
+                    <DialogDescription>
+                      Sample of questions that might be included in quizzes generated from this template.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4 my-4">
+                    {previewQuestions.length === 0 ? (
+                      <p className="text-center text-muted-foreground">No matching questions found for the criteria.</p>
+                    ) : (
+                      previewQuestions.map((question, index) => (
+                        <Card key={index} className="p-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="outline">
+                                {question.difficulty || 'Unknown'} Difficulty
+                              </Badge>
+                              {question.processId && (
+                                <Badge variant="secondary">
+                                  Process: {processes.find((p: any) => p.id === question.processId)?.name || 'Unknown Process'}
+                                </Badge>
+                              )}
+                            </div>
+                            <h3 className="font-medium text-lg">{question.question}</h3>
+                            
+                            {question.type === 'multiple_choice' && (
+                              <div className="ml-4 space-y-1">
+                                {question.options.map((option: string, optIndex: number) => (
+                                  <div
+                                    key={optIndex}
+                                    className={`flex items-center gap-2 p-2 rounded-md ${
+                                      option === question.correctAnswer
+                                        ? 'bg-green-100 dark:bg-green-900/20'
+                                        : ''
+                                      }`}
+                                  >
+                                    <span className="w-6">{String.fromCharCode(65 + optIndex)}.</span>
+                                    <span>{option}</span>
+                                    {option === question.correctAnswer && (
+                                      <span className="text-sm text-green-600 dark:text-green-400 ml-2">
+                                        (Correct)
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {question.type === 'true_false' && (
+                              <div className="ml-4 space-y-1">
+                                <div className={`p-2 rounded-md ${
+                                  'true' === question.correctAnswer ? 'bg-green-100 dark:bg-green-900/20' : ''
+                                }`}>
+                                  True {question.correctAnswer === 'true' && '(Correct)'}
+                                </div>
+                                <div className={`p-2 rounded-md ${
+                                  'false' === question.correctAnswer ? 'bg-green-100 dark:bg-green-900/20' : ''
+                                }`}>
+                                  False {question.correctAnswer === 'false' && '(Correct)'}
+                                </div>
+                              </div>
+                            )}
+
+                            {question.type === 'short_answer' && (
+                              <div className="ml-4 p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
+                                <span className="font-medium">Correct Answer: </span>
+                                {question.correctAnswer}
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+
+                  <DialogFooter>
+                    <Button onClick={() => setPreviewQuestions([])}>Close Preview</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Delete Template Confirmation */}
+              <AlertDialog 
+                open={deletingTemplateId !== null} 
+                onOpenChange={(isOpen) => !isOpen && setDeletingTemplateId(null)}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the quiz template.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        if (deletingTemplateId) {
+                          deleteTemplateMutation.mutate(deletingTemplateId);
+                          setDeletingTemplateId(null);
+                        }
+                      }}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {templatesLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading templates...</span>
+                </div>
+              ) : templates?.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+                    <FileQuestion className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold">No Quiz Templates</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Create a quiz template to generate quizzes with random questions based on your criteria.
+                  </p>
+                  {hasPermission('manage_quiz') && (
+                    <Button
+                      onClick={() => {
+                        setEditingTemplate(null);
+                        setIsTemplateDialogOpen(true);
+                      }}
+                      className="mt-4"
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Create Template
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {templates.map((template: QuizTemplate) => (
+                    <Card key={template.id} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <h3 className="font-medium text-lg">{template.name}</h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{template.totalQuestions} Questions</Badge>
+                            <Badge variant="outline">{template.timeLimit} Minutes</Badge>
+                            {template.processId && (
+                              <Badge variant="secondary">
+                                Process: {processes.find((p: any) => p.id === template.processId)?.name || 'Unknown Process'}
+                              </Badge>
+                            )}
+                            {template.batchId && (
+                              <Badge variant="secondary">
+                                Batch: {batches.find((b: any) => b.id === template.batchId)?.name || 'Unknown Batch'}
+                              </Badge>
+                            )}
+                          </div>
+                          {template.description && (
+                            <p className="text-muted-foreground text-sm">{template.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditTemplate(template)}
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                          
+                          {hasPermission('manage_quiz') ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600"
+                              onClick={() => setDeletingTemplateId(template.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <ShieldAlert className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <Separator className="my-4" />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="p-3">
+                          <CardHeader className="p-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Difficulty Distribution</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span>Easy</span>
+                                <span>{template.easyPercentage}%</span>
+                              </div>
+                              <Progress value={template.easyPercentage} className="h-2 bg-slate-200" />
+                              
+                              <div className="flex items-center justify-between text-sm">
+                                <span>Medium</span>
+                                <span>{template.mediumPercentage}%</span>
+                              </div>
+                              <Progress value={template.mediumPercentage} className="h-2 bg-slate-200" />
+                              
+                              <div className="flex items-center justify-between text-sm">
+                                <span>Hard</span>
+                                <span>{template.hardPercentage}%</span>
+                              </div>
+                              <Progress value={template.hardPercentage} className="h-2 bg-slate-200" />
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="p-3">
+                          <CardHeader className="p-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Quiz Settings</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            <ul className="space-y-2 text-sm">
+                              <li className="flex justify-between">
+                                <span className="text-muted-foreground">Time Limit:</span>
+                                <span>{template.timeLimit} minutes</span>
+                              </li>
+                              <li className="flex justify-between">
+                                <span className="text-muted-foreground">Passing Score:</span>
+                                <span>{template.passingScore}%</span>
+                              </li>
+                              <li className="flex justify-between">
+                                <span className="text-muted-foreground">Total Questions:</span>
+                                <span>{template.totalQuestions}</span>
+                              </li>
+                            </ul>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="p-3">
+                          <CardHeader className="p-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Actions</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0 h-full flex flex-col justify-center">
+                            <div className="flex flex-col gap-2">
+                              <Button 
+                                size="sm" 
+                                className="w-full"
+                                onClick={() => {
+                                  // Generate quiz from template
+                                  // This would typically navigate to a page to start the quiz
+                                  // or display options for starting the quiz
+                                  toast({
+                                    description: "Quiz generation not implemented in this demo",
+                                  });
+                                }}
+                              >
+                                <Play className="h-4 w-4 mr-2" />
+                                Generate Quiz
+                              </Button>
+                              
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full"
+                                onClick={() => {
+                                  // Preview questions that might be included
+                                  previewRandomQuestions({
+                                    ...template,
+                                    id: template.id
+                                  });
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Preview Questions
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         </TabsContent>
