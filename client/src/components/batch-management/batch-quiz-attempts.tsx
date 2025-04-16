@@ -13,7 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -41,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle, XCircle, Award, RefreshCw, FileQuestion } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Award, RefreshCw, FileQuestion, Filter } from "lucide-react";
 
 type QuizAttempt = {
   id: number;
@@ -70,7 +69,7 @@ type BatchQuizAttemptsProps = {
 export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuizAttemptsProps) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const [activeTab, setActiveTab] = useState<"all" | "passed" | "failed">(filter || "all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "passed" | "failed">(filter || "all");
   
   // For modal states
   const [refresherDialogOpen, setRefresherDialogOpen] = useState(false);
@@ -93,7 +92,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   const { data: quizAttempts, isLoading } = useQuery({
     queryKey: [
       `/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`,
-      activeTab !== "all" ? { status: activeTab } : undefined,
+      statusFilter !== "all" ? { status: statusFilter } : undefined,
     ]
   });
   
@@ -239,128 +238,138 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="all">All Final Assessments</TabsTrigger>
-            <TabsTrigger value="passed">Passed Final Assessments</TabsTrigger>
-            <TabsTrigger value="failed">Failed Final Assessments</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value={activeTab}>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : quizAttempts && quizAttempts.length > 0 ? (
-              (() => {
-                // Get only final quizzes
-                const finalQuizAttempts = quizAttempts
-                  .filter((attempt: QuizAttempt) => attempt.quiz?.quizType === 'final');
-                
-                if (finalQuizAttempts.length > 0) {
-                  return (
-                    <Table>
-                      <TableCaption>
-                        {activeTab === "all" 
-                          ? "All final assessment results" 
-                          : activeTab === "passed" 
-                            ? "Final assessments with passing scores" 
-                            : "Final assessments with failing scores"}
-                      </TableCaption>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Trainee</TableHead>
-                          <TableHead>Quiz</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {finalQuizAttempts.map((attempt: QuizAttempt) => (
-                          <TableRow key={attempt.id}>
-                            <TableCell className="font-medium">
-                              {attempt.user?.fullName || `User ${attempt.userId}`}
-                            </TableCell>
-                            <TableCell>{attempt.quiz?.name || "Unknown Quiz"}</TableCell>
-                            <TableCell>
-                              {attempt.score}%
-                              {attempt.quiz?.passingScore && (
-                                <span className="text-xs text-muted-foreground ml-1">
-                                  (Passing: {attempt.quiz.passingScore}%)
-                                </span>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Status Filter:</span>
+          </div>
+          <Select 
+            value={statusFilter} 
+            onValueChange={(value) => setStatusFilter(value as "all" | "passed" | "failed")}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assessments</SelectItem>
+              <SelectItem value="passed">Passed Only</SelectItem>
+              <SelectItem value="failed">Failed Only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : quizAttempts && quizAttempts.length > 0 ? (
+          (() => {
+            // Get only final quizzes
+            const finalQuizAttempts = quizAttempts
+              .filter((attempt: QuizAttempt) => attempt.quiz?.quizType === 'final');
+            
+            if (finalQuizAttempts.length > 0) {
+              return (
+                <Table>
+                  <TableCaption>
+                    {statusFilter === "all" 
+                      ? "All final assessment results" 
+                      : statusFilter === "passed" 
+                        ? "Final assessments with passing scores" 
+                        : "Final assessments with failing scores"}
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trainee</TableHead>
+                      <TableHead>Quiz</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {finalQuizAttempts.map((attempt: QuizAttempt) => (
+                      <TableRow key={attempt.id}>
+                        <TableCell className="font-medium">
+                          {attempt.user?.fullName || `User ${attempt.userId}`}
+                        </TableCell>
+                        <TableCell>{attempt.quiz?.name || "Unknown Quiz"}</TableCell>
+                        <TableCell>
+                          {attempt.score}%
+                          {attempt.quiz?.passingScore && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              (Passing: {attempt.quiz.passingScore}%)
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(attempt.completedAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {attempt.isPassed ? (
+                            <Badge className="bg-green-500">Passed</Badge>
+                          ) : (
+                            <Badge variant="destructive">Failed</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!attempt.isPassed ? (
+                            <div className="flex justify-end space-x-2">
+                              {hasPermission("manage_batches") && (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleRefresherClick(attempt.userId)}
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                    Refresher
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleReassignClick(attempt.userId)}
+                                  >
+                                    <FileQuestion className="h-4 w-4 mr-1" />
+                                    Reassign
+                                  </Button>
+                                </>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              {new Date(attempt.completedAt).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell>
-                              {attempt.isPassed ? (
-                                <Badge className="bg-green-500">Passed</Badge>
-                              ) : (
-                                <Badge variant="destructive">Failed</Badge>
+                            </div>
+                          ) : (
+                            <div className="flex justify-end">
+                              {hasPermission("manage_batches") && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
+                                >
+                                  <Award className="h-4 w-4 mr-1" />
+                                  Certify
+                                </Button>
                               )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {!attempt.isPassed ? (
-                                <div className="flex justify-end space-x-2">
-                                  {hasPermission("manage_batches") && (
-                                    <>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => handleRefresherClick(attempt.userId)}
-                                      >
-                                        <RefreshCw className="h-4 w-4 mr-1" />
-                                        Refresher
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => handleReassignClick(attempt.userId)}
-                                      >
-                                        <FileQuestion className="h-4 w-4 mr-1" />
-                                        Reassign
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="flex justify-end">
-                                  {hasPermission("manage_batches") && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
-                                    >
-                                      <Award className="h-4 w-4 mr-1" />
-                                      Certify
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  );
-                } else {
-                  return (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No final quiz attempts found for this filter
-                    </div>
-                  );
-                }
-              })()
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No quiz attempts found
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              );
+            } else {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  No final quiz attempts found for this filter
+                </div>
+              );
+            }
+          })()
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No quiz attempts found
+          </div>
+        )}
       </CardContent>
 
       {/* Refresher Training Dialog */}
