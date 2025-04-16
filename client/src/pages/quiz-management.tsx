@@ -46,7 +46,8 @@ import {
   CheckCircle2,
   CalendarDays,
   Briefcase,
-  User
+  User,
+  BarChart
 } from "lucide-react";
 
 // Process filter form schema
@@ -1606,6 +1607,9 @@ export function QuizManagement() {
                             </Badge>
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shadow-sm">
                               <CheckCircle2 className="w-3 h-3 mr-1" /> {template.passingScore}% to pass
+                            </Badge>
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 shadow-sm">
+                              <BarChart className="w-3 h-3 mr-1" /> Generated: {template.generationCount || 0} times
                             </Badge>
                           </div>
                           <QuizTemplateDetailsSection template={template} processes={processes} batches={batches} />
