@@ -1,4 +1,5 @@
 import { addDays, format } from 'date-fns';
+import logger from './logger';
 
 export interface Holiday {
   date: string;
@@ -31,7 +32,7 @@ export function isNonWorkingDay(
                      dateObj.getDate() === 31;
                      
   if (isHoliDate && considerHolidays) {
-    console.log(`🎯 SPECIAL CASE: Detected March 31st, 2025 (Holi). Marking as holiday.`);
+    logger.debug(`🎯 SPECIAL CASE: Detected March 31st, 2025 (Holi). Marking as holiday.`);
     return true;
   }
   
@@ -47,18 +48,18 @@ export function isNonWorkingDay(
   const isWeeklyOff = weeklyOffDays.includes(dayName);
   
   if (isApril2nd2025) {
-    console.log(`🎯 SPECIAL CASE: Checking April 2nd, 2025 (${dayName}): isWeeklyOff=${isWeeklyOff}, weeklyOffDays=${JSON.stringify(weeklyOffDays)}`);
+    logger.debug(`🎯 SPECIAL CASE: Checking April 2nd, 2025 (${dayName}): isWeeklyOff=${isWeeklyOff}, weeklyOffDays=${JSON.stringify(weeklyOffDays)}`);
   }
   
   // If it's a weekly off day, return true immediately
   if (isWeeklyOff) {
-    console.log(`📅 ${format(dateObj, 'yyyy-MM-dd')} (${dayName}) is a weekly off day`);
+    logger.debug(`📅 ${format(dateObj, 'yyyy-MM-dd')} (${dayName}) is a weekly off day`);
     return true;
   }
   
   // Check if it's a holiday
   if (considerHolidays && holidays && holidays.length > 0) {
-    console.log(`🗓️ Checking if ${format(dateObj, 'yyyy-MM-dd')} is a holiday with ${holidays.length} holidays in list`);
+    logger.debug(`🗓️ Checking if ${format(dateObj, 'yyyy-MM-dd')} is a holiday with ${holidays.length} holidays in list`);
     
     const dateStr = format(dateObj, 'yyyy-MM-dd');
     
@@ -66,7 +67,7 @@ export function isNonWorkingDay(
       try {
         // Ensure holiday.date is a valid date
         if (!holiday.date) {
-          console.error('❌ Invalid holiday date:', holiday);
+          logger.error('❌ Invalid holiday date:', holiday);
           continue;
         }
 
@@ -74,13 +75,13 @@ export function isNonWorkingDay(
         const holidayDate = new Date(holiday.date);
         
         if (isNaN(holidayDate.getTime())) {
-          console.error('❌ Invalid holiday date format:', holiday.date);
+          logger.error('❌ Invalid holiday date format:', holiday.date);
           continue;
         }
         
         const holidayDateStr = format(holidayDate, 'yyyy-MM-dd');
         
-        console.log(`🔍 Checking: "${holiday.name}" on ${holidayDateStr} (recurring: ${holiday.isRecurring})`);
+        logger.debug(`🔍 Checking: "${holiday.name}" on ${holidayDateStr} (recurring: ${holiday.isRecurring})`);
         
         let isMatch = false;
         
@@ -90,29 +91,29 @@ export function isNonWorkingDay(
           const sameDay = holidayDate.getDate() === dateObj.getDate();
           isMatch = sameMonth && sameDay;
           
-          console.log(`   Recurring check: Month ${sameMonth ? "✓" : "✗"} (${holidayDate.getMonth()+1}=${dateObj.getMonth()+1}), Day ${sameDay ? "✓" : "✗"} (${holidayDate.getDate()}=${dateObj.getDate()})`);
+          logger.debug(`   Recurring check: Month ${sameMonth ? "✓" : "✗"} (${holidayDate.getMonth()+1}=${dateObj.getMonth()+1}), Day ${sameDay ? "✓" : "✗"} (${holidayDate.getDate()}=${dateObj.getDate()})`);
         } else {
           // For non-recurring holidays, ensure we compare ignoring time parts
           isMatch = holidayDateStr === dateStr;
-          console.log(`   Exact date check: ${isMatch ? "✓" : "✗"} (${holidayDateStr} vs ${dateStr})`);
+          logger.debug(`   Exact date check: ${isMatch ? "✓" : "✗"} (${holidayDateStr} vs ${dateStr})`);
         }
         
         if (isMatch) {
-          console.log(`✅ Match found: ${dateObj.toDateString()} is a holiday (${holiday.name})`);
+          logger.debug(`✅ Match found: ${dateObj.toDateString()} is a holiday (${holiday.name})`);
           return true;
         }
       } catch (error) {
-        console.error('❌ Error comparing holiday date:', error, holiday);
+        logger.error('❌ Error comparing holiday date:', error, holiday);
       }
     }
     
     // Special handling for March 31st, 2025 (Holi) if not already captured by holiday list
     if (isHoliDate) {
-      console.log(`🎯 EMERGENCY FALLBACK: March 31st, 2025 (Holi) not found in holiday list. Adding manually.`);
+      logger.debug(`🎯 EMERGENCY FALLBACK: March 31st, 2025 (Holi) not found in holiday list. Adding manually.`);
       return true;
     }
     
-    console.log(`❌ ${format(dateObj, 'yyyy-MM-dd')} is not a holiday`);
+    logger.debug(`❌ ${format(dateObj, 'yyyy-MM-dd')} is not a holiday`);
     return false;
   }
   
@@ -148,13 +149,13 @@ export function calculateWorkingDays(
   let remainingDays = daysToAdd;
   let currentDate = new Date(startDate);
 
-  console.log(`calculateWorkingDays: Adding ${daysToAdd} working days to ${format(startDate, 'yyyy-MM-dd')}`);
-  console.log(`Considering holidays: ${considerHolidays}, Number of holidays: ${holidays.length}`);
+  logger.debug(`calculateWorkingDays: Adding ${daysToAdd} working days to ${format(startDate, 'yyyy-MM-dd')}`);
+  logger.debug(`Considering holidays: ${considerHolidays}, Number of holidays: ${holidays.length}`);
   
   // Debug holiday data
   if (considerHolidays && holidays.length > 0) {
-    console.log("Holidays considered in calculation:");
-    holidays.forEach(h => console.log(`- ${h.name}: ${h.date}, isRecurring: ${h.isRecurring}`));
+    logger.debug("Holidays considered in calculation:");
+    holidays.forEach(h => logger.debug(`- ${h.name}: ${h.date}, isRecurring: ${h.isRecurring}`));
   }
 
   let iteration = 0;
@@ -168,23 +169,23 @@ export function calculateWorkingDays(
     
     // Log detailed information about each day being checked
     if (iteration < 20) { // Limit logging to avoid flooding console
-      console.log(`Day ${iteration}: ${format(currentDate, 'yyyy-MM-dd')} (${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}), isOffDay: ${isOffDay}`);
+      logger.debug(`Day ${iteration}: ${format(currentDate, 'yyyy-MM-dd')} (${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}), isOffDay: ${isOffDay}`);
     }
     
     // Only count as a working day if it's not an off day
     if (!isOffDay) {
       remainingDays--;
       if (iteration < 20) {
-        console.log(`  Counted as working day, ${remainingDays} days remaining`);
+        logger.debug(`  Counted as working day, ${remainingDays} days remaining`);
       }
     } else {
       if (iteration < 20) {
-        console.log(`  Skipped as non-working day`);
+        logger.debug(`  Skipped as non-working day`);
       }
     }
   }
   
-  console.log(`Final date after adding ${daysToAdd} working days: ${format(currentDate, 'yyyy-MM-dd')}`);
+  logger.debug(`Final date after adding ${daysToAdd} working days: ${format(currentDate, 'yyyy-MM-dd')}`);
   return currentDate;
 }
 
