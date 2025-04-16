@@ -666,7 +666,7 @@ export function QuizManagement() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="null">None</SelectItem>
                     {processes.map((process: any) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
@@ -802,7 +802,7 @@ export function QuizManagement() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">All Processes</SelectItem>
+                              <SelectItem value="all">All Processes</SelectItem>
                               {processes.map((process: any) => (
                                 <SelectItem key={process.id} value={process.id.toString()}>
                                   {process.name}
@@ -1422,7 +1422,7 @@ export function QuizManagement() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="null">None</SelectItem>
                         {processes.map((process) => (
                           <SelectItem key={process.id} value={process.id.toString()}>
                             {process.name}
