@@ -157,6 +157,27 @@ export function QuizManagement() {
       processId: '',
     }
   });
+  
+  // Form for creating/editing quiz templates
+  const templateForm = useForm<QuizTemplateFormValues>({
+    defaultValues: {
+      name: '',
+      description: '',
+      totalQuestions: 10,
+      timeLimit: 30,
+      processId: null,
+      passingScore: 70,
+      easyPercentage: 30,
+      mediumPercentage: 40,
+      hardPercentage: 30,
+      restrictToBatch: false,
+      batchId: null,
+      active: true,
+      shuffleQuestions: true,
+      shuffleOptions: true,
+      quizType: 'internal',
+    }
+  });
 
   // Watch for changes to processId in filter forms
   const watchProcessId = filterForm.watch('processId');
