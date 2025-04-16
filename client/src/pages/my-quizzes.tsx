@@ -25,6 +25,7 @@ interface Quiz {
   startTime: string;
   endTime: string;
   oneTimeOnly?: boolean;
+  quizType: 'internal' | 'final';
 }
 
 // Define quiz attempt interface
@@ -150,84 +151,146 @@ export function MyQuizzesPage() {
     );
   }
 
+  // Separate quizzes by type
+  const internalQuizzes = quizzes.filter(quiz => quiz.quizType === 'internal');
+  const finalQuizzes = quizzes.filter(quiz => quiz.quizType === 'final');
+
+  // Component for rendering a quiz card
+  const renderQuizCard = (quiz: Quiz) => {
+    // Log per-quiz debugging information
+    console.log(`Quiz ${quiz.quiz_id} (${quiz.quiz_name}):`, {
+      oneTimeOnly: quiz.oneTimeOnly,
+      quizType: quiz.quizType,
+      hasAttempts: quizAttempts[quiz.quiz_id]?.length > 0,
+      attemptsCount: quizAttempts[quiz.quiz_id]?.length || 0,
+      attempts: quizAttempts[quiz.quiz_id] || []
+    });
+    
+    // Logic to determine button state
+    const hasAttempted = quizAttempts[quiz.quiz_id]?.length > 0;
+    const isOneTimeQuiz = !!quiz.oneTimeOnly;
+    const shouldDisableButton = isOneTimeQuiz && hasAttempted;
+    
+    // Style based on quiz type
+    const isInternal = quiz.quizType === 'internal';
+    const cardBorderClass = isInternal 
+      ? "border-l-4 border-l-blue-500" 
+      : "border-l-4 border-l-red-500";
+    const badgeVariant = isInternal ? "secondary" : "destructive";
+    const typeBadgeClass = isInternal 
+      ? "bg-blue-100 text-blue-800 border-blue-200" 
+      : "bg-red-100 text-red-800 border-red-200";
+    
+    return (
+      <Card key={quiz.quiz_id} className={`${cardBorderClass} hover:shadow-md transition-all`}>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>{quiz.quiz_name}</CardTitle>
+            <Badge variant="outline" className={typeBadgeClass}>
+              {isInternal ? "Internal Assessment" : "Final Assessment"}
+            </Badge>
+          </div>
+          <CardDescription>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Badge variant={badgeVariant}>
+                Time: {quiz.timeLimit} min
+              </Badge>
+              <Badge variant={badgeVariant}>
+                Pass: {quiz.passingScore}%
+              </Badge>
+              {isOneTimeQuiz && (
+                <Badge variant="destructive">
+                  One-Time Only
+                </Badge>
+              )}
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground">
+              Process: {quiz.processName}
+            </div>
+            <div className="mt-2 text-sm">
+              <div className="text-muted-foreground">
+                <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
+              </div>
+              {isOneTimeQuiz && (
+                <div className="mt-2 text-destructive font-medium">
+                  ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
+                </div>
+              )}
+              {shouldDisableButton && (
+                <div className="mt-2 text-info font-medium">
+                  You have already taken this quiz.
+                </div>
+              )}
+            </div>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {shouldDisableButton ? (
+            <Button 
+              className="w-full"
+              variant="outline"
+              disabled
+            >
+              <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
+            </Button>
+          ) : (
+            <Button 
+              className="w-full"
+              variant={isInternal ? "default" : "destructive"}
+              onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
+            >
+              Start Quiz
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: Quiz) => {
-          // Log per-quiz debugging information
-          console.log(`Quiz ${quiz.quiz_id} (${quiz.quiz_name}):`, {
-            oneTimeOnly: quiz.oneTimeOnly,
-            hasAttempts: quizAttempts[quiz.quiz_id]?.length > 0,
-            attemptsCount: quizAttempts[quiz.quiz_id]?.length || 0,
-            attempts: quizAttempts[quiz.quiz_id] || []
-          });
-          
-          // Logic to determine button state
-          const hasAttempted = quizAttempts[quiz.quiz_id]?.length > 0;
-          const isOneTimeQuiz = !!quiz.oneTimeOnly;
-          const shouldDisableButton = isOneTimeQuiz && hasAttempted;
-          
-          return (
-            <Card key={quiz.quiz_id}>
-              <CardHeader>
-                <CardTitle>{quiz.quiz_name}</CardTitle>
-                <CardDescription>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="secondary">
-                      Time: {quiz.timeLimit} min
-                    </Badge>
-                    <Badge variant="secondary">
-                      Pass: {quiz.passingScore}%
-                    </Badge>
-                    {isOneTimeQuiz && (
-                      <Badge variant="destructive">
-                        One-Time Only
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    Process: {quiz.processName}
-                  </div>
-                  <div className="mt-2 text-sm">
-                    <div className="text-muted-foreground">
-                      <span className="font-semibold">Available until:</span> {new Date(quiz.endTime).toLocaleString()}
-                    </div>
-                    {isOneTimeQuiz && (
-                      <div className="mt-2 text-destructive font-medium">
-                        ⚠️ You can only attempt this quiz once. Make sure you're prepared before starting.
-                      </div>
-                    )}
-                    {shouldDisableButton && (
-                      <div className="mt-2 text-info font-medium">
-                        You have already taken this quiz.
-                      </div>
-                    )}
-                  </div>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {shouldDisableButton ? (
-                  <Button 
-                    className="w-full"
-                    variant="outline"
-                    disabled
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" /> Quiz Completed
-                  </Button>
-                ) : (
-                  <Button 
-                    className="w-full"
-                    onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
-                  >
-                    Start Quiz
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      
+      {/* Internal Assessments Section */}
+      {internalQuizzes.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center space-x-2 mb-4">
+            <h2 className="text-xl font-semibold">Internal Assessments</h2>
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+              {internalQuizzes.length} Available
+            </Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {internalQuizzes.map(renderQuizCard)}
+          </div>
+        </div>
+      )}
+      
+      {/* Final Assessments Section */}
+      {finalQuizzes.length > 0 && (
+        <div>
+          <div className="flex items-center space-x-2 mb-4">
+            <h2 className="text-xl font-semibold">Final Assessments</h2>
+            <Badge variant="destructive" className="bg-red-100 text-red-800">
+              {finalQuizzes.length} Available
+            </Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {finalQuizzes.map(renderQuizCard)}
+          </div>
+        </div>
+      )}
+      
+      {/* If no quizzes of any type are available */}
+      {internalQuizzes.length === 0 && finalQuizzes.length === 0 && (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              No quizzes are currently available. Check back later or contact your trainer.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
