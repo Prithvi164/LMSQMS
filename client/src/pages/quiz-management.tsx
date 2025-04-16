@@ -244,7 +244,7 @@ export function QuizManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId, true] });
       toast({
         title: "Success",
         description: "Question updated successfully",
@@ -272,7 +272,7 @@ export function QuizManagement() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId, true] });
       toast({
         title: "Success",
         description: "Question deleted successfully",
@@ -356,7 +356,7 @@ export function QuizManagement() {
     onSuccess: (data) => {
       console.log('Toggle successful, invalidating queries...', data);
       // Invalidate the questions query to refetch the updated data
-      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId, true] });
       
       toast({
         title: "Success",
