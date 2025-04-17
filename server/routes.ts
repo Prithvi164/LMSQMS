@@ -2308,6 +2308,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Cannot start batch without any trainees. Please add at least one trainee before starting the batch."
         });
       }
+      
+      // Record batch history first
+      await addBatchHistoryRecord(
+        batchId,
+        'phase_change',
+        `Batch phase changed from planned to induction (batch started)`,
+        'planned',
+        'induction',
+        batch.organizationId
+      );
 
       // Store dates in UTC format while preserving IST midnight
       const currentDate = new Date();
