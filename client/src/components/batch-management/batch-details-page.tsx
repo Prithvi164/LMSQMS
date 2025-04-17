@@ -177,6 +177,7 @@ const LoadingSkeleton = () => (
 );
 
 const phaseChangeFormSchema = z.object({
+  action: z.string().min(1, "Action is required"),
   requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
   justification: z.string().min(1, "Justification is required"),
   managerId: z.string().min(1, "Manager is required"),
