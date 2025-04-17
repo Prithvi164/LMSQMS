@@ -2384,7 +2384,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view your own requests" });
       }
 
-      const requests = await storage.listTrainerPhaseChangeRequests(trainerId);
+      // Get the optional batchId query parameter
+      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
+      
+      const requests = await storage.listTrainerPhaseChangeRequests(trainerId, batchId);
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing trainer phase change requests:", error);
@@ -2404,7 +2407,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view requests assigned to you" });
       }
 
-      const requests = await storage.listManagerPhaseChangeRequests(managerId);
+      // Get the optional batchId query parameter
+      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
+      
+      const requests = await storage.listManagerPhaseChangeRequests(managerId, batchId);
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing manager phase change requests:", error);

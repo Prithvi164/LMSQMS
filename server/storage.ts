@@ -274,8 +274,8 @@ export interface IStorage {
       managerComments?: string;
     }
   ): Promise<BatchPhaseChangeRequest>;
-  listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]>;
-  listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]>;
+  listTrainerPhaseChangeRequests(trainerId: number, batchId?: number): Promise<BatchPhaseChangeRequest[]>;
+  listManagerPhaseChangeRequests(managerId: number, batchId?: number): Promise<BatchPhaseChangeRequest[]>;
   deletePhaseChangeRequest(id: number): Promise<void>;
 
   // Add new method for getting reporting trainers
@@ -3551,9 +3551,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]> {
+  async listTrainerPhaseChangeRequests(trainerId: number, batchId?: number): Promise<BatchPhaseChangeRequest[]> {
     try {
-      const requests = await db
+      let query = db
         .select({
           request: batchPhaseChangeRequests,
           trainer: {
@@ -3564,6 +3564,13 @@ export class DatabaseStorage implements IStorage {
         .from(batchPhaseChangeRequests)
         .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
         .where(eq(batchPhaseChangeRequests.trainerId, trainerId));
+        
+      // Add batch filter if specified
+      if (batchId !== undefined) {
+        query = query.where(eq(batchPhaseChangeRequests.batchId, batchId));
+      }
+      
+      const requests = await query;
 
       // Transform the result to the expected format
       return requests.map(item => ({
@@ -3576,9 +3583,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]> {
+  async listManagerPhaseChangeRequests(managerId: number, batchId?: number): Promise<BatchPhaseChangeRequest[]> {
     try {
-      const requests = await db
+      let query = db
         .select({
           request: batchPhaseChangeRequests,
           trainer: {
@@ -3589,6 +3596,13 @@ export class DatabaseStorage implements IStorage {
         .from(batchPhaseChangeRequests)
         .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
         .where(eq(batchPhaseChangeRequests.managerId, managerId));
+        
+      // Add batch filter if specified
+      if (batchId !== undefined) {
+        query = query.where(eq(batchPhaseChangeRequests.batchId, batchId));
+      }
+      
+      const requests = await query;
 
       // Transform the result to the expected format
       return requests.map(item => ({

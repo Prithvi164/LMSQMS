@@ -271,16 +271,26 @@ export function BatchDetailsPage() {
     data: trainerRequests,
     refetch: fetchTrainerRequests
   } = useQuery({
-    queryKey: [`/api/trainers/${user?.id}/phase-change-requests`],
-    enabled: !!user?.id && user?.role === 'trainer',
+    queryKey: [`/api/trainers/${user?.id}/phase-change-requests`, { batchId }],
+    queryFn: async ({ queryKey }) => {
+      const [url, params] = queryKey;
+      const response = await fetch(`${url}?batchId=${batchId}`);
+      return response.json();
+    },
+    enabled: !!user?.id && !!batchId && user?.role === 'trainer',
   });
 
   const { 
     data: managerRequests,
     refetch: fetchManagerRequests
   } = useQuery({
-    queryKey: [`/api/managers/${user?.id}/phase-change-requests`],
-    enabled: !!user?.id && user?.role === 'manager',
+    queryKey: [`/api/managers/${user?.id}/phase-change-requests`, { batchId }],
+    queryFn: async ({ queryKey }) => {
+      const [url, params] = queryKey;
+      const response = await fetch(`${url}?batchId=${batchId}`);
+      return response.json();
+    },
+    enabled: !!user?.id && !!batchId && user?.role === 'manager',
   });
 
   // Define a type for phase requests
