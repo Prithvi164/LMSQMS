@@ -6097,6 +6097,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Record batch history first
+      await addBatchHistoryRecord(
+        batchId,
+        'phase_change',
+        `Batch phase changed from planned to induction (batch started)`,
+        'planned',
+        'induction',
+        batch.organizationId
+      );
+
+
       // Store dates in UTC format while preserving IST midnight
       const currentDate = new Date();
       const updatedBatch = await storage.updateBatch(batchId, {
@@ -6460,6 +6471,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Only planned batches can be started" 
         });
+
+      // Record batch history first
+      await addBatchHistoryRecord(
+        batchId,
+        'phase_change',
+        `Batch phase changed from planned to induction (batch started)`,
+        'planned',
+        'induction',
+        batch.organizationId
+      );
+
       }
 
       // Get trainees count for this batch
@@ -6823,6 +6845,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!batchId) {
         return res.status(400).json({ message: "Invalid batch ID" });
       }
+
+
+      // Record batch history first
+      await addBatchHistoryRecord(
+        batchId,
+        'phase_change',
+        `Batch phase changed from planned to induction (batch started)`,
+        'planned',
+        'induction',
+        batch.organizationId
+      );
 
       // Get the batch
       const batch = await storage.getBatch(batchId);
