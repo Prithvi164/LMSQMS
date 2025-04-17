@@ -3727,6 +3727,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete phase change request (only pending requests can be deleted)
+  app.delete("/api/phase-change-requests/:requestId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const requestId = parseInt(req.params.requestId);
+
+      // Get the request to verify ownership and status
+      const request = await storage.getPhaseChangeRequest(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      // Check if the user is the trainer who created the request or the assigned manager
+      const canDelete = req.user.id === request.trainerId || 
+                        req.user.id === request.managerId || 
+                        req.user.role === 'owner' || 
+                        req.user.role === 'admin';
+
+      if (!canDelete) {
+        return res.status(403).json({ 
+          message: "Only the trainer who created the request, the assigned manager, or an admin/owner can delete this request" 
+        });
+      }
+
+      // Delete the request (the deletePhaseChangeRequest method already checks if it's in pending state)
+      await storage.deletePhaseChangeRequest(requestId);
+
+      res.json({ message: "Request deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting phase change request:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add this route to get all users with location information
   app.get("/api/organizations/:orgId/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });

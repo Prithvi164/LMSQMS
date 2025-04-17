@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -285,7 +285,6 @@ export function BatchDetailsPage() {
     currentPhase: string;
     requestedPhase: string;
     status: string;
-    action: string;
     justification: string;
     trainer?: {
       fullName: string;
@@ -865,7 +864,7 @@ export function BatchDetailsPage() {
                           <TableCell>{batch.name}</TableCell>
                           <TableCell className="capitalize">{request.currentPhase}</TableCell>
                           <TableCell className="capitalize">{request.requestedPhase}</TableCell>
-                          <TableCell>{request.action || `Change phase to ${request.requestedPhase}`}</TableCell>
+                          <TableCell>{`Change phase to ${request.requestedPhase}`}</TableCell>
                           <TableCell>
                             <span className="line-clamp-2" title={request.justification}>
                               {request.justification || "No justification provided"}
@@ -907,12 +906,13 @@ export function BatchDetailsPage() {
                                 )}
                                 {(user?.id === request.trainerId || user?.id === request.managerId) && (
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="ghost"
                                     onClick={() => handleDelete(request.id)}
-                                    className="text-red-500 hover:text-red-700"
+                                    className="text-red-500 hover:text-red-700 h-8 w-8"
                                   >
-                                    Delete
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Delete</span>
                                   </Button>
                                 )}
                               </div>
