@@ -3599,8 +3599,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Get the template for this quiz to access shuffle settings
+      const template = await storage.getQuizTemplate(quiz.templateId);
+      
+      let questionsToServe = [...quiz.questions]; // Create a copy to avoid modifying the original
+      
+      // Log for debugging
+      console.log('Quiz template shuffle settings:', {
+        shuffleQuestions: template?.shuffleQuestions,
+        shuffleOptions: template?.shuffleOptions
+      });
+      
+      // Apply question shuffling if enabled in the template
+      if (template && template.shuffleQuestions) {
+        console.log('Shuffling questions for quiz:', quizId);
+        questionsToServe = shuffleArray(questionsToServe);
+      }
+      
+      // Apply option shuffling if enabled in the template
+      if (template && template.shuffleOptions) {
+        console.log('Shuffling options for quiz:', quizId);
+        questionsToServe = questionsToServe.map(question => {
+          // Only shuffle multiple choice questions with options
+          if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
+            // Create a mapping of original positions to track the correct answer
+            const originalOptions = [...question.options];
+            const shuffledOptions = shuffleArray([...originalOptions]);
+            
+            // If correctAnswer is an index/position in the original array
+            let updatedCorrectAnswer = question.correctAnswer;
+            if (!isNaN(Number(question.correctAnswer))) {
+              // If it's a numeric index, update it to the new position
+              const correctOptionValue = originalOptions[Number(question.correctAnswer)];
+              updatedCorrectAnswer = String(shuffledOptions.indexOf(correctOptionValue));
+            } else {
+              // If it's the actual option value, it stays the same
+              // correctAnswer remains unchanged as we're looking for the value, not position
+            }
+            
+            return {
+              ...question,
+              options: shuffledOptions,
+              correctAnswer: updatedCorrectAnswer
+            };
+          }
+          return question;
+        });
+      }
+
       // Remove correct answers from questions before sending to client
-      const sanitizedQuestions = quiz.questions.map(question => ({
+      const sanitizedQuestions = questionsToServe.map(question => ({
         ...question,
         correctAnswer: undefined
       }));
@@ -3614,6 +3662,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Helper function to shuffle an array (Fisher-Yates algorithm)
+  function shuffleArray<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  }
 
   // Submit quiz answers
   app.post("/api/quizzes/:id/submit", async (req, res) => {
