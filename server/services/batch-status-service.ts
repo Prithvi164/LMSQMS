@@ -262,14 +262,15 @@ export const updateBatchStatuses = async () => {
               .set(updateData)
               .where(eq(organizationBatches.id, batch.id));
               
-            // Add history record
+            // Add history record with system user (ID 1) for automatic changes
             await addBatchHistoryRecord(
               batch.id,
               'phase_change',
               `Batch phase changed from ${currentPhase} to ${nextPhase}`,
               currentPhase,
               nextPhase,
-              batch.organizationId
+              batch.organizationId,
+              1 // Using system user ID for automatic changes
             );
           } else {
             console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users. Keeping in '${currentPhase}' status.`);

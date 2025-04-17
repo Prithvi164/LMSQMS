@@ -6898,9 +6898,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'phase_change',
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
-        'induction',,
+        'induction',
+        batch.organizationId,
         req.user.id // Pass the actual user ID who started the batch
-        batch.organizationId
       );
 
       // Get the batch
