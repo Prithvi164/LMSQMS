@@ -34,6 +34,24 @@ export function QuizTakingPage() {
   const { data: quiz, isLoading, error: quizError } = useQuery({
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
+    queryFn: async () => {
+      try {
+        console.log(`Fetching quiz ID: ${quizId}`);
+        const response = await fetch(`/api/quizzes/${quizId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch quiz: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(`Quiz Data: Template ID=${data.templateId}, Has ${data.questions?.length || 0} questions`);
+        if (data.questions?.length > 0) {
+          console.log(`Question order: ${data.questions.map(q => q.id).join(', ')}`);
+        }
+        return data;
+      } catch (error) {
+        console.error("Error fetching quiz:", error);
+        throw error;
+      }
+    }
   });
 
   // Check for previous attempts if this is a one-time quiz

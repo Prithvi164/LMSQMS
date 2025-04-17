@@ -3710,111 +3710,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the template for this quiz to access shuffle settings
       const template = await storage.getQuizTemplate(quiz.templateId);
       
-      let questionsToServe = [...quiz.questions]; // Create a copy to avoid modifying the original
+      // IMPORTANT: Completely new shuffling approach to ensure different trainees get different question orders
+      // Import our dedicated shuffling functions from the new module
+      const { shuffleArrayWithSeed } = require('./quiz-shuffle');
       
-      // Create a unique seed for this user to ensure consistent shuffling per user
-      // This ensures a trainee will see the same shuffled order if they reload the page
-      // But different trainees will see different orders
-      const userSeed = req.user.id.toString();
+      // Create a deep copy of the quiz questions to avoid modifying the original
+      let questionsToServe = JSON.parse(JSON.stringify(quiz.questions));
       
-      // Extensive debugging to verify the problem
-      console.log('=== QUIZ DEBUGGING ===');
+      // Generate a unique seed that includes:
+      // 1. The user ID (so different users get different orderings)
+      // 2. The quiz ID (so different quizzes for the same user have different orderings)
+      // 3. A version string (so we can force changes if needed)
+      const uniqueSeed = `user-${req.user.id}-quiz-${quizId}-v3-shuffle`;
+      
+      // Detailed logging to track what's happening
+      console.log('\n=== QUIZ SHUFFLE PROCESSING ===');
       console.log(`User accessing quiz: ID=${req.user.id}, Username=${req.user.username}`);
       console.log(`Quiz being accessed: ID=${quiz.id}, Template ID=${quiz.templateId}`);
-      console.log(`Original questions order: ${JSON.stringify(questionsToServe.map(q => q.id))}`);
+      console.log(`Using unique seed for shuffling: "${uniqueSeed}"`);
+      console.log(`Original questions order: ${questionsToServe.map(q => q.id).join(', ')}`);
       
-      // Check if the quiz template was found
+      // IMPORTANT: Log the template shuffle settings
       if (!template) {
         console.log('WARNING: Quiz template not found! Using default settings (no shuffling).');
       } else {
-        // Log template settings, handling both camelCase and snake_case property names
-        // The database uses snake_case (shuffle_questions) but our schema model uses camelCase (shuffleQuestions)
-        const shuffleQuestions = template.shuffleQuestions || template.shuffle_questions;
-        const shuffleOptions = template.shuffleOptions || template.shuffle_options;
+        const shuffleQuestions = Boolean(template.shuffleQuestions || template.shuffle_questions);
+        const shuffleOptions = Boolean(template.shuffleOptions || template.shuffle_options);
         
-        console.log('Template found with shuffle settings:', {
+        console.log(`Template ${template.id} (${template.name}) settings:`, {
           shuffleQuestions,
           shuffleOptions,
-          templateId: template.id,
-          templateName: template.name,
-          rawTemplate: JSON.stringify(template) // Log full template for debugging
-        });
-      }
-      
-      // Apply question shuffling if enabled - checking both property naming conventions
-      const shouldShuffleQuestions = template && (template.shuffleQuestions || template.shuffle_questions);
-      if (shouldShuffleQuestions) {
-        console.log('Shuffling questions for quiz:', quizId, 'for user:', req.user.id);
-        const shuffledQuestions = shuffleArrayWithSeed(questionsToServe, userSeed);
-        console.log('Questions after shuffling:', shuffledQuestions.map(q => q.id));
-        questionsToServe = shuffledQuestions;
-      } else {
-        console.log('Question shuffling is NOT enabled for this template');
-      }
-      
-      // Apply option shuffling if enabled - checking both property naming conventions
-      const shouldShuffleOptions = template && (template.shuffleOptions || template.shuffle_options);
-      if (shouldShuffleOptions) {
-        console.log('Shuffling options for quiz:', quizId, 'for user:', req.user.id);
-        
-        // Track original options for debugging
-        const originalOptionsMap = {};
-        questionsToServe.forEach((question, index) => {
-          if (question.type === 'multiple_choice' && Array.isArray(question.options)) {
-            originalOptionsMap[question.id] = [...question.options];
+          rawSettings: {
+            shuffleQuestions: template.shuffleQuestions,
+            shuffle_questions: template.shuffle_questions,
+            shuffleOptions: template.shuffleOptions,
+            shuffle_options: template.shuffle_options
           }
         });
         
-        questionsToServe = questionsToServe.map((question, questionIndex) => {
-          // Only shuffle multiple choice questions with options
-          if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
-            // Create a unique seed for each question to ensure different shuffling patterns
-            const questionSeed = `${userSeed}-q${questionIndex}`;
-            
-            // Create a mapping of original positions to track the correct answer
-            const originalOptions = [...question.options];
-            const shuffledOptions = shuffleArrayWithSeed([...originalOptions], questionSeed);
-            
-            console.log(`Question ${question.id} options shuffling:`, {
-              original: originalOptions,
-              shuffled: shuffledOptions
-            });
-            
-            // If correctAnswer is an index/position in the original array
-            let updatedCorrectAnswer = question.correctAnswer;
-            if (!isNaN(Number(question.correctAnswer))) {
-              // If it's a numeric index, update it to the new position
-              const correctOptionValue = originalOptions[Number(question.correctAnswer)];
-              updatedCorrectAnswer = String(shuffledOptions.indexOf(correctOptionValue));
+        // SHUFFLE QUESTIONS if enabled in the template
+        // Check for both snake_case and camelCase properties
+        if (shuffleQuestions) {
+          console.log(`APPLYING QUESTION SHUFFLING for user ${req.user.id}`);
+          console.log(`Before shuffle: ${questionsToServe.map(q => q.id).join(', ')}`);
+          
+          // Apply the shuffle
+          questionsToServe = shuffleArrayWithSeed(questionsToServe, uniqueSeed);
+          
+          console.log(`After shuffle: ${questionsToServe.map(q => q.id).join(', ')}`);
+        } else {
+          console.log('QUESTION SHUFFLING IS DISABLED for this template');
+        }
+        
+        // SHUFFLE OPTIONS if enabled in the template
+        if (shuffleOptions) {
+          console.log(`APPLYING OPTION SHUFFLING for user ${req.user.id}`);
+          
+          questionsToServe = questionsToServe.map((question, index) => {
+            // Only shuffle options for multiple choice questions
+            if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
+              // Create a unique seed for each question
+              const questionSeed = `${uniqueSeed}-question-${question.id}-idx-${index}`;
               
-              console.log(`Question ${question.id} correctAnswer updated:`, {
-                originalIndex: question.correctAnswer,
-                originalValue: correctOptionValue,
-                newIndex: updatedCorrectAnswer
-              });
-            } else {
-              // If it's the actual option value, it stays the same
-              console.log(`Question ${question.id} correctAnswer unchanged (not an index):`, question.correctAnswer);
+              const originalOptions = [...question.options];
+              const shuffledOptions = shuffleArrayWithSeed(originalOptions, questionSeed);
+              
+              console.log(`Question ${question.id} options: ${originalOptions.join(' | ')} → ${shuffledOptions.join(' | ')}`);
+              
+              // Update correct answer if it's an index
+              let updatedCorrectAnswer = question.correctAnswer;
+              if (!isNaN(Number(question.correctAnswer))) {
+                const correctOptionValue = originalOptions[Number(question.correctAnswer)];
+                updatedCorrectAnswer = String(shuffledOptions.indexOf(correctOptionValue));
+                console.log(`Question ${question.id} correctAnswer updated: ${question.correctAnswer} → ${updatedCorrectAnswer}`);
+              }
+              
+              return {
+                ...question,
+                options: shuffledOptions,
+                correctAnswer: updatedCorrectAnswer
+              };
             }
-            
-            return {
-              ...question,
-              options: shuffledOptions,
-              correctAnswer: updatedCorrectAnswer
-            };
-          }
-          return question;
-        });
-      } else {
-        console.log('Option shuffling is NOT enabled for this template');
+            return question;
+          });
+        } else {
+          console.log('OPTION SHUFFLING IS DISABLED for this template');
+        }
       }
-
-      // Remove correct answers from questions before sending to client
+      
+      // IMPORTANT: Keep the correct answers for grading on the server but don't send them to client
       const sanitizedQuestions = questionsToServe.map(question => ({
-        ...question,
+        id: question.id,
+        question: question.question,
+        type: question.type,
+        options: question.options,
+        // Don't send correct answers to client
         correctAnswer: undefined
       }));
 
+      console.log(`Final question order being sent to client: ${sanitizedQuestions.map(q => q.id).join(', ')}`);
+      console.log('=== END QUIZ SHUFFLE PROCESSING ===\n');
+
+      // Return the quiz with potentially shuffled questions
       res.json({
         ...quiz,
         questions: sanitizedQuestions
@@ -3833,28 +3830,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return [...array];
     }
     
-    console.log(`Shuffling array with seed "${seed}", array length: ${array.length}`);
+    // Force a seed that will produce different results for different users
+    // Add quiz-specific info to make shuffling consistent for the same user
+    const enhancedSeed = seed + '-forced-shuffle'; 
+    
+    console.log(`Shuffling array with seed "${enhancedSeed}", array length: ${array.length}`);
     const newArray = [...array];
     
-    // Create a more robust seeded random number generator
-    const mulberry32 = (a: number) => {
-      return () => {
-        let t = a += 0x6D2B79F5;
-        t = Math.imul(t ^ t >>> 15, t | 1);
-        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    // Create a seeded random number generator based on xorshift128+
+    function xorshift128plus(seed: string): () => number {
+      let s1 = 1;
+      let s2 = 2;
+      
+      // Use the seed to initialize the state
+      for (let i = 0; i < seed.length; i++) {
+        s1 = (s1 * 31 + seed.charCodeAt(i)) >>> 0;
+        s2 = (s2 * 31 + (seed.charCodeAt(i) << (i % 16))) >>> 0;
+      }
+      
+      // If we get zeros, use defaults
+      if (s1 === 0) s1 = 123456789;
+      if (s2 === 0) s2 = 987654321;
+      
+      // Return the random function
+      return function() {
+        // Xorshift128+ algorithm
+        let x = s1;
+        const y = s2;
+        s1 = y;
+        x ^= x << 23;
+        x ^= x >>> 17;
+        x ^= y;
+        x ^= y >>> 26;
+        s2 = x;
+        return (s1 + s2) / 4294967296;
       };
-    };
-    
-    // Generate initial seed from the string
-    let hashCode = 0;
-    for (let i = 0; i < seed.length; i++) {
-      hashCode = ((hashCode << 5) - hashCode) + seed.charCodeAt(i);
-      hashCode |= 0; // Convert to 32bit integer
     }
     
-    // Create the random generator with our hash code
-    const random = mulberry32(hashCode);
+    // Create the random generator with our enhanced seed
+    const random = xorshift128plus(enhancedSeed);
     
     // Fisher-Yates shuffle with seeded random
     for (let i = newArray.length - 1; i > 0; i--) {
@@ -3872,6 +3886,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     console.log(`Shuffle result: ${isShuffled ? 'SHUFFLED' : 'NOT SHUFFLED (same order)'}`);
+    console.log(`Original array: ${JSON.stringify(array)}`);
+    console.log(`Shuffled array: ${JSON.stringify(newArray)}`);
     
     return newArray;
   }
