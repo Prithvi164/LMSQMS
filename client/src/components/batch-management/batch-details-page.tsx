@@ -534,7 +534,7 @@ export function BatchDetailsPage() {
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
-          `/api/managers/${user?.id}/phase-change-requests`
+          [`/api/managers/${user?.id}/phase-change-requests`, batchId]
         ],
         // Force immediate refetch
         refetchType: 'active',
@@ -595,7 +595,7 @@ export function BatchDetailsPage() {
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
-          `/api/managers/${user?.id}/phase-change-requests`
+          [`/api/managers/${user?.id}/phase-change-requests`, batchId]
         ],
         // Force immediate refetch
         refetchType: 'active',
