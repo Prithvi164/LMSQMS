@@ -70,7 +70,7 @@ const getActualPhaseEndDateField = (phase: string): string => {
 };
 
 // Add a record to batch history
-const addBatchHistoryRecord = async (
+export const addBatchHistoryRecord = async (
   batchId: number, 
   eventType: 'phase_change' | 'status_update' | 'milestone' | 'note',
   description: string,

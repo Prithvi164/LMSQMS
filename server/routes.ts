@@ -42,7 +42,7 @@ import { eq, and, sql, inArray, gte } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
-import { updateBatchStatuses, resetEmptyBatches } from './services/batch-status-service';
+import { updateBatchStatuses, resetEmptyBatches, addBatchHistoryRecord } from './services/batch-status-service';
 import azureAudioFilesRouter from './routes/azure-audio-files';
 import { validateAttendanceDate } from './utils/attendance-utils';
 import { getHolidaysInRange } from './services/holiday-service';
@@ -3694,6 +3694,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If approved, update the batch phase
       if (status === 'approved') {
+        // First record the batch history for phase change
+        await addBatchHistoryRecord(
+          request.batchId,
+          'phase_change',
+          `Batch phase changed from ${request.currentPhase} to ${request.requestedPhase} (via phase change request)`,
+          request.currentPhase,
+          request.requestedPhase,
+          request.organizationId
+        );
+        
+        // Then update the batch status
         await storage.updateBatch(request.batchId, {
           status: request.requestedPhase,
         });
