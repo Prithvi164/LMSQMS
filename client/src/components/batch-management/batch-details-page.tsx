@@ -494,11 +494,16 @@ export function BatchDetailsPage() {
   
   const handleDelete = async (requestId: number) => {
     try {
+      // We're changing this to use a PATCH instead of DELETE to mark as inactive
       await fetch(`/api/phase-change-requests/${requestId}`, {
-        method: 'DELETE',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          active: false,
+          status: 'inactive'
+        }),
       });
       queryClient.invalidateQueries({ 
         queryKey: [
@@ -508,13 +513,13 @@ export function BatchDetailsPage() {
       });
       toast({
         title: "Success",
-        description: "Request deleted successfully",
+        description: "Request marked as inactive",
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete request",
+        description: "Failed to update request",
       });
     }
   };
@@ -910,9 +915,26 @@ export function BatchDetailsPage() {
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleDelete(request.id)}
-                                    className="text-red-500 hover:text-red-700"
+                                    className="p-0 h-auto hover:bg-transparent text-red-500 hover:text-red-700"
                                   >
-                                    Delete
+                                    <svg 
+                                      xmlns="http://www.w3.org/2000/svg" 
+                                      width="24" 
+                                      height="24" 
+                                      viewBox="0 0 24 24" 
+                                      fill="none" 
+                                      stroke="currentColor" 
+                                      strokeWidth="1.5" 
+                                      strokeLinecap="round" 
+                                      strokeLinejoin="round"
+                                      className="w-6 h-6"
+                                    >
+                                      <path d="M3 6h18" />
+                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                      <line x1="10" y1="11" x2="10" y2="17" />
+                                      <line x1="14" y1="11" x2="14" y2="17" />
+                                    </svg>
                                   </Button>
                                 )}
                               </div>
