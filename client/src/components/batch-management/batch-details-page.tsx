@@ -285,6 +285,8 @@ export function BatchDetailsPage() {
     currentPhase: string;
     requestedPhase: string;
     status: string;
+    action: string;
+    justification: string;
     trainer?: {
       fullName: string;
     };
@@ -823,6 +825,8 @@ export function BatchDetailsPage() {
                         <TableHead>Batch Name</TableHead>
                         <TableHead>Current Phase</TableHead>
                         <TableHead>Requested Phase</TableHead>
+                        <TableHead>Action Details</TableHead>
+                        <TableHead>Justification</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Action</TableHead>
                       </TableRow>
@@ -834,6 +838,12 @@ export function BatchDetailsPage() {
                           <TableCell>{batch.name}</TableCell>
                           <TableCell className="capitalize">{request.currentPhase}</TableCell>
                           <TableCell className="capitalize">{request.requestedPhase}</TableCell>
+                          <TableCell>{request.action || `Change phase to ${request.requestedPhase}`}</TableCell>
+                          <TableCell>
+                            <span className="line-clamp-2" title={request.justification}>
+                              {request.justification || "No justification provided"}
+                            </span>
+                          </TableCell>
                           <TableCell>
                             <Badge 
                               variant={
