@@ -4994,25 +4994,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         : [];
 
-      // Validate if the date is appropriate for attendance marking
-      const dateValidation = validateAttendanceDate(date, batchDetails, holidays);
-
-      if (!dateValidation.isValid) {
-        return res.status(400).json({
-          message: "Date validation failed",
-          reason: dateValidation.reason
-        });
-      }
-
-      // If auto-marking is applicable, override the status
+      // Skip date validation to allow marking attendance for any date
+      console.log(`Skipping date validation for attendance on ${date}`);
+      
+      // Use user-selected status directly without auto-marking
       let finalStatus = status;
-      if (dateValidation.autoMarkedStatus) {
-        finalStatus = dateValidation.autoMarkedStatus;
-        // If user is trying to mark something other than the auto-marked status, warn them
-        if (status !== finalStatus) {
-          console.log(`Auto-marking attendance as ${finalStatus} for date ${date} (user tried to mark as ${status})`);
-        }
-      }
 
       // Create or update attendance record with potentially auto-marked status
       const [result] = await db
@@ -5038,11 +5024,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
 
-      // Include information about auto-marking in the response
+      // Since we're skipping date validation and auto-marking, always set autoMarked to false
       const response = {
         ...result,
-        autoMarked: finalStatus !== status,
-        originalStatus: finalStatus !== status ? status : undefined
+        autoMarked: false,
+        originalStatus: undefined
       };
 
       console.log('Attendance record saved:', response);
