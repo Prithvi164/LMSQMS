@@ -409,27 +409,39 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
         {/* Trainee Assessment Results - Show only for the selected batch */}
         {selectedBatch === batch.id && batch.status !== 'planned' && (
           <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center mb-2">
-              <Award className="h-5 w-5 mr-2" />
-              <h4 className="font-medium">Trainee Assessment Results</h4>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center">
+                <Award className="h-5 w-5 mr-2" />
+                <h4 className="font-medium">Trainee Assessment Results</h4>
+              </div>
+              <Select 
+                defaultValue="all"
+                onValueChange={(value) => {
+                  console.log('Assessment filter changed to:', value);
+                  // Reuse existing filter mechanism or implement new filtering logic here
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Results</SelectItem>
+                  <SelectItem value="passed">Passed Only</SelectItem>
+                  <SelectItem value="failed">Failed Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Tabs defaultValue="recent" className="mt-2">
-              <TabsList className="mb-4">
-                <TabsTrigger value="recent" className="text-xs">Recent</TabsTrigger>
-                <TabsTrigger value="failed" className="text-xs">Failed</TabsTrigger>
-                <TabsTrigger value="passed" className="text-xs">Passed</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="recent">
-                {isLoadingQuizAttempts ? (
-                  <div className="flex justify-center items-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-                    <span className="text-sm text-muted-foreground">Loading...</span>
-                  </div>
-                ) : quizAttempts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-3">No assessment data available</p>
-                ) : (
-                  <div className="max-h-[300px] overflow-y-auto">
+            
+            <div className="mt-2">
+              {isLoadingQuizAttempts ? (
+                <div className="flex justify-center items-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                  <span className="text-sm text-muted-foreground">Loading...</span>
+                </div>
+              ) : quizAttempts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-3">No assessment data available</p>
+              ) : (
+                <div className="max-h-[300px] overflow-y-auto">
                     <Table className="text-sm">
                       <TableHeader>
                         <TableRow>
@@ -473,20 +485,8 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
                     )}
                   </div>
                 )}
-              </TabsContent>
-              
-              <TabsContent value="failed">
-                <p className="text-sm text-muted-foreground text-center py-3">
-                  Click on Assessments tab to view failed assessments
-                </p>
-              </TabsContent>
-              
-              <TabsContent value="passed">
-                <p className="text-sm text-muted-foreground text-center py-3">
-                  Click on Assessments tab to view passed assessments
-                </p>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

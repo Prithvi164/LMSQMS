@@ -43,6 +43,7 @@ import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timez
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { updateBatchStatuses, resetEmptyBatches } from './services/batch-status-service';
+import { validateAndStartBatch } from './services/batch-validation-service';
 import azureAudioFilesRouter from './routes/azure-audio-files';
 import { validateAttendanceDate } from './utils/attendance-utils';
 import { getHolidaysInRange } from './services/holiday-service';
