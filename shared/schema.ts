@@ -1454,6 +1454,7 @@ export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   justification: text("justification").notNull(),
   status: phaseChangeRequestStatusEnum("status").default('pending').notNull(),
   managerComments: text("manager_comments"),
+  active: boolean("active").default(true).notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -1497,6 +1498,7 @@ export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhase
     justification: z.string().min(1, "Justification is required"),
     status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
     managerComments: z.string().optional(),
+    active: z.boolean().default(true),
     organizationId: z.number().int().positive("Organization ID is required"),
   });
 

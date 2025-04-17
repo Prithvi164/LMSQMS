@@ -3683,7 +3683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const requestId = parseInt(req.params.requestId);
-      const { status, managerComments } = req.body;
+      const { status, managerComments, active } = req.body;
 
       // Get the request to verify the manager
       const request = await storage.getPhaseChangeRequest(requestId);
@@ -3691,15 +3691,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Request not found" });
       }
 
-      // Check if the user is the assigned manager
-      if (request.managerId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
+      // For soft delete operations (active: false), allow the trainer who created the request
+      // or admin/owner to perform the action
+      const isSoftDelete = active === false;
+      const isAllowedToSoftDelete = req.user.id === request.trainerId || 
+                                   req.user.role === 'owner' || 
+                                   req.user.role === 'admin';
+
+      // For regular status updates, only the assigned manager/admin/owner can update
+      if (!isSoftDelete && 
+          request.managerId !== req.user.id && 
+          req.user.role !== 'owner' && 
+          req.user.role !== 'admin') {
         return res.status(403).json({ message: "Only the assigned manager can update this request" });
+      }
+
+      // For soft deletes, ensure the user has permission
+      if (isSoftDelete && !isAllowedToSoftDelete) {
+        return res.status(403).json({ message: "You don't have permission to delete this request" });
       }
 
       // Update the request
       const updatedRequest = await storage.updatePhaseChangeRequest(requestId, {
-        status,
-        managerComments,
+        ...(status && { status }),
+        ...(managerComments && { managerComments }),
+        ...(active !== undefined && { active }),
       });
 
       // If approved, update the batch phase
