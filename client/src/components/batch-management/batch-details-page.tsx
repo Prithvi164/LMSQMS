@@ -178,7 +178,7 @@ const LoadingSkeleton = () => (
 
 const phaseChangeFormSchema = z.object({
   action: z.string().min(1, "Action is required"),
-  requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
+  requestedPhase: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification']),
   justification: z.string().min(1, "Justification is required"),
   managerId: z.string().min(1, "Manager is required"),
 });
@@ -200,6 +200,7 @@ export function BatchDetailsPage() {
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
+      action: "",
       requestedPhase: undefined,
       justification: "",
       managerId: "",
@@ -714,6 +715,28 @@ export function BatchDetailsPage() {
                           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                             <FormField
                               control={form.control}
+                              name="action"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Action</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select action" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Change phase to planned">Change phase to Planned</SelectItem>
+                                      <SelectItem value="Change phase to induction">Change phase to Induction</SelectItem>
+                                      <SelectItem value="Change phase to training">Change phase to Training</SelectItem>
+                                      <SelectItem value="Change phase to certification">Change phase to Certification</SelectItem>
+                                      <SelectItem value="Change phase to ojt">Change phase to OJT</SelectItem>
+                                      <SelectItem value="Change phase to ojt_certification">Change phase to OJT Certification</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
                               name="requestedPhase"
                               render={({ field }) => (
                                 <FormItem>
@@ -723,6 +746,7 @@ export function BatchDetailsPage() {
                                       <SelectValue placeholder="Select phase" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                      <SelectItem value="planned">Planned</SelectItem>
                                       <SelectItem value="induction">Induction</SelectItem>
                                       <SelectItem value="training">Training</SelectItem>
                                       <SelectItem value="certification">Certification</SelectItem>
