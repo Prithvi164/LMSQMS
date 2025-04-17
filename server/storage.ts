@@ -3459,8 +3459,7 @@ export class DatabaseStorage implements IStorage {
       let query = db
         .select()
         .from(batchPhaseChangeRequests)
-        .where(eq(batchPhaseChangeRequests.organizationId, organizationId))
-        .where(eq(batchPhaseChangeRequests.active, true)); // Only retrieve active records
+        .where(eq(batchPhaseChangeRequests.organizationId, organizationId));
 
       if (status) {
         query = query.where(eq(batchPhaseChangeRequests.status, status));
@@ -3476,9 +3475,8 @@ export class DatabaseStorage implements IStorage {
   async updatePhaseChangeRequest(
     id: number,
     update: {
-      status?: string;
+      status: string;
       managerComments?: string;
-      active?: boolean;
     }
   ): Promise<BatchPhaseChangeRequest> {
     try {
@@ -3510,12 +3508,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(batchPhaseChangeRequests)
-        .where(
-          and(
-            eq(batchPhaseChangeRequests.trainerId, trainerId),
-            eq(batchPhaseChangeRequests.active, true)
-          )
-        ) as BatchPhaseChangeRequest[];
+        .where(eq(batchPhaseChangeRequests.trainerId, trainerId)) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing trainer phase change requests:', error);
       throw error;
@@ -3527,12 +3520,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(batchPhaseChangeRequests)
-        .where(
-          and(
-            eq(batchPhaseChangeRequests.managerId, managerId),
-            eq(batchPhaseChangeRequests.active, true)
-          )
-        ) as BatchPhaseChangeRequest[];
+        .where(eq(batchPhaseChangeRequests.managerId, managerId)) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing manager phase change requests:', error);
       throw error;

@@ -250,21 +250,21 @@ export function BatchDetailsPage() {
     staleTime: 0 // Always refetch the data
   });
 
-  const { data: allUsers = [] } = useQuery<any[]>({
+  const { data: allUsers } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     enabled: !!user?.organizationId,
   });
   
   // Filter to get only the user's reporting manager
   const managers = useMemo(() => {
-    if (!allUsers.length || !user) return [];
+    if (!allUsers || !user) return [];
     
     // Find the current user's manager
-    const currentUser = allUsers.find((u) => u.id === user.id);
+    const currentUser = allUsers.find((u: any) => u.id === user.id);
     if (!currentUser || !currentUser.managerId) return [];
     
     // Return only the reporting manager
-    return allUsers.filter((u) => u.id === currentUser.managerId && u.role === 'manager');
+    return allUsers.filter((u: any) => u.id === currentUser.managerId && u.role === 'manager');
   }, [allUsers, user]);
 
   const { data: trainerRequests } = useQuery({
@@ -494,16 +494,11 @@ export function BatchDetailsPage() {
   
   const handleDelete = async (requestId: number) => {
     try {
-      // We're changing this to use a PATCH instead of DELETE to mark as inactive
       await fetch(`/api/phase-change-requests/${requestId}`, {
-        method: 'PATCH',
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          active: false,
-          status: 'inactive'
-        }),
       });
       queryClient.invalidateQueries({ 
         queryKey: [
@@ -513,13 +508,13 @@ export function BatchDetailsPage() {
       });
       toast({
         title: "Success",
-        description: "Request marked as inactive",
+        description: "Request deleted successfully",
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update request",
+        description: "Failed to delete request",
       });
     }
   };
@@ -915,26 +910,9 @@ export function BatchDetailsPage() {
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleDelete(request.id)}
-                                    className="p-0 h-auto hover:bg-transparent text-red-500 hover:text-red-700"
+                                    className="text-red-500 hover:text-red-700"
                                   >
-                                    <svg 
-                                      xmlns="http://www.w3.org/2000/svg" 
-                                      width="24" 
-                                      height="24" 
-                                      viewBox="0 0 24 24" 
-                                      fill="none" 
-                                      stroke="currentColor" 
-                                      strokeWidth="1.5" 
-                                      strokeLinecap="round" 
-                                      strokeLinejoin="round"
-                                      className="w-6 h-6"
-                                    >
-                                      <path d="M3 6h18" />
-                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                      <line x1="10" y1="11" x2="10" y2="17" />
-                                      <line x1="14" y1="11" x2="14" y2="17" />
-                                    </svg>
+                                    Delete
                                   </Button>
                                 )}
                               </div>
