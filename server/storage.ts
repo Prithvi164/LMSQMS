@@ -3584,9 +3584,15 @@ export class DatabaseStorage implements IStorage {
       
       const result = await db
         .delete(batchPhaseChangeRequests)
-        .where(eq(batchPhaseChangeRequests.id, id));
+        .where(eq(batchPhaseChangeRequests.id, id))
+        .returning({ id: batchPhaseChangeRequests.id });
       
-      console.log('Successfully deleted phase change request');
+      // Check if any rows were actually deleted
+      if (!result || result.length === 0) {
+        throw new Error('Failed to delete phase change request');
+      }
+      
+      console.log('Successfully deleted phase change request', result);
     } catch (error) {
       console.error('Error deleting phase change request:', error);
       throw error;

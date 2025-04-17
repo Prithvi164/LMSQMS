@@ -493,27 +493,37 @@ export function BatchDetailsPage() {
   
   const handleDelete = async (requestId: number) => {
     try {
-      await fetch(`/api/phase-change-requests/${requestId}`, {
+      const response = await fetch(`/api/phase-change-requests/${requestId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      
+      // Check if the request was successful
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete request');
+      }
+      
+      // Only invalidate queries and show success message if the request was successful
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
           `/api/managers/${user?.id}/phase-change-requests`
         ]
       });
+      
       toast({
         title: "Success",
         description: "Request deleted successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error deleting phase change request:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete request",
+        description: error.message || "Failed to delete request",
       });
     }
   };
