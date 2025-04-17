@@ -2570,7 +2570,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      res.json(quiz);
+      // Get the template for this quiz to access shuffle settings
+      const template = await storage.getQuizTemplate(quiz.templateId);
+      
+      let questionsToServe = [...quiz.questions]; // Create a copy to avoid modifying the original
+      
+      // Create a unique seed for this user to ensure consistent shuffling per user
+      // This ensures a trainee will see the same shuffled order if they reload the page
+      // But different trainees will see different orders
+      const userSeed = req.user.id.toString();
+      
+      // Extensive debugging to verify the problem
+      console.log('=== QUIZ DEBUGGING ===');
+      console.log(`User accessing quiz: ID=${req.user.id}, Username=${req.user.username}`);
+      console.log(`Quiz being accessed: ID=${quiz.id}, Template ID=${quiz.templateId}`);
+      console.log(`Original questions order: ${JSON.stringify(questionsToServe.map(q => q.id))}`);
+      
+      // Check if the quiz template was found
+      if (!template) {
+        console.log('WARNING: Quiz template not found! Using default settings (no shuffling).');
+      } else {
+        // Log template settings, handling both camelCase and snake_case property names
+        // The database uses snake_case (shuffle_questions) but our schema model uses camelCase (shuffleQuestions)
+        const shuffleQuestions = template.shuffleQuestions || template.shuffle_questions;
+        const shuffleOptions = template.shuffleOptions || template.shuffle_options;
+        
+        console.log('Template found with shuffle settings:', {
+          shuffleQuestions,
+          shuffleOptions,
+          templateId: template.id,
+          templateName: template.name,
+          rawTemplate: JSON.stringify(template) // Log full template for debugging
+        });
+      }
+      
+      // Apply question shuffling if enabled - checking both property naming conventions
+      const shouldShuffleQuestions = template && (template.shuffleQuestions || template.shuffle_questions);
+      if (shouldShuffleQuestions) {
+        console.log('Shuffling questions for quiz:', quizId, 'for user:', req.user.id);
+        const shuffledQuestions = shuffleArrayWithSeed(questionsToServe, userSeed);
+        console.log('Questions after shuffling:', shuffledQuestions.map(q => q.id));
+        questionsToServe = shuffledQuestions;
+      } else {
+        console.log('Question shuffling is NOT enabled for this template');
+      }
+      
+      // Apply option shuffling if enabled - checking both property naming conventions
+      const shouldShuffleOptions = template && (template.shuffleOptions || template.shuffle_options);
+      if (shouldShuffleOptions) {
+        console.log('Shuffling options for quiz:', quizId, 'for user:', req.user.id);
+        
+        // Track original options for debugging
+        const originalOptionsMap = {};
+        questionsToServe.forEach((question, index) => {
+          if (question.type === 'multiple_choice' && Array.isArray(question.options)) {
+            originalOptionsMap[question.id] = [...question.options];
+          }
+        });
+        
+        questionsToServe = questionsToServe.map((question, questionIndex) => {
+          // Only shuffle multiple choice questions with options
+          if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
+            // Create a unique seed for each question to ensure different shuffling patterns
+            const questionSeed = `${userSeed}-q${questionIndex}`;
+            
+            // Create a mapping of original positions to track the correct answer
+            const originalOptions = [...question.options];
+            const shuffledOptions = shuffleArrayWithSeed([...originalOptions], questionSeed);
+            
+            console.log(`Question ${question.id} options shuffling:`, {
+              original: originalOptions,
+              shuffled: shuffledOptions
+            });
+            
+            // If correctAnswer is an index/position in the original array
+            let updatedCorrectAnswer = question.correctAnswer;
+            if (!isNaN(Number(question.correctAnswer))) {
+              // If it's a numeric index, update it to the new position
+              const correctOptionValue = originalOptions[Number(question.correctAnswer)];
+              updatedCorrectAnswer = String(shuffledOptions.indexOf(correctOptionValue));
+              
+              console.log(`Question ${question.id} correctAnswer updated:`, {
+                originalIndex: question.correctAnswer,
+                originalValue: correctOptionValue,
+                newIndex: updatedCorrectAnswer
+              });
+            } else {
+              // If it's the actual option value, it stays the same
+              console.log(`Question ${question.id} correctAnswer unchanged (not an index):`, question.correctAnswer);
+            }
+            
+            return {
+              ...question,
+              options: shuffledOptions,
+              correctAnswer: updatedCorrectAnswer
+            };
+          }
+          return question;
+        });
+      } else {
+        console.log('Option shuffling is NOT enabled for this template');
+      }
+      
+      // Return the quiz with potentially shuffled questions and options
+      const quizToReturn = {
+        ...quiz,
+        questions: questionsToServe
+      };
+      
+      res.json(quizToReturn);
     } catch (error: any) {
       console.error("Error fetching quiz details:", error);
       res.status(500).json({ message: error.message });
