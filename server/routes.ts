@@ -3720,6 +3720,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update phase change request status
+  // Get phase change requests for a specific batch
+  app.get("/api/batches/:batchId/phase-change-requests", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      if (isNaN(batchId)) {
+        return res.status(400).json({ message: "Invalid batch ID" });
+      }
+
+      // Verify user has access to this batch
+      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "You don't have access to this batch" });
+      }
+
+      const requests = await storage.listBatchPhaseChangeRequests(batchId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error listing batch phase change requests:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -6892,22 +6916,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Record batch history first
+      // Get the batch first
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      
+      // Record batch history
       await addBatchHistoryRecord(
         batchId,
         'phase_change',
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
-        'induction',,
+        'induction',
+        batch.organizationId,
         req.user.id // Pass the actual user ID who started the batch
-        batch.organizationId
       );
-
-      // Get the batch
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
 
       // Check if batch can be started
       if (batch.status !== 'planned') {

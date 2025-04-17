@@ -276,6 +276,7 @@ export interface IStorage {
   ): Promise<BatchPhaseChangeRequest>;
   listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]>;
   listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]>;
+  listBatchPhaseChangeRequests(batchId: number): Promise<BatchPhaseChangeRequest[]>;
   deletePhaseChangeRequest(id: number): Promise<void>;
 
   // Add new method for getting reporting trainers
@@ -3597,6 +3598,31 @@ export class DatabaseStorage implements IStorage {
       })) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing manager phase change requests:', error);
+      throw error;
+    }
+  }
+  
+  async listBatchPhaseChangeRequests(batchId: number): Promise<BatchPhaseChangeRequest[]> {
+    try {
+      const requests = await db
+        .select({
+          request: batchPhaseChangeRequests,
+          trainer: {
+            id: users.id,
+            fullName: users.fullName,
+          }
+        })
+        .from(batchPhaseChangeRequests)
+        .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
+        .where(eq(batchPhaseChangeRequests.batchId, batchId));
+
+      // Transform the result to the expected format
+      return requests.map(item => ({
+        ...item.request,
+        trainer: item.trainer
+      })) as BatchPhaseChangeRequest[];
+    } catch (error) {
+      console.error('Error listing batch phase change requests:', error);
       throw error;
     }
   }
