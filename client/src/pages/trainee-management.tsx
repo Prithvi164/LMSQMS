@@ -199,17 +199,6 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
     const dateIST = addMinutes(addHours(date, 5), 30);
     return format(dateIST, "PPP");
   };
-  
-  // Check if batch start date is today or in the past
-  const isStartDateValid = (startDateStr: string) => {
-    const startDate = new Date(startDateStr);
-    startDate.setHours(0, 0, 0, 0); // Set to beginning of day
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to beginning of day for fair comparison
-    
-    return startDate <= today; // Return true if start date is today or earlier
-  };
 
   // Get all users for applying reporting hierarchy filters
   const { data: allUsers = [] } = useQuery({
@@ -367,35 +356,17 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
         </div>
 
         {batch.status === 'planned' && hasFullAccess && (
-          <>
-            {/* Check if start date is today or in the past */}
-            {isStartDateValid(batch.startDate) ? (
-              <Button
-                className="w-full transition-transform active:scale-95 hover:scale-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startBatchMutation.mutate(batch.id);
-                }}
-                disabled={startBatchMutation.isPending}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
-              </Button>
-            ) : (
-              <div className="relative">
-                <Button
-                  className="w-full transition-transform hover:scale-100 opacity-70"
-                  disabled={true}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Can't Start Yet
-                </Button>
-                <div className="mt-2 text-xs text-center text-muted-foreground">
-                  Batch can only start on or after {formatToIST(batch.startDate)}
-                </div>
-              </div>
-            )}
-          </>
+          <Button
+            className="w-full transition-transform active:scale-95 hover:scale-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              startBatchMutation.mutate(batch.id);
+            }}
+            disabled={startBatchMutation.isPending}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
+          </Button>
         )}
         
         {/* View-only message for users without full access */}
@@ -409,39 +380,27 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
         {/* Trainee Assessment Results - Show only for the selected batch */}
         {selectedBatch === batch.id && batch.status !== 'planned' && (
           <div className="mt-4 pt-4 border-t">
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center">
-                <Award className="h-5 w-5 mr-2" />
-                <h4 className="font-medium">Trainee Assessment Results</h4>
-              </div>
-              <Select 
-                defaultValue="all"
-                onValueChange={(value) => {
-                  console.log('Assessment filter changed to:', value);
-                  // Reuse existing filter mechanism or implement new filtering logic here
-                }}
-              >
-                <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Results</SelectItem>
-                  <SelectItem value="passed">Passed Only</SelectItem>
-                  <SelectItem value="failed">Failed Only</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center mb-2">
+              <Award className="h-5 w-5 mr-2" />
+              <h4 className="font-medium">Trainee Assessment Results</h4>
             </div>
-            
-            <div className="mt-2">
-              {isLoadingQuizAttempts ? (
-                <div className="flex justify-center items-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-                  <span className="text-sm text-muted-foreground">Loading...</span>
-                </div>
-              ) : quizAttempts.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-3">No assessment data available</p>
-              ) : (
-                <div className="max-h-[300px] overflow-y-auto">
+            <Tabs defaultValue="recent" className="mt-2">
+              <TabsList className="mb-4">
+                <TabsTrigger value="recent" className="text-xs">Recent</TabsTrigger>
+                <TabsTrigger value="failed" className="text-xs">Failed</TabsTrigger>
+                <TabsTrigger value="passed" className="text-xs">Passed</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="recent">
+                {isLoadingQuizAttempts ? (
+                  <div className="flex justify-center items-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                    <span className="text-sm text-muted-foreground">Loading...</span>
+                  </div>
+                ) : quizAttempts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-3">No assessment data available</p>
+                ) : (
+                  <div className="max-h-[300px] overflow-y-auto">
                     <Table className="text-sm">
                       <TableHeader>
                         <TableRow>
@@ -485,13 +444,25 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
                     )}
                   </div>
                 )}
-              </div>
-            </div>
+              </TabsContent>
+              
+              <TabsContent value="failed">
+                <p className="text-sm text-muted-foreground text-center py-3">
+                  Click on Assessments tab to view failed assessments
+                </p>
+              </TabsContent>
+              
+              <TabsContent value="passed">
+                <p className="text-sm text-muted-foreground text-center py-3">
+                  Click on Assessments tab to view passed assessments
+                </p>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </CardContent>
     </Card>
-  ), [selectedBatch, startBatchMutation, isNavigating, navigatingBatchId, isLoadingQuizAttempts, quizAttempts, setSelectedTab, isStartDateValid, formatToIST]);
+  ), [selectedBatch, startBatchMutation, isNavigating, navigatingBatchId, isLoadingQuizAttempts, quizAttempts, setSelectedTab]);
 
   const renderDrilldownControls = useCallback(() => (
     <div className="flex gap-4 mb-6">
