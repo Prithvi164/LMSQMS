@@ -491,6 +491,33 @@ export function BatchDetailsPage() {
       });
     }
   };
+  
+  const handleDelete = async (requestId: number) => {
+    try {
+      await fetch(`/api/phase-change-requests/${requestId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: [
+          `/api/trainers/${user?.id}/phase-change-requests`,
+          `/api/managers/${user?.id}/phase-change-requests`
+        ]
+      });
+      toast({
+        title: "Success",
+        description: "Request deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete request",
+      });
+    }
+  };
 
   if (batchLoading || traineesLoading) {
     return <LoadingSkeleton />;
@@ -858,22 +885,36 @@ export function BatchDetailsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {user?.id === request.managerId && request.status === 'pending' && (
+                            {request.status === 'pending' && (
                               <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleApprove(request.id)}
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => handleReject(request.id)}
-                                >
-                                  Reject
-                                </Button>
+                                {user?.id === request.managerId && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleApprove(request.id)}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleReject(request.id)}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                                {(user?.id === request.trainerId || user?.id === request.managerId) && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDelete(request.id)}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    Delete
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </TableCell>
