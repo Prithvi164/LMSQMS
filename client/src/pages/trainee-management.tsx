@@ -199,6 +199,17 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
     const dateIST = addMinutes(addHours(date, 5), 30);
     return format(dateIST, "PPP");
   };
+  
+  // Check if batch start date is today or in the past
+  const isStartDateValid = (startDateStr: string) => {
+    const startDate = new Date(startDateStr);
+    startDate.setHours(0, 0, 0, 0); // Set to beginning of day
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of day for fair comparison
+    
+    return startDate <= today; // Return true if start date is today or earlier
+  };
 
   // Get all users for applying reporting hierarchy filters
   const { data: allUsers = [] } = useQuery({
@@ -356,17 +367,35 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
         </div>
 
         {batch.status === 'planned' && hasFullAccess && (
-          <Button
-            className="w-full transition-transform active:scale-95 hover:scale-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              startBatchMutation.mutate(batch.id);
-            }}
-            disabled={startBatchMutation.isPending}
-          >
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
-          </Button>
+          <>
+            {/* Check if start date is today or in the past */}
+            {isStartDateValid(batch.startDate) ? (
+              <Button
+                className="w-full transition-transform active:scale-95 hover:scale-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startBatchMutation.mutate(batch.id);
+                }}
+                disabled={startBatchMutation.isPending}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
+              </Button>
+            ) : (
+              <div className="relative">
+                <Button
+                  className="w-full transition-transform hover:scale-100 opacity-70"
+                  disabled={true}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Can't Start Yet
+                </Button>
+                <div className="mt-2 text-xs text-center text-muted-foreground">
+                  Batch can only start on or after {formatToIST(batch.startDate)}
+                </div>
+              </div>
+            )}
+          </>
         )}
         
         {/* View-only message for users without full access */}
@@ -462,7 +491,7 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
         )}
       </CardContent>
     </Card>
-  ), [selectedBatch, startBatchMutation, isNavigating, navigatingBatchId, isLoadingQuizAttempts, quizAttempts, setSelectedTab]);
+  ), [selectedBatch, startBatchMutation, isNavigating, navigatingBatchId, isLoadingQuizAttempts, quizAttempts, setSelectedTab, isStartDateValid, formatToIST]);
 
   const renderDrilldownControls = useCallback(() => (
     <div className="flex gap-4 mb-6">

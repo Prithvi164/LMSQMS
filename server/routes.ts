@@ -47,6 +47,72 @@ import azureAudioFilesRouter from './routes/azure-audio-files';
 import { validateAttendanceDate } from './utils/attendance-utils';
 import { getHolidaysInRange } from './services/holiday-service';
 
+// Centralized batch start logic handler to avoid duplication
+async function handleBatchStart(req: any, res: any) {
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const batchId = parseInt(req.params.batchId);
+    if (!batchId) {
+      return res.status(400).json({ message: "Invalid batch ID" });
+    }
+
+    // Get the batch
+    const batch = await storage.getBatch(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: "Batch not found" });
+    }
+
+    // Check if batch can be started
+    if (batch.status !== 'planned') {
+      return res.status(400).json({ 
+        message: "Only planned batches can be started" 
+      });
+    }
+    
+    // Check if the batch's start date has arrived
+    const batchStartDate = new Date(batch.startDate);
+    batchStartDate.setHours(0, 0, 0, 0); // Set to beginning of day
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of day for fair comparison
+    
+    if (batchStartDate > today) {
+      return res.status(400).json({
+        message: `Batch cannot be started before its scheduled start date (${formatISTDateOnly(batch.startDate)})`
+      });
+    }
+
+    // Get trainees count for this batch
+    const trainees = await storage.getBatchTrainees(batchId);
+    const traineeCount = trainees.filter(trainee => trainee.category === 'trainee').length;
+
+    if (traineeCount === 0) {
+      return res.status(400).json({
+        message: "Cannot start batch without any trainees. Please add at least one trainee before starting the batch."
+      });
+    }
+
+    // Store dates in UTC format while preserving IST midnight
+    const currentDate = new Date();
+    const updatedBatch = await storage.updateBatch(batchId, {
+      status: 'induction',
+      startDate: toUTCStorage(currentDate.toISOString())
+    });
+
+    console.log('Successfully started batch:', {
+      ...updatedBatch,
+      startDate: formatISTDateOnly(updatedBatch.startDate)
+    });
+
+    return res.json(updatedBatch);
+
+  } catch (error: any) {
+    console.error("Error starting batch:", error);
+    return res.status(500).json({ message: error.message || "Failed to start batch" });
+  }
+}
+
 // Helper function to check if a user has access to a specific batch or its template
 async function userHasBatchAccess(userId: number, batchId: number | null | undefined): Promise<boolean> {
   if (!batchId) return true; // If no batch ID is specified, access is granted
@@ -2277,57 +2343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Add new route for starting a batch after existing batch routes
-  app.post("/api/batches/:batchId/start", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-      if (!batchId) {
-        return res.status(400).json({ message: "Invalid batch ID" });
-      }
-
-      // Get the batch
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      // Check if batch can be started
-      if (batch.status !== 'planned') {
-        return res.status(400).json({ 
-          message: "Only planned batches can be started" 
-        });
-      }
-
-      // Get all users assigned to this batch and check their category
-      const batchTrainees = await storage.getBatchTrainees(batchId);
-      const traineeCount = batchTrainees.length;
-
-      if (traineeCount === 0) {
-        return res.status(400).json({
-          message: "Cannot start batch without any trainees. Please add at least one trainee before starting the batch."
-        });
-      }
-
-      // Store dates in UTC format while preserving IST midnight
-      const currentDate = new Date();
-      const updatedBatch = await storage.updateBatch(batchId, {
-        status: 'induction',
-        startDate: toUTCStorage(currentDate.toISOString())
-      });
-
-      console.log('Successfully started batch:', {
-        ...updatedBatch,
-        startDate: formatISTDateOnly(updatedBatch.startDate)
-      });
-
-      res.json(updatedBatch);
-
-    } catch (error: any) {
-      console.error("Error starting batch:", error);
-      res.status(500).json({ message: error.message || "Failed to start batch" });
-    }
-  });
+  app.post("/api/batches/:batchId/start", handleBatchStart);
 
   // Create phase change request
   app.post("/api/batches/:batchId/phase-change-requests", async (req, res) => {
