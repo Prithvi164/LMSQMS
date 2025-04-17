@@ -2316,8 +2316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
         'induction',
-        batch.organizationId,
-        req.user.id // Pass the actual user ID who started the batch
+        batch.organizationId
       );
 
       // Store dates in UTC format while preserving IST midnight
@@ -6147,8 +6146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
         'induction',
-        batch.organizationId,
-        req.user.id // Pass the actual user ID who started the batch
+        batch.organizationId
       );
 
 
@@ -6523,8 +6521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
         'induction',
-        batch.organizationId,
-        req.user.id // Pass the actual user ID who started the batch
+        batch.organizationId
       );
 
       }
@@ -6898,8 +6895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'phase_change',
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
-        'induction',,
-        req.user.id // Pass the actual user ID who started the batch
+        'induction',
         batch.organizationId
       );
 
