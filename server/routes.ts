@@ -4995,7 +4995,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : [];
 
       // Skip date validation to allow marking attendance for any date
-      console.log(`Skipping date validation for attendance on ${date}`);
+      console.log(`Skipping date validation for attendance on ${date} in batch ${batchId} for trainee ${traineeId}`);
+      
+      // Always consider the date as valid, regardless of what validation would say
+      const dateValidation = {
+        isValid: true,
+        reason: "Date validation bypassed as requested"
+      };
       
       // Use user-selected status directly without auto-marking
       let finalStatus = status;

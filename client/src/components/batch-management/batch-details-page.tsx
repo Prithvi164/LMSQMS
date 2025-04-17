@@ -304,31 +304,42 @@ export function BatchDetailsPage() {
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
-      const response = await fetch(`/api/attendance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          traineeId,
-          status,
-          date: selectedDate, // Use the selected date
-          organizationId: user?.organizationId,
-          batchId: parseInt(batchId!),
-          phase: batch?.status,
-          markedById: user?.id
-        }),
-      });
-
-      if (!response.ok) {
+      // Use a try-catch to debug what's going on
+      try {
+        console.log(`Sending attendance request: traineeId=${traineeId}, status=${status}, date=${selectedDate}`);
+        
+        const response = await fetch(`/api/attendance`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            traineeId,
+            status,
+            date: selectedDate, // Use the selected date
+            organizationId: user?.organizationId,
+            batchId: parseInt(batchId!),
+            phase: batch?.status,
+            markedById: user?.id
+          }),
+        });
+        
+        // Log the full response for debugging
+        console.log(`Attendance API response: status=${response.status}, ok=${response.ok}`);
+        
         const data = await response.json();
-        throw new Error(data.message || 'Failed to update attendance');
+        console.log("Full API response data:", JSON.stringify(data));
+        
+        if (!response.ok) {
+          throw new Error(data.message || data.reason || 'Failed to update attendance');
+        }
+        
+        return data;
+      } catch (error) {
+        console.error("Error in attendance mutation:", error);
+        throw error;
       }
-
-      const responseData = await response.json();
-      console.log("Attendance response data:", JSON.stringify(responseData));
-      return responseData;
     },
     onSuccess: (data) => {
       console.log("Updating cache with data:", JSON.stringify(data));
