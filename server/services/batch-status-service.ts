@@ -76,30 +76,35 @@ export const addBatchHistoryRecord = async (
   description: string,
   previousValue: string | null,
   newValue: string | null,
-  organizationId: number
+  organizationId: number,
+  userId?: number // Optional userId parameter to specify which user initiated the action
 ) => {
   try {
-    // First find an admin user for this organization
-    const adminUser = await db.query.users.findFirst({
-      where: and(
-        eq(users.organizationId, organizationId),
-        eq(users.role, 'admin')
-      )
-    });
+    let finalUserId = userId;
     
-    // If no admin user found, try to find any user
-    let userId;
-    if (adminUser) {
-      userId = adminUser.id;
-    } else {
-      const anyUser = await db.query.users.findFirst({
-        where: eq(users.organizationId, organizationId)
+    // If no userId provided, find an appropriate user from the organization
+    if (!finalUserId) {
+      // First find an admin user for this organization
+      const adminUser = await db.query.users.findFirst({
+        where: and(
+          eq(users.organizationId, organizationId),
+          eq(users.role, 'admin')
+        )
       });
-      userId = anyUser?.id;
+      
+      // If no admin user found, try to find any user
+      if (adminUser) {
+        finalUserId = adminUser.id;
+      } else {
+        const anyUser = await db.query.users.findFirst({
+          where: eq(users.organizationId, organizationId)
+        });
+        finalUserId = anyUser?.id;
+      }
     }
     
     // Only proceed if we found a valid user
-    if (userId) {
+    if (finalUserId) {
       await db.insert(batchHistory).values({
         batchId,
         eventType,
@@ -107,7 +112,7 @@ export const addBatchHistoryRecord = async (
         previousValue: previousValue || undefined,
         newValue: newValue || undefined,
         date: new Date(), // Using Date object directly
-        userId,
+        userId: finalUserId,
         organizationId
       });
     } else {

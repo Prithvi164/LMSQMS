@@ -3752,7 +3752,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `Batch phase changed from ${request.currentPhase} to ${request.requestedPhase} (via phase change request)`,
           request.currentPhase,
           request.requestedPhase,
-          request.organizationId
+          request.organizationId,
+          req.user.id // Pass the actual user ID who approved the request
         );
         
         // Then update the batch status

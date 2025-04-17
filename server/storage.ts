@@ -3553,10 +3553,23 @@ export class DatabaseStorage implements IStorage {
 
   async listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]> {
     try {
-      return await db
-        .select()
+      const requests = await db
+        .select({
+          request: batchPhaseChangeRequests,
+          trainer: {
+            id: users.id,
+            fullName: users.fullName,
+          }
+        })
         .from(batchPhaseChangeRequests)
-        .where(eq(batchPhaseChangeRequests.trainerId, trainerId)) as BatchPhaseChangeRequest[];
+        .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
+        .where(eq(batchPhaseChangeRequests.trainerId, trainerId));
+
+      // Transform the result to the expected format
+      return requests.map(item => ({
+        ...item.request,
+        trainer: item.trainer
+      })) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing trainer phase change requests:', error);
       throw error;
@@ -3565,10 +3578,23 @@ export class DatabaseStorage implements IStorage {
 
   async listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]> {
     try {
-      return await db
-        .select()
+      const requests = await db
+        .select({
+          request: batchPhaseChangeRequests,
+          trainer: {
+            id: users.id,
+            fullName: users.fullName,
+          }
+        })
         .from(batchPhaseChangeRequests)
-        .where(eq(batchPhaseChangeRequests.managerId, managerId)) as BatchPhaseChangeRequest[];
+        .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
+        .where(eq(batchPhaseChangeRequests.managerId, managerId));
+
+      // Transform the result to the expected format
+      return requests.map(item => ({
+        ...item.request,
+        trainer: item.trainer
+      })) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing manager phase change requests:', error);
       throw error;
