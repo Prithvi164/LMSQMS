@@ -179,7 +179,6 @@ export const resetEmptyBatches = async () => {
           batch.status,
           'planned',
           batch.organizationId
-          // No user ID - will use organization admin as fallback for automated updates
         );
       }
     }
@@ -267,11 +266,10 @@ export const updateBatchStatuses = async () => {
             await addBatchHistoryRecord(
               batch.id,
               'phase_change',
-              `Batch phase changed from ${currentPhase} to ${nextPhase} (automated transition)`,
+              `Batch phase changed from ${currentPhase} to ${nextPhase}`,
               currentPhase,
               nextPhase,
               batch.organizationId
-              // No user ID - will use organization admin as fallback for automated updates
             );
           } else {
             console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users. Keeping in '${currentPhase}' status.`);

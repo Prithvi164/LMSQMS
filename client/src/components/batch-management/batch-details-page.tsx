@@ -267,19 +267,25 @@ export function BatchDetailsPage() {
     return allUsers.filter((u: any) => u.id === currentUser.managerId && u.role === 'manager');
   }, [allUsers, user]);
 
-  // Fetch phase requests for this specific batch instead of all requests for a trainer/manager
   const { 
-    data: batchPhaseRequests,
-    refetch: fetchBatchPhaseRequests
+    data: trainerRequests,
+    refetch: fetchTrainerRequests
   } = useQuery({
-    queryKey: [`/api/batches/${batchId}/phase-change-requests`],
-    enabled: !!batchId,
+    queryKey: [`/api/trainers/${user?.id}/phase-change-requests`],
+    enabled: !!user?.id && user?.role === 'trainer',
+  });
+
+  const { 
+    data: managerRequests,
+    refetch: fetchManagerRequests
+  } = useQuery({
+    queryKey: [`/api/managers/${user?.id}/phase-change-requests`],
+    enabled: !!user?.id && user?.role === 'manager',
   });
 
   // Define a type for phase requests
   type PhaseRequest = {
     id: number;
-    batchId: number;
     trainerId: number;
     managerId: number;
     currentPhase: string;
@@ -310,8 +316,12 @@ export function BatchDetailsPage() {
     };
   };
   
-  // Use the batch-specific phase requests
-  const phaseRequests: PhaseRequest[] = batchPhaseRequests as PhaseRequest[] || [];
+  // Initialize phase requests with proper typing
+  const phaseRequests: PhaseRequest[] = user?.role === 'trainer' 
+    ? (trainerRequests as PhaseRequest[] || []) 
+    : user?.role === 'manager' 
+      ? (managerRequests as PhaseRequest[] || []) 
+      : [];
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
@@ -400,17 +410,25 @@ export function BatchDetailsPage() {
     onSuccess: () => {
       console.log('Phase change request created successfully, refreshing data...');
       
-      // Invalidate batch-specific phase request queries
+      // Invalidate queries
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/batches/${batchId}/phase-change-requests`],
+        queryKey: [
+          `/api/trainers/${user?.id}/phase-change-requests`,
+          `/api/managers/${user?.id}/phase-change-requests`
+        ],
         // Force immediate refetch
         refetchType: 'active',
         exact: false
       });
       
-      // Force explicit refresh of batch-specific phase requests
-      console.log('Refreshing batch phase requests...');
-      fetchBatchPhaseRequests();
+      // Force explicit refresh depending on user role
+      if (user?.role === 'trainer') {
+        console.log('Executing fetchTrainerRequests()...');
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        console.log('Executing fetchManagerRequests()...');
+        fetchManagerRequests();
+      }
       
       toast({
         title: "Success",
@@ -453,24 +471,25 @@ export function BatchDetailsPage() {
       
       console.log(`Approve response status: ${response.status}`);
       
-      // Invalidate batch-specific phase request queries
+      // Invalidate queries
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/batches/${batchId}/phase-change-requests`],
+        queryKey: [
+          `/api/trainers/${user?.id}/phase-change-requests`,
+          `/api/managers/${user?.id}/phase-change-requests`
+        ],
         // Force immediate refetch
         refetchType: 'active',
         exact: false
       });
       
-      // Also refresh the batch details to update the current phase
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/batches/${batchId}`],
-        refetchType: 'active', 
-        exact: false
-      });
-      
-      // Force explicit refresh of batch-specific phase requests
-      console.log('Refreshing batch phase requests...');
-      fetchBatchPhaseRequests();
+      // Force explicit refresh depending on user role
+      if (user?.role === 'trainer') {
+        console.log('Executing fetchTrainerRequests()...');
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        console.log('Executing fetchManagerRequests()...');
+        fetchManagerRequests();
+      }
       
       toast({
         title: "Success",
@@ -502,17 +521,25 @@ export function BatchDetailsPage() {
       
       console.log(`Reject response status: ${response.status}`);
       
-      // Invalidate batch-specific phase request queries
+      // Invalidate queries
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/batches/${batchId}/phase-change-requests`],
+        queryKey: [
+          `/api/trainers/${user?.id}/phase-change-requests`,
+          `/api/managers/${user?.id}/phase-change-requests`
+        ],
         // Force immediate refetch
         refetchType: 'active',
         exact: false
       });
       
-      // Force explicit refresh of batch-specific phase requests
-      console.log('Refreshing batch phase requests...');
-      fetchBatchPhaseRequests();
+      // Force explicit refresh depending on user role
+      if (user?.role === 'trainer') {
+        console.log('Executing fetchTrainerRequests()...');
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        console.log('Executing fetchManagerRequests()...');
+        fetchManagerRequests();
+      }
       
       toast({
         title: "Success",
@@ -556,22 +583,27 @@ export function BatchDetailsPage() {
       
       console.log(`Successfully deleted request, invalidating queries`);
       
-      // Invalidate batch-specific phase request queries
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/batches/${batchId}/phase-change-requests`],
+        queryKey: [
+          `/api/trainers/${user?.id}/phase-change-requests`,
+          `/api/managers/${user?.id}/phase-change-requests`
+        ],
         // Force immediate refetch
         refetchType: 'active',
         exact: false
       });
       
-      // Force explicit refresh of batch-specific phase requests
-      console.log('Refreshing batch phase requests...');
-      fetchBatchPhaseRequests();
-      
       toast({
         title: "Success",
         description: "Request deleted successfully",
       });
+      
+      // Force refresh the requests after deletion
+      if (user?.role === 'trainer') {
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        fetchManagerRequests();
+      }
       
     } catch (error) {
       console.error(`Error deleting request:`, error);

@@ -2380,21 +2380,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trainerId = parseInt(req.params.trainerId);
       
       // Check if the user is requesting their own requests
-      // Add more roles that can view trainer requests (team leads and managers should see their team's requests)
-      if (req.user.id !== trainerId && 
-          req.user.role !== 'owner' && 
-          req.user.role !== 'admin' && 
-          req.user.role !== 'manager' && 
-          req.user.role !== 'team_lead') {
-        return res.status(403).json({ message: "You can only view your own requests or requests from your team" });
+      if (req.user.id !== trainerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "You can only view your own requests" });
       }
 
       const requests = await storage.listTrainerPhaseChangeRequests(trainerId);
-      
-      // Add debugging
-      console.log(`Fetched ${requests.length} phase change requests for trainer ${trainerId}`);
-      console.log('First request (if any):', requests.length > 0 ? requests[0] : 'No requests');
-      
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing trainer phase change requests:", error);
@@ -2410,20 +2400,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const managerId = parseInt(req.params.managerId);
       
       // Check if the user is requesting their own managed requests
-      // Allow more roles to view manager requests
-      if (req.user.id !== managerId && 
-          req.user.role !== 'owner' && 
-          req.user.role !== 'admin' && 
-          req.user.role !== 'team_lead') {
+      if (req.user.id !== managerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
         return res.status(403).json({ message: "You can only view requests assigned to you" });
       }
 
       const requests = await storage.listManagerPhaseChangeRequests(managerId);
-      
-      // Add debugging
-      console.log(`Fetched ${requests.length} phase change requests for manager ${managerId}`);
-      console.log('First request (if any):', requests.length > 0 ? requests[0] : 'No requests');
-      
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing manager phase change requests:", error);
@@ -3739,30 +3720,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update phase change request status
-  // Get phase change requests for a specific batch
-  app.get("/api/batches/:batchId/phase-change-requests", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-      if (isNaN(batchId)) {
-        return res.status(400).json({ message: "Invalid batch ID" });
-      }
-
-      // Verify user has access to this batch
-      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You don't have access to this batch" });
-      }
-
-      const requests = await storage.listBatchPhaseChangeRequests(batchId);
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error listing batch phase change requests:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -6935,22 +6892,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Get the batch first
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-      
-      // Record batch history
+      // Record batch history first
       await addBatchHistoryRecord(
         batchId,
         'phase_change',
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
-        'induction',
-        batch.organizationId,
+        'induction',,
         req.user.id // Pass the actual user ID who started the batch
+        batch.organizationId
       );
+
+      // Get the batch
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
 
       // Check if batch can be started
       if (batch.status !== 'planned') {
