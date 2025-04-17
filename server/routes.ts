@@ -3604,27 +3604,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let questionsToServe = [...quiz.questions]; // Create a copy to avoid modifying the original
       
+      // Create a unique seed for this user to ensure consistent shuffling per user
+      // This ensures a trainee will see the same shuffled order if they reload the page
+      // But different trainees will see different orders
+      const userSeed = req.user.id.toString();
+      console.log(`Using shuffle seed for user ${req.user.id} (${req.user.username})`);
+      
       // Log for debugging
       console.log('Quiz template shuffle settings:', {
         shuffleQuestions: template?.shuffleQuestions,
-        shuffleOptions: template?.shuffleOptions
+        shuffleOptions: template?.shuffleOptions,
+        userSeed
       });
       
-      // Apply question shuffling if enabled in the template
+      // Apply question shuffling if enabled in the template - using the user's ID as seed
       if (template && template.shuffleQuestions) {
-        console.log('Shuffling questions for quiz:', quizId);
-        questionsToServe = shuffleArray(questionsToServe);
+        console.log('Shuffling questions for quiz:', quizId, 'for user:', req.user.id);
+        questionsToServe = shuffleArrayWithSeed(questionsToServe, userSeed);
       }
       
-      // Apply option shuffling if enabled in the template
+      // Apply option shuffling if enabled in the template - using the user's ID as seed
       if (template && template.shuffleOptions) {
-        console.log('Shuffling options for quiz:', quizId);
-        questionsToServe = questionsToServe.map(question => {
+        console.log('Shuffling options for quiz:', quizId, 'for user:', req.user.id);
+        questionsToServe = questionsToServe.map((question, questionIndex) => {
           // Only shuffle multiple choice questions with options
           if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
+            // Create a unique seed for each question to ensure different shuffling patterns
+            const questionSeed = `${userSeed}-q${questionIndex}`;
+            
             // Create a mapping of original positions to track the correct answer
             const originalOptions = [...question.options];
-            const shuffledOptions = shuffleArray([...originalOptions]);
+            const shuffledOptions = shuffleArrayWithSeed([...originalOptions], questionSeed);
             
             // If correctAnswer is an index/position in the original array
             let updatedCorrectAnswer = question.correctAnswer;
@@ -3663,13 +3673,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Helper function to shuffle an array (Fisher-Yates algorithm)
-  function shuffleArray<T>(array: T[]): T[] {
+  // Helper function to shuffle an array with a seed (deterministic shuffling)
+  function shuffleArrayWithSeed<T>(array: T[], seed: string): T[] {
     const newArray = [...array];
+    
+    // Create a seeded random number generator
+    const seededRandom = (max: number): number => {
+      // Simple seeded random function
+      // Use the seed string to generate a deterministic but random-looking sequence
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+      }
+      
+      // Use the current index and hash to create a "random" number
+      const x = Math.sin(hash + array.length) * 10000;
+      return Math.floor((x - Math.floor(x)) * max);
+    };
+    
+    // Fisher-Yates shuffle with seeded random
     for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = seededRandom(i + 1);
       [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      
+      // Modify the seed for the next iteration to create more randomness
+      seed = seed + i.toString();
     }
+    
     return newArray;
   }
 
