@@ -2384,10 +2384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view your own requests" });
       }
 
-      // Get the optional batchId query parameter
-      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
-      
-      const requests = await storage.listTrainerPhaseChangeRequests(trainerId, batchId);
+      const requests = await storage.listTrainerPhaseChangeRequests(trainerId);
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing trainer phase change requests:", error);
@@ -2407,10 +2404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view requests assigned to you" });
       }
 
-      // Get the optional batchId query parameter
-      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
-      
-      const requests = await storage.listManagerPhaseChangeRequests(managerId, batchId);
+      const requests = await storage.listManagerPhaseChangeRequests(managerId);
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing manager phase change requests:", error);
@@ -6904,9 +6898,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'phase_change',
         `Batch phase changed from planned to induction (batch started)`,
         'planned',
-        'induction',
-        batch.organizationId,
+        'induction',,
         req.user.id // Pass the actual user ID who started the batch
+        batch.organizationId
       );
 
       // Get the batch
