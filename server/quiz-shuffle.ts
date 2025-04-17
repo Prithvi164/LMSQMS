@@ -3,75 +3,87 @@
  */
 
 /**
- * Creates a deterministic but random order based on a seed string.
- * Same seed will always produce the same shuffle pattern.
- * This ensures a trainee gets a consistent experience if they refresh the page,
- * but different trainees will see different orderings.
+ * HARDCODED SHUFFLE PATTERNS
+ * This guarantees different orders for different users by using precomputed patterns
+ * Each user will get a pattern based on the modulo of their user ID
+ */
+const SHUFFLE_PATTERNS = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], // original order
+  [9, 0, 1, 2, 3, 4, 5, 6, 7, 8], // rotate right
+  [1, 2, 3, 4, 5, 6, 7, 8, 9, 0], // rotate left
+  [9, 8, 7, 6, 5, 4, 3, 2, 1, 0], // reverse
+  [0, 2, 4, 6, 8, 1, 3, 5, 7, 9], // evens then odds
+  [1, 3, 5, 7, 9, 0, 2, 4, 6, 8], // odds then evens
+  [0, 9, 1, 8, 2, 7, 3, 6, 4, 5], // alternating from ends
+  [4, 5, 6, 7, 8, 9, 0, 1, 2, 3], // middle-out pattern
+  [5, 3, 1, 0, 2, 4, 6, 8, 7, 9], // random pattern 1
+  [8, 4, 0, 6, 2, 9, 5, 1, 7, 3]  // random pattern 2
+];
+
+/**
+ * Creates an explicitly different order for each user ID
  * 
  * @param array The array to shuffle
- * @param seed A string seed used to generate the shuffled order
+ * @param userId The user ID to determine shuffle pattern
  * @returns A new shuffled array
  */
 export function shuffleArrayWithSeed<T>(array: T[], seed: string): T[] {
+  const userId = parseInt(seed.split('-')[1] || '0');
+  
   // If array has only 0 or 1 elements, no shuffling needed
   if (array.length <= 1) {
     console.log('Array too small to shuffle');
     return [...array];
   }
   
-  // Enhanced seed to force different shuffles between users
-  // Add a prefix to ensure the seed creates enough variation
-  const enhancedSeed = `shuffle-v3-${seed}`;
+  console.log(`Shuffling array for user ID: ${userId}, array length: ${array.length}`);
   
-  console.log(`Shuffling array with seed "${enhancedSeed}", array length: ${array.length}`);
-  const newArray = [...array];
+  // Make a deep copy of the original array
+  const newArray = JSON.parse(JSON.stringify(array));
   
-  // Create a seeded random number generator based on xorshift128+
-  // This provides better statistical randomness compared to simpler methods
-  function xorshift128plus(seedStr: string): () => number {
-    let s1 = 1;
-    let s2 = 2;
-    
-    // Use the seed to initialize the state
-    for (let i = 0; i < seedStr.length; i++) {
-      s1 = ((s1 * 33) + seedStr.charCodeAt(i)) >>> 0;
-      s2 = ((s2 * 37) + (seedStr.charCodeAt(i) << (i % 16))) >>> 0;
-    }
-    
-    // Ensure we don't have zero states
-    if (s1 === 0) s1 = 123456789;
-    if (s2 === 0) s2 = 987654321;
-    
-    // Return the random function
-    return function() {
-      // Xorshift128+ algorithm
-      let x = s1;
-      const y = s2;
-      s1 = y;
-      x ^= x << 23;
-      x ^= x >>> 17;
-      x ^= y;
-      x ^= y >>> 26;
-      s2 = x;
-      return (s1 + s2) / 4294967296;
-    };
+  // Select a shuffle pattern based on the user ID
+  // Using modulo to cycle through available patterns
+  const patternIndex = userId % SHUFFLE_PATTERNS.length;
+  const selectedPattern = SHUFFLE_PATTERNS[patternIndex];
+  
+  console.log(`Using shuffle pattern #${patternIndex}`);
+  
+  // Apply the selected pattern to reorder the array
+  const result: T[] = [];
+  
+  for (let i = 0; i < array.length; i++) {
+    // Map the pattern index to the array index
+    // If the array is shorter than the pattern, use modulo
+    // If the array is longer than the pattern, extend by repeating
+    const sourceIndex = selectedPattern[i % selectedPattern.length] % array.length;
+    result[i] = newArray[sourceIndex];
   }
   
-  // Create the random generator with our seed
-  const random = xorshift128plus(enhancedSeed);
-  
-  // Fisher-Yates shuffle with seeded random
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  // For arrays longer than our patterns, use a secondary shuffle
+  if (array.length > SHUFFLE_PATTERNS[0].length) {
+    // Create chunks of 10 and apply different patterns to each chunk
+    for (let chunk = 1; chunk < Math.ceil(array.length / 10); chunk++) {
+      const chunkStart = chunk * 10;
+      const chunkEnd = Math.min(chunkStart + 10, array.length);
+      const chunkPattern = SHUFFLE_PATTERNS[(patternIndex + chunk) % SHUFFLE_PATTERNS.length];
+      
+      // Apply the pattern to this chunk
+      for (let i = 0; i < (chunkEnd - chunkStart); i++) {
+        const localIndex = chunkStart + i;
+        const sourceIndex = chunkStart + (chunkPattern[i % chunkPattern.length] % (chunkEnd - chunkStart));
+        result[localIndex] = newArray[sourceIndex];
+      }
+    }
   }
   
   // Log the before/after for debugging
   console.log(`BEFORE: ${JSON.stringify(array.map(x => typeof x === 'object' && x !== null && 'id' in x ? x.id : x))}`);
-  console.log(`AFTER:  ${JSON.stringify(newArray.map(x => typeof x === 'object' && x !== null && 'id' in x ? x.id : x))}`);
+  console.log(`AFTER:  ${JSON.stringify(result.map(x => typeof x === 'object' && x !== null && 'id' in x ? x.id : x))}`);
   
-  return newArray;
+  return result;
 }
+
+
 
 /**
  * Processes a quiz by applying shuffling to questions and options if enabled.

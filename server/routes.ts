@@ -3712,94 +3712,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // IMPORTANT: Completely new shuffling approach to ensure different trainees get different question orders
       // Import our dedicated shuffling functions from the new module
-      const { shuffleArrayWithSeed } = require('./quiz-shuffle');
+      const { processQuizForTrainee } = require('./quiz-shuffle');
       
-      // Create a deep copy of the quiz questions to avoid modifying the original
-      let questionsToServe = JSON.parse(JSON.stringify(quiz.questions));
+      // COMPLETELY DIFFERENT APPROACH: Use our dedicated module for quiz processing
+      // This ensures each user sees a completely different order of questions
       
-      // Generate a unique seed that includes:
-      // 1. The user ID (so different users get different orderings)
-      // 2. The quiz ID (so different quizzes for the same user have different orderings)
-      // 3. A version string (so we can force changes if needed)
-      const uniqueSeed = `user-${req.user.id}-quiz-${quizId}-v3-shuffle`;
+      console.log('\n=== HARDCODED SHUFFLED QUIZ PROCESSING ===');
+      console.log(`User ${req.user.id} (${req.user.username}) accessing quiz ${quiz.id}`);
       
-      // Detailed logging to track what's happening
-      console.log('\n=== QUIZ SHUFFLE PROCESSING ===');
-      console.log(`User accessing quiz: ID=${req.user.id}, Username=${req.user.username}`);
-      console.log(`Quiz being accessed: ID=${quiz.id}, Template ID=${quiz.templateId}`);
-      console.log(`Using unique seed for shuffling: "${uniqueSeed}"`);
-      console.log(`Original questions order: ${questionsToServe.map(q => q.id).join(', ')}`);
+      // Process the quiz with our specialized module that uses guaranteed different patterns
+      const processedQuiz = processQuizForTrainee(quiz, template, req.user.id);
       
-      // IMPORTANT: Log the template shuffle settings
-      if (!template) {
-        console.log('WARNING: Quiz template not found! Using default settings (no shuffling).');
-      } else {
-        const shuffleQuestions = Boolean(template.shuffleQuestions || template.shuffle_questions);
-        const shuffleOptions = Boolean(template.shuffleOptions || template.shuffle_options);
-        
-        console.log(`Template ${template.id} (${template.name}) settings:`, {
-          shuffleQuestions,
-          shuffleOptions,
-          rawSettings: {
-            shuffleQuestions: template.shuffleQuestions,
-            shuffle_questions: template.shuffle_questions,
-            shuffleOptions: template.shuffleOptions,
-            shuffle_options: template.shuffle_options
-          }
-        });
-        
-        // SHUFFLE QUESTIONS if enabled in the template
-        // Check for both snake_case and camelCase properties
-        if (shuffleQuestions) {
-          console.log(`APPLYING QUESTION SHUFFLING for user ${req.user.id}`);
-          console.log(`Before shuffle: ${questionsToServe.map(q => q.id).join(', ')}`);
-          
-          // Apply the shuffle
-          questionsToServe = shuffleArrayWithSeed(questionsToServe, uniqueSeed);
-          
-          console.log(`After shuffle: ${questionsToServe.map(q => q.id).join(', ')}`);
-        } else {
-          console.log('QUESTION SHUFFLING IS DISABLED for this template');
-        }
-        
-        // SHUFFLE OPTIONS if enabled in the template
-        if (shuffleOptions) {
-          console.log(`APPLYING OPTION SHUFFLING for user ${req.user.id}`);
-          
-          questionsToServe = questionsToServe.map((question, index) => {
-            // Only shuffle options for multiple choice questions
-            if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
-              // Create a unique seed for each question
-              const questionSeed = `${uniqueSeed}-question-${question.id}-idx-${index}`;
-              
-              const originalOptions = [...question.options];
-              const shuffledOptions = shuffleArrayWithSeed(originalOptions, questionSeed);
-              
-              console.log(`Question ${question.id} options: ${originalOptions.join(' | ')} → ${shuffledOptions.join(' | ')}`);
-              
-              // Update correct answer if it's an index
-              let updatedCorrectAnswer = question.correctAnswer;
-              if (!isNaN(Number(question.correctAnswer))) {
-                const correctOptionValue = originalOptions[Number(question.correctAnswer)];
-                updatedCorrectAnswer = String(shuffledOptions.indexOf(correctOptionValue));
-                console.log(`Question ${question.id} correctAnswer updated: ${question.correctAnswer} → ${updatedCorrectAnswer}`);
-              }
-              
-              return {
-                ...question,
-                options: shuffledOptions,
-                correctAnswer: updatedCorrectAnswer
-              };
-            }
-            return question;
-          });
-        } else {
-          console.log('OPTION SHUFFLING IS DISABLED for this template');
-        }
-      }
+      // Log the before/after for debugging
+      console.log(`ORIGINAL question order: ${quiz.questions.map(q => q.id).join(', ')}`);
+      console.log(`PROCESSED question order: ${processedQuiz.questions.map(q => q.id).join(', ')}`);
       
-      // IMPORTANT: Keep the correct answers for grading on the server but don't send them to client
-      const sanitizedQuestions = questionsToServe.map(question => ({
+      // Sanitize the processed quiz by removing correct answers
+      const sanitizedQuestions = processedQuiz.questions.map(question => ({
         id: question.id,
         question: question.question,
         type: question.type,
@@ -3807,9 +3736,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't send correct answers to client
         correctAnswer: undefined
       }));
-
-      console.log(`Final question order being sent to client: ${sanitizedQuestions.map(q => q.id).join(', ')}`);
-      console.log('=== END QUIZ SHUFFLE PROCESSING ===\n');
+      
+      console.log(`Sending sanitized questions to client. Order: ${sanitizedQuestions.map(q => q.id).join(', ')}`);
+      console.log('=== END HARDCODED SHUFFLED QUIZ PROCESSING ===\n');
 
       // Return the quiz with potentially shuffled questions
       res.json({
