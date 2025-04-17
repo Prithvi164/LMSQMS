@@ -118,20 +118,20 @@ const addBatchHistoryRecord = async (
   }
 };
 
-// Function to fix batches that incorrectly transitioned to induction/training without users
+// Function to fix batches that incorrectly transitioned to any active status without users
 export const resetEmptyBatches = async () => {
   try {
     console.log('Starting empty batch reset check...');
     
-    // Get all batches that are in induction or training status
+    // Get all batches that are in an active status (not planned or completed)
     const activeBatches = await db.query.organizationBatches.findMany({
       where: and(
-        or(
-          eq(organizationBatches.status, 'induction'),
-          eq(organizationBatches.status, 'training')
-        )
+        not(eq(organizationBatches.status, 'planned')),
+        not(eq(organizationBatches.status, 'completed'))
       )
     });
+    
+    console.log(`Found ${activeBatches.length} active batches to check for trainee enrollment`);
     
     for (const batch of activeBatches) {
       // Check if the batch has any enrolled users
@@ -151,9 +151,18 @@ export const resetEmptyBatches = async () => {
           .set({ 
             status: 'planned',
             updatedAt: new Date(),
+            // Reset all actual dates
             actualInductionStartDate: null,
             actualInductionEndDate: null,
-            actualTrainingStartDate: null
+            actualTrainingStartDate: null,
+            actualTrainingEndDate: null,
+            actualCertificationStartDate: null,
+            actualCertificationEndDate: null,
+            actualOjtStartDate: null,
+            actualOjtEndDate: null,
+            actualOjtCertificationStartDate: null,
+            actualOjtCertificationEndDate: null,
+            actualHandoverToOpsDate: null
           })
           .where(eq(organizationBatches.id, batch.id));
           
@@ -180,64 +189,24 @@ export const updateBatchStatuses = async () => {
     console.log('Starting batch status update check...');
     const today = startOfDay(new Date());
 
-    // Get all batches that are not completed
+    // Get all batches that are not completed AND not in planned status
+    // This ensures we only manage transitions for batches that have been manually started
     const activeBatches = await db.query.organizationBatches.findMany({
       where: and(
         not(eq(organizationBatches.status, 'completed')),
-        lt(organizationBatches.startDate, today)
+        not(eq(organizationBatches.status, 'planned'))
       )
     });
+
+    console.log(`Found ${activeBatches.length} active batches that are not in planned or completed status`);
 
     for (const batch of activeBatches) {
       console.log(`Checking batch ${batch.id} - ${batch.name}`);
       const currentPhase = batch.status;
       
-      // For batches in the 'planned' status, we check if it's time to start induction
-      if (currentPhase === 'planned') {
-        const inductionStartDate = batch.inductionStartDate;
-        if (inductionStartDate) {
-          const startDate = new Date(inductionStartDate);
-          if (today >= startDate) {
-            // First check if the batch has any enrolled users
-            const enrolledUsersCount = await db
-              .select({ count: sql<number>`count(*)` })
-              .from(userBatchProcesses)
-              .where(eq(userBatchProcesses.batchId, batch.id));
-            
-            const userCount = enrolledUsersCount[0]?.count || 0;
-            
-            // Only transition if there are users enrolled in the batch
-            if (userCount > 0) {
-              // Time to move to induction phase
-              const nextPhase = 'induction';
-              const actualStartField = getActualPhaseStartDateField(nextPhase);
-              
-              console.log(`Updating batch ${batch.id} status from ${currentPhase} to ${nextPhase}`);
-              await db
-                .update(organizationBatches)
-                .set({ 
-                  status: nextPhase,
-                  [actualStartField]: today,
-                  updatedAt: new Date()
-                })
-                .where(eq(organizationBatches.id, batch.id));
-                
-              // Add history record
-              await addBatchHistoryRecord(
-                batch.id,
-                'phase_change',
-                `Batch phase changed from ${currentPhase} to ${nextPhase}`,
-                currentPhase,
-                nextPhase,
-                batch.organizationId
-              );
-            } else {
-              console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users. Keeping in 'planned' status.`);
-            }
-          }
-        }
-        continue;
-      }
+      // We're skipping the automatic transition from 'planned' to 'induction'
+      // This must be done manually by the trainer using the "Start Batch" button
+      // This section is intentionally removed and replaced with this comment
       
       // For batches in an active phase, check if it's time to move to the next phase
       const endDateField = getPhaseEndDateField(currentPhase);

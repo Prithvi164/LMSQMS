@@ -42,7 +42,7 @@ import { eq, and, sql, inArray, gte } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
-import { updateBatchStatuses } from './services/batch-status-service';
+import { updateBatchStatuses, resetEmptyBatches } from './services/batch-status-service';
 import azureAudioFilesRouter from './routes/azure-audio-files';
 import { validateAttendanceDate } from './utils/attendance-utils';
 import { getHolidaysInRange } from './services/holiday-service';
@@ -5642,6 +5642,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error in batch status update test:", error);
       res.status(500).json({ 
         message: "Failed to run batch status update test", 
+        error: error.message 
+      });
+    }
+  });
+  
+  // Route to reset batches without trainees back to planned status
+  app.get("/api/reset-empty-batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Only owners and admins can reset empty batches" });
+    }
+    
+    try {
+      console.log('Starting manual empty batch reset...');
+      
+      // Get current state of batches before update
+      const orgId = req.user.organizationId;
+      const batchesBeforeReset = await storage.listBatches(orgId);
+      
+      // Run the reset function
+      await resetEmptyBatches();
+      
+      // Get batches after reset
+      const batchesAfterReset = await storage.listBatches(orgId);
+      
+      // Identify batches that were reset
+      const resetBatches = [];
+      
+      for (const beforeBatch of batchesBeforeReset) {
+        const afterBatch = batchesAfterReset.find(b => b.id === beforeBatch.id);
+        
+        if (afterBatch && beforeBatch.status !== afterBatch.status && afterBatch.status === 'planned') {
+          resetBatches.push({
+            id: beforeBatch.id,
+            name: beforeBatch.name,
+            previousStatus: beforeBatch.status,
+            newStatus: afterBatch.status,
+            resetDate: new Date().toISOString()
+          });
+        }
+      }
+      
+      res.json({
+        message: 'Empty batch reset completed',
+        totalBatches: batchesBeforeReset.length,
+        resetBatches: resetBatches,
+        details: 'Batches without enrolled trainees have been reset to Planned status'
+      });
+    } catch (error: any) {
+      console.error("Error in empty batch reset:", error);
+      res.status(500).json({ 
+        message: "Failed to reset empty batches", 
         error: error.message 
       });
     }
