@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, GraduationCap, LineChart as LineChartIcon, RefreshCcw, Award, Eye, MoreVertical, Download, Clock } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, GraduationCap, LineChart as LineChartIcon, RefreshCcw, Award, Eye, MoreVertical, Download, Clock, Info as InfoIcon, Play, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -97,12 +97,16 @@ type TraineeManagementProps = {
   hasFullAccess: boolean;
 }
 
+// Type for batch filter
+type BatchFilterType = 'all' | 'running' | 'completed';
+
 function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [metricType, setMetricType] = useState<MetricType>('weekly');
   const [drilldownLevel, setDrilldownLevel] = useState<DrilldownLevel>('overview');
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+  const [batchFilter, setBatchFilter] = useState<BatchFilterType>('running');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -225,15 +229,17 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
       const directBatches = batchList.filter(batch => batch.trainer?.id === user.id);
       
       // Get all trainers who report to this manager (direct and indirect)
-      const subordinateTrainers = allUsers.filter(u => 
+      type UserType = { id: number; role: string };
+      const typedAllUsers = allUsers as UserType[];
+      const subordinateTrainers = typedAllUsers.filter((u: UserType) => 
         (u.role === 'trainer' || u.role === 'team_lead') && 
-        isSubordinate(user.id, u.id, allUsers)
+        isSubordinate(user.id, u.id, typedAllUsers)
       );
       
       // Get all batches assigned to these trainers
       const subordinateBatches = batchList.filter(batch => 
         batch.trainer && 
-        subordinateTrainers.some(trainer => trainer.id === batch.trainer?.id)
+        subordinateTrainers.some((trainer: UserType) => trainer.id === batch.trainer?.id)
       );
       
       // Combine direct and subordinate batches
@@ -261,7 +267,22 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
   const trainingBatches = batchesByStatus['training'] || [];
   const certificationBatches = batchesByStatus['certification'] || [];
   const ojtBatches = batchesByStatus['ojt'] || [];
+  const ojtCertificationBatches = batchesByStatus['ojt_certification'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
+  
+  // Create filtered batch groups based on current filter
+  const activeBatches = [
+    ...inductionBatches,
+    ...trainingBatches, 
+    ...certificationBatches,
+    ...ojtBatches,
+    ...ojtCertificationBatches
+  ];
+  
+  // Display batches based on selected filter
+  const displayPlannedBatches = batchFilter === 'all' || batchFilter === 'running' ? plannedBatches : [];
+  const displayActiveBatches = batchFilter === 'all' || batchFilter === 'running' ? activeBatches : [];
+  const displayCompletedBatches = batchFilter === 'all' || batchFilter === 'completed' ? completedBatches : [];
 
   // Track navigation loading state
   const [isNavigating, setIsNavigating] = useState(false);
@@ -763,57 +784,64 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
         </TabsList>
 
         <TabsContent value="all-batches">
+          {/* Batch filter buttons */}
+          <div className="flex items-center justify-start mb-6 space-x-3">
+            <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+            <Button 
+              variant={batchFilter === 'all' ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setBatchFilter('all')}
+              className="flex items-center"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              All Batches
+            </Button>
+            <Button 
+              variant={batchFilter === 'running' ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setBatchFilter('running')}
+              className="flex items-center"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Running Batches
+            </Button>
+            <Button 
+              variant={batchFilter === 'completed' ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setBatchFilter('completed')}
+              className="flex items-center"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Completed Batches
+            </Button>
+          </div>
+          
           <div className="space-y-6">
-            {plannedBatches.length > 0 && (
+            {displayPlannedBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Planned Batches</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {plannedBatches.map(renderBatchCard)}
+                  {displayPlannedBatches.map(renderBatchCard)}
                 </div>
               </div>
             )}
 
-            {inductionBatches.length > 0 && (
+            {/* Display active batches by category */}
+            {displayActiveBatches.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-4">Induction Phase</h2>
+                <h2 className="text-lg font-semibold mb-4">Active Batches</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {inductionBatches.map(renderBatchCard)}
+                  {displayActiveBatches.map(renderBatchCard)}
                 </div>
               </div>
             )}
 
-            {trainingBatches.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-4">Training Phase</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {trainingBatches.map(renderBatchCard)}
-                </div>
-              </div>
-            )}
-
-            {certificationBatches.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-4">Certification Phase</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {certificationBatches.map(renderBatchCard)}
-                </div>
-              </div>
-            )}
-
-            {ojtBatches.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-4">OJT Phase</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {ojtBatches.map(renderBatchCard)}
-                </div>
-              </div>
-            )}
-
-            {completedBatches.length > 0 && (
+            {/* Display completed batches */}
+            {displayCompletedBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Completed Batches</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {completedBatches.map(renderBatchCard)}
+                  {displayCompletedBatches.map(renderBatchCard)}
                 </div>
               </div>
             )}
