@@ -3683,26 +3683,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const requestId = parseInt(req.params.requestId);
+      console.log(`DELETE request received for phase change request ID: ${requestId}`);
       
       // Get the request to verify it's in pending state and the user has permission
       const request = await storage.getPhaseChangeRequest(requestId);
+      console.log(`Fetched request:`, request);
+      
       if (!request) {
+        console.log(`Request with ID ${requestId} not found`);
         return res.status(404).json({ message: "Request not found" });
       }
       
       // Check if the request is in pending state
       if (request.status !== 'pending') {
+        console.log(`Request ${requestId} is not in pending state, cannot delete`);
         return res.status(403).json({ message: "Only pending requests can be deleted" });
       }
       
       // Check if the user is the trainer who created the request or the assigned manager
       if (request.trainerId !== req.user.id && request.managerId !== req.user.id && 
           req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`User ${req.user.id} does not have permission to delete request ${requestId}`);
         return res.status(403).json({ message: "You don't have permission to delete this request" });
       }
       
+      console.log(`Attempting to delete phase change request ${requestId}`);
       // Delete the request
       await storage.deletePhaseChangeRequest(requestId);
+      console.log(`Successfully deleted phase change request ${requestId}`);
       res.status(200).json({ message: "Request deleted successfully" });
     } catch (error) {
       console.error("Error deleting phase change request:", error);

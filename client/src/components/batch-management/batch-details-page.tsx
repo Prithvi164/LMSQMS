@@ -267,12 +267,18 @@ export function BatchDetailsPage() {
     return allUsers.filter((u: any) => u.id === currentUser.managerId && u.role === 'manager');
   }, [allUsers, user]);
 
-  const { data: trainerRequests } = useQuery({
+  const { 
+    data: trainerRequests,
+    refetch: fetchTrainerRequests
+  } = useQuery({
     queryKey: [`/api/trainers/${user?.id}/phase-change-requests`],
     enabled: !!user?.id && user?.role === 'trainer',
   });
 
-  const { data: managerRequests } = useQuery({
+  const { 
+    data: managerRequests,
+    refetch: fetchManagerRequests
+  } = useQuery({
     queryKey: [`/api/managers/${user?.id}/phase-change-requests`],
     enabled: !!user?.id && user?.role === 'manager',
   });
@@ -402,16 +408,33 @@ export function BatchDetailsPage() {
       return response.json();
     },
     onSuccess: () => {
+      console.log('Phase change request created successfully, refreshing data...');
+      
+      // Invalidate queries
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
           `/api/managers/${user?.id}/phase-change-requests`
-        ] 
+        ],
+        // Force immediate refetch
+        refetchType: 'active',
+        exact: false
       });
+      
+      // Force explicit refresh depending on user role
+      if (user?.role === 'trainer') {
+        console.log('Executing fetchTrainerRequests()...');
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        console.log('Executing fetchManagerRequests()...');
+        fetchManagerRequests();
+      }
+      
       toast({
         title: "Success",
         description: "Phase change request submitted successfully",
       });
+      
       form.reset();
       const closeButton = document.querySelector('[data-dialog-close]');
       if (closeButton instanceof HTMLElement) {
@@ -434,7 +457,9 @@ export function BatchDetailsPage() {
 
   const handleApprove = async (requestId: number) => {
     try {
-      await fetch(`/api/phase-change-requests/${requestId}`, {
+      console.log(`Approving phase change request with ID: ${requestId}`);
+      
+      const response = await fetch(`/api/phase-change-requests/${requestId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -443,17 +468,35 @@ export function BatchDetailsPage() {
           status: 'approved',
         }),
       });
+      
+      console.log(`Approve response status: ${response.status}`);
+      
+      // Invalidate queries
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
           `/api/managers/${user?.id}/phase-change-requests`
-        ]
+        ],
+        // Force immediate refetch
+        refetchType: 'active',
+        exact: false
       });
+      
+      // Force explicit refresh depending on user role
+      if (user?.role === 'trainer') {
+        console.log('Executing fetchTrainerRequests()...');
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        console.log('Executing fetchManagerRequests()...');
+        fetchManagerRequests();
+      }
+      
       toast({
         title: "Success",
         description: "Request approved successfully",
       });
     } catch (error) {
+      console.error(`Error approving request:`, error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -464,7 +507,9 @@ export function BatchDetailsPage() {
 
   const handleReject = async (requestId: number) => {
     try {
-      await fetch(`/api/phase-change-requests/${requestId}`, {
+      console.log(`Rejecting phase change request with ID: ${requestId}`);
+      
+      const response = await fetch(`/api/phase-change-requests/${requestId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -473,17 +518,35 @@ export function BatchDetailsPage() {
           status: 'rejected',
         }),
       });
+      
+      console.log(`Reject response status: ${response.status}`);
+      
+      // Invalidate queries
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
           `/api/managers/${user?.id}/phase-change-requests`
-        ]
+        ],
+        // Force immediate refetch
+        refetchType: 'active',
+        exact: false
       });
+      
+      // Force explicit refresh depending on user role
+      if (user?.role === 'trainer') {
+        console.log('Executing fetchTrainerRequests()...');
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        console.log('Executing fetchManagerRequests()...');
+        fetchManagerRequests();
+      }
+      
       toast({
         title: "Success",
         description: "Request rejected successfully",
       });
     } catch (error) {
+      console.error(`Error rejecting request:`, error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -494,27 +557,60 @@ export function BatchDetailsPage() {
   
   const handleDelete = async (requestId: number) => {
     try {
-      await fetch(`/api/phase-change-requests/${requestId}`, {
+      console.log(`Attempting to delete phase change request with ID: ${requestId}`);
+      
+      const response = await fetch(`/api/phase-change-requests/${requestId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      
+      console.log(`Delete response status: ${response.status}`);
+      
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log(`Delete response data:`, responseData);
+      } catch (jsonError) {
+        console.error(`Error parsing JSON response:`, jsonError);
+        responseData = { message: "No response data available" };
+      }
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || `Server responded with status: ${response.status}`);
+      }
+      
+      console.log(`Successfully deleted request, invalidating queries`);
+      
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
           `/api/managers/${user?.id}/phase-change-requests`
-        ]
+        ],
+        // Force immediate refetch
+        refetchType: 'active',
+        exact: false
       });
+      
       toast({
         title: "Success",
         description: "Request deleted successfully",
       });
+      
+      // Force refresh the requests after deletion
+      if (user?.role === 'trainer') {
+        fetchTrainerRequests();
+      } else if (user?.role === 'manager') {
+        fetchManagerRequests();
+      }
+      
     } catch (error) {
+      console.error(`Error deleting request:`, error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete request",
+        description: error.message || "Failed to delete request",
       });
     }
   };
@@ -909,7 +1005,11 @@ export function BatchDetailsPage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleDelete(request.id)}
+                                    onClick={() => {
+                                      console.log(`Delete button clicked for request ${request.id}`);
+                                      console.log(`Request details:`, request);
+                                      handleDelete(request.id);
+                                    }}
                                     className="text-red-500 hover:text-red-700"
                                   >
                                     <Trash2 className="h-4 w-4" />

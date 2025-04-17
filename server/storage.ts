@@ -3514,6 +3514,8 @@ export class DatabaseStorage implements IStorage {
         .from(batchPhaseChangeRequests)
         .where(eq(batchPhaseChangeRequests.id, id)) as BatchPhaseChangeRequest[];
         
+      console.log(`Found request to delete:`, request);
+      
       if (!request) {
         throw new Error('Phase change request not found');
       }
@@ -3522,10 +3524,25 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Only pending requests can be deleted');
       }
       
-      // Delete the request
-      const result = await db
-        .delete(batchPhaseChangeRequests)
+      // Delete the request - add more detailed logging
+      console.log(`Executing DELETE query on batch_phase_change_requests where id=${id}`);
+      try {
+        const result = await db
+          .delete(batchPhaseChangeRequests)
+          .where(eq(batchPhaseChangeRequests.id, id));
+        console.log(`Delete operation result:`, result);
+      } catch (deleteError) {
+        console.error(`Error in delete operation:`, deleteError);
+        throw deleteError;
+      }
+      
+      // Verify the record was deleted
+      const checkIfDeleted = await db
+        .select()
+        .from(batchPhaseChangeRequests)
         .where(eq(batchPhaseChangeRequests.id, id));
+      
+      console.log(`After delete, found ${checkIfDeleted.length} records`);
         
       console.log(`Successfully deleted phase change request ${id}`);
     } catch (error) {
