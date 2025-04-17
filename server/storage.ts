@@ -3505,30 +3505,10 @@ export class DatabaseStorage implements IStorage {
 
   async listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]> {
     try {
-      // Join with users table to get trainer information
       return await db
-        .select({
-          id: batchPhaseChangeRequests.id,
-          batchId: batchPhaseChangeRequests.batchId,
-          trainerId: batchPhaseChangeRequests.trainerId,
-          managerId: batchPhaseChangeRequests.managerId,
-          currentPhase: batchPhaseChangeRequests.currentPhase,
-          requestedPhase: batchPhaseChangeRequests.requestedPhase,
-          justification: batchPhaseChangeRequests.justification,
-          managerComments: batchPhaseChangeRequests.managerComments,
-          status: batchPhaseChangeRequests.status,
-          organizationId: batchPhaseChangeRequests.organizationId,
-          createdAt: batchPhaseChangeRequests.createdAt,
-          updatedAt: batchPhaseChangeRequests.updatedAt,
-          trainer: {
-            id: users.id,
-            fullName: users.fullName,
-            email: users.email
-          }
-        })
+        .select()
         .from(batchPhaseChangeRequests)
-        .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
-        .where(eq(batchPhaseChangeRequests.trainerId, trainerId)) as unknown as BatchPhaseChangeRequest[];
+        .where(eq(batchPhaseChangeRequests.trainerId, trainerId)) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing trainer phase change requests:', error);
       throw error;
@@ -3537,87 +3517,12 @@ export class DatabaseStorage implements IStorage {
 
   async listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]> {
     try {
-      // Join with users table to get trainer information
       return await db
-        .select({
-          id: batchPhaseChangeRequests.id,
-          batchId: batchPhaseChangeRequests.batchId,
-          trainerId: batchPhaseChangeRequests.trainerId,
-          managerId: batchPhaseChangeRequests.managerId,
-          currentPhase: batchPhaseChangeRequests.currentPhase,
-          requestedPhase: batchPhaseChangeRequests.requestedPhase,
-          justification: batchPhaseChangeRequests.justification,
-          managerComments: batchPhaseChangeRequests.managerComments,
-          status: batchPhaseChangeRequests.status,
-          organizationId: batchPhaseChangeRequests.organizationId,
-          createdAt: batchPhaseChangeRequests.createdAt,
-          updatedAt: batchPhaseChangeRequests.updatedAt,
-          trainer: {
-            id: users.id,
-            fullName: users.fullName,
-            email: users.email
-          }
-        })
+        .select()
         .from(batchPhaseChangeRequests)
-        .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
-        .where(eq(batchPhaseChangeRequests.managerId, managerId)) as unknown as BatchPhaseChangeRequest[];
+        .where(eq(batchPhaseChangeRequests.managerId, managerId)) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing manager phase change requests:', error);
-      throw error;
-    }
-  }
-  
-  async deletePhaseChangeRequest(id: number): Promise<void> {
-    try {
-      console.log(`🔍 STORAGE: Deleting phase change request with ID: ${id}`);
-      
-      // Get the request first to check if it's in pending state
-      const request = await this.getPhaseChangeRequest(id);
-      
-      console.log(`🔍 STORAGE: Found request for deletion:`, JSON.stringify(request, null, 2));
-      
-      if (!request) {
-        console.log(`❌ STORAGE: Request with ID ${id} not found`);
-        throw new Error('Phase change request not found');
-      }
-      
-      if (request.status !== 'pending') {
-        console.log(`❌ STORAGE: Request with ID ${id} is not in pending status (current: ${request.status})`);
-        throw new Error('Only pending requests can be deleted');
-      }
-      
-      console.log(`✅ STORAGE: Request ${id} is in pending status. Proceeding with deletion...`);
-      
-      try {
-        // Query to directly check if the request exists in the database
-        const verifyRequest = await db
-          .select({ id: batchPhaseChangeRequests.id })
-          .from(batchPhaseChangeRequests)
-          .where(eq(batchPhaseChangeRequests.id, id));
-          
-        console.log(`🔍 STORAGE: Verification query result:`, JSON.stringify(verifyRequest, null, 2));
-        
-        // Proceed with deletion
-        const result = await db
-          .delete(batchPhaseChangeRequests)
-          .where(eq(batchPhaseChangeRequests.id, id))
-          .returning({ id: batchPhaseChangeRequests.id });
-        
-        console.log(`🔍 STORAGE: Deletion operation result:`, JSON.stringify(result, null, 2));
-        
-        // Check if any rows were actually deleted
-        if (!result || result.length === 0) {
-          console.log(`❌ STORAGE: No rows were deleted for request ID ${id}`);
-          throw new Error('Failed to delete phase change request');
-        }
-        
-        console.log(`✅ STORAGE: Successfully deleted phase change request ${id}`);
-      } catch (dbError) {
-        console.error(`❌ STORAGE: Database operation error:`, dbError);
-        throw dbError;
-      }
-    } catch (error) {
-      console.error('❌ STORAGE: Error in deletePhaseChangeRequest:', error);
       throw error;
     }
   }

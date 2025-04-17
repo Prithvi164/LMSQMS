@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -285,6 +285,7 @@ export function BatchDetailsPage() {
     currentPhase: string;
     requestedPhase: string;
     status: string;
+    action: string;
     justification: string;
     trainer?: {
       fullName: string;
@@ -493,37 +494,27 @@ export function BatchDetailsPage() {
   
   const handleDelete = async (requestId: number) => {
     try {
-      const response = await fetch(`/api/phase-change-requests/${requestId}`, {
+      await fetch(`/api/phase-change-requests/${requestId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
-      // Check if the request was successful
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete request');
-      }
-      
-      // Only invalidate queries and show success message if the request was successful
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
           `/api/managers/${user?.id}/phase-change-requests`
         ]
       });
-      
       toast({
         title: "Success",
         description: "Request deleted successfully",
       });
-    } catch (error: any) {
-      console.error("Error deleting phase change request:", error);
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to delete request",
+        description: "Failed to delete request",
       });
     }
   };
@@ -874,7 +865,7 @@ export function BatchDetailsPage() {
                           <TableCell>{batch.name}</TableCell>
                           <TableCell className="capitalize">{request.currentPhase}</TableCell>
                           <TableCell className="capitalize">{request.requestedPhase}</TableCell>
-                          <TableCell>{`Change phase to ${request.requestedPhase}`}</TableCell>
+                          <TableCell>{request.action || `Change phase to ${request.requestedPhase}`}</TableCell>
                           <TableCell>
                             <span className="line-clamp-2" title={request.justification}>
                               {request.justification || "No justification provided"}
@@ -916,13 +907,12 @@ export function BatchDetailsPage() {
                                 )}
                                 {(user?.id === request.trainerId || user?.id === request.managerId) && (
                                   <Button
-                                    size="icon"
+                                    size="sm"
                                     variant="ghost"
                                     onClick={() => handleDelete(request.id)}
-                                    className="text-red-500 hover:text-red-700 h-8 w-8"
+                                    className="text-red-500 hover:text-red-700"
                                   >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete</span>
+                                    Delete
                                   </Button>
                                 )}
                               </div>
