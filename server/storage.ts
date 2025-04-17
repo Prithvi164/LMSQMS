@@ -3569,32 +3569,55 @@ export class DatabaseStorage implements IStorage {
   
   async deletePhaseChangeRequest(id: number): Promise<void> {
     try {
-      console.log(`Deleting phase change request with ID: ${id}`);
+      console.log(`🔍 STORAGE: Deleting phase change request with ID: ${id}`);
       
       // Get the request first to check if it's in pending state
       const request = await this.getPhaseChangeRequest(id);
       
+      console.log(`🔍 STORAGE: Found request for deletion:`, JSON.stringify(request, null, 2));
+      
       if (!request) {
+        console.log(`❌ STORAGE: Request with ID ${id} not found`);
         throw new Error('Phase change request not found');
       }
       
       if (request.status !== 'pending') {
+        console.log(`❌ STORAGE: Request with ID ${id} is not in pending status (current: ${request.status})`);
         throw new Error('Only pending requests can be deleted');
       }
       
-      const result = await db
-        .delete(batchPhaseChangeRequests)
-        .where(eq(batchPhaseChangeRequests.id, id))
-        .returning({ id: batchPhaseChangeRequests.id });
+      console.log(`✅ STORAGE: Request ${id} is in pending status. Proceeding with deletion...`);
       
-      // Check if any rows were actually deleted
-      if (!result || result.length === 0) {
-        throw new Error('Failed to delete phase change request');
+      try {
+        // Query to directly check if the request exists in the database
+        const verifyRequest = await db
+          .select({ id: batchPhaseChangeRequests.id })
+          .from(batchPhaseChangeRequests)
+          .where(eq(batchPhaseChangeRequests.id, id));
+          
+        console.log(`🔍 STORAGE: Verification query result:`, JSON.stringify(verifyRequest, null, 2));
+        
+        // Proceed with deletion
+        const result = await db
+          .delete(batchPhaseChangeRequests)
+          .where(eq(batchPhaseChangeRequests.id, id))
+          .returning({ id: batchPhaseChangeRequests.id });
+        
+        console.log(`🔍 STORAGE: Deletion operation result:`, JSON.stringify(result, null, 2));
+        
+        // Check if any rows were actually deleted
+        if (!result || result.length === 0) {
+          console.log(`❌ STORAGE: No rows were deleted for request ID ${id}`);
+          throw new Error('Failed to delete phase change request');
+        }
+        
+        console.log(`✅ STORAGE: Successfully deleted phase change request ${id}`);
+      } catch (dbError) {
+        console.error(`❌ STORAGE: Database operation error:`, dbError);
+        throw dbError;
       }
-      
-      console.log('Successfully deleted phase change request', result);
     } catch (error) {
-      console.error('Error deleting phase change request:', error);
+      console.error('❌ STORAGE: Error in deletePhaseChangeRequest:', error);
       throw error;
     }
   }

@@ -23,7 +23,8 @@ import {
   evaluationParameters,
   evaluationPillars,
   EvaluationParameter,
-  EvaluationPillar
+  EvaluationPillar,
+  batchPhaseChangeRequests
 } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
@@ -3733,11 +3734,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const requestId = parseInt(req.params.requestId);
+      console.log(`🔍 ROUTE: DELETE request received for phase change request ID: ${requestId} by user: ${req.user.id} (${req.user.role})`);
 
       // Get the request to verify ownership and status
       const request = await storage.getPhaseChangeRequest(requestId);
       if (!request) {
+        console.log(`❌ ROUTE: Request with ID ${requestId} not found`);
         return res.status(404).json({ message: "Request not found" });
+      }
+
+      console.log(`📄 ROUTE: Found request:`, JSON.stringify(request, null, 2));
+
+      // Check if the request is in pending state
+      if (request.status !== 'pending') {
+        console.log(`❌ ROUTE: Request with ID ${requestId} is not in pending status (current: ${request.status})`);
+        return res.status(400).json({ message: "Only pending requests can be deleted" });
       }
 
       // Check if the user is the trainer who created the request or the assigned manager
@@ -3747,18 +3758,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         req.user.role === 'admin';
 
       if (!canDelete) {
+        console.log(`❌ ROUTE: User ${req.user.id} (${req.user.role}) does not have permission to delete request ${requestId}`);
         return res.status(403).json({ 
           message: "Only the trainer who created the request, the assigned manager, or an admin/owner can delete this request" 
         });
       }
 
-      // Delete the request (the deletePhaseChangeRequest method already checks if it's in pending state)
-      await storage.deletePhaseChangeRequest(requestId);
+      console.log(`✅ ROUTE: User ${req.user.id} has permission to delete request ${requestId}. Using storage method for deletion...`);
 
-      res.json({ message: "Request deleted successfully" });
+      // Use the storage method instead of direct DB operation
+      try {
+        await storage.deletePhaseChangeRequest(requestId);
+        console.log(`✅ ROUTE: Successfully deleted request ID ${requestId} using storage method`);
+        res.json({ message: "Request deleted successfully" });
+      } catch (deleteError: any) {
+        console.error(`❌ ROUTE: Error when deleting request ID ${requestId}:`, deleteError);
+        
+        // Provide a more specific error message to the client
+        if (deleteError.message === 'Phase change request not found') {
+          return res.status(404).json({ message: "Request not found" });
+        } else if (deleteError.message === 'Only pending requests can be deleted') {
+          return res.status(400).json({ message: "Only pending requests can be deleted" });
+        } else if (deleteError.message === 'Failed to delete phase change request') {
+          return res.status(500).json({ message: "Database operation failed. Could not delete the request." });
+        }
+        
+        // General error case
+        return res.status(500).json({ message: deleteError.message || "Failed to delete request" });
+      }
     } catch (error: any) {
-      console.error("Error deleting phase change request:", error);
-      res.status(500).json({ message: error.message });
+      console.error("❌ ROUTE: Error deleting phase change request:", error);
+      res.status(500).json({ message: error.message || "Failed to delete request" });
     }
   });
 
