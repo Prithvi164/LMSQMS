@@ -276,6 +276,7 @@ export interface IStorage {
   ): Promise<BatchPhaseChangeRequest>;
   listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]>;
   listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]>;
+  deletePhaseChangeRequest(id: number): Promise<void>;
 
   // Add new method for getting reporting trainers
   getReportingTrainers(managerId: number): Promise<User[]>;
@@ -3499,6 +3500,36 @@ export class DatabaseStorage implements IStorage {
       return updatedRequest;
     } catch (error) {
       console.error('Error updating phase change request:', error);
+      throw error;
+    }
+  }
+
+  async deletePhaseChangeRequest(id: number): Promise<void> {
+    try {
+      console.log(`Deleting phase change request ${id}`);
+      
+      // First verify the request exists and is in pending state
+      const [request] = await db
+        .select()
+        .from(batchPhaseChangeRequests)
+        .where(eq(batchPhaseChangeRequests.id, id)) as BatchPhaseChangeRequest[];
+        
+      if (!request) {
+        throw new Error('Phase change request not found');
+      }
+      
+      if (request.status !== 'pending') {
+        throw new Error('Only pending requests can be deleted');
+      }
+      
+      // Delete the request
+      const result = await db
+        .delete(batchPhaseChangeRequests)
+        .where(eq(batchPhaseChangeRequests.id, id));
+        
+      console.log(`Successfully deleted phase change request ${id}`);
+    } catch (error) {
+      console.error('Error deleting phase change request:', error);
       throw error;
     }
   }

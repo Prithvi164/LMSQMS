@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -912,7 +912,7 @@ export function BatchDetailsPage() {
                                     onClick={() => handleDelete(request.id)}
                                     className="text-red-500 hover:text-red-700"
                                   >
-                                    Delete
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 )}
                               </div>
