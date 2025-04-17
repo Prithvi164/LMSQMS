@@ -250,21 +250,21 @@ export function BatchDetailsPage() {
     staleTime: 0 // Always refetch the data
   });
 
-  const { data: allUsers } = useQuery({
+  const { data: allUsers = [] } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     enabled: !!user?.organizationId,
   });
   
   // Filter to get only the user's reporting manager
   const managers = useMemo(() => {
-    if (!allUsers || !user) return [];
+    if (!allUsers.length || !user) return [];
     
     // Find the current user's manager
-    const currentUser = allUsers.find((u: any) => u.id === user.id);
+    const currentUser = allUsers.find((u) => u.id === user.id);
     if (!currentUser || !currentUser.managerId) return [];
     
     // Return only the reporting manager
-    return allUsers.filter((u: any) => u.id === currentUser.managerId && u.role === 'manager');
+    return allUsers.filter((u) => u.id === currentUser.managerId && u.role === 'manager');
   }, [allUsers, user]);
 
   const { data: trainerRequests } = useQuery({

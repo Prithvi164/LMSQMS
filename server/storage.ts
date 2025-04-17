@@ -3475,8 +3475,9 @@ export class DatabaseStorage implements IStorage {
   async updatePhaseChangeRequest(
     id: number,
     update: {
-      status: string;
+      status?: string;
       managerComments?: string;
+      active?: boolean;
     }
   ): Promise<BatchPhaseChangeRequest> {
     try {
