@@ -3560,16 +3560,22 @@ export class DatabaseStorage implements IStorage {
           trainer: {
             id: users.id,
             fullName: users.fullName,
+          },
+          batch: {
+            id: organizationBatches.id,
+            name: organizationBatches.name,
           }
         })
         .from(batchPhaseChangeRequests)
         .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
+        .leftJoin(organizationBatches, eq(batchPhaseChangeRequests.batchId, organizationBatches.id))
         .where(eq(batchPhaseChangeRequests.trainerId, trainerId));
 
-      // Transform the result to the expected format
+      // Transform the result to the expected format with batch name
       return requests.map(item => ({
         ...item.request,
-        trainer: item.trainer
+        trainer: item.trainer,
+        batchName: item.batch.name // Add batch name to response
       })) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing trainer phase change requests:', error);
@@ -3585,16 +3591,22 @@ export class DatabaseStorage implements IStorage {
           trainer: {
             id: users.id,
             fullName: users.fullName,
+          },
+          batch: {
+            id: organizationBatches.id,
+            name: organizationBatches.name,
           }
         })
         .from(batchPhaseChangeRequests)
         .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
+        .leftJoin(organizationBatches, eq(batchPhaseChangeRequests.batchId, organizationBatches.id))
         .where(eq(batchPhaseChangeRequests.managerId, managerId));
 
-      // Transform the result to the expected format
+      // Transform the result to the expected format with batch name
       return requests.map(item => ({
         ...item.request,
-        trainer: item.trainer
+        trainer: item.trainer,
+        batchName: item.batch.name // Add batch name to response
       })) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing manager phase change requests:', error);
@@ -3610,16 +3622,22 @@ export class DatabaseStorage implements IStorage {
           trainer: {
             id: users.id,
             fullName: users.fullName,
+          },
+          batch: {
+            id: organizationBatches.id,
+            name: organizationBatches.name,
           }
         })
         .from(batchPhaseChangeRequests)
         .leftJoin(users, eq(batchPhaseChangeRequests.trainerId, users.id))
+        .leftJoin(organizationBatches, eq(batchPhaseChangeRequests.batchId, organizationBatches.id))
         .where(eq(batchPhaseChangeRequests.batchId, batchId));
 
-      // Transform the result to the expected format
+      // Transform the result to the expected format with batch name
       return requests.map(item => ({
         ...item.request,
-        trainer: item.trainer
+        trainer: item.trainer,
+        batchName: item.batch.name // Add batch name to response
       })) as BatchPhaseChangeRequest[];
     } catch (error) {
       console.error('Error listing batch phase change requests:', error);

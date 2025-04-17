@@ -2380,11 +2380,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trainerId = parseInt(req.params.trainerId);
       
       // Check if the user is requesting their own requests
-      if (req.user.id !== trainerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
-        return res.status(403).json({ message: "You can only view your own requests" });
+      // Add more roles that can view trainer requests (team leads and managers should see their team's requests)
+      if (req.user.id !== trainerId && 
+          req.user.role !== 'owner' && 
+          req.user.role !== 'admin' && 
+          req.user.role !== 'manager' && 
+          req.user.role !== 'team_lead') {
+        return res.status(403).json({ message: "You can only view your own requests or requests from your team" });
       }
 
       const requests = await storage.listTrainerPhaseChangeRequests(trainerId);
+      
+      // Add debugging
+      console.log(`Fetched ${requests.length} phase change requests for trainer ${trainerId}`);
+      console.log('First request (if any):', requests.length > 0 ? requests[0] : 'No requests');
+      
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing trainer phase change requests:", error);
@@ -2400,11 +2410,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const managerId = parseInt(req.params.managerId);
       
       // Check if the user is requesting their own managed requests
-      if (req.user.id !== managerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
+      // Allow more roles to view manager requests
+      if (req.user.id !== managerId && 
+          req.user.role !== 'owner' && 
+          req.user.role !== 'admin' && 
+          req.user.role !== 'team_lead') {
         return res.status(403).json({ message: "You can only view requests assigned to you" });
       }
 
       const requests = await storage.listManagerPhaseChangeRequests(managerId);
+      
+      // Add debugging
+      console.log(`Fetched ${requests.length} phase change requests for manager ${managerId}`);
+      console.log('First request (if any):', requests.length > 0 ? requests[0] : 'No requests');
+      
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing manager phase change requests:", error);
