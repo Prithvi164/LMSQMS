@@ -2398,13 +2398,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const managerId = parseInt(req.params.managerId);
+      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : null;
       
       // Check if the user is requesting their own managed requests
       if (req.user.id !== managerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
         return res.status(403).json({ message: "You can only view requests assigned to you" });
       }
 
-      const requests = await storage.listManagerPhaseChangeRequests(managerId);
+      // Get all requests for this manager
+      const allRequests = await storage.listManagerPhaseChangeRequests(managerId);
+      
+      // If batchId is provided, filter the requests to only include those for the specific batch
+      const requests = batchId 
+        ? allRequests.filter(request => request.batchId === batchId)
+        : allRequests;
+        
       res.json(requests);
     } catch (error: any) {
       console.error("Error listing manager phase change requests:", error);

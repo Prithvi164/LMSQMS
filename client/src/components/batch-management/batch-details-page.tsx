@@ -279,8 +279,17 @@ export function BatchDetailsPage() {
     data: managerRequests,
     refetch: fetchManagerRequests
   } = useQuery({
-    queryKey: [`/api/managers/${user?.id}/phase-change-requests`],
-    enabled: !!user?.id && user?.role === 'manager',
+    queryKey: [`/api/managers/${user?.id}/phase-change-requests`, batchId],
+    queryFn: async ({ queryKey }) => {
+      const [baseUrl, currentBatchId] = queryKey;
+      const url = `${baseUrl}?batchId=${currentBatchId}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch phase change requests');
+      }
+      return response.json();
+    },
+    enabled: !!user?.id && !!batchId && user?.role === 'manager',
   });
 
   // Define a type for phase requests
@@ -414,7 +423,7 @@ export function BatchDetailsPage() {
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
-          `/api/managers/${user?.id}/phase-change-requests`
+          [`/api/managers/${user?.id}/phase-change-requests`, batchId]
         ],
         // Force immediate refetch
         refetchType: 'active',
@@ -475,7 +484,7 @@ export function BatchDetailsPage() {
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
-          `/api/managers/${user?.id}/phase-change-requests`
+          [`/api/managers/${user?.id}/phase-change-requests`, batchId]
         ],
         // Force immediate refetch
         refetchType: 'active',
