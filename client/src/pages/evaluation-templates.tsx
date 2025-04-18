@@ -406,8 +406,8 @@ export default function EvaluationTemplatesPage() {
                     <FormItem>
                       <FormLabel>Batch (Optional)</FormLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
-                        defaultValue={field.value?.toString()}
+                        onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
+                        defaultValue={field.value?.toString() || "none"}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -415,7 +415,7 @@ export default function EvaluationTemplatesPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Batch</SelectItem>
+                          <SelectItem value="none">No Batch</SelectItem>
                           {batches.map((batch: any) => (
                             <SelectItem
                               key={batch.id}
@@ -717,7 +717,7 @@ export default function EvaluationTemplatesPage() {
                                   name,
                                   description,
                                   processId,
-                                  batchId: batchIdStr === "" ? null : Number(batchIdStr),
+                                  batchId: batchIdStr === "none" || batchIdStr === "" ? null : Number(batchIdStr),
                                   feedbackThreshold: threshold === "" ? null : Number(threshold) 
                                 }),
                               })
@@ -791,13 +791,13 @@ export default function EvaluationTemplatesPage() {
                                 <Label htmlFor={`batch-${template.id}`}>Batch (Optional)</Label>
                                 <Select 
                                   name="batchId" 
-                                  defaultValue={template.batchId ? template.batchId.toString() : ""}
+                                  defaultValue={template.batchId ? template.batchId.toString() : "none"}
                                 >
                                   <SelectTrigger id={`batch-${template.id}`}>
                                     <SelectValue placeholder="Select batch (optional)" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">No Batch</SelectItem>
+                                    <SelectItem value="none">No Batch</SelectItem>
                                     {batches.map((batch: any) => (
                                       <SelectItem
                                         key={`batch-option-${batch.id}`}
