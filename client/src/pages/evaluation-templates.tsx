@@ -64,6 +64,7 @@ const formSchema = z.object({
   name: z.string().min(1, "Template name is required"),
   description: z.string().optional(),
   processId: z.number().min(1, "Process is required"),
+  batchId: z.number().min(1, "Batch is required").optional(),
   status: z.enum(["draft", "active", "archived"]).default("draft"),
   feedbackThreshold: z.number().min(0).max(100).optional().nullable(),
 });
@@ -78,6 +79,7 @@ export default function EvaluationTemplatesPage() {
   const [templateToDuplicate, setTemplateToDuplicate] = useState<number | null>(null);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -89,6 +91,12 @@ export default function EvaluationTemplatesPage() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
+  });
+  
+  // Fetch batches filtered by process ID
+  const { data: batches = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes/${selectedProcessId}/batches`],
+    enabled: !!user?.organizationId && !!selectedProcessId,
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -344,7 +352,13 @@ export default function EvaluationTemplatesPage() {
                     <FormItem>
                       <FormLabel>Process</FormLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        onValueChange={(value) => {
+                          const processId = parseInt(value);
+                          field.onChange(processId);
+                          setSelectedProcessId(processId);
+                          // Reset the batchId when process changes
+                          form.setValue("batchId", undefined);
+                        }}
                         defaultValue={field.value?.toString()}
                       >
                         <FormControl>
@@ -364,6 +378,44 @@ export default function EvaluationTemplatesPage() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="batchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Batch</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        defaultValue={field.value?.toString()}
+                        disabled={!selectedProcessId || batches.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={selectedProcessId ? 
+                              (batches.length === 0 ? "No batches available for this process" : "Select batch") : 
+                              "Select a process first"} 
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {batches.map((batch: any) => (
+                            <SelectItem
+                              key={batch.id}
+                              value={batch.id.toString()}
+                            >
+                              {batch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Assign this template to a specific batch. Optional: If not selected, the template will be available for all batches in this process.
+                      </p>
                     </FormItem>
                   )}
                 />
@@ -497,7 +549,28 @@ export default function EvaluationTemplatesPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle>{template.name}</CardTitle>
-                        <CardDescription>{template.description}</CardDescription>
+                        <CardDescription>
+                          {template.description}
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="font-medium text-xs">Process:</span> 
+                            <span className="text-xs">{template.process?.name || "Not assigned"}</span>
+                          </div>
+                          {template.batchId && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="font-medium text-xs">Batch:</span> 
+                              <span className="text-xs">{template.batch?.name || "Not assigned"}</span>
+                            </div>
+                          )}
+                          {template.feedbackThreshold !== null && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="font-medium text-xs">Feedback Threshold:</span> 
+                              <span className="text-xs flex items-center">
+                                <Percent className="h-3 w-3 mr-1" />
+                                {template.feedbackThreshold}
+                              </span>
+                            </div>
+                          )}
+                        </CardDescription>
                       </div>
                       <div className="flex gap-2">
                         {template.status === "draft" && (
