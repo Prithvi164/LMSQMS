@@ -775,6 +775,8 @@ export default function EvaluationTemplatesPage() {
                               const hiddenBatchIdInput = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`) as HTMLInputElement;
                               const batchIdStr = hiddenBatchIdInput?.value || (template.batchId ? template.batchId.toString() : "none");
                               
+                              console.log(`Retrieved batch ID from hidden input: ${batchIdStr}`);
+                              
                               const threshold = (document.getElementById(`threshold-${template.id}`) as HTMLInputElement)?.value;
                               
                               console.log(`Submitting edit form for template ${template.id}:`, {
@@ -897,11 +899,19 @@ export default function EvaluationTemplatesPage() {
                                   defaultValue={template.batchId ? template.batchId.toString() : "none"}
                                   onValueChange={(value) => {
                                     console.log(`Batch selection changed to ${value} for template ${template.id}`);
-                                    // This ensures the selected value is properly captured when the form is submitted
+                                    
+                                    // This is critical - immediately update the hidden input field that will be used during form submission
                                     const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`);
                                     if (batchIdField) {
                                       (batchIdField as HTMLInputElement).value = value;
                                       console.log(`Updated hidden batch ID field to ${value}`);
+                                    }
+                                    
+                                    // Force update the Select UI component as well
+                                    const selectElement = document.querySelector(`#template-edit-form-${template.id} [name="batchId"]`);
+                                    if (selectElement) {
+                                      (selectElement as any).setAttribute('data-state', 'closed');
+                                      (selectElement as any).setAttribute('data-value', value);
                                     }
                                   }}
                                 >
