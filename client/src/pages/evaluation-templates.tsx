@@ -744,12 +744,22 @@ export default function EvaluationTemplatesPage() {
                             id={`template-edit-form-${template.id}`}
                             onSubmit={(e) => {
                               e.preventDefault();
-                              const formData = new FormData(e.currentTarget);
-                              const name = formData.get("name") as string;
-                              const description = formData.get("description") as string;
-                              const processId = Number(formData.get("processId"));
-                              const batchIdStr = formData.get("batchId") as string;
-                              const threshold = formData.get("threshold");
+                              
+                              // Get the Select components' values directly
+                              const name = (document.getElementById(`name-${template.id}`) as HTMLInputElement)?.value;
+                              const description = (document.getElementById(`description-${template.id}`) as HTMLTextAreaElement)?.value || "";
+                              
+                              // Get process value from the form
+                              const processSelects = document.querySelectorAll(`#template-edit-form-${template.id} [name="processId"]`);
+                              const processId = processSelects.length > 0 ? 
+                                Number((processSelects[0] as HTMLSelectElement).value) : template.processId;
+                              
+                              // Get batch value from the form
+                              const batchSelects = document.querySelectorAll(`#template-edit-form-${template.id} [name="batchId"]`);
+                              const batchIdStr = batchSelects.length > 0 ? 
+                                (batchSelects[0] as HTMLSelectElement).value : (template.batchId ? template.batchId.toString() : "none");
+                              
+                              const threshold = (document.getElementById(`threshold-${template.id}`) as HTMLInputElement)?.value;
                               
                               fetch(`/api/evaluation-templates/${template.id}`, {
                                 method: "PATCH",
@@ -840,6 +850,13 @@ export default function EvaluationTemplatesPage() {
                                 <Select 
                                   name="batchId" 
                                   defaultValue={template.batchId ? template.batchId.toString() : "none"}
+                                  onValueChange={(value) => {
+                                    // This ensures the selected value is properly captured when the form is submitted
+                                    const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="batchId"]`);
+                                    if (batchIdField) {
+                                      (batchIdField as HTMLInputElement).value = value;
+                                    }
+                                  }}
                                 >
                                   <SelectTrigger id={`batch-${template.id}`}>
                                     <SelectValue placeholder="Select batch (optional)" />
