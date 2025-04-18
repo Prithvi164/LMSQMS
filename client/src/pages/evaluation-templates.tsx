@@ -707,6 +707,7 @@ export default function EvaluationTemplatesPage() {
                               const name = formData.get("name") as string;
                               const description = formData.get("description") as string;
                               const processId = Number(formData.get("processId"));
+                              const batchIdStr = formData.get("batchId") as string;
                               const threshold = formData.get("threshold");
                               
                               fetch(`/api/evaluation-templates/${template.id}`, {
@@ -716,6 +717,7 @@ export default function EvaluationTemplatesPage() {
                                   name,
                                   description,
                                   processId,
+                                  batchId: batchIdStr === "" ? null : Number(batchIdStr),
                                   feedbackThreshold: threshold === "" ? null : Number(threshold) 
                                 }),
                               })
@@ -786,6 +788,32 @@ export default function EvaluationTemplatesPage() {
                               </div>
                               
                               <div className="grid gap-2">
+                                <Label htmlFor={`batch-${template.id}`}>Batch (Optional)</Label>
+                                <Select 
+                                  name="batchId" 
+                                  defaultValue={template.batchId ? template.batchId.toString() : ""}
+                                >
+                                  <SelectTrigger id={`batch-${template.id}`}>
+                                    <SelectValue placeholder="Select batch (optional)" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">No Batch</SelectItem>
+                                    {batches.map((batch: any) => (
+                                      <SelectItem
+                                        key={`batch-option-${batch.id}`}
+                                        value={batch.id.toString()}
+                                      >
+                                        {batch.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                  Associate this template with a specific batch.
+                                </p>
+                              </div>
+                              
+                              <div className="grid gap-2">
                                 <Label htmlFor={`threshold-${template.id}`}>Feedback Threshold</Label>
                                 <Input
                                   id={`threshold-${template.id}`}
@@ -809,6 +837,18 @@ export default function EvaluationTemplatesPage() {
                       </Dialog>
                       )}
                     </div>
+                    
+                    {/* Batch Name Row (if available) */}
+                    {template.batchId && (
+                      <div className="flex items-center justify-between border-b pb-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">Batch:</span>{" "}
+                          <span className="text-sm">
+                            {batches.find((b: any) => b.id === template.batchId)?.name || "Unknown Batch"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Feedback Threshold Row */}
                     <div className="flex items-center justify-between">
