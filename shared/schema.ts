@@ -1767,6 +1767,8 @@ export const evaluationTemplates = pgTable("evaluation_templates", {
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -1885,6 +1887,7 @@ export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTempl
   .extend({
     name: z.string().min(1, "Template name is required"),
     processId: z.number().int().positive("Process is required"),
+    batchId: z.number().int().positive("Batch is required").optional(),
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
     status: z.enum(['draft', 'active', 'archived']).default('draft'),
@@ -1973,6 +1976,10 @@ export const evaluationTemplatesRelations = relations(evaluationTemplates, ({ on
   process: one(organizationProcesses, {
     fields: [evaluationTemplates.processId],
     references: [organizationProcesses.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluationTemplates.batchId],
+    references: [organizationBatches.id],
   }),
   organization: one(organizations, {
     fields: [evaluationTemplates.organizationId],
