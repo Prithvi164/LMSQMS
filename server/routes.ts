@@ -811,8 +811,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Allow status and feedbackThreshold changes
-      const { status, feedbackThreshold } = req.body;
+      // Allow template data to be updated
+      const { status, feedbackThreshold, name, description, processId } = req.body;
+      
+      // For active templates, only allow feedbackThreshold updates
+      if (template.status === 'active' && (name !== undefined || description !== undefined || processId !== undefined)) {
+        return res.status(400).json({ 
+          message: "Only feedback threshold can be modified for active templates." 
+        });
+      }
       
       // Validate status if provided
       if (status !== undefined && (!status || !['draft', 'active', 'archived'].includes(status))) {
@@ -826,11 +833,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Feedback threshold must be a number between 0 and 100" });
         }
       }
+      
+      // Validate processId if provided
+      if (processId !== undefined) {
+        const process = await db.query.organizationProcesses.findFirst({
+          where: and(
+            eq(organizationProcesses.id, processId),
+            eq(organizationProcesses.organizationId, req.user.organizationId)
+          )
+        });
+        
+        if (!process) {
+          return res.status(400).json({ message: "Invalid process ID" });
+        }
+      }
 
       // Prepare updates
       const updates: Partial<InsertEvaluationTemplate> = {};
       if (status !== undefined) updates.status = status;
       if (feedbackThreshold !== undefined) updates.feedbackThreshold = feedbackThreshold === null ? null : parseFloat(feedbackThreshold);
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (processId !== undefined) updates.processId = processId;
 
       const updatedTemplate = await storage.updateEvaluationTemplate(templateId, updates);
       res.json(updatedTemplate);
