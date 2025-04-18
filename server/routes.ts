@@ -812,7 +812,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Allow template data to be updated
-      const { status, feedbackThreshold, name, description, processId } = req.body;
+      const { status, feedbackThreshold, name, description, processId, batchId, hiddenBatchId } = req.body;
+      
+      // Log the received batch information for debugging
+      console.log('Update template request received with batch data:', {
+        templateId,
+        originalBatchId: template.batchId,
+        requestBatchId: batchId,
+        hiddenBatchId: hiddenBatchId
+      });
       
       // Don't allow any updates for active templates
       if (template.status === 'active') {
@@ -848,6 +856,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Process the batch ID - we prefer the hiddenBatchId field which is set by our JavaScript
+      // but fall back to batchId from the form if needed
+      let finalBatchId = null;
+      
+      // First check the hidden field which should contain the latest selected value
+      if (hiddenBatchId !== undefined) {
+        if (hiddenBatchId === "none" || hiddenBatchId === "") {
+          finalBatchId = null;
+          console.log('Setting batchId to null from hiddenBatchId (template available to all)');
+        } else {
+          finalBatchId = parseInt(hiddenBatchId);
+          console.log(`Setting batchId to ${finalBatchId} from hiddenBatchId`);
+        }
+      } 
+      // Otherwise use the batchId field if provided
+      else if (batchId !== undefined) {
+        if (batchId === "none" || batchId === "") {
+          finalBatchId = null;
+          console.log('Setting batchId to null from batchId field (template available to all)');
+        } else {
+          finalBatchId = parseInt(batchId);
+          console.log(`Setting batchId to ${finalBatchId} from batchId field`);
+        }
+      }
+
       // Prepare updates
       const updates: Partial<InsertEvaluationTemplate> = {};
       if (status !== undefined) updates.status = status;
@@ -855,6 +888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (name !== undefined) updates.name = name;
       if (description !== undefined) updates.description = description;
       if (processId !== undefined) updates.processId = processId;
+      // Add batchId to the updates object
+      updates.batchId = finalBatchId;
 
       const updatedTemplate = await storage.updateEvaluationTemplate(templateId, updates);
       res.json(updatedTemplate);
