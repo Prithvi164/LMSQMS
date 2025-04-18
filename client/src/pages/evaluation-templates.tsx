@@ -66,6 +66,7 @@ const formSchema = z.object({
   processId: z.number().min(1, "Process is required"),
   status: z.enum(["draft", "active", "archived"]).default("draft"),
   feedbackThreshold: z.number().min(0).max(100).optional().nullable(),
+  batchId: z.number().optional().nullable(),
 });
 
 export default function EvaluationTemplatesPage() {
@@ -82,6 +83,12 @@ export default function EvaluationTemplatesPage() {
   // Fetch available processes
   const { data: processes = [] } = useQuery({
     queryKey: [`/api/processes`],
+    enabled: !!user?.organizationId,
+  });
+
+  // Fetch available batches
+  const { data: batches = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
@@ -392,6 +399,41 @@ export default function EvaluationTemplatesPage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="batchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Batch (Optional)</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
+                        defaultValue={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select batch (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Batch</SelectItem>
+                          {batches.map((batch: any) => (
+                            <SelectItem
+                              key={batch.id}
+                              value={batch.id.toString()}
+                            >
+                              {batch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Associate this template with a specific batch.
+                      </p>
+                    </FormItem>
+                  )}
+                />
+                
                 <FormField
                   control={form.control}
                   name="feedbackThreshold"

@@ -1775,6 +1775,8 @@ export const evaluationTemplates = pgTable("evaluation_templates", {
     .references(() => users.id)
     .notNull(),
   feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered 
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id), // New field to associate template with a batch
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1887,6 +1889,7 @@ export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTempl
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
+    batchId: z.number().int().positive("Batch is required").optional().nullable(),
     status: z.enum(['draft', 'active', 'archived']).default('draft'),
     feedbackThreshold: z.number().min(0).max(100).optional()
       .transform(val => val === undefined ? null : Number(val.toFixed(2))),
@@ -1981,6 +1984,10 @@ export const evaluationTemplatesRelations = relations(evaluationTemplates, ({ on
   creator: one(users, {
     fields: [evaluationTemplates.createdBy],
     references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluationTemplates.batchId],
+    references: [organizationBatches.id],
   }),
   pillars: many(evaluationPillars),
   results: many(evaluationResults),
