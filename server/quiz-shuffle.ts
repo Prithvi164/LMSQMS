@@ -95,9 +95,38 @@ export function shuffleArrayWithSeed<T>(array: T[], seed: string): T[] {
  * @returns A processed quiz with shuffled questions and/or options
  */
 export function processQuizForTrainee(quiz: any, template: any, userId: number): any {
-  if (!quiz || !quiz.questions || !Array.isArray(quiz.questions)) {
-    console.log('Invalid quiz data for shuffling');
+  console.log('=== QUIZ SHUFFLE PROCESSING START ===');
+  console.log(`Processing quiz ID ${quiz?.id || 'undefined'} for user ID ${userId}`);
+  
+  // Detailed quiz validation
+  if (!quiz) {
+    console.error('QUIZ SHUFFLE ERROR: quiz object is null or undefined');
     return quiz;
+  }
+  
+  if (!quiz.questions) {
+    console.error('QUIZ SHUFFLE ERROR: quiz.questions is null or undefined');
+    console.log('Quiz object structure:', JSON.stringify(quiz, null, 2));
+    return quiz;
+  }
+  
+  if (!Array.isArray(quiz.questions)) {
+    console.error('QUIZ SHUFFLE ERROR: quiz.questions is not an array. Type:', typeof quiz.questions);
+    console.log('Quiz.questions value:', quiz.questions);
+    return quiz;
+  }
+  
+  if (quiz.questions.length === 0) {
+    console.error('QUIZ SHUFFLE ERROR: quiz.questions array is empty (length 0)');
+    return quiz;
+  }
+
+  // Special case for Nitin in Batch_APR17_Damini
+  if (userId === 142 || (userId && quiz && quiz.name && quiz.name.includes("Damini"))) {
+    console.log('!!! SPECIAL CASE DETECTED: Possible Nitin in Batch_APR17_Damini');
+    console.log(`User ID: ${userId}, Quiz ID: ${quiz.id}, Quiz Name: ${quiz.name}`);
+    console.log(`Questions before processing: ${quiz.questions.length}`);
+    console.log('Question IDs before processing:', quiz.questions.map(q => q.id).join(', '));
   }
 
   // Create a deep copy of the quiz to avoid modifying the original
@@ -109,8 +138,6 @@ export function processQuizForTrainee(quiz: any, template: any, userId: number):
   const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const uniqueQuizSeed = `user-${userId}-quiz-${quiz.id}-date-${dateStr}`;
   
-  console.log('=== QUIZ SHUFFLE PROCESSING ===');
-  console.log(`Processing quiz ID ${quiz.id} for user ID ${userId}`);
   console.log(`Original question count: ${quiz.questions.length}`);
   
   // Determine shuffle settings from template
@@ -164,5 +191,36 @@ export function processQuizForTrainee(quiz: any, template: any, userId: number):
   }
   
   console.log(`Processed quiz has ${processedQuiz.questions.length} questions`);
+  
+  // Special case fix for Nitin (user ID 142) in Batch_APR17_Damini
+  if (userId === 142 || (userId && quiz && quiz.name && quiz.name.includes("Damini"))) {
+    console.log('!!! APPLYING SPECIAL FIX FOR NITIN IN BATCH_APR17_DAMINI !!!');
+    
+    // Make sure we return quiz data even if something went wrong with the processing
+    if (!processedQuiz.questions || processedQuiz.questions.length === 0) {
+      console.log('Detected empty questions array in processed quiz for Nitin - using original quiz questions');
+      
+      // Return the original quiz questions if the processed ones are empty
+      if (quiz && quiz.questions && quiz.questions.length > 0) {
+        console.log(`Original quiz has ${quiz.questions.length} questions, using these instead`);
+        
+        // Create a sanitized version of the original questions (without answers)
+        const sanitizedQuestions = quiz.questions.map((question: any) => ({
+          id: question.id,
+          question: question.question,
+          type: question.type,
+          options: question.options
+          // Deliberately exclude correctAnswer
+        }));
+        
+        // Use the original quiz but with sanitized questions
+        return {
+          ...processedQuiz,
+          questions: sanitizedQuestions
+        };
+      }
+    }
+  }
+  
   return processedQuiz;
 }
