@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +79,8 @@ export default function EvaluationTemplatesPage() {
   const [templateToDuplicate, setTemplateToDuplicate] = useState<number | null>(null);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
+  const [filteredBatches, setFilteredBatches] = useState<any[]>([]);
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -97,6 +99,23 @@ export default function EvaluationTemplatesPage() {
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
+  
+  // Filter batches based on selected process
+  useEffect(() => {
+    if (selectedProcessId) {
+      const filtered = batches.filter((batch: any) => batch.processId === selectedProcessId);
+      setFilteredBatches(filtered);
+    } else {
+      setFilteredBatches(batches);
+    }
+  }, [selectedProcessId, batches]);
+  
+  // Handle process selection and filter batches
+  const handleProcessChange = (processId: number) => {
+    setSelectedProcessId(processId);
+    // Reset batch selection when process changes
+    form.setValue("batchId", null);
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -351,7 +370,11 @@ export default function EvaluationTemplatesPage() {
                     <FormItem>
                       <FormLabel>Process</FormLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        onValueChange={(value) => {
+                          const processId = parseInt(value);
+                          field.onChange(processId);
+                          handleProcessChange(processId);
+                        }}
                         defaultValue={field.value?.toString()}
                       >
                         <FormControl>
@@ -416,7 +439,7 @@ export default function EvaluationTemplatesPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">No Batch</SelectItem>
-                          {batches.map((batch: any) => (
+                          {(filteredBatches.length > 0 ? filteredBatches : batches).map((batch: any) => (
                             <SelectItem
                               key={batch.id}
                               value={batch.id.toString()}
