@@ -771,10 +771,9 @@ export default function EvaluationTemplatesPage() {
                               const processId = processSelects.length > 0 ? 
                                 Number((processSelects[0] as HTMLSelectElement).value) : template.processId;
                               
-                              // Get batch value from the form
-                              const batchSelects = document.querySelectorAll(`#template-edit-form-${template.id} [name="batchId"]`);
-                              const batchIdStr = batchSelects.length > 0 ? 
-                                (batchSelects[0] as HTMLSelectElement).value : (template.batchId ? template.batchId.toString() : "none");
+                              // Get batch value from the hidden input which we keep in sync with the Select component
+                              const hiddenBatchIdInput = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`) as HTMLInputElement;
+                              const batchIdStr = hiddenBatchIdInput?.value || (template.batchId ? template.batchId.toString() : "none");
                               
                               const threshold = (document.getElementById(`threshold-${template.id}`) as HTMLInputElement)?.value;
                               
@@ -785,6 +784,12 @@ export default function EvaluationTemplatesPage() {
                                 feedbackThreshold: threshold === "" ? null : Number(threshold)
                               });
                               
+                              // Prepare the data to send
+                              let batchId = null;
+                              if (batchIdStr !== "none" && batchIdStr !== "") {
+                                batchId = Number(batchIdStr);
+                              }
+                              
                               fetch(`/api/evaluation-templates/${template.id}`, {
                                 method: "PATCH",
                                 headers: { "Content-Type": "application/json" },
@@ -792,7 +797,7 @@ export default function EvaluationTemplatesPage() {
                                   name,
                                   description,
                                   processId,
-                                  batchId: batchIdStr === "none" || batchIdStr === "" ? null : Number(batchIdStr),
+                                  batchId,
                                   feedbackThreshold: threshold === "" ? null : Number(threshold) 
                                 }),
                               })
@@ -854,8 +859,15 @@ export default function EvaluationTemplatesPage() {
                                     console.log(`Edit form: Process changed to ${processId} for template ${template.id}`);
                                     setSelectedProcessId(processId);
                                     
-                                    // Reset batch selection when process changes
-                                    const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="batchId"]`);
+                                    // Reset batch selection when process changes and auto-update the hidden input
+                                    // First, set the Select component to show "No Batch"
+                                    const batchSelects = document.querySelectorAll(`#template-edit-form-${template.id} [name="batchId"]`);
+                                    if (batchSelects.length > 0) {
+                                      (batchSelects[0] as HTMLSelectElement).value = "none";
+                                    }
+                                    
+                                    // Also update the hidden input field directly to ensure it gets submitted correctly
+                                    const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`);
                                     if (batchIdField) {
                                       (batchIdField as HTMLInputElement).value = "none";
                                     }
@@ -884,10 +896,12 @@ export default function EvaluationTemplatesPage() {
                                   key={`batch-select-${template.id}-${selectedProcessId || template.processId}`}
                                   defaultValue={template.batchId ? template.batchId.toString() : "none"}
                                   onValueChange={(value) => {
+                                    console.log(`Batch selection changed to ${value} for template ${template.id}`);
                                     // This ensures the selected value is properly captured when the form is submitted
-                                    const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="batchId"]`);
+                                    const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`);
                                     if (batchIdField) {
                                       (batchIdField as HTMLInputElement).value = value;
+                                      console.log(`Updated hidden batch ID field to ${value}`);
                                     }
                                   }}
                                 >
@@ -926,6 +940,13 @@ export default function EvaluationTemplatesPage() {
                                   When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
                                 </p>
                               </div>
+                              
+                              {/* Hidden input for batch ID to ensure it gets sent correctly */}
+                              <input 
+                                type="hidden" 
+                                name="hiddenBatchId" 
+                                defaultValue={template.batchId ? template.batchId.toString() : "none"} 
+                              />
                             </div>
                             <DialogFooter className="mt-6">
                               <Button type="submit">Save Changes</Button>
