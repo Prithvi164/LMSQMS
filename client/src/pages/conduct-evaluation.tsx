@@ -55,6 +55,7 @@ function ConductEvaluation() {
   const queryClient = useQueryClient();
   const [location] = useLocation();
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
+  const [selectedBatchDetails, setSelectedBatchDetails] = useState<any>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [selectedAudioFile, setSelectedAudioFile] = useState<number | null>(
@@ -86,6 +87,14 @@ function ConductEvaluation() {
     if (batchId) {
       const batchIdNum = parseInt(batchId);
       setSelectedBatch(batchIdNum);
+      
+      // Set batch details if batches are loaded
+      if (batches && batches.length > 0) {
+        const batchDetails = batches.find((batch: any) => batch.id === batchIdNum);
+        if (batchDetails) {
+          setSelectedBatchDetails(batchDetails);
+        }
+      }
     }
 
     // Set trainee ID if provided in URL (but only after trainees are loaded)
@@ -93,7 +102,7 @@ function ConductEvaluation() {
       const traineeIdNum = parseInt(traineeId);
       setSelectedTrainee(traineeIdNum);
     }
-  }, [user]);
+  }, [user, batches]);
 
   // Fetch active batches
   const { data: batches } = useQuery({
@@ -525,7 +534,17 @@ function ConductEvaluation() {
 
   // Reset dependent fields when batch changes
   const handleBatchChange = (batchId: string) => {
-    setSelectedBatch(parseInt(batchId));
+    const batchIdNum = parseInt(batchId);
+    setSelectedBatch(batchIdNum);
+    
+    // Find and set the selected batch details
+    if (batches && batches.length > 0) {
+      const batchDetails = batches.find((batch: any) => batch.id === batchIdNum);
+      if (batchDetails) {
+        setSelectedBatchDetails(batchDetails);
+      }
+    }
+    
     setSelectedTrainee(null);
     setSelectedTemplate(null);
     setScores({});
@@ -985,7 +1004,12 @@ function ConductEvaluation() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="text-sm px-4 py-3 bg-muted/30 border-b">
-                    <strong>Template:</strong> {selectedTemplateDetails.name}
+                    <div className="flex flex-col gap-1.5">
+                      <div><strong>Template:</strong> {selectedTemplateDetails.name}</div>
+                      {selectedBatchDetails && (
+                        <div><strong>Batch:</strong> {selectedBatchDetails.name}</div>
+                      )}
+                    </div>
                   </div>
                   <div className="p-4">
                     <Accordion type="multiple" className="space-y-4">
