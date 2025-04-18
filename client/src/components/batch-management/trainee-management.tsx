@@ -36,8 +36,7 @@ import {
   CheckCircle, 
   XCircle, 
   FileText, 
-  BarChart, 
-  UserCheck
+  BarChart 
 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
@@ -48,7 +47,6 @@ import {
   TabsList,
   TabsTrigger
 } from "@/components/ui/tabs";
-import { TraineePhaseStatus } from "./trainee-phase-status";
 import {
   Card,
   CardContent,
@@ -398,22 +396,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     );
   }
 
-  // Get the current batch phase from batch details
-  const getCurrentPhase = () => {
-    if (!batchDetails) return 'training'; // Default to training if no details
-    switch (batchDetails.status) {
-      case 'induction': return 'induction';
-      case 'training': return 'training';
-      case 'certification': return 'certification';
-      case 'ojt': return 'ojt';
-      case 'ojt_certification': return 'ojt_certification';
-      default: return 'training';
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState<string>('general');
-  const currentPhase = getCurrentPhase();
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col">
@@ -425,56 +407,47 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
         )}
       </div>
 
-      <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="general">General Information</TabsTrigger>
-          <TabsTrigger value="status">Trainee Status</TabsTrigger>
-          {batchDetails?.status === 'training' && (
-            <TabsTrigger value="quiz">Quiz Results</TabsTrigger>
-          )}
-        </TabsList>
-
-        <TabsContent value="general" className="space-y-4">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Employee ID</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Date of Joining</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
-                  <TableRow key={trainee.id}>
-                    <TableCell>{trainee.fullName}</TableCell>
-                    <TableCell>{trainee.employeeId}</TableCell>
-                    <TableCell>{trainee.email}</TableCell>
-                    <TableCell>{trainee.phoneNumber}</TableCell>
-                    <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {canRemoveBatchUsers && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedTrainee(trainee);
-                              setIsTransferDialogOpen(true);
-                            }}
-                          >
-                            <ArrowRightLeft className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {/* Edit button - only visible for users with full management access */}
-                        {hasFullAccess && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
+      {/* Regular view for all batches - we've removed the Assessments & Certifications tab from here */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Employee ID</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Date of Joining</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
+              <TableRow key={trainee.id}>
+                <TableCell>{trainee.fullName}</TableCell>
+                <TableCell>{trainee.employeeId}</TableCell>
+                <TableCell>{trainee.email}</TableCell>
+                <TableCell>{trainee.phoneNumber}</TableCell>
+                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {canRemoveBatchUsers && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsTransferDialogOpen(true);
+                        }}
+                      >
+                        <ArrowRightLeft className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {/* Edit button - only visible for users with full management access */}
+                    {hasFullAccess && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
                           toast({
                             title: "Coming Soon",
                             description: "Edit functionality will be available soon",
@@ -572,69 +545,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </div>
         </DialogContent>
       </Dialog>
-          </TabsContent>
-          
-          {/* Trainee Phase Status Tab */}
-          <TabsContent value="status" className="space-y-4">
-            <TraineePhaseStatus 
-              batchId={batchId} 
-              currentPhase={currentPhase} 
-              canEdit={hasFullAccess}
-            />
-          </TabsContent>
-
-          {/* Quiz Results Tab (only visible during training phase) */}
-          {batchDetails?.status === 'training' && (
-            <TabsContent value="quiz" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quiz Results</CardTitle>
-                  <CardDescription>Performance of trainees in quizzes</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {quizAttempts.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No quiz attempts found for this batch.
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Trainee</TableHead>
-                          <TableHead>Quiz</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Completed At</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {quizAttempts.map((attempt: QuizAttempt) => (
-                          <TableRow key={attempt.id}>
-                            <TableCell>{attempt.user?.fullName}</TableCell>
-                            <TableCell>{attempt.quiz?.name}</TableCell>
-                            <TableCell>{attempt.score}%</TableCell>
-                            <TableCell>
-                              {attempt.isPassed ? (
-                                <Badge className="bg-green-500">
-                                  <CheckCircle className="h-3 w-3 mr-1" /> Pass
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-red-500">
-                                  <XCircle className="h-3 w-3 mr-1" /> Fail
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{formatDate(attempt.completedAt)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-        </Tabs>
-      </div>
-    );
+    </div>
+  );
 }
