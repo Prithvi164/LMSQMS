@@ -632,6 +632,143 @@ export default function EvaluationTemplatesPage() {
                     </Badge>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Process Name Row */}
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-muted-foreground">Process:</span>{" "}
+                        <span className="text-sm">
+                          {processes.find((p: any) => p.id === template.processId)?.name || "Unknown Process"}
+                        </span>
+                      </div>
+                      {/* Edit Template Button - Only available for draft templates */}
+                      {template.status === "draft" && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <Edit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </Button>
+                          </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px]">
+                          <DialogHeader>
+                            <DialogTitle>Edit Evaluation Template</DialogTitle>
+                            <DialogDescription>
+                              Update template details below.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <form
+                            className="space-y-4"
+                            id={`template-edit-form-${template.id}`}
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const formData = new FormData(e.currentTarget);
+                              const name = formData.get("name") as string;
+                              const description = formData.get("description") as string;
+                              const processId = Number(formData.get("processId"));
+                              const threshold = formData.get("threshold");
+                              
+                              fetch(`/api/evaluation-templates/${template.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ 
+                                  name,
+                                  description,
+                                  processId,
+                                  feedbackThreshold: threshold === "" ? null : Number(threshold) 
+                                }),
+                              })
+                                .then(response => {
+                                  if (!response.ok) {
+                                    throw new Error("Failed to update template");
+                                  }
+                                  return response.json();
+                                })
+                                .then(() => {
+                                  queryClient.invalidateQueries({
+                                    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+                                  });
+                                  toast({
+                                    title: "Success",
+                                    description: "Template updated successfully",
+                                  });
+                                })
+                                .catch(error => {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description: error.message,
+                                  });
+                                });
+                            }}
+                          >
+                            <div className="grid gap-4">
+                              <div className="grid gap-2">
+                                <Label htmlFor={`name-${template.id}`}>Template Name</Label>
+                                <Input
+                                  id={`name-${template.id}`}
+                                  name="name"
+                                  defaultValue={template.name}
+                                  placeholder="Enter template name"
+                                  required
+                                />
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor={`description-${template.id}`}>Description</Label>
+                                <Textarea
+                                  id={`description-${template.id}`}
+                                  name="description"
+                                  defaultValue={template.description || ""}
+                                  placeholder="Describe the evaluation template"
+                                  rows={3}
+                                />
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor={`process-${template.id}`}>Process</Label>
+                                <Select name="processId" defaultValue={template.processId.toString()}>
+                                  <SelectTrigger id={`process-${template.id}`}>
+                                    <SelectValue placeholder="Select process" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {processes.map((process: any) => (
+                                      <SelectItem
+                                        key={`process-option-${process.id}`}
+                                        value={process.id.toString()}
+                                      >
+                                        {process.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor={`threshold-${template.id}`}>Feedback Threshold</Label>
+                                <Input
+                                  id={`threshold-${template.id}`}
+                                  name="threshold"
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  placeholder="E.g., 75"
+                                  defaultValue={template.feedbackThreshold !== null ? template.feedbackThreshold : ""}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                  When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
+                                </p>
+                              </div>
+                            </div>
+                            <DialogFooter className="mt-6">
+                              <Button type="submit">Save Changes</Button>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                      )}
+                    </div>
+                    
+                    {/* Feedback Threshold Row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Percent className="h-4 w-4 text-muted-foreground" />
