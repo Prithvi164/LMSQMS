@@ -724,7 +724,22 @@ export default function EvaluationTemplatesPage() {
                           {processes.find((p: any) => p.id === template.processId)?.name || "Unknown Process"}
                         </span>
                       </div>
-                      {/* Edit Template Button - Available for both draft and active templates */}
+                    </div>
+                    
+                    {/* Batch Name Row - Only shown if batchId is set */}
+                    {template.batchId && (
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-muted-foreground">Batch:</span>{" "}
+                          <span className="text-sm">
+                            {batchesData?.find((b: any) => b.id === template.batchId)?.name || "Unknown Batch"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Edit Template Button Row */}
+                    <div className="flex justify-end mb-2">
                       {(template.status === "draft" || template.status === "active") && (
                         <Dialog>
                           <DialogTrigger asChild>
