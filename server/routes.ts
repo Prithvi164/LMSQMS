@@ -814,10 +814,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Allow template data to be updated
       const { status, feedbackThreshold, name, description, processId } = req.body;
       
-      // For active templates, only allow feedbackThreshold updates
-      if (template.status === 'active' && (name !== undefined || description !== undefined || processId !== undefined)) {
+      // Don't allow any updates for active templates
+      if (template.status === 'active') {
         return res.status(400).json({ 
-          message: "Only feedback threshold can be modified for active templates." 
+          message: "Active templates cannot be modified." 
         });
       }
       
