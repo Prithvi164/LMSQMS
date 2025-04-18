@@ -1104,6 +1104,19 @@ export const userBatchStatusEnum = pgEnum('user_batch_status', [
   'on_hold'
 ]);
 
+// Trainee phase status enum - includes all batch phases plus special statuses
+export const traineePhaseStatusEnum = pgEnum('trainee_phase_status', [
+  'planned',
+  'induction',
+  'training',
+  'certification', 
+  'ojt',
+  'ojt_certification',
+  'completed',
+  'refresher',     // Special status: Trainee needs additional training
+  'refer_to_hr'    // Special status: Trainee has HR-related issues
+]);
+
 export const userBatchProcesses = pgTable("user_batch_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -1116,6 +1129,10 @@ export const userBatchProcesses = pgTable("user_batch_processes", {
     .references(() => organizationProcesses.id)
     .notNull(),
   status: userBatchStatusEnum("status").default('active').notNull(),
+  // New field for trainee status that can be different from batch status
+  traineeStatus: traineePhaseStatusEnum("trainee_status"),
+  // Flag to indicate if trainee status has been manually set
+  isManualStatus: boolean("is_manual_status").default(false),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1140,6 +1157,8 @@ export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesse
     batchId: z.number().int().positive("Batch ID is required"),
     processId: z.number().int().positive("Process ID is required"),
     status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
+    traineeStatus: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed', 'refresher', 'refer_to_hr']).optional(),
+    isManualStatus: z.boolean().default(false),
     joinedAt: z.string().min(1, "Joined date is required"),
     completedAt: z.string().optional(),
   });
