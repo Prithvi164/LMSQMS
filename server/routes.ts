@@ -866,7 +866,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           finalBatchId = null;
           console.log('Setting batchId to null from hiddenBatchId (template available to all)');
         } else {
-          finalBatchId = parseInt(hiddenBatchId);
+          const parsedId = parseInt(hiddenBatchId);
+          finalBatchId = isNaN(parsedId) ? null : parsedId;
           console.log(`Setting batchId to ${finalBatchId} from hiddenBatchId`);
         }
       } 
@@ -876,7 +877,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           finalBatchId = null;
           console.log('Setting batchId to null from batchId field (template available to all)');
         } else {
-          finalBatchId = parseInt(batchId);
+          const parsedId = parseInt(batchId);
+          finalBatchId = isNaN(parsedId) ? null : parsedId;
           console.log(`Setting batchId to ${finalBatchId} from batchId field`);
         }
       }
