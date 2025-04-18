@@ -262,6 +262,11 @@ export interface IStorage {
   updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
   removeUserFromBatch(userId: number, batchId: number): Promise<void>;
   removeTraineeFromBatch(userBatchProcessId: number): Promise<void>;
+  updateTraineeStatus(
+    userBatchProcessId: number, 
+    traineeStatus: string | null, 
+    isManualStatus: boolean
+  ): Promise<UserBatchProcess>;
 
   // Phase change request operations
   createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest>;
@@ -3373,6 +3378,36 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  async updateTraineeStatus(
+    userBatchProcessId: number, 
+    traineeStatus: string | null, 
+    isManualStatus: boolean
+  ): Promise<UserBatchProcess> {
+    try {
+      console.log(`Updating trainee status for userBatchProcess ${userBatchProcessId} to ${traineeStatus}, isManual: ${isManualStatus}`);
+      
+      const [updated] = await db
+        .update(userBatchProcesses)
+        .set({
+          traineeStatus,
+          isManualStatus,
+          updatedAt: new Date()
+        })
+        .where(eq(userBatchProcesses.id, userBatchProcessId))
+        .returning();
+      
+      if (!updated) {
+        throw new Error(`User batch process with ID ${userBatchProcessId} not found`);
+      }
+      
+      return updated;
+    } catch (error) {
+      console.error('Error updating trainee status:', error);
+      throw error;
+    }
+  }
+  
   async removeTraineeFromBatch(traineeId: number): Promise<void> {
     try {
       console.log(`Attempting to remove trainee ${traineeId} from batch`);
