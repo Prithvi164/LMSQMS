@@ -65,6 +65,9 @@ type Trainee = {
   email: string;
   phoneNumber: string;
   dateOfJoining: string;
+  // New fields for trainee status tracking
+  traineeStatus?: 'planned' | 'induction' | 'training' | 'certification' | 'ojt' | 'ojt_certification' | 'completed' | 'refresher' | 'refer_to_hr' | null;
+  isManualStatus?: boolean;
 };
 
 // Type for quiz attempts
@@ -99,6 +102,9 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [isManualStatusOverride, setIsManualStatusOverride] = useState(false);
   
   // Check permissions for managing trainees
   const { hasPermission } = usePermissions();
@@ -305,6 +311,67 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     },
   });
 
+  // Update trainee status mutation
+  const updateTraineeStatusMutation = useMutation({
+    mutationFn: async ({ 
+      traineeId, 
+      status, 
+      isManualStatus 
+    }: { 
+      traineeId: number; 
+      status: string | null; 
+      isManualStatus: boolean 
+    }) => {
+      console.log('Updating trainee status:', { traineeId, status, isManualStatus });
+
+      const response = await fetch(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            traineeStatus: status,
+            isManualStatus
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update trainee status");
+      }
+
+      const result = await response.json();
+      console.log('Status update response:', result);
+      return result;
+    },
+    onSuccess: () => {
+      // Invalidate the current batch's trainee list
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`]
+      });
+
+      // Close dialogs and reset state
+      setIsStatusDialogOpen(false);
+      setSelectedTrainee(null);
+      setSelectedStatus(null);
+      setIsManualStatusOverride(false);
+
+      toast({
+        title: "Success",
+        description: "Trainee status updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Status update error:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Transfer trainee mutation
   const transferTraineeMutation = useMutation({
     mutationFn: async ({ traineeId, newBatchId }: { traineeId: number; newBatchId: number }) => {
@@ -417,6 +484,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Date of Joining</TableHead>
+              <TableHead>Trainee Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -428,6 +496,20 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 <TableCell>{trainee.email}</TableCell>
                 <TableCell>{trainee.phoneNumber}</TableCell>
                 <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {trainee.traineeStatus ? (
+                      <Badge variant={trainee.isManualStatus ? "secondary" : "default"} className="capitalize">
+                        {trainee.traineeStatus.replace(/_/g, ' ')}
+                        {trainee.isManualStatus && (
+                          <span className="ml-1 text-xs opacity-70">(Manual)</span>
+                        )}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Not set</span>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {canRemoveBatchUsers && (
@@ -442,16 +524,16 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                         <ArrowRightLeft className="h-4 w-4" />
                       </Button>
                     )}
-                    {/* Edit button - only visible for users with full management access */}
+                    {/* Edit status button - only visible for users with full management access */}
                     {hasFullAccess && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          toast({
-                            title: "Coming Soon",
-                            description: "Edit functionality will be available soon",
-                          });
+                          setSelectedTrainee(trainee);
+                          setSelectedStatus(trainee.traineeStatus || null);
+                          setIsManualStatusOverride(trainee.isManualStatus || false);
+                          setIsStatusDialogOpen(true);
                         }}
                       >
                         <Edit className="h-4 w-4" />
@@ -541,6 +623,93 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                     </div>
                   </Button>
                 ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trainee Status Dialog */}
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Trainee Status</DialogTitle>
+            <DialogDescription>
+              You can manually set a trainee's status, which will override the automatic status updates from batch phases.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Trainee Status</Label>
+              <Select 
+                value={selectedStatus || undefined} 
+                onValueChange={(value) => setSelectedStatus(value)}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planned">Planned</SelectItem>
+                  <SelectItem value="induction">Induction</SelectItem>
+                  <SelectItem value="training">Training</SelectItem>
+                  <SelectItem value="certification">Certification</SelectItem>
+                  <SelectItem value="ojt">OJT</SelectItem>
+                  <SelectItem value="ojt_certification">OJT Certification</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="refresher">Refresher</SelectItem>
+                  <SelectItem value="refer_to_hr">Refer to HR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="manual-override" 
+                checked={isManualStatusOverride}
+                onCheckedChange={(checked) => {
+                  setIsManualStatusOverride(checked === true);
+                }}
+              />
+              <Label
+                htmlFor="manual-override"
+                className="text-sm font-normal"
+              >
+                Set as manual override (prevents automatic updates from batch phases)
+              </Label>
+            </div>
+
+            <div className="pt-4 flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsStatusDialogOpen(false);
+                  setSelectedTrainee(null);
+                  setSelectedStatus(null);
+                  setIsManualStatusOverride(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedTrainee) {
+                    updateTraineeStatusMutation.mutate({
+                      traineeId: selectedTrainee.id,
+                      status: selectedStatus,
+                      isManualStatus: isManualStatusOverride
+                    });
+                  }
+                }}
+                disabled={updateTraineeStatusMutation.isPending}
+              >
+                {updateTraineeStatusMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Status"
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>
