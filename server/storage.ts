@@ -4888,6 +4888,117 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  async getTraineeAttendanceHistory(traineeId: number, batchId: number): Promise<{
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    attendanceByDate: {
+      date: string;
+      status: string;
+    }[];
+  }> {
+    try {
+      console.log(`Fetching attendance history for trainee ${traineeId} in batch ${batchId}`);
+      
+      // Get all attendance records for this trainee in this batch
+      const records = await db
+        .select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.traineeId, traineeId),
+          eq(attendance.batchId, batchId)
+        ))
+        .orderBy(desc(attendance.date));
+      
+      console.log(`Found ${records.length} attendance records for trainee ${traineeId}`);
+      console.log('Raw attendance records:', JSON.stringify(records));
+      
+      if (records.length === 0) {
+        console.log(`No attendance records found for trainee ${traineeId}`);
+        return {
+          presentCount: 0,
+          absentCount: 0,
+          lateCount: 0,
+          leaveCount: 0,
+          attendanceRate: 0,
+          attendanceByDate: []
+        };
+      }
+      
+      // Count the different status types
+      let presentCount = 0;
+      let absentCount = 0;
+      let lateCount = 0;
+      let leaveCount = 0;
+      
+      const attendanceByDate = records.map(record => {
+        // Count each status type and log for debugging
+        console.log(`Processing record: date=${record.date}, status=${record.status}`);
+        
+        // Make sure we properly account for the status, including absent
+        // This is crucial for accurate attendance tracking
+        switch(record.status) {
+          case 'present':
+            presentCount++;
+            console.log(`Incremented present count to ${presentCount}`);
+            break;
+          case 'absent':
+            absentCount++;
+            console.log(`Incremented absent count to ${absentCount}`);
+            break;
+          case 'late':
+            lateCount++;
+            console.log(`Incremented late count to ${lateCount}`);
+            break;
+          case 'leave':
+            leaveCount++;
+            console.log(`Incremented leave count to ${leaveCount}`);
+            break;
+          default:
+            console.log(`Unknown status: ${record.status}`);
+            // Default to absent for unknown statuses to ensure they're counted
+            absentCount++;
+            console.log(`Defaulted to absent, count is now ${absentCount}`);
+        }
+        
+        return {
+          date: record.date,
+          status: record.status
+        };
+      });
+      
+      // Calculate attendance rate
+      const totalDays = records.length;
+      const attendedDays = presentCount + (lateCount * 0.5);
+      const attendanceRate = totalDays > 0 
+        ? Math.round((attendedDays / totalDays) * 100) 
+        : 0;
+      
+      console.log(`Attendance summary for trainee ${traineeId}:`, {
+        presentCount,
+        absentCount,
+        lateCount,
+        leaveCount,
+        attendanceRate,
+        totalRecords: records.length
+      });
+      
+      return {
+        presentCount,
+        absentCount,
+        lateCount,
+        leaveCount,
+        attendanceRate,
+        attendanceByDate
+      };
+    } catch (error) {
+      console.error('Error fetching trainee attendance history:', error);
+      throw error;
+    }
+  }
 
   async getBatchAttendanceHistory(organizationId: number, batchId: number): Promise<{
     date: string;

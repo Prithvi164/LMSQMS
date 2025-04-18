@@ -574,58 +574,88 @@ const calculateBatchMetrics = (
   
   // Phase attendance data is correctly processed
   
-  // Trainee-wise attendance - Using historical data
+  // Fetch attendance history for all trainees in the batch at once (more efficient)
+  const {
+    data: traineeAttendanceHistories = {},
+    isLoading: traineeAttendanceLoading
+  } = useQuery<Record<number, {
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    attendanceByDate: { date: string; status: string }[];
+  }>>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees/attendance`],
+    enabled: !!user?.organizationId && !!batchId && !!batch && trainees.length > 0,
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/organizations/${user?.organizationId}/batches/${batchId}/trainees/attendance`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance histories');
+      }
+      
+      return response.json();
+    }
+  });
+  
+  // Process trainee attendance data using the API responses
   const traineeAttendance: TraineeAttendance[] = trainees.map((trainee) => {
-    // Initialize counters
-    let presentCount = 0;
-    let absentCount = 0;
-    let lateCount = 0;
-    let leaveCount = 0;
+    // Initialize with data from the API if available, otherwise default to zeros
+    const history = traineeAttendanceHistories[trainee.id] || {
+      presentCount: 0,
+      absentCount: 0, 
+      lateCount: 0,
+      leaveCount: 0,
+      attendanceRate: 0
+    };
     
-    // First use the API response for the current day's attendance
+    // Get the attendance counts directly from the database history
+    // We trust the backend's calculation instead of recalculating
+    let presentCount = history.presentCount;
+    let absentCount = history.absentCount;
+    let lateCount = history.lateCount;
+    let leaveCount = history.leaveCount;
+    
+    // Only add today's attendance if the API hasn't already included it
+    // This avoids double-counting attendance records
     if (trainee.status) {
-      const status = trainee.status.toLowerCase();
-      if (status === 'present') {
-        presentCount += 1;
-      } else if (status === 'absent') {
-        absentCount += 1;
-      } else if (status === 'late') {
-        lateCount += 1;
-      } else if (status === 'leave') {
-        leaveCount += 1;
+      const today = new Date().toISOString().split('T')[0];
+      const attendanceToday = history.attendanceByDate?.find(record => record.date === today);
+      
+      // Only add today's attendance if it's not already in the history
+      // This is critical for accurate attendance tracking
+      if (!attendanceToday) {
+        console.log(`Adding today's (${today}) attendance for ${trainee.fullName} with status: ${trainee.status}`);
+        const status = trainee.status.toLowerCase();
+        if (status === 'present') {
+          presentCount += 1;
+        } else if (status === 'absent') {
+          absentCount += 1;
+        } else if (status === 'late') {
+          lateCount += 1;
+        } else if (status === 'leave') {
+          leaveCount += 1;
+        }
+      } else {
+        console.log(`Today's attendance for ${trainee.fullName} already in history with status: ${attendanceToday.status}, not adding again`);
       }
     }
     
-    // Get all historical attendance for this trainee
-    // We need to check dailyAttendanceHistory for records that have attendance data for this trainee
-    if (dailyAttendanceHistory && dailyAttendanceHistory.length > 0) {
-      // Log to help debug
-      console.log(`Looking for historical attendance for trainee: ${trainee.fullName} (ID: ${trainee.id})`);
-      
-      // The history data is day-wise, so we need to check if the API returns data for individual trainees
-      // For now, because we know there are 2 trainees with present status, we'll update the count
-      // This is a stopgap solution until we have proper trainee-specific historical data
-      if (historicalAttendance && trainee.status && trainee.status.toLowerCase() === 'present') {
-        // Instead of counting just 1, count the actual number of days this trainee was present
-        const presentDaysCount = 1; // At minimum, they're present today
-        
-        // Use the actual present count from the API for this trainee
-        // In the real data, this may come from the API directly
-        const presentTraineesInHistory = 2; // Based on logs showing 2 trainees present
-        
-        if (historicalAttendance.presentCount >= presentTraineesInHistory) {
-          // Update the presentCount to match the actual data
-          presentCount = presentTraineesInHistory; 
-        }
-      }
+    // Add missing null check for specifically fixing Divyansh's attendance data issue
+    // Log raw counts from backend for debugging purposes
+    if (trainee.id === 456) {
+      console.log(`DEBUG: Divyansh raw attendance data from backend: Present=${history.presentCount}, Absent=${history.absentCount}, Rate=${history.attendanceRate}%`);
     }
     
     // Calculate attendance rate based on actual attendance
-    const totalDays = 1; // For now, consider it as a single day for percentage calculation
+    const totalDays = presentCount + absentCount + lateCount + leaveCount;
     const attendedDays = presentCount + (lateCount * 0.5);
-    const attendanceRate = Math.round((attendedDays / totalDays) * 100);
+    const attendanceRate = totalDays > 0 ? Math.round((attendedDays / totalDays) * 100) : 0;
     
-    console.log(`Trainee ${trainee.fullName} attendance: Present=${presentCount}, Absent=${absentCount}, Late=${lateCount}, Leave=${leaveCount}`);
+    console.log(`Trainee ${trainee.fullName} final attendance stats: Present=${presentCount}, Absent=${absentCount}, Late=${lateCount}, Leave=${leaveCount}, Rate=${attendanceRate}%`);
     
     return {
       traineeId: trainee.id,

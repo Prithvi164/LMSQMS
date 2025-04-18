@@ -7206,6 +7206,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Get attendance history for a specific trainee in a batch
+  app.get("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId/attendance", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      const traineeId = parseInt(req.params.traineeId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
+      }
+      
+      // Check if user has access to the batch
+      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "You don't have access to this batch" });
+      }
+      
+      // Get trainee's attendance history
+      const attendanceHistory = await storage.getTraineeAttendanceHistory(traineeId, batchId);
+      
+      res.json(attendanceHistory);
+    } catch (error: any) {
+      console.error("Error fetching trainee attendance history:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch trainee attendance history" });
+    }
+  });
+  
+  // Get attendance history for all trainees in a batch (more efficient than individual calls)
+  app.get("/api/organizations/:orgId/batches/:batchId/trainees/attendance", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
+      }
+      
+      // Check if user has access to the batch
+      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "You don't have access to this batch" });
+      }
+      
+      // Get all trainees in the batch
+      const trainees = await storage.getBatchTrainees(batchId);
+      
+      // Get attendance history for each trainee
+      const attendanceHistories: Record<number, any> = {};
+      
+      // Process in parallel for better performance
+      await Promise.all(
+        trainees.map(async (trainee) => {
+          try {
+            const history = await storage.getTraineeAttendanceHistory(trainee.userId, batchId);
+            attendanceHistories[trainee.userId] = history;
+            
+            // Log Divyansh's attendance stats specifically for debugging
+            if (trainee.userId === 456) {
+              console.log(`DEBUG - Divyansh's attendance from API: Present=${history.presentCount}, Absent=${history.absentCount}, Rate=${history.attendanceRate}%`);
+              console.log(`DEBUG - Divyansh's attendance records:`, JSON.stringify(history.attendanceByDate));
+            }
+          } catch (error) {
+            console.error(`Error fetching attendance for trainee ${trainee.userId}:`, error);
+            // Continue with other trainees even if one fails
+          }
+        })
+      );
+      
+      res.json(attendanceHistories);
+    } catch (error: any) {
+      console.error("Error fetching batch trainee attendance histories:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch trainee attendance histories" });
+    }
+  });
+  
+  // Special debug endpoint just for testing the Divyansh attendance issue
+  app.get("/api/debug/attendance/456", async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      
+      // Get raw attendance records from the database for userId 456
+      const records = await db
+        .select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.traineeId, 456),
+          eq(attendance.batchId, 83)
+        ))
+        .orderBy(desc(attendance.date));
+      
+      console.log('Raw records from DB for Divyansh:', JSON.stringify(records));
+      
+      // Process records to count attendance
+      let presentCount = 0;
+      let absentCount = 0;
+      let lateCount = 0;
+      let leaveCount = 0;
+      
+      const attendanceByDate = records.map(record => {
+        // Count each status type 
+        console.log(`Processing record: date=${record.date}, status=${record.status}`);
+        
+        switch(record.status) {
+          case 'present':
+            presentCount++;
+            console.log(`Incremented present count to ${presentCount}`);
+            break;
+          case 'absent':
+            absentCount++;
+            console.log(`Incremented absent count to ${absentCount}`);
+            break;
+          case 'late':
+            lateCount++;
+            console.log(`Incremented late count to ${lateCount}`);
+            break;
+          case 'leave':
+            leaveCount++;
+            console.log(`Incremented leave count to ${leaveCount}`);
+            break;
+          default:
+            // Default to absent for unknown statuses
+            absentCount++;
+            console.log(`Unknown status defaulted to absent, count is now ${absentCount}`);
+        }
+        
+        return {
+          date: record.date,
+          status: record.status
+        };
+      });
+      
+      // Calculate attendance rate
+      const totalDays = records.length;
+      const attendedDays = presentCount + (lateCount * 0.5);
+      const attendanceRate = totalDays > 0 
+        ? Math.round((attendedDays / totalDays) * 100) 
+        : 0;
+      
+      console.log(`Final calculated attendance: Present=${presentCount}, Absent=${absentCount}, Rate=${attendanceRate}%`);
+      
+      // Return detailed debug information
+      res.json({
+        rawRecords: records,
+        calculatedStats: {
+          presentCount,
+          absentCount,
+          lateCount,
+          leaveCount,
+          attendanceRate,
+          totalDays,
+          attendedDays,
+          attendanceByDate
+        }
+      });
+    } catch (error: any) {
+      console.error("Error in debug endpoint:", error);
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+  });
       
   // Get batch-specific attendance data with day-by-day breakdown
   app.get("/api/organizations/:orgId/batches/:batchId/attendance/history", async (req, res) => {
