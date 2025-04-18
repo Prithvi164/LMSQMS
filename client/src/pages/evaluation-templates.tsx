@@ -100,14 +100,22 @@ export default function EvaluationTemplatesPage() {
     enabled: !!user?.organizationId,
   });
   
-  // Filter batches based on selected process
-  useEffect(() => {
-    if (selectedProcessId) {
-      const filtered = batches.filter((batch: any) => batch.processId === selectedProcessId);
-      setFilteredBatches(filtered);
-    } else {
-      setFilteredBatches(batches);
+  // Helper function to filter batches by process ID
+  const filterBatchesByProcess = (processId: number | null) => {
+    if (processId) {
+      console.log(`Filtering batches for processId: ${processId}`);
+      const filtered = batches.filter((batch: any) => batch.processId === processId);
+      console.log(`Found ${filtered.length} batches for process ${processId}`);
+      return filtered;
     }
+    console.log("No process selected, returning all batches");
+    return batches;
+  };
+
+  // Update filtered batches whenever selectedProcessId or batches change
+  useEffect(() => {
+    const filtered = filterBatchesByProcess(selectedProcessId);
+    setFilteredBatches(filtered);
   }, [selectedProcessId, batches]);
   
   // Handle process selection and filter batches
@@ -115,15 +123,15 @@ export default function EvaluationTemplatesPage() {
     console.log(`Process changed to: ${processId}`);
     setSelectedProcessId(processId);
     
-    // Filter batches immediately to ensure they're ready when rendering
-    const filtered = batches.filter((batch: any) => batch.processId === processId);
-    console.log(`Filtered ${filtered.length} batches for process ${processId}`);
-    setFilteredBatches(filtered);
-    
     // Reset batch selection in create form when process changes
     if (form) {
       form.setValue("batchId", null);
     }
+  };
+  
+  // Function to get batches for a specific process (used in edit form)
+  const getBatchesForProcess = (processId: number) => {
+    return batches.filter((batch: any) => batch.processId === processId);
   };
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -770,6 +778,13 @@ export default function EvaluationTemplatesPage() {
                               
                               const threshold = (document.getElementById(`threshold-${template.id}`) as HTMLInputElement)?.value;
                               
+                              console.log(`Submitting edit form for template ${template.id}:`, {
+                                name, description, 
+                                processId,
+                                batchId: batchIdStr === "none" || batchIdStr === "" ? null : Number(batchIdStr),
+                                feedbackThreshold: threshold === "" ? null : Number(threshold)
+                              });
+                              
                               fetch(`/api/evaluation-templates/${template.id}`, {
                                 method: "PATCH",
                                 headers: { "Content-Type": "application/json" },
@@ -832,10 +847,18 @@ export default function EvaluationTemplatesPage() {
                                 <Label htmlFor={`process-${template.id}`}>Process</Label>
                                 <Select 
                                   name="processId" 
+                                  key={`process-select-${template.id}`}
                                   defaultValue={template.processId.toString()}
                                   onValueChange={(value) => {
                                     const processId = parseInt(value);
-                                    handleProcessChange(processId);
+                                    console.log(`Edit form: Process changed to ${processId} for template ${template.id}`);
+                                    setSelectedProcessId(processId);
+                                    
+                                    // Reset batch selection when process changes
+                                    const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="batchId"]`);
+                                    if (batchIdField) {
+                                      (batchIdField as HTMLInputElement).value = "none";
+                                    }
                                   }}
                                 >
                                   <SelectTrigger id={`process-${template.id}`}>
@@ -873,7 +896,7 @@ export default function EvaluationTemplatesPage() {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="none">No Batch</SelectItem>
-                                    {(filteredBatches.length > 0 ? filteredBatches : batches).map((batch: any) => (
+                                    {getBatchesForProcess(selectedProcessId || template.processId).map((batch: any) => (
                                       <SelectItem
                                         key={`batch-option-${batch.id}`}
                                         value={batch.id.toString()}
