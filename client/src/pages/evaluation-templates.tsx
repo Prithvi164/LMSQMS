@@ -321,7 +321,16 @@ export default function EvaluationTemplatesPage() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Evaluation Templates</h1>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <Dialog 
+          open={isCreateDialogOpen} 
+          onOpenChange={(open) => {
+            setIsCreateDialogOpen(open);
+            if (!open) {
+              // Reset the process selection when closing the dialog
+              setSelectedProcessId(null);
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button>Create New Template</Button>
           </DialogTrigger>
@@ -709,7 +718,16 @@ export default function EvaluationTemplatesPage() {
                       {template.status === "draft" && (
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center gap-1" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Set the selected process ID when opening the edit dialog
+                                handleProcessChange(template.processId);
+                              }}
+                            >
                               <Edit className="h-3.5 w-3.5" />
                               <span>Edit</span>
                             </Button>
@@ -793,7 +811,14 @@ export default function EvaluationTemplatesPage() {
                               
                               <div className="grid gap-2">
                                 <Label htmlFor={`process-${template.id}`}>Process</Label>
-                                <Select name="processId" defaultValue={template.processId.toString()}>
+                                <Select 
+                                  name="processId" 
+                                  defaultValue={template.processId.toString()}
+                                  onValueChange={(value) => {
+                                    const processId = parseInt(value);
+                                    handleProcessChange(processId);
+                                  }}
+                                >
                                   <SelectTrigger id={`process-${template.id}`}>
                                     <SelectValue placeholder="Select process" />
                                   </SelectTrigger>
@@ -821,7 +846,7 @@ export default function EvaluationTemplatesPage() {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="none">No Batch</SelectItem>
-                                    {batches.map((batch: any) => (
+                                    {(filteredBatches.length > 0 ? filteredBatches : batches).map((batch: any) => (
                                       <SelectItem
                                         key={`batch-option-${batch.id}`}
                                         value={batch.id.toString()}
