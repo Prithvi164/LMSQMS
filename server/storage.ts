@@ -1,7 +1,7 @@
 import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
-import { batchStatusEnum, attendance, permissionEnum } from "@shared/schema";
+import { batchStatusEnum, attendance, permissionEnum, traineePhaseStatus } from "@shared/schema";
 import {
   users,
   organizations,
@@ -48,6 +48,8 @@ import {
   type AudioFileAllocation,
   type InsertAudioFileAllocation,
   type AudioFileBatchAllocation,
+  type TraineePhaseStatus,
+  type InsertTraineePhaseStatus,
   type InsertAudioFileBatchAllocation,
   batchHistory,
   type BatchHistory,
@@ -254,6 +256,13 @@ export interface IStorage {
     batchId: number,
     status: string
   ): Promise<UserBatchProcess>;
+  
+  // Trainee Phase Status operations
+  createTraineePhaseStatus(status: InsertTraineePhaseStatus): Promise<TraineePhaseStatus>;
+  getTraineePhaseStatus(traineeId: number, batchId: number, phase: string): Promise<TraineePhaseStatus | undefined>;
+  listTraineePhaseStatuses(batchId: number, phase?: string): Promise<TraineePhaseStatus[]>;
+  updateTraineePhaseStatus(traineeId: number, batchId: number, phase: string, status: Partial<TraineePhaseStatus>): Promise<TraineePhaseStatus>;
+  getTraineeStatusHistory(traineeId: number, batchId: number): Promise<TraineePhaseStatus[]>;
 
   // Add new method for creating user process
   createUserProcess(process: InsertUserProcess): Promise<UserProcess>;
@@ -3749,6 +3758,165 @@ export class DatabaseStorage implements IStorage {
       return newEvent;
     } catch (error) {
       console.error('Error creating batch history event:', error);
+      throw error;
+    }
+  }
+  
+  // Trainee Phase Status operations
+  async createTraineePhaseStatus(status: InsertTraineePhaseStatus): Promise<TraineePhaseStatus> {
+    try {
+      // First check if a record already exists for this trainee-batch-phase combination
+      const existingStatus = await this.getTraineePhaseStatus(
+        status.traineeId,
+        status.batchId,
+        status.phase
+      );
+
+      if (existingStatus) {
+        // If a record exists, update it instead of creating a new one
+        return this.updateTraineePhaseStatus(
+          status.traineeId,
+          status.batchId,
+          status.phase,
+          status
+        );
+      }
+
+      // Add default values
+      const newStatus = {
+        ...status,
+        status: status.status || 'in_progress',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const [createdStatus] = await db
+        .insert(traineePhaseStatus)
+        .values(newStatus)
+        .returning() as TraineePhaseStatus[];
+
+      return createdStatus;
+    } catch (error) {
+      console.error('Error creating trainee phase status:', error);
+      throw error;
+    }
+  }
+
+  async getTraineePhaseStatus(traineeId: number, batchId: number, phase: string): Promise<TraineePhaseStatus | undefined> {
+    try {
+      const [status] = await db
+        .select()
+        .from(traineePhaseStatus)
+        .where(and(
+          eq(traineePhaseStatus.traineeId, traineeId),
+          eq(traineePhaseStatus.batchId, batchId),
+          eq(traineePhaseStatus.phase, phase as any)
+        )) as TraineePhaseStatus[];
+
+      return status;
+    } catch (error) {
+      console.error('Error fetching trainee phase status:', error);
+      throw error;
+    }
+  }
+
+  async listTraineePhaseStatuses(batchId: number, phase?: string): Promise<TraineePhaseStatus[]> {
+    try {
+      let query = db
+        .select()
+        .from(traineePhaseStatus)
+        .where(eq(traineePhaseStatus.batchId, batchId));
+
+      if (phase) {
+        query = query.where(eq(traineePhaseStatus.phase, phase as any));
+      }
+
+      const statuses = await query as TraineePhaseStatus[];
+
+      // Fetch trainee names for a more complete response
+      const trainees = await db
+        .select()
+        .from(users)
+        .where(inArray(
+          users.id,
+          statuses.map(s => s.traineeId)
+        ));
+
+      // Create a map of trainee IDs to names
+      const traineeMap = new Map();
+      for (const trainee of trainees) {
+        traineeMap.set(trainee.id, trainee);
+      }
+
+      // Add trainee name to each status record
+      return statuses.map(status => ({
+        ...status,
+        traineeName: traineeMap.get(status.traineeId)?.fullName || 'Unknown'
+      })) as TraineePhaseStatus[];
+    } catch (error) {
+      console.error('Error listing trainee phase statuses:', error);
+      throw error;
+    }
+  }
+
+  async updateTraineePhaseStatus(
+    traineeId: number,
+    batchId: number,
+    phase: string,
+    updates: Partial<TraineePhaseStatus>
+  ): Promise<TraineePhaseStatus> {
+    try {
+      // Get the existing status first
+      const existingStatus = await this.getTraineePhaseStatus(traineeId, batchId, phase);
+      if (!existingStatus) {
+        throw new Error(`No status found for trainee ${traineeId} in batch ${batchId} for phase ${phase}`);
+      }
+
+      // Set updatedAt timestamp
+      const updateData = {
+        ...updates,
+        updatedAt: new Date()
+      };
+
+      // Remove id, createdAt, and any protected fields to avoid errors
+      delete updateData.id;
+      delete updateData.createdAt;
+      delete updateData.traineeId;
+      delete updateData.batchId;
+      delete updateData.phase;
+      delete updateData.organizationId;
+
+      const [updatedStatus] = await db
+        .update(traineePhaseStatus)
+        .set(updateData)
+        .where(and(
+          eq(traineePhaseStatus.traineeId, traineeId),
+          eq(traineePhaseStatus.batchId, batchId),
+          eq(traineePhaseStatus.phase, phase as any)
+        ))
+        .returning() as TraineePhaseStatus[];
+
+      return updatedStatus;
+    } catch (error) {
+      console.error('Error updating trainee phase status:', error);
+      throw error;
+    }
+  }
+
+  async getTraineeStatusHistory(traineeId: number, batchId: number): Promise<TraineePhaseStatus[]> {
+    try {
+      const statuses = await db
+        .select()
+        .from(traineePhaseStatus)
+        .where(and(
+          eq(traineePhaseStatus.traineeId, traineeId),
+          eq(traineePhaseStatus.batchId, batchId)
+        ))
+        .orderBy(traineePhaseStatus.updatedAt) as TraineePhaseStatus[];
+
+      return statuses;
+    } catch (error) {
+      console.error('Error fetching trainee status history:', error);
       throw error;
     }
   }

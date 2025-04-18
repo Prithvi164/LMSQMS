@@ -1104,6 +1104,13 @@ export const userBatchStatusEnum = pgEnum('user_batch_status', [
   'on_hold'
 ]);
 
+export const traineePhaseStatusEnum = pgEnum('trainee_phase_status', [
+  'certify',      // Trainee has been certified for the current phase
+  'refresher',    // Trainee needs additional training/refresher for current phase
+  'refer_to_hr',  // Trainee is being referred to HR due to performance issues
+  'in_progress'   // Default - trainee is currently progressing through the phase
+]);
+
 export const userBatchProcesses = pgTable("user_batch_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -1394,6 +1401,33 @@ export const attendance = pgTable("attendance", {
   };
 });
 
+// Table to track trainee's status in each phase of training
+export const traineePhaseStatus = pgTable("trainee_phase_status_tracking", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  phase: batchStatusEnum("phase").notNull(),
+  status: traineePhaseStatusEnum("status").default('in_progress').notNull(),
+  notes: text("notes"),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id),
+  lastEvaluationDate: date("last_evaluation_date"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure only one status record per trainee per phase per batch
+    unq: unique().on(table.traineeId, table.phase, table.batchId),
+  };
+});
+
 export const attendanceRelations = relations(attendance, ({ one }) => ({
   trainee: one(users, {
     fields: [attendance.traineeId],
@@ -1502,6 +1536,47 @@ export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhase
 
 export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChangeRequestSchema>;
 
+// Add TraineePhaseStatus type and relations
+export type TraineePhaseStatus = InferSelectModel<typeof traineePhaseStatus>;
+
+export const traineePhaseStatusRelations = relations(traineePhaseStatus, ({ one }) => ({
+  trainee: one(users, {
+    fields: [traineePhaseStatus.traineeId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [traineePhaseStatus.batchId],
+    references: [organizationBatches.id],
+  }),
+  evaluator: one(users, {
+    fields: [traineePhaseStatus.evaluatorId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [traineePhaseStatus.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const insertTraineePhaseStatusSchema = createInsertSchema(traineePhaseStatus)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    phase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
+    status: z.enum(['certify', 'refresher', 'refer_to_hr', 'in_progress']).default('in_progress'),
+    notes: z.string().optional(),
+    evaluatorId: z.number().int().positive("Evaluator ID is required").optional(),
+    lastEvaluationDate: z.string().optional(),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertTraineePhaseStatus = z.infer<typeof insertTraineePhaseStatusSchema>;
+
 export type {
   Organization,
   OrganizationProcess,
@@ -1556,7 +1631,9 @@ export type {
   AudioFileBatchAllocation,
   InsertAudioFile,
   InsertAudioFileAllocation,
-  InsertAudioFileBatchAllocation
+  InsertAudioFileBatchAllocation,
+  TraineePhaseStatus,
+  InsertTraineePhaseStatus
 };
 
 // Add new enums for mock calls
