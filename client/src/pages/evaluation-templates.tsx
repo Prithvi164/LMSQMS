@@ -752,7 +752,7 @@ export default function EvaluationTemplatesPage() {
                                   min="0"
                                   max="100"
                                   placeholder="E.g., 75"
-                                  defaultValue={template.feedbackThreshold !== null ? template.feedbackThreshold : ""}
+                                  defaultValue={template.feedbackThreshold !== null ? template.feedbackThreshold.toString() : ""}
                                 />
                                 <p className="text-xs text-muted-foreground">
                                   When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
@@ -841,7 +841,7 @@ export default function EvaluationTemplatesPage() {
                                   min="0"
                                   max="100"
                                   placeholder={template.feedbackThreshold !== null ? template.feedbackThreshold.toString() : "E.g., 75"}
-                                  defaultValue={template.feedbackThreshold !== null ? template.feedbackThreshold : ""}
+                                  defaultValue={template.feedbackThreshold !== null ? template.feedbackThreshold.toString() : ""}
                                 />
                                 <p className="text-xs text-muted-foreground">
                                   When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
