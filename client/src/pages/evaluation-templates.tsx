@@ -745,6 +745,10 @@ export default function EvaluationTemplatesPage() {
                               
                               <div className="grid gap-2">
                                 <Label htmlFor={`threshold-${template.id}`}>Feedback Threshold</Label>
+                                {/* Debug information */}
+                                <div className="text-xs mb-2 p-1 bg-muted/20 rounded">
+                                  Debug info - Threshold value: {JSON.stringify(template.feedbackThreshold)}
+                                </div>
                                 <Input
                                   id={`threshold-${template.id}`}
                                   name="threshold"
