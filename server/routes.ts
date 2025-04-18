@@ -672,6 +672,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Get batches filtered by process ID
+  app.get("/api/organizations/:organizationId/processes/:processId/batches", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const processId = parseInt(req.params.processId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (!processId) {
+        return res.status(400).json({ message: "Process ID is required" });
+      }
+
+      // Get all batches for this organization
+      const allBatches = await storage.listBatches(organizationId);
+      
+      // Filter batches by process ID
+      const filteredBatches = allBatches.filter(batch => batch.processId === processId);
+      
+      res.json(filteredBatches);
+    } catch (error: any) {
+      console.error("Error listing batches by process:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Get trainees for a specific batch
   app.get("/api/organizations/:organizationId/batches/:batchId/trainees", async (req, res) => {
