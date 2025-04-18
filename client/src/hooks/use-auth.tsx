@@ -54,23 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
-      
-      // Store user information in localStorage for easy identification
-      if (user) {
-        localStorage.setItem("userName", user.fullName || user.username || "");
-        localStorage.setItem("userId", user.id.toString());
-        
-        // Special tracking for Nitin in Batch_APR17_Damini
-        const isNitin = 
-          user.id === 142 || 
-          (user.fullName && user.fullName.includes("Nitin")) ||
-          (user.username && user.username.includes("nitin"));
-          
-        if (isNitin) {
-          console.log("Nitin user detected - special tracking enabled");
-          localStorage.setItem("specialUser", "nitin");
-        }
-      }
     },
     onError: (error: Error) => {
       toast({
@@ -94,12 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
-      
-      // Also store user info for register flow
-      if (user) {
-        localStorage.setItem("userName", user.fullName || user.username || "");
-        localStorage.setItem("userId", user.id.toString());
-      }
     },
     onError: (error: Error) => {
       toast({
@@ -158,11 +135,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear all queries from cache to ensure fresh data on next login
       queryClient.clear();
       
-      // Clear localStorage user info
-      localStorage.removeItem("userName");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("specialUser");
-      
       // Show a toast for forced logout if needed
       if (result.forced) {
         toast({
@@ -202,23 +174,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         updateUser: (updatedUser: User) => {
           queryClient.setQueryData(["/api/user"], updatedUser);
-          
-          // Update localStorage when user data changes
-          if (updatedUser) {
-            localStorage.setItem("userName", updatedUser.fullName || updatedUser.username || "");
-            localStorage.setItem("userId", updatedUser.id.toString());
-            
-            // Track if this is Nitin
-            const isNitin = 
-              updatedUser.id === 142 || 
-              (updatedUser.fullName && updatedUser.fullName.includes("Nitin")) ||
-              (updatedUser.username && updatedUser.username.includes("nitin"));
-              
-            if (isNitin) {
-              console.log("Nitin user detected during update - special tracking enabled");
-              localStorage.setItem("specialUser", "nitin");
-            }
-          }
         },
       }}
     >

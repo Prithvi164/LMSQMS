@@ -2570,115 +2570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Get the template for this quiz to access shuffle settings
-      const template = await storage.getQuizTemplate(quiz.templateId);
-      
-      let questionsToServe = [...quiz.questions]; // Create a copy to avoid modifying the original
-      
-      // Create a unique seed for this user to ensure consistent shuffling per user
-      // This ensures a trainee will see the same shuffled order if they reload the page
-      // But different trainees will see different orders
-      const userSeed = req.user.id.toString();
-      
-      // Extensive debugging to verify the problem
-      console.log('=== QUIZ DEBUGGING ===');
-      console.log(`User accessing quiz: ID=${req.user.id}, Username=${req.user.username}`);
-      console.log(`Quiz being accessed: ID=${quiz.id}, Template ID=${quiz.templateId}`);
-      console.log(`Original questions order: ${JSON.stringify(questionsToServe.map(q => q.id))}`);
-      
-      // Check if the quiz template was found
-      if (!template) {
-        console.log('WARNING: Quiz template not found! Using default settings (no shuffling).');
-      } else {
-        // Log template settings, handling both camelCase and snake_case property names
-        // The database uses snake_case (shuffle_questions) but our schema model uses camelCase (shuffleQuestions)
-        const shuffleQuestions = template.shuffleQuestions || template.shuffle_questions;
-        const shuffleOptions = template.shuffleOptions || template.shuffle_options;
-        
-        console.log('Template found with shuffle settings:', {
-          shuffleQuestions,
-          shuffleOptions,
-          templateId: template.id,
-          templateName: template.name,
-          rawTemplate: JSON.stringify(template) // Log full template for debugging
-        });
-      }
-      
-      // Apply question shuffling if enabled - checking both property naming conventions
-      const shouldShuffleQuestions = template && (template.shuffleQuestions || template.shuffle_questions);
-      if (shouldShuffleQuestions) {
-        console.log('Shuffling questions for quiz:', quizId, 'for user:', req.user.id);
-        const shuffledQuestions = shuffleArrayWithSeed(questionsToServe, userSeed);
-        console.log('Questions after shuffling:', shuffledQuestions.map(q => q.id));
-        questionsToServe = shuffledQuestions;
-      } else {
-        console.log('Question shuffling is NOT enabled for this template');
-      }
-      
-      // Apply option shuffling if enabled - checking both property naming conventions
-      const shouldShuffleOptions = template && (template.shuffleOptions || template.shuffle_options);
-      if (shouldShuffleOptions) {
-        console.log('Shuffling options for quiz:', quizId, 'for user:', req.user.id);
-        
-        // Track original options for debugging
-        const originalOptionsMap = {};
-        questionsToServe.forEach((question, index) => {
-          if (question.type === 'multiple_choice' && Array.isArray(question.options)) {
-            originalOptionsMap[question.id] = [...question.options];
-          }
-        });
-        
-        questionsToServe = questionsToServe.map((question, questionIndex) => {
-          // Only shuffle multiple choice questions with options
-          if (question.type === 'multiple_choice' && Array.isArray(question.options) && question.options.length > 1) {
-            // Create a unique seed for each question to ensure different shuffling patterns
-            const questionSeed = `${userSeed}-q${questionIndex}`;
-            
-            // Create a mapping of original positions to track the correct answer
-            const originalOptions = [...question.options];
-            const shuffledOptions = shuffleArrayWithSeed([...originalOptions], questionSeed);
-            
-            console.log(`Question ${question.id} options shuffling:`, {
-              original: originalOptions,
-              shuffled: shuffledOptions
-            });
-            
-            // If correctAnswer is an index/position in the original array
-            let updatedCorrectAnswer = question.correctAnswer;
-            if (!isNaN(Number(question.correctAnswer))) {
-              // If it's a numeric index, update it to the new position
-              const correctOptionValue = originalOptions[Number(question.correctAnswer)];
-              updatedCorrectAnswer = String(shuffledOptions.indexOf(correctOptionValue));
-              
-              console.log(`Question ${question.id} correctAnswer updated:`, {
-                originalIndex: question.correctAnswer,
-                originalValue: correctOptionValue,
-                newIndex: updatedCorrectAnswer
-              });
-            } else {
-              // If it's the actual option value, it stays the same
-              console.log(`Question ${question.id} correctAnswer unchanged (not an index):`, question.correctAnswer);
-            }
-            
-            return {
-              ...question,
-              options: shuffledOptions,
-              correctAnswer: updatedCorrectAnswer
-            };
-          }
-          return question;
-        });
-      } else {
-        console.log('Option shuffling is NOT enabled for this template');
-      }
-      
-      // Return the quiz with potentially shuffled questions and options
-      const quizToReturn = {
-        ...quiz,
-        questions: questionsToServe
-      };
-      
-      res.json(quizToReturn);
+      res.json(quiz);
     } catch (error: any) {
       console.error("Error fetching quiz details:", error);
       res.status(500).json({ message: error.message });
@@ -3696,88 +3588,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid quiz ID" });
       }
 
-      // Special handling for Nitin in Batch_APR17_Damini with user ID 142
-      // Log more details to help debug the issue
-      const isNitin = req.user.id === 142 || (req.user.fullName && req.user.fullName.includes("Nitin"));
-      console.log(`User: ${req.user.id} (${req.user.fullName || req.user.username}) - IsNitin: ${isNitin}`);
-      
       // Get quiz details with questions
       const quiz = await storage.getQuizWithQuestions(quizId);
-      
-      // Special error handling for Nitin's case
       if (!quiz) {
-        console.error(`Quiz ID ${quizId} not found. User: ${req.user.id} (${req.user.fullName || req.user.username})`);
-        
-        // If this is Nitin experiencing issues with a quiz, we'll try to get all available quizzes
-        if (isNitin) {
-          console.log("Special case: Retrieving all available quizzes for Nitin");
-          const availableQuizzes = await storage.listQuizzes(req.user.organizationId);
-          
-          if (availableQuizzes.length > 0) {
-            console.log(`Found ${availableQuizzes.length} other available quizzes. First quiz ID: ${availableQuizzes[0].id}`);
-            
-            // Try to get the first available quiz with questions instead
-            const alternativeQuiz = await storage.getQuizWithQuestions(availableQuizzes[0].id);
-            
-            if (alternativeQuiz && alternativeQuiz.questions && alternativeQuiz.questions.length > 0) {
-              console.log(`Using alternative quiz ID ${alternativeQuiz.id} with ${alternativeQuiz.questions.length} questions`);
-              return res.json({
-                ...alternativeQuiz,
-                questions: alternativeQuiz.questions.map(q => ({
-                  id: q.id,
-                  question: q.question,
-                  type: q.type,
-                  options: q.options,
-                  correctAnswer: undefined
-                }))
-              });
-            }
-          }
-        }
-        
         return res.status(404).json({ message: "Quiz not found" });
       }
 
       // Verify organization access
       if (quiz.organizationId !== req.user.organizationId) {
-        console.error(`Organization mismatch. Quiz org: ${quiz.organizationId}, User org: ${req.user.organizationId}`);
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Get the template for this quiz to access shuffle settings
-      const template = await storage.getQuizTemplate(quiz.templateId);
-      
-      // IMPORTANT: Completely new shuffling approach to ensure different trainees get different question orders
-      // Import our dedicated shuffling functions from the new module
-      const { processQuizForTrainee } = require('./quiz-shuffle');
-      
-      // COMPLETELY DIFFERENT APPROACH: Use our dedicated module for quiz processing
-      // This ensures each user sees a completely different order of questions
-      
-      console.log('\n=== HARDCODED SHUFFLED QUIZ PROCESSING ===');
-      console.log(`User ${req.user.id} (${req.user.username}) accessing quiz ${quiz.id}`);
-      
-      // Process the quiz with our specialized module that uses guaranteed different patterns
-      const processedQuiz = processQuizForTrainee(quiz, template, req.user.id);
-      
-      // Log the before/after for debugging
-      console.log(`ORIGINAL question order: ${quiz.questions.map(q => q.id).join(', ')}`);
-      console.log(`PROCESSED question order: ${processedQuiz.questions.map(q => q.id).join(', ')}`);
-      
-      // Sanitize the processed quiz by removing correct answers
-      const sanitizedQuestions = processedQuiz.questions.map(question => ({
-        id: question.id,
-        question: question.question,
-        type: question.type,
-        options: question.options,
-        // Don't send correct answers to client
+      // Remove correct answers from questions before sending to client
+      const sanitizedQuestions = quiz.questions.map(question => ({
+        ...question,
         correctAnswer: undefined
       }));
-      
-      console.log(`Sending sanitized questions to client. Order: ${sanitizedQuestions.map(q => q.id).join(', ')}`);
-      console.log('=== END HARDCODED SHUFFLED QUIZ PROCESSING ===\n');
 
-      // Return the quiz with potentially shuffled questions
       res.json({
         ...quiz,
         questions: sanitizedQuestions
@@ -3787,76 +3614,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
-  
-  // Helper function to shuffle an array with a seed (deterministic shuffling)
-  function shuffleArrayWithSeed<T>(array: T[], seed: string): T[] {
-    // If array has only 0 or 1 elements, no shuffling needed
-    if (array.length <= 1) {
-      console.log('Array too small to shuffle:', array);
-      return [...array];
-    }
-    
-    // Force a seed that will produce different results for different users
-    // Add quiz-specific info to make shuffling consistent for the same user
-    const enhancedSeed = seed + '-forced-shuffle'; 
-    
-    console.log(`Shuffling array with seed "${enhancedSeed}", array length: ${array.length}`);
-    const newArray = [...array];
-    
-    // Create a seeded random number generator based on xorshift128+
-    function xorshift128plus(seed: string): () => number {
-      let s1 = 1;
-      let s2 = 2;
-      
-      // Use the seed to initialize the state
-      for (let i = 0; i < seed.length; i++) {
-        s1 = (s1 * 31 + seed.charCodeAt(i)) >>> 0;
-        s2 = (s2 * 31 + (seed.charCodeAt(i) << (i % 16))) >>> 0;
-      }
-      
-      // If we get zeros, use defaults
-      if (s1 === 0) s1 = 123456789;
-      if (s2 === 0) s2 = 987654321;
-      
-      // Return the random function
-      return function() {
-        // Xorshift128+ algorithm
-        let x = s1;
-        const y = s2;
-        s1 = y;
-        x ^= x << 23;
-        x ^= x >>> 17;
-        x ^= y;
-        x ^= y >>> 26;
-        s2 = x;
-        return (s1 + s2) / 4294967296;
-      };
-    }
-    
-    // Create the random generator with our enhanced seed
-    const random = xorshift128plus(enhancedSeed);
-    
-    // Fisher-Yates shuffle with seeded random
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    
-    // Verify that we actually shuffled (for debugging)
-    let isShuffled = false;
-    for (let i = 0; i < array.length; i++) {
-      if (array[i] !== newArray[i]) {
-        isShuffled = true;
-        break;
-      }
-    }
-    
-    console.log(`Shuffle result: ${isShuffled ? 'SHUFFLED' : 'NOT SHUFFLED (same order)'}`);
-    console.log(`Original array: ${JSON.stringify(array)}`);
-    console.log(`Shuffled array: ${JSON.stringify(newArray)}`);
-    
-    return newArray;
-  }
 
   // Submit quiz answers
   app.post("/api/quizzes/:id/submit", async (req, res) => {
@@ -7241,172 +6998,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching attendance:", error);
       res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Get attendance history for a specific trainee in a batch
-  app.get("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId/attendance", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const batchId = parseInt(req.params.batchId);
-      const traineeId = parseInt(req.params.traineeId);
-      
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
-      }
-      
-      // Check if user has access to the batch
-      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You don't have access to this batch" });
-      }
-      
-      // Get trainee's attendance history
-      const attendanceHistory = await storage.getTraineeAttendanceHistory(traineeId, batchId);
-      
-      res.json(attendanceHistory);
-    } catch (error: any) {
-      console.error("Error fetching trainee attendance history:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch trainee attendance history" });
-    }
-  });
-  
-  // Get attendance history for all trainees in a batch (more efficient than individual calls)
-  app.get("/api/organizations/:orgId/batches/:batchId/trainees/attendance", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const batchId = parseInt(req.params.batchId);
-      
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
-      }
-      
-      // Check if user has access to the batch
-      const hasAccess = await userHasBatchAccess(req.user.id, batchId);
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You don't have access to this batch" });
-      }
-      
-      // Get all trainees in the batch
-      const trainees = await storage.getBatchTrainees(batchId);
-      
-      // Get attendance history for each trainee
-      const attendanceHistories: Record<number, any> = {};
-      
-      // Process in parallel for better performance
-      await Promise.all(
-        trainees.map(async (trainee) => {
-          try {
-            const history = await storage.getTraineeAttendanceHistory(trainee.userId, batchId);
-            attendanceHistories[trainee.userId] = history;
-            
-            // Log Divyansh's attendance stats specifically for debugging
-            if (trainee.userId === 456) {
-              console.log(`DEBUG - Divyansh's attendance from API: Present=${history.presentCount}, Absent=${history.absentCount}, Rate=${history.attendanceRate}%`);
-              console.log(`DEBUG - Divyansh's attendance records:`, JSON.stringify(history.attendanceByDate));
-            }
-          } catch (error) {
-            console.error(`Error fetching attendance for trainee ${trainee.userId}:`, error);
-            // Continue with other trainees even if one fails
-          }
-        })
-      );
-      
-      res.json(attendanceHistories);
-    } catch (error: any) {
-      console.error("Error fetching batch trainee attendance histories:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch trainee attendance histories" });
-    }
-  });
-  
-  // Special debug endpoint just for testing the Divyansh attendance issue
-  app.get("/api/debug/attendance/456", async (req, res) => {
-    try {
-      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-      
-      // Get raw attendance records from the database for userId 456
-      const records = await db
-        .select()
-        .from(attendance)
-        .where(and(
-          eq(attendance.traineeId, 456),
-          eq(attendance.batchId, 83)
-        ))
-        .orderBy(desc(attendance.date));
-      
-      console.log('Raw records from DB for Divyansh:', JSON.stringify(records));
-      
-      // Process records to count attendance
-      let presentCount = 0;
-      let absentCount = 0;
-      let lateCount = 0;
-      let leaveCount = 0;
-      
-      const attendanceByDate = records.map(record => {
-        // Count each status type 
-        console.log(`Processing record: date=${record.date}, status=${record.status}`);
-        
-        switch(record.status) {
-          case 'present':
-            presentCount++;
-            console.log(`Incremented present count to ${presentCount}`);
-            break;
-          case 'absent':
-            absentCount++;
-            console.log(`Incremented absent count to ${absentCount}`);
-            break;
-          case 'late':
-            lateCount++;
-            console.log(`Incremented late count to ${lateCount}`);
-            break;
-          case 'leave':
-            leaveCount++;
-            console.log(`Incremented leave count to ${leaveCount}`);
-            break;
-          default:
-            // Default to absent for unknown statuses
-            absentCount++;
-            console.log(`Unknown status defaulted to absent, count is now ${absentCount}`);
-        }
-        
-        return {
-          date: record.date,
-          status: record.status
-        };
-      });
-      
-      // Calculate attendance rate
-      const totalDays = records.length;
-      const attendedDays = presentCount + (lateCount * 0.5);
-      const attendanceRate = totalDays > 0 
-        ? Math.round((attendedDays / totalDays) * 100) 
-        : 0;
-      
-      console.log(`Final calculated attendance: Present=${presentCount}, Absent=${absentCount}, Rate=${attendanceRate}%`);
-      
-      // Return detailed debug information
-      res.json({
-        rawRecords: records,
-        calculatedStats: {
-          presentCount,
-          absentCount,
-          lateCount,
-          leaveCount,
-          attendanceRate,
-          totalDays,
-          attendedDays,
-          attendanceByDate
-        }
-      });
-    } catch (error: any) {
-      console.error("Error in debug endpoint:", error);
-      res.status(500).json({ message: "Server error", error: error.message });
     }
   });
       

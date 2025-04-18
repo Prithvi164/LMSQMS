@@ -34,24 +34,6 @@ export function QuizTakingPage() {
   const { data: quiz, isLoading, error: quizError } = useQuery({
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
-    queryFn: async () => {
-      try {
-        console.log(`Fetching quiz ID: ${quizId}`);
-        const response = await fetch(`/api/quizzes/${quizId}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch quiz: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(`Quiz Data: Template ID=${data.templateId}, Has ${data.questions?.length || 0} questions`);
-        if (data.questions?.length > 0) {
-          console.log(`Question order: ${data.questions.map(q => q.id).join(', ')}`);
-        }
-        return data;
-      } catch (error) {
-        console.error("Error fetching quiz:", error);
-        throw error;
-      }
-    }
   });
 
   // Check for previous attempts if this is a one-time quiz
@@ -147,64 +129,16 @@ export function QuizTakingPage() {
     );
   }
 
-  // Enhanced debugging and fallback for the "No questions available" issue
   if (!quiz || !quiz.questions || quiz.questions.length === 0) {
-    console.error("Quiz data problem detected:", {
-      quizExists: !!quiz,
-      questionsExists: !!(quiz && quiz.questions),
-      questionsLength: quiz?.questions?.length || 0,
-      quizId: quizId
-    });
-    
-    // Specific check for Nitin in Batch_APR17_Damini
-    const userName = localStorage.getItem("userName") || "";
-    const isNitin = userName.includes("Nitin");
-    
-    if (isNitin) {
-      console.log("Special case for Nitin detected - attempting quiz reload...");
-      
-      // Force a reload after a delay if this is Nitin
-      useEffect(() => {
-        if (isNitin && (!quiz || !quiz.questions || quiz.questions.length === 0)) {
-          const timer = setTimeout(() => {
-            console.log("Triggering reload for Nitin's quiz...");
-            window.location.reload();
-          }, 2000);
-          
-          return () => clearTimeout(timer);
-        }
-      }, [quiz]);
-    }
-    
     return (
       <div className="container mx-auto py-8 max-w-3xl">
-        <div className="rounded-lg border p-6 shadow-md">
-          <h2 className="text-xl font-semibold mb-4 text-center">
-            Quiz Content Unavailable
-          </h2>
-          <p className="text-center mb-6">
-            {isNitin 
-              ? "We're having trouble loading this quiz. Please try again in a moment." 
-              : "No questions are currently available for this quiz."}
-          </p>
-          <div className="flex justify-center gap-4">
-            <Button 
-              className="mx-auto block"
-              onClick={() => setLocation("/my-quizzes")}
-            >
-              Return to My Quizzes
-            </Button>
-            {isNitin && (
-              <Button 
-                className="mx-auto block" 
-                variant="outline"
-                onClick={() => window.location.reload()}
-              >
-                Try Again
-              </Button>
-            )}
-          </div>
-        </div>
+        <p className="text-center mb-4">No questions available for this quiz.</p>
+        <Button 
+          className="mx-auto block"
+          onClick={() => setLocation("/my-quizzes")}
+        >
+          Return to My Quizzes
+        </Button>
       </div>
     );
   }
