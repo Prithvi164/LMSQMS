@@ -324,7 +324,8 @@ const calculateBatchMetrics = (
     leaveCount: number;
     attendanceRate: number;
   },
-  dailyAttendanceHistory: DailyAttendance[] = []
+  dailyAttendanceHistory: DailyAttendance[] = [],
+  user?: any // Add user parameter for API access
 ): BatchMetrics => {
   const currentDate = new Date();
   const startDate = new Date(batch.startDate);
@@ -1000,7 +1001,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   
   // Calculate batch metrics if batch data is available
   // Pass historical attendance data if available and daily attendance data
-  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees, historicalAttendance, dailyAttendanceHistory) : null;
+  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees, historicalAttendance, dailyAttendanceHistory, user) : null;
   
   // Get trainees with progress calculations
   const traineesWithProgress = trainees.map(trainee => {
