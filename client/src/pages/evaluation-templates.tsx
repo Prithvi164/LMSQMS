@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -724,8 +724,8 @@ export default function EvaluationTemplatesPage() {
                           {processes.find((p: any) => p.id === template.processId)?.name || "Unknown Process"}
                         </span>
                       </div>
-                      {/* Edit Template Button - Only available for draft templates */}
-                      {template.status === "draft" && (
+                      {/* Edit Template Button - Available for both draft and active templates */}
+                      {(template.status === "draft" || template.status === "active") && (
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -752,16 +752,23 @@ export default function EvaluationTemplatesPage() {
                               const batchIdValue = formData.get("batchId") as string;
                               const threshold = formData.get("threshold");
                               
+                              // For active templates, only allow updating feedback threshold
+                              const updateData = template.status === "active" 
+                                ? { 
+                                    feedbackThreshold: threshold === "" ? null : Number(threshold)
+                                  }
+                                : {
+                                    name,
+                                    description,
+                                    processId,
+                                    batchId: batchIdValue === "" ? null : Number(batchIdValue),
+                                    feedbackThreshold: threshold === "" ? null : Number(threshold)
+                                  };
+                                
                               fetch(`/api/evaluation-templates/${template.id}`, {
                                 method: "PATCH",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ 
-                                  name,
-                                  description,
-                                  processId,
-                                  batchId: batchIdValue === "" ? null : Number(batchIdValue),
-                                  feedbackThreshold: threshold === "" ? null : Number(threshold) 
-                                }),
+                                body: JSON.stringify(updateData),
                               })
                                 .then(response => {
                                   if (!response.ok) {
@@ -796,7 +803,14 @@ export default function EvaluationTemplatesPage() {
                                   defaultValue={template.name}
                                   placeholder="Enter template name"
                                   required
+                                  disabled={template.status === "active"}
+                                  readOnly={template.status === "active"}
                                 />
+                                {template.status === "active" && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Template name cannot be changed for active templates.
+                                  </p>
+                                )}
                               </div>
                               
                               <div className="grid gap-2">
@@ -807,7 +821,14 @@ export default function EvaluationTemplatesPage() {
                                   defaultValue={template.description || ""}
                                   placeholder="Describe the evaluation template"
                                   rows={3}
+                                  disabled={template.status === "active"}
+                                  readOnly={template.status === "active"}
                                 />
+                                {template.status === "active" && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Description cannot be changed for active templates.
+                                  </p>
+                                )}
                               </div>
                               
                               <div className="grid gap-2">
@@ -821,6 +842,7 @@ export default function EvaluationTemplatesPage() {
                                     // This will trigger the batch query for this specific template
                                     setSelectedProcessId(processId);
                                   }}
+                                  disabled={template.status === "active"}
                                 >
                                   <SelectTrigger id={`process-${template.id}`}>
                                     <SelectValue placeholder="Select process" />
@@ -836,6 +858,11 @@ export default function EvaluationTemplatesPage() {
                                     ))}
                                   </SelectContent>
                                 </Select>
+                                {template.status === "active" && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Process cannot be changed for active templates.
+                                  </p>
+                                )}
                               </div>
                               
                               {template.status === "draft" && (
