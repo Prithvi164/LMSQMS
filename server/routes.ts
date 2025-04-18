@@ -3242,6 +3242,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update trainee status
+  app.patch("/api/organizations/:organizationId/batches/:batchId/trainees/:userBatchProcessId/status", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const userBatchProcessId = parseInt(req.params.userBatchProcessId);
+      const { traineeStatus, isManualStatus } = req.body;
+
+      if (isNaN(batchId) || isNaN(organizationId) || isNaN(userBatchProcessId)) {
+        return res.status(400).json({ message: "Invalid ID parameters" });
+      }
+
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      // Verify valid trainee status if provided
+      if (traineeStatus !== null && (typeof traineeStatus !== 'string' || traineeStatus.trim() === '')) {
+        return res.status(400).json({ message: "Invalid trainee status" });
+      }
+
+      // Update the trainee status
+      const updatedUserBatchProcess = await storage.updateTraineeStatus(
+        userBatchProcessId,
+        traineeStatus,
+        !!isManualStatus
+      );
+
+      // Return updated user batch process record
+      res.json(updatedUserBatchProcess);
+    } catch (error) {
+      console.error("Error updating trainee status:", error);
+      res.status(500).json({ message: "Failed to update trainee status" });
+    }
+  });
+
   // Schedule refresher training for a trainee
   app.post("/api/organizations/:organizationId/batches/:batchId/trainees/:userId/refresher", async (req, res) => {
     if (!req.user) {
