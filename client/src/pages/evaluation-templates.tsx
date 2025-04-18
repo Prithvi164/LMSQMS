@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +64,6 @@ const formSchema = z.object({
   name: z.string().min(1, "Template name is required"),
   description: z.string().optional(),
   processId: z.number().min(1, "Process is required"),
-  batchId: z.number().min(1, "Batch is required").optional(),
   status: z.enum(["draft", "active", "archived"]).default("draft"),
   feedbackThreshold: z.number().min(0).max(100).optional().nullable(),
 });
@@ -79,35 +78,18 @@ export default function EvaluationTemplatesPage() {
   const [templateToDuplicate, setTemplateToDuplicate] = useState<number | null>(null);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
-  const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
-  const [batches, setBatches] = useState<any[]>([]);
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
     queryKey: [`/api/processes`],
     enabled: !!user?.organizationId,
   });
-  
+
   // Fetch evaluation templates
   const { data: templates = [], isLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
-  
-  // Fetch batches filtered by process ID
-  const { data: batchesData = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes/${selectedProcessId}/batches`],
-    enabled: !!user?.organizationId && !!selectedProcessId,
-  });
-  
-  // Update batches state when batchesData changes
-  useEffect(() => {
-    if (batchesData && batchesData.length > 0) {
-      setBatches(batchesData);
-    } else {
-      setBatches([]);
-    }
-  }, [batchesData, selectedProcessId]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -362,13 +344,7 @@ export default function EvaluationTemplatesPage() {
                     <FormItem>
                       <FormLabel>Process</FormLabel>
                       <Select
-                        onValueChange={(value) => {
-                          const processId = parseInt(value);
-                          field.onChange(processId);
-                          setSelectedProcessId(processId);
-                          // Reset the batchId when process changes
-                          form.setValue("batchId", undefined);
-                        }}
+                        onValueChange={(value) => field.onChange(parseInt(value))}
                         defaultValue={field.value?.toString()}
                       >
                         <FormControl>
@@ -388,45 +364,6 @@ export default function EvaluationTemplatesPage() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="batchId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Batch (Optional)</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                        defaultValue={field.value?.toString()}
-                        disabled={!selectedProcessId || batches.length === 0}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={selectedProcessId ? 
-                              (batches.length === 0 ? "No batches available for this process" : "Select batch") : 
-                              "Select a process first"} 
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">No specific batch (all batches)</SelectItem>
-                          {batches.map((batch: any) => (
-                            <SelectItem
-                              key={batch.id}
-                              value={batch.id.toString()}
-                            >
-                              {batch.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      <p className="text-xs text-muted-foreground">
-                        Assign this template to a specific batch. Optional: If not selected, the template will be available for all batches in this process.
-                      </p>
                     </FormItem>
                   )}
                 />
@@ -560,28 +497,7 @@ export default function EvaluationTemplatesPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle>{template.name}</CardTitle>
-                        <CardDescription>
-                          {template.description}
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="font-medium text-xs">Process:</span> 
-                            <span className="text-xs">{template.process?.name || "Not assigned"}</span>
-                          </div>
-                          {template.batchId && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="font-medium text-xs">Batch:</span> 
-                              <span className="text-xs">{template.batch?.name || "Not assigned"}</span>
-                            </div>
-                          )}
-                          {template.feedbackThreshold !== null && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="font-medium text-xs">Feedback Threshold:</span> 
-                              <span className="text-xs flex items-center">
-                                <Percent className="h-3 w-3 mr-1" />
-                                {template.feedbackThreshold}
-                              </span>
-                            </div>
-                          )}
-                        </CardDescription>
+                        <CardDescription>{template.description}</CardDescription>
                       </div>
                       <div className="flex gap-2">
                         {template.status === "draft" && (
@@ -724,23 +640,8 @@ export default function EvaluationTemplatesPage() {
                           {processes.find((p: any) => p.id === template.processId)?.name || "Unknown Process"}
                         </span>
                       </div>
-                    </div>
-                    
-                    {/* Batch Name Row - Only shown if batchId is set */}
-                    {template.batchId && (
-                      <div className="flex items-center gap-2 border-b pb-2">
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-muted-foreground">Batch:</span>{" "}
-                          <span className="text-sm">
-                            {batchesData?.find((b: any) => b.id === template.batchId)?.name || "Unknown Batch"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Edit Template Button Row */}
-                    <div className="flex justify-end mb-2">
-                      {(template.status === "draft" || template.status === "active") && (
+                      {/* Edit Template Button - Only available for draft templates */}
+                      {template.status === "draft" && (
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -764,26 +665,17 @@ export default function EvaluationTemplatesPage() {
                               const name = formData.get("name") as string;
                               const description = formData.get("description") as string;
                               const processId = Number(formData.get("processId"));
-                              const batchIdValue = formData.get("batchId") as string;
                               const threshold = formData.get("threshold");
                               
-                              // For active templates, only allow updating feedback threshold
-                              const updateData = template.status === "active" 
-                                ? { 
-                                    feedbackThreshold: threshold === "" ? null : Number(threshold)
-                                  }
-                                : {
-                                    name,
-                                    description,
-                                    processId,
-                                    batchId: batchIdValue === "" ? null : Number(batchIdValue),
-                                    feedbackThreshold: threshold === "" ? null : Number(threshold)
-                                  };
-                                
                               fetch(`/api/evaluation-templates/${template.id}`, {
                                 method: "PATCH",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(updateData),
+                                body: JSON.stringify({ 
+                                  name,
+                                  description,
+                                  processId,
+                                  feedbackThreshold: threshold === "" ? null : Number(threshold) 
+                                }),
                               })
                                 .then(response => {
                                   if (!response.ok) {
@@ -818,14 +710,7 @@ export default function EvaluationTemplatesPage() {
                                   defaultValue={template.name}
                                   placeholder="Enter template name"
                                   required
-                                  disabled={template.status === "active"}
-                                  readOnly={template.status === "active"}
                                 />
-                                {template.status === "active" && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Template name cannot be changed for active templates.
-                                  </p>
-                                )}
                               </div>
                               
                               <div className="grid gap-2">
@@ -836,29 +721,12 @@ export default function EvaluationTemplatesPage() {
                                   defaultValue={template.description || ""}
                                   placeholder="Describe the evaluation template"
                                   rows={3}
-                                  disabled={template.status === "active"}
-                                  readOnly={template.status === "active"}
                                 />
-                                {template.status === "active" && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Description cannot be changed for active templates.
-                                  </p>
-                                )}
                               </div>
                               
                               <div className="grid gap-2">
                                 <Label htmlFor={`process-${template.id}`}>Process</Label>
-                                <Select 
-                                  name="processId" 
-                                  defaultValue={template.processId.toString()}
-                                  onValueChange={(value) => {
-                                    const processId = parseInt(value);
-                                    // Store the selected process ID in the component state
-                                    // This will trigger the batch query for this specific template
-                                    setSelectedProcessId(processId);
-                                  }}
-                                  disabled={template.status === "active"}
-                                >
+                                <Select name="processId" defaultValue={template.processId.toString()}>
                                   <SelectTrigger id={`process-${template.id}`}>
                                     <SelectValue placeholder="Select process" />
                                   </SelectTrigger>
@@ -873,44 +741,7 @@ export default function EvaluationTemplatesPage() {
                                     ))}
                                   </SelectContent>
                                 </Select>
-                                {template.status === "active" && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Process cannot be changed for active templates.
-                                  </p>
-                                )}
                               </div>
-                              
-                              {template.status === "draft" && (
-                                <div className="grid gap-2">
-                                  <Label htmlFor={`batch-${template.id}`}>Batch</Label>
-                                  <Select 
-                                    name="batchId" 
-                                    defaultValue={template.batchId?.toString()}
-                                    disabled={!selectedProcessId || batches.length === 0}
-                                  >
-                                    <SelectTrigger id={`batch-${template.id}`}>
-                                      <SelectValue placeholder={selectedProcessId ? 
-                                        (batches.length === 0 ? "No batches available for this process" : "Select batch") : 
-                                        "Select a process first"} 
-                                      />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="">No specific batch (all batches)</SelectItem>
-                                      {batches.map((batch: any) => (
-                                        <SelectItem
-                                          key={`batch-option-${batch.id}`}
-                                          value={batch.id.toString()}
-                                        >
-                                          {batch.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <p className="text-xs text-muted-foreground">
-                                    Assign this template to a specific batch. Optional: If not selected, the template will be available for all batches in this process.
-                                  </p>
-                                </div>
-                              )}
                               
                               <div className="grid gap-2">
                                 <Label htmlFor={`threshold-${template.id}`}>Feedback Threshold</Label>
