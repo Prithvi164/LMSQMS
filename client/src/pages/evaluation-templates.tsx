@@ -112,9 +112,18 @@ export default function EvaluationTemplatesPage() {
   
   // Handle process selection and filter batches
   const handleProcessChange = (processId: number) => {
+    console.log(`Process changed to: ${processId}`);
     setSelectedProcessId(processId);
-    // Reset batch selection when process changes
-    form.setValue("batchId", null);
+    
+    // Filter batches immediately to ensure they're ready when rendering
+    const filtered = batches.filter((batch: any) => batch.processId === processId);
+    console.log(`Filtered ${filtered.length} batches for process ${processId}`);
+    setFilteredBatches(filtered);
+    
+    // Reset batch selection in create form when process changes
+    if (form) {
+      form.setValue("batchId", null);
+    }
   };
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -849,6 +858,7 @@ export default function EvaluationTemplatesPage() {
                                 <Label htmlFor={`batch-${template.id}`}>Batch (Optional)</Label>
                                 <Select 
                                   name="batchId" 
+                                  key={`batch-select-${template.id}-${selectedProcessId || template.processId}`}
                                   defaultValue={template.batchId ? template.batchId.toString() : "none"}
                                   onValueChange={(value) => {
                                     // This ensures the selected value is properly captured when the form is submitted
