@@ -272,6 +272,23 @@ export const updateBatchStatuses = async () => {
               batch.organizationId,
               1 // Using system user ID for automatic changes
             );
+            
+            // Also update trainee statuses for all trainees in this batch who don't have manual status set
+            await db
+              .update(userBatchProcesses)
+              .set({
+                traineeStatus: nextPhase,
+                updatedAt: new Date()
+              })
+              .where(
+                and(
+                  eq(userBatchProcesses.batchId, batch.id),
+                  eq(userBatchProcesses.status, 'active'),
+                  eq(userBatchProcesses.isManualStatus, false)
+                )
+              );
+                
+            console.log(`Updated trainee statuses for batch ${batch.id} to ${nextPhase}`);
           } else {
             console.log(`Batch ${batch.id} - ${batch.name} has no enrolled users. Keeping in '${currentPhase}' status.`);
           }
