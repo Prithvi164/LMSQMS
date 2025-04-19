@@ -28,7 +28,7 @@ interface RefresherEvent {
   endDate: string;
   eventType: 'refresher';
   status: string;
-  reason: string | null;
+  refresherReason: string | null;
   createdAt: string;
   trainee?: {
     id: number;
@@ -106,7 +106,7 @@ export function RefreshersList({ batchId, organizationId }: RefreshersListProps)
           {refresherEvents.map((event: RefresherEvent) => (
             <TableRow key={event.id}>
               <TableCell>{event.trainee?.fullName || 'Unknown'}</TableCell>
-              <TableCell>{event.reason || 'Not specified'}</TableCell>
+              <TableCell>{event.refresherReason || 'Not specified'}</TableCell>
               <TableCell className="max-w-xs truncate" title={event.description}>
                 {event.description || 'No notes'}
               </TableCell>
