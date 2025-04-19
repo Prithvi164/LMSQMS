@@ -131,13 +131,23 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     mutationFn: async () => {
       if (!selectedTraineeId) return;
       
-      return apiRequest(
+      // Using fetch directly instead of apiRequest to ensure proper handling
+      const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/refresher`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ notes: refresherNotes }),
+          credentials: 'include'
         }
       );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to schedule refresher training");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -164,13 +174,22 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     mutationFn: async () => {
       if (!selectedTraineeId || !selectedQuizId) return;
       
-      return apiRequest(
+      const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/reassign-quiz`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ quizId: selectedQuizId }),
+          credentials: 'include'
         }
       );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to reassign quiz");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -197,13 +216,22 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     mutationFn: async () => {
       if (!selectedTraineeId || !selectedQuizAttemptId) return;
       
-      return apiRequest(
+      const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/certification`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ quizAttemptId: selectedQuizAttemptId }),
+          credentials: 'include'
         }
       );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create certification");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
