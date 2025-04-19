@@ -5711,15 +5711,28 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`User with ID ${assignment.userId} does not exist`);
       }
 
-      // Check if user is enrolled in the batch
-      const [userInBatch] = await db
+      // Check if trainee exists
+      const [trainee] = await db
         .select()
-        .from(userBatchProcesses)
-        .where(eq(userBatchProcesses.userId, assignment.userId))
-        .where(eq(userBatchProcesses.batchId, assignment.batchId));
+        .from(users)
+        .where(eq(users.id, assignment.traineeId));
+        
+      if (!trainee) {
+        throw new Error(`Trainee with ID ${assignment.traineeId} does not exist`);
+      }
 
-      if (!userInBatch) {
-        throw new Error(`User with ID ${assignment.userId} is not enrolled in batch ${assignment.batchId}`);
+      // Check if trainee is enrolled in the batch - skip if batchId is not provided
+      if (assignment.batchId) {
+        const [traineeInBatch] = await db
+          .select()
+          .from(userBatchProcesses)
+          .where(eq(userBatchProcesses.userId, assignment.traineeId))
+          .where(eq(userBatchProcesses.batchId, assignment.batchId));
+
+        if (!traineeInBatch) {
+          console.warn(`Trainee with ID ${assignment.traineeId} is not enrolled in batch ${assignment.batchId}, but will create assignment anyway`);
+          // We're not throwing an error here since we don't want to block assignment creation
+        }
       }
 
       // Create the assignment

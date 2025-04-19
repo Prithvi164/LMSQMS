@@ -356,16 +356,13 @@ export const quizAssignments = pgTable("quiz_assignments", {
     .references(() => users.id)
     .notNull(),
   batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
+    .references(() => organizationBatches.id),
   organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
+    .references(() => organizations.id),
   assignedBy: integer("assigned_by")
-    .references(() => users.id)
-    .notNull(),
-  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
-  status: text("status").default('assigned').notNull(), // 'assigned', 'completed', 'expired'
+    .references(() => users.id),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  status: text("status").default('assigned'),
 }, (table) => {
   return {
     // Create unique constraint on quizId and userId to prevent duplicate assignments
