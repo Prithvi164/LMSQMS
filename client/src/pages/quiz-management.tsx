@@ -792,8 +792,23 @@ export function QuizManagement() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
 
   // Update the generateQuizMutation to provide better feedback
+  // Add state for trainee selection
+  const [assignmentType, setAssignmentType] = useState<'all' | 'specific'>('all');
+  const [selectedTrainees, setSelectedTrainees] = useState<number[]>([]);
+  const [traineesData, setTraineesData] = useState<{userId: number; fullName: string}[]>([]);
+  
+  // Update the generateQuizMutation to support trainee-specific assignments
   const generateQuizMutation = useMutation({
-    mutationFn: async ({ templateId, durationInHours }: { templateId: number; durationInHours: number }) => {
+    mutationFn: async ({ 
+      templateId, 
+      durationInHours,
+      trainees 
+    }: { 
+      templateId: number; 
+      durationInHours: number;
+      trainees?: number[] 
+    }) => {
+      // First, generate the quiz
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
         method: 'POST',
         headers: {
@@ -805,11 +820,40 @@ export function QuizManagement() {
         }),
         credentials: 'include'
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to generate quiz');
       }
-      return response.json();
+      
+      const quizData = await response.json();
+      
+      // If specific trainees are selected, create quiz assignments
+      if (trainees && trainees.length > 0) {
+        const template = quizTemplates.find(t => t.id === templateId);
+        if (!template || !template.batchId) {
+          throw new Error('Template has no associated batch');
+        }
+        
+        const assignmentResponse = await fetch(`/api/quizzes/${quizData.id}/assignments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userIds: trainees,
+            batchId: template.batchId
+          }),
+          credentials: 'include'
+        });
+        
+        if (!assignmentResponse.ok) {
+          // Even if assignment fails, we'll still return the quiz
+          console.error('Failed to create quiz assignments');
+        }
+      }
+      
+      return quizData;
     },
     onSuccess: (data) => {
       // Store the newly generated quiz ID
@@ -820,6 +864,8 @@ export function QuizManagement() {
       
       // Clear the selection
       setSelectedTemplateId(null);
+      setSelectedTrainees([]);
+      setAssignmentType('all');
       
       queryClient.invalidateQueries({ queryKey: ['/api/quizzes'] });
       toast({
@@ -1964,9 +2010,40 @@ export function QuizManagement() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (generateQuizMutation.isPending) return;
+                                
+                                // Set the selected template ID
                                 setSelectedTemplateId(template.id);
+                                
+                                // If the template has a batchId, fetch trainees for this batch
+                                if (template.batchId) {
+                                  try {
+                                    const response = await fetch(`/api/batches/${template.batchId}/trainees`);
+                                    if (response.ok) {
+                                      const trainees = await response.json();
+                                      setTraineesData(trainees.map((trainee: any) => ({
+                                        userId: trainee.userId,
+                                        fullName: trainee.user?.fullName || `Trainee ${trainee.userId}`
+                                      })));
+                                    } else {
+                                      console.error('Failed to fetch trainees for batch');
+                                      setTraineesData([]);
+                                    }
+                                  } catch (error) {
+                                    console.error('Error fetching trainees:', error);
+                                    setTraineesData([]);
+                                  }
+                                } else {
+                                  // Reset trainees if template doesn't have a batch
+                                  setTraineesData([]);
+                                }
+                                
+                                // Reset trainee selection
+                                setSelectedTrainees([]);
+                                setAssignmentType('all');
+                                
+                                // Open the dialog
                                 setIsGenerateDialogOpen(true);
                               }}
                               disabled={generateQuizMutation.isPending}
@@ -2174,6 +2251,68 @@ export function QuizManagement() {
                   Trainees will have access to this quiz for {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} after generation.
                 </p>
               </div>
+              
+              {/* Trainee Assignment Selection */}
+              {selectedTemplateId && quizTemplates.find(t => t.id === selectedTemplateId)?.batchId && (
+                <div>
+                  <Label htmlFor="assignment-type">Quiz Assignment</Label>
+                  <RadioGroup 
+                    onValueChange={(value) => setAssignmentType(value as 'all' | 'specific')} 
+                    value={assignmentType}
+                    className="mt-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="all" id="all-trainees" />
+                      <Label htmlFor="all-trainees" className="cursor-pointer">Assign to all trainees in batch</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="specific" id="specific-trainees" />
+                      <Label htmlFor="specific-trainees" className="cursor-pointer">Assign to specific trainees</Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {assignmentType === 'specific' && (
+                    <div className="mt-3">
+                      <Label>Select Trainees</Label>
+                      <div className="border rounded-md p-2 mt-1 max-h-[200px] overflow-y-auto">
+                        {traineesData.length > 0 ? (
+                          traineesData.map(trainee => (
+                            <div key={trainee.userId} className="flex items-center py-1">
+                              <Checkbox 
+                                id={`trainee-${trainee.userId}`}
+                                checked={selectedTrainees.includes(trainee.userId)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedTrainees(prev => [...prev, trainee.userId]);
+                                  } else {
+                                    setSelectedTrainees(prev => prev.filter(id => id !== trainee.userId));
+                                  }
+                                }}
+                              />
+                              <Label 
+                                htmlFor={`trainee-${trainee.userId}`}
+                                className="ml-2 cursor-pointer"
+                              >
+                                {trainee.fullName}
+                              </Label>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-2 text-center text-sm text-muted-foreground">
+                            Loading trainees...
+                          </div>
+                        )}
+                      </div>
+                      {selectedTrainees.length > 0 && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Selected {selectedTrainees.length} trainee{selectedTrainees.length !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="relative w-full rounded-lg border p-4 bg-background text-foreground mt-2">
                 <div className="flex items-start">
                   <div className="mr-2">
@@ -2188,6 +2327,11 @@ export function QuizManagement() {
                     <div className="text-sm">
                       This quiz will be available to trainees from the moment it's generated until {selectedDuration} hour{selectedDuration !== 1 ? 's' : ''} later. 
                       The quiz timer of {quizTemplates.find(t => t.id === selectedTemplateId)?.timeLimit || 0} minutes begins when a trainee starts the quiz.
+                      {assignmentType === 'specific' && selectedTrainees.length > 0 && (
+                        <p className="mt-1">
+                          This quiz will only be visible to the {selectedTrainees.length} trainee{selectedTrainees.length !== 1 ? 's' : ''} you've selected.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2200,12 +2344,18 @@ export function QuizManagement() {
               <Button 
                 onClick={() => {
                   if (!selectedTemplateId || generateQuizMutation.isPending) return;
+                  
+                  // Check if we need to include trainees in the request
+                  const templateHasBatch = quizTemplates.find(t => t.id === selectedTemplateId)?.batchId;
+                  const specificTrainees = assignmentType === 'specific' && selectedTrainees.length > 0;
+                  
                   generateQuizMutation.mutate({ 
                     templateId: selectedTemplateId, 
-                    durationInHours: selectedDuration 
+                    durationInHours: selectedDuration,
+                    trainees: specificTrainees ? selectedTrainees : undefined
                   });
                 }}
-                disabled={generateQuizMutation.isPending}
+                disabled={generateQuizMutation.isPending || (assignmentType === 'specific' && selectedTrainees.length === 0 && quizTemplates.find(t => t.id === selectedTemplateId)?.batchId)}
               >
                 {generateQuizMutation.isPending ? (
                   <>
