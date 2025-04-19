@@ -349,6 +349,9 @@ export const quizAssignments = pgTable("quiz_assignments", {
   quizId: integer("quiz_id")
     .references(() => quizzes.id)
     .notNull(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
   userId: integer("user_id")
     .references(() => users.id)
     .notNull(),
@@ -484,6 +487,7 @@ export const insertQuizAssignmentSchema = createInsertSchema(quizAssignments)
   })
   .extend({
     quizId: z.number().int().positive("Quiz is required"),
+    traineeId: z.number().int().positive("Trainee is required"),
     userId: z.number().int().positive("User is required"),
     batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),

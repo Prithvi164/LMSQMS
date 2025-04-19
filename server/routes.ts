@@ -3910,6 +3910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const assignment = await storage.createQuizAssignment({
             quizId: quiz.id,
+            traineeId: userId, // Set traineeId to same as userId
             userId,
             batchId: template.batchId || 0, // fallback to 0 if no batch ID
             organizationId: req.user.organizationId,
