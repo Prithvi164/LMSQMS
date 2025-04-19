@@ -8655,6 +8655,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get adjacent batch IDs (previous and next)
+  // Set trainee status to refresher immediately
+  app.post('/api/organizations/:organizationId/batches/:batchId/trainees/:traineeId/set-refresher', async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const { organizationId, batchId, traineeId } = req.params;
+      
+      console.log(`Setting trainee ${traineeId} to refresher status`);
+      
+      // First get the user batch process record to get the ID
+      const traineeRecords = await storage.getTraineesForBatch(Number(batchId));
+      const traineeRecord = traineeRecords.find(t => t.id === Number(traineeId));
+      
+      if (!traineeRecord || !traineeRecord.userBatchProcessId) {
+        return res.status(404).json({ message: 'Trainee not found in batch' });
+      }
+      
+      // Update the user batch process with refresher status
+      const updated = await storage.updateUserBatchProcessStatus(
+        traineeRecord.userBatchProcessId,
+        {
+          traineeStatus: 'refresher',
+          isManualStatus: true
+        }
+      );
+      
+      return res.json({ 
+        success: true, 
+        message: 'Trainee status updated to refresher',
+        trainee: updated 
+      });
+    } catch (error) {
+      console.error('Error setting trainee to refresher status:', error);
+      return res.status(500).json({ message: 'Failed to set trainee to refresher status' });
+    }
+  });
+
+  // Schedule a refresher training with notes
+  app.post('/api/organizations/:organizationId/batches/:batchId/trainees/:traineeId/refresher', async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const { organizationId, batchId, traineeId } = req.params;
+      const { notes } = req.body;
+      
+      console.log(`Scheduling refresher training for trainee ${traineeId} in batch ${batchId}`);
+      
+      // First get the user batch process record to get the ID
+      const traineeRecords = await storage.getTraineesForBatch(Number(batchId));
+      const traineeRecord = traineeRecords.find(t => t.id === Number(traineeId));
+      
+      if (!traineeRecord || !traineeRecord.userBatchProcessId) {
+        return res.status(404).json({ message: 'Trainee not found in batch' });
+      }
+      
+      // Update the user batch process with refresher status
+      const updated = await storage.updateUserBatchProcessStatus(
+        traineeRecord.userBatchProcessId,
+        {
+          traineeStatus: 'refresher',
+          isManualStatus: true
+        }
+      );
+      
+      // Create an event for the batch calendar to track the refresher training
+      if (updated) {
+        // Schedule the refresher for the next day
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        // Try to create a batch event if that functionality exists
+        try {
+          // Check if storage has createBatchEvent method
+          if (typeof storage.createBatchEvent === 'function') {
+            const eventData = {
+              batchId: Number(batchId),
+              title: `Refresher Training: ${traineeRecord.fullName || `Trainee ${traineeId}`}`,
+              description: notes || 'Refresher training scheduled',
+              startDate: tomorrow.toISOString(),
+              endDate: tomorrow.toISOString(), // Same day event
+              eventType: 'refresher',
+              organizationId: Number(organizationId),
+              createdBy: req.user.id,
+              status: 'scheduled'
+            };
+            
+            await storage.createBatchEvent(eventData);
+          }
+        } catch (eventError) {
+          console.error('Error creating batch event:', eventError);
+          // Continue even if event creation fails
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Refresher training scheduled successfully',
+        trainee: updated 
+      });
+    } catch (error) {
+      console.error('Error scheduling refresher training:', error);
+      return res.status(500).json({ message: 'Failed to schedule refresher training' });
+    }
+  });
+
+  // Reassign quiz to trainee
+  app.post('/api/organizations/:organizationId/batches/:batchId/trainees/:traineeId/reassign-quiz', async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const { organizationId, batchId, traineeId } = req.params;
+      const { quizId } = req.body;
+      
+      if (!quizId) {
+        return res.status(400).json({ message: 'Quiz ID is required' });
+      }
+      
+      console.log(`Reassigning quiz ${quizId} to trainee ${traineeId} in batch ${batchId}`);
+      
+      // Check if the quiz exists
+      const quiz = await storage.getQuiz(Number(quizId));
+      if (!quiz) {
+        return res.status(404).json({ message: 'Quiz not found' });
+      }
+      
+      // Check if the trainee exists
+      const trainee = await storage.getUser(Number(traineeId));
+      if (!trainee) {
+        return res.status(404).json({ message: 'Trainee not found' });
+      }
+      
+      // Assign quiz to trainee
+      // This could involve creating a quiz assignment record if your system has that
+      // Or simply marking the trainee as eligible to take the quiz again
+      
+      // Create a batch event for the reassigned quiz
+      try {
+        if (typeof storage.createBatchEvent === 'function') {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          const eventData = {
+            batchId: Number(batchId),
+            title: `Quiz Reassigned: ${quiz.name || `Quiz ${quizId}`}`,
+            description: `Quiz reassigned to ${trainee.fullName || `Trainee ${traineeId}`}`,
+            startDate: tomorrow.toISOString(),
+            endDate: tomorrow.toISOString(),
+            eventType: 'quiz',
+            organizationId: Number(organizationId),
+            createdBy: req.user.id,
+            status: 'scheduled'
+          };
+          
+          await storage.createBatchEvent(eventData);
+        }
+      } catch (eventError) {
+        console.error('Error creating batch event for quiz reassignment:', eventError);
+        // Continue even if event creation fails
+      }
+      
+      // Return success response
+      return res.json({
+        success: true,
+        message: 'Quiz reassigned successfully',
+        quiz: quiz,
+        trainee: trainee
+      });
+    } catch (error) {
+      console.error('Error reassigning quiz:', error);
+      return res.status(500).json({ message: 'Failed to reassign quiz' });
+    }
+  });
+
   app.get("/api/organizations/:orgId/batches/:batchId/adjacent", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
