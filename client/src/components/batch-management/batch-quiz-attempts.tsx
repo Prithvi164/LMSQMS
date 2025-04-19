@@ -286,6 +286,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: refresherReason }),
         }
       );
       

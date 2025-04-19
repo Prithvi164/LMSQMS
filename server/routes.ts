@@ -8691,8 +8691,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const { organizationId, batchId, traineeId } = req.params;
+      const { reason } = req.body; // Extract reason from request body
       
-      console.log(`Setting trainee ${traineeId} to refresher status`);
+      console.log(`Setting trainee ${traineeId} to refresher status`, { reason });
       
       // Get the batch first to make sure it exists
       const batch = await storage.getBatch(Number(batchId));
@@ -8720,6 +8721,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isManualStatus: true
         }
       );
+      
+      // Create a batch event to track the reason
+      try {
+        if (typeof storage.createBatchEvent === 'function') {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          const eventData = {
+            batchId: Number(batchId),
+            title: `Refresher Status: ${trainee.fullName || `Trainee ${traineeId}`}`,
+            description: 'Trainee status changed to refresher',
+            startDate: tomorrow.toISOString(),
+            endDate: tomorrow.toISOString(), // Same day event
+            eventType: 'refresher',
+            organizationId: Number(organizationId),
+            createdBy: req.user.id,
+            status: 'scheduled',
+            reason: reason || null // Include the refresher reason
+          };
+          
+          await storage.createBatchEvent(eventData);
+        }
+      } catch (eventError) {
+        console.error('Error creating batch event for refresher status:', eventError);
+        // Continue even if event creation fails
+      }
       
       return res.json({ 
         success: true, 
