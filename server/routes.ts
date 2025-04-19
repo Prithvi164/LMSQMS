@@ -2909,10 +2909,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Now apply the assignment filtering logic:
       // 1. If a quiz has specific assignments (in quizAssignmentCounts), only show it to assigned users
-      // 2. If a quiz has no assignments, show it to all users in the process (traditional way)
+      // 2. If a quiz has no assignments, show to all users in the process (traditional way)
+      // 3. The quiz being assigned to a process ID is a legacy behavior that can be progressively updated
+      
+      // First check if any assignments exist in the system - this is important for us to know if
+      // we're operating in the new mode with selective assignments or old mode with everyone
+      const hasAnyAssignmentsInSystem = quizAssignmentCounts.size > 0;
+      console.log(`Quiz assignment system status: ${hasAnyAssignmentsInSystem ? 'Using selective assignments' : 'Using traditional assignment'}`);
+      
       result = result.filter(quiz => {
         const quizId = quiz.quiz_id;
         const hasAssignments = quizAssignmentCounts.has(quizId);
+        
+        // For process_id 27 quizzes: if ANY quiz in the system has assignments, we need to switch to selective mode
+        // This ensures backward compatibility while allowing new selective assignment feature
+        if (quiz.processId === 27 && hasAnyAssignmentsInSystem) {
+          // If we're using the new assignment system, only show quizzes directly assigned
+          return assignedQuizIds.includes(quizId);
+        }
         
         if (hasAssignments) {
           // If quiz has assignments, only show to users with direct assignment
