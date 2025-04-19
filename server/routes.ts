@@ -8738,10 +8738,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const { organizationId, batchId, traineeId } = req.params;
-      const { notes, startDate, endDate } = req.body;
+      const { notes, startDate, endDate, reason } = req.body;
       
       console.log(`Scheduling refresher training for trainee ${traineeId} in batch ${batchId}`, { 
-        notes, startDate, endDate 
+        notes, startDate, endDate, reason 
       });
       
       // Get the batch first to make sure it exists
