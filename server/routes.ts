@@ -41,7 +41,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { db } from './db';
 import { join, extname } from 'path';
 import express from 'express';
-import { eq, and, or, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, or, sql, inArray, gte, count } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
