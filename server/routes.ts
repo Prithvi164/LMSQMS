@@ -41,7 +41,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { db } from './db';
 import { join, extname } from 'path';
 import express from 'express';
-import { eq, and, or, sql, inArray, gte, count } from "drizzle-orm";
+import { eq, and, or, sql, inArray, gte } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
@@ -2858,26 +2858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
       const assignedQuizIds = assignedQuizIdsResult.map(qa => qa.quizId);
-      console.log('Quizzes specifically assigned to this user:', assignedQuizIds);
       
-      // Method 2: For each quiz, check if it has ANY assignments
-      // If a quiz has assignments, it should ONLY be shown to trainees who have it assigned
-      const quizzesWithAssignmentsResult = await db
-        .select({
-          quizId: quizAssignments.quizId,
-          count: count()
-        })
-        .from(quizAssignments)
-        .groupBy(quizAssignments.quizId);
-      
-      // Map of quiz IDs to assignment counts
-      const quizAssignmentCounts = new Map();
-      quizzesWithAssignmentsResult.forEach(item => {
-        quizAssignmentCounts.set(item.quizId, item.count);
-      });
-      console.log('Quizzes with assignment counts:', [...quizAssignmentCounts.entries()]);
-      
-      // Method 3: Get quizzes for assigned processes (traditional way)
+      // Method 2: Get quizzes for assigned processes (traditional way)
       const processBatchQuizzesQuery = db
         .select({
           quiz_id: quizzes.id,
@@ -2900,47 +2882,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(organizationProcesses.organizationId, req.user.organizationId),
             eq(quizzes.status, 'active'),
+            or(
+              // Either it's assigned to the user's process
+              inArray(quizzes.processId, assignedProcessIds.length > 0 ? assignedProcessIds : [-1]),
+              // Or it's specifically assigned to this user
+              inArray(quizzes.id, assignedQuizIds.length > 0 ? assignedQuizIds : [-1])
+            ),
             // Only return quizzes that haven't expired yet
             gte(quizzes.endTime, new Date())
           )
         );
         
-      let result = await processBatchQuizzesQuery;
+      const result = await processBatchQuizzesQuery;
 
-      // Now apply the assignment filtering logic:
-      // For this specific issue, we're making a more aggressive change to force specific
-      // assignment for process 27 quizzes (Inbound Call Handling)
-      
-      // Check if this is a trainee account - only apply selective assignment to trainees
-      const isTrainee = req.user.category === 'trainee';
-      
-      console.log(`Quiz filtering for user ${req.user.username}: category=${req.user.category}`);
-      
-      result = result.filter(quiz => {
-        const quizId = quiz.quiz_id;
-        
-        // SPECIAL HANDLING FOR INBOUND CALL HANDLING PROCESS (ID 27)
-        // This is a specific fix for the selective quiz assignment feature
-        if (quiz.processId === 27 && isTrainee) {
-          console.log(`Applying selective quiz assignment filter for quiz ${quizId} (Inbound Call Handling)`);
-          // Only show quizzes that are specifically assigned to this user
-          return assignedQuizIds.includes(quizId);
-        }
-        
-        // STANDARD FILTERING FOR OTHER PROCESSES
-        // Check if this specific quiz has any assignments
-        const hasAssignments = quizAssignmentCounts.has(quizId);
-        
-        if (hasAssignments) {
-          // If quiz has assignments, only show to users with direct assignment
-          return assignedQuizIds.includes(quizId);
-        } else {
-          // If quiz has no assignments, show to all users in the process (traditional way)
-          return assignedProcessIds.includes(quiz.processId);
-        }
-      });
-
-      console.log('Found quizzes after filtering by assignment rules:', result);
+      console.log('Found quizzes:', result);
       res.json(result);
 
     } catch (error: any) {
@@ -3915,9 +3870,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle quiz assignments if specific users are provided
       const assignToUsers = req.body.assignToUsers;
-      console.log(`Quiz generation for template ${templateId} complete - quiz ID: ${quiz.id}`);
-      console.log(`Assignment request data:`, req.body);
-      
       if (Array.isArray(assignToUsers) && assignToUsers.length > 0) {
         console.log(`Assigning quiz ${quiz.id} to specific users:`, assignToUsers);
         
@@ -3925,7 +3877,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const assignments = [];
         for (const userId of assignToUsers) {
           try {
-            console.log(`Creating assignment for quiz ${quiz.id}, user ${userId}, batch ${template.batchId || 0}`);
             const assignment = await storage.createQuizAssignment({
               quizId: quiz.id,
               userId,
@@ -3935,10 +3886,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: 'assigned'
             });
             assignments.push(assignment);
-            console.log(`Successfully created assignment:`, assignment);
           } catch (assignError) {
             console.error(`Failed to create assignment for user ${userId}:`, assignError);
-            console.error(`Error details:`, assignError);
             // Continue with other users
           }
         }
@@ -3953,7 +3902,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       } else {
-        console.log(`No specific trainees selected for assignment. The quiz will need to be assigned manually.`);
         // No specific assignments requested
         res.status(201).json(quiz);
       }
