@@ -2993,25 +2993,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid batch ID" });
       }
       
-      // Get all trainees for this batch
+      console.log("Fetching trainees for batch", batchId);
+      
+      // Get all trainees for this batch with user details already included
       const trainees = await storage.getBatchTrainees(batchId);
+      console.log(`Found ${trainees.length} trainees in batch ${batchId}:`, trainees);
       
-      // Get full user details for each trainee
-      const traineesWithUserDetails = await Promise.all(
-        trainees.map(async (trainee) => {
-          const user = await storage.getUserById(trainee.userId);
-          return {
-            ...trainee,
-            user: user ? {
-              id: user.id,
-              fullName: user.fullName,
-              email: user.email
-            } : null
-          };
-        })
-      );
-      
-      res.json(traineesWithUserDetails);
+      // The getBatchTrainees method already includes user details, so we can return directly
+      res.json(trainees);
     } catch (error) {
       console.error("Error fetching batch trainees:", error);
       res.status(500).json({ message: "Failed to fetch batch trainees" });

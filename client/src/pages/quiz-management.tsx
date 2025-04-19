@@ -2034,10 +2034,30 @@ export function QuizManagement() {
                                       const trainees = await response.json();
                                       console.log('Fetched trainees:', trainees);
                                       
-                                      setTraineesData(trainees.map((trainee: any) => ({
-                                        userId: trainee.userId,
-                                        fullName: trainee.user?.fullName || `Trainee ${trainee.userId}`
-                                      })));
+                                      // Process trainees data based on the format returned by the API
+                                      setTraineesData(trainees.map((trainee: any) => {
+                                        // Check if the data is already in the expected format
+                                        if (trainee.user && trainee.user.fullName) {
+                                          return {
+                                            userId: trainee.userId,
+                                            fullName: trainee.user.fullName
+                                          };
+                                        } 
+                                        
+                                        // Alternative format - trainee might have fullName directly
+                                        if (trainee.fullName) {
+                                          return {
+                                            userId: trainee.userId || trainee.id,
+                                            fullName: trainee.fullName
+                                          };
+                                        }
+                                        
+                                        // Last fallback for unexpected data structure
+                                        return {
+                                          userId: trainee.userId || trainee.id,
+                                          fullName: `Trainee ${trainee.userId || trainee.id}`
+                                        };
+                                      }));
                                     } else {
                                       console.error('Failed to fetch trainees for batch', {
                                         status: response.status,
