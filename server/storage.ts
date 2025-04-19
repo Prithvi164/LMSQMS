@@ -5153,6 +5153,7 @@ export class DatabaseStorage implements IStorage {
     date?: string;
     previousValue?: string;
     newValue?: string;
+    reason?: string; // Added refresher reason field
   }): Promise<any> {
     try {
       console.log('Creating batch event:', event);

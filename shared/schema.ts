@@ -1362,6 +1362,7 @@ export const batchEvents = pgTable("batch_events", {
   endDate: timestamp("end_date").notNull(),
   eventType: batchEventTypeEnum("event_type").default('other').notNull(),
   status: batchEventStatusEnum("status").default('scheduled').notNull(),
+  refresherReason: text("refresher_reason"), // Added field for refresher reason
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
