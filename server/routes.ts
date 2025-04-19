@@ -3866,7 +3866,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         generationCount: (template.generationCount || 0) + 1
       });
 
-      res.status(201).json(quiz);
+      // Handle quiz assignments if specific users are provided
+      const assignToUsers = req.body.assignToUsers;
+      if (Array.isArray(assignToUsers) && assignToUsers.length > 0) {
+        console.log(`Assigning quiz ${quiz.id} to specific users:`, assignToUsers);
+        
+        // Create quiz assignments for each specified user
+        const assignments = [];
+        for (const userId of assignToUsers) {
+          try {
+            const assignment = await storage.createQuizAssignment({
+              quizId: quiz.id,
+              userId,
+              batchId: template.batchId || 0, // fallback to 0 if no batch ID
+              organizationId: req.user.organizationId,
+              assignedBy: req.user.id,
+              status: 'assigned'
+            });
+            assignments.push(assignment);
+          } catch (assignError) {
+            console.error(`Failed to create assignment for user ${userId}:`, assignError);
+            // Continue with other users
+          }
+        }
+        console.log(`Created ${assignments.length} quiz assignments for quiz ${quiz.id}`);
+        
+        // Return the quiz with assignment info
+        res.status(201).json({
+          ...quiz,
+          assignments: {
+            count: assignments.length,
+            userIds: assignToUsers
+          }
+        });
+      } else {
+        // No specific assignments requested
+        res.status(201).json(quiz);
+      }
     } catch (error: any) {
       console.error("Error generating quiz:", error);
       res.status(500).json({ message: error.message });
