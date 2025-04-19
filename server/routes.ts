@@ -24,7 +24,9 @@ import {
   evaluationParameters,
   evaluationPillars,
   EvaluationParameter,
-  EvaluationPillar
+  EvaluationPillar,
+  type InsertQuizAssignment,
+  type QuizAssignment
 } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
