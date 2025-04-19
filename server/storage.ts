@@ -5099,6 +5099,9 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching trainee ${userId} for batch ${batchId}`);
 
+      // Import the batch table from schema.ts at the top of the function
+      const { batch, organizationProcesses } = await import('@shared/schema');
+
       const [trainee] = await db
         .select({
           id: userBatchProcesses.id,
@@ -5137,25 +5140,76 @@ export class DatabaseStorage implements IStorage {
   async createBatchEvent(event: {
     organizationId: number;
     batchId: number;
-    userId: number;
-    eventType: "phase_change" | "status_update" | "milestone" | "note";
-    description: string;
-    date: string;
+    createdBy?: number;
+    userId?: number;
+    eventType?: string;
+    title?: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    date?: string;
     previousValue?: string;
     newValue?: string;
   }): Promise<any> {
     try {
       console.log('Creating batch event:', event);
       
-      const [newEvent] = await db
-        .insert(batchHistory)
-        .values({
-          ...event,
-          createdAt: new Date()
-        })
-        .returning() as any[];
+      // Import the batch history schema
+      const { batchHistory, batchEvents } = await import('@shared/schema');
+      
+      // Determine which table to use based on the event format
+      if (event.startDate && event.endDate) {
+        // This is a schedule/calendar event
+        console.log('Creating batch calendar event');
         
-      return newEvent;
+        const [newEvent] = await db
+          .insert(batchEvents)
+          .values({
+            batchId: event.batchId,
+            title: event.title || 'Scheduled Event',
+            description: event.description || '',
+            startDate: new Date(event.startDate),
+            endDate: new Date(event.endDate),
+            eventType: event.eventType || 'refresher',
+            organizationId: event.organizationId,
+            createdBy: event.createdBy || event.userId || 1,
+            status: event.status || 'scheduled',
+            createdAt: new Date()
+          })
+          .returning() as any[];
+          
+        return newEvent;
+      } else {
+        // This is a batch history event
+        console.log('Creating batch history event');
+        
+        // Make sure required fields for history are present
+        if (!event.date) {
+          event.date = new Date().toISOString();
+        }
+        
+        if (!event.eventType) {
+          event.eventType = 'note';
+        }
+        
+        const [newEvent] = await db
+          .insert(batchHistory)
+          .values({
+            batchId: event.batchId,
+            userId: event.userId || event.createdBy || 1,
+            eventType: event.eventType as "phase_change" | "status_update" | "milestone" | "note",
+            description: event.description || 'Batch event',
+            date: event.date,
+            previousValue: event.previousValue,
+            newValue: event.newValue,
+            organizationId: event.organizationId,
+            createdAt: new Date()
+          })
+          .returning() as any[];
+          
+        return newEvent;
+      }
     } catch (error) {
       console.error('Error creating batch event:', error);
       throw error;

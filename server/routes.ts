@@ -8747,22 +8747,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Try to create a batch event if that functionality exists
         try {
-          // Check if storage has createBatchEvent method
-          if (typeof storage.createBatchEvent === 'function') {
-            const eventData = {
-              batchId: Number(batchId),
-              title: `Refresher Training: ${trainee.fullName || `Trainee ${traineeId}`}`,
-              description: notes || 'Refresher training scheduled',
-              startDate: tomorrow.toISOString(),
-              endDate: tomorrow.toISOString(), // Same day event
-              eventType: 'refresher',
-              organizationId: Number(organizationId),
-              createdBy: req.user.id,
-              status: 'scheduled'
-            };
-            
-            await storage.createBatchEvent(eventData);
-          }
+          // Use create batch event method
+          const eventData = {
+            batchId: Number(batchId),
+            title: `Refresher Training: ${trainee.fullName || `Trainee ${traineeId}`}`,
+            description: notes || 'Refresher training scheduled',
+            startDate: tomorrow.toISOString(),
+            endDate: tomorrow.toISOString(), // Same day event
+            eventType: 'refresher',
+            organizationId: Number(organizationId),
+            createdBy: req.user.id,
+            status: 'scheduled'
+          };
+          
+          await storage.createBatchEvent(eventData);
         } catch (eventError) {
           console.error('Error creating batch event:', eventError);
           // Continue even if event creation fails
