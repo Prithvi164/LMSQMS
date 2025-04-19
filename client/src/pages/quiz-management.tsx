@@ -2016,35 +2016,53 @@ export function QuizManagement() {
                                 // Set the selected template ID
                                 setSelectedTemplateId(template.id);
                                 
+                                // Reset trainee selection
+                                setSelectedTrainees([]);
+                                setAssignmentType('all');
+                                
+                                // Open the dialog first for better UX
+                                setIsGenerateDialogOpen(true);
+                                
                                 // If the template has a batchId, fetch trainees for this batch
                                 if (template.batchId) {
                                   try {
-                                    const response = await fetch(`/api/batches/${template.batchId}/trainees`);
+                                    console.log(`Fetching trainees for batch ID: ${template.batchId}`);
+                                    // Adding timestamp to avoid caching issues
+                                    const response = await fetch(`/api/batches/${template.batchId}/trainees?t=${Date.now()}`);
+                                    
                                     if (response.ok) {
                                       const trainees = await response.json();
+                                      console.log('Fetched trainees:', trainees);
+                                      
                                       setTraineesData(trainees.map((trainee: any) => ({
                                         userId: trainee.userId,
                                         fullName: trainee.user?.fullName || `Trainee ${trainee.userId}`
                                       })));
                                     } else {
-                                      console.error('Failed to fetch trainees for batch');
+                                      console.error('Failed to fetch trainees for batch', {
+                                        status: response.status,
+                                        statusText: response.statusText
+                                      });
+                                      toast({
+                                        title: "Warning",
+                                        description: "Failed to load trainees. You can still generate the quiz for all trainees.",
+                                        variant: "destructive",
+                                      });
                                       setTraineesData([]);
                                     }
                                   } catch (error) {
                                     console.error('Error fetching trainees:', error);
+                                    toast({
+                                      title: "Warning",
+                                      description: "Error loading trainees. You can still generate the quiz for all trainees.",
+                                      variant: "destructive",
+                                    });
                                     setTraineesData([]);
                                   }
                                 } else {
                                   // Reset trainees if template doesn't have a batch
                                   setTraineesData([]);
                                 }
-                                
-                                // Reset trainee selection
-                                setSelectedTrainees([]);
-                                setAssignmentType('all');
-                                
-                                // Open the dialog
-                                setIsGenerateDialogOpen(true);
                               }}
                               disabled={generateQuizMutation.isPending}
                               className={`text-amber-600 hover:text-amber-700 hover:bg-amber-50 ${template.quizType === "final" ? "bg-red-50" : "bg-blue-50"}`}
@@ -2276,36 +2294,65 @@ export function QuizManagement() {
                       <Label>Select Trainees</Label>
                       <div className="border rounded-md p-2 mt-1 max-h-[200px] overflow-y-auto">
                         {traineesData.length > 0 ? (
-                          traineesData.map(trainee => (
-                            <div key={trainee.userId} className="flex items-center py-1">
+                          <>
+                            <div className="mb-2 flex items-center space-x-2">
                               <Checkbox 
-                                id={`trainee-${trainee.userId}`}
-                                checked={selectedTrainees.includes(trainee.userId)}
+                                id="select-all-trainees"
+                                checked={traineesData.length > 0 && selectedTrainees.length === traineesData.length}
                                 onCheckedChange={(checked) => {
                                   if (checked) {
-                                    setSelectedTrainees(prev => [...prev, trainee.userId]);
+                                    // Select all trainees
+                                    setSelectedTrainees(traineesData.map(t => t.userId));
                                   } else {
-                                    setSelectedTrainees(prev => prev.filter(id => id !== trainee.userId));
+                                    // Deselect all
+                                    setSelectedTrainees([]);
                                   }
                                 }}
                               />
                               <Label 
-                                htmlFor={`trainee-${trainee.userId}`}
-                                className="ml-2 cursor-pointer"
+                                htmlFor="select-all-trainees"
+                                className="ml-2 cursor-pointer font-semibold"
                               >
-                                {trainee.fullName}
+                                Select All ({traineesData.length})
                               </Label>
                             </div>
-                          ))
+                            <div className="border-t pt-2">
+                              {traineesData.map(trainee => (
+                                <div key={trainee.userId} className="flex items-center py-1 hover:bg-slate-50 rounded px-1">
+                                  <Checkbox 
+                                    id={`trainee-${trainee.userId}`}
+                                    checked={selectedTrainees.includes(trainee.userId)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedTrainees(prev => [...prev, trainee.userId]);
+                                      } else {
+                                        setSelectedTrainees(prev => prev.filter(id => id !== trainee.userId));
+                                      }
+                                    }}
+                                  />
+                                  <Label 
+                                    htmlFor={`trainee-${trainee.userId}`}
+                                    className="ml-2 cursor-pointer w-full"
+                                  >
+                                    {trainee.fullName}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         ) : (
-                          <div className="py-2 text-center text-sm text-muted-foreground">
-                            Loading trainees...
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            <div className="flex justify-center mb-3">
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            </div>
+                            <p>Loading trainees...</p>
+                            <p className="text-xs mt-1 text-muted-foreground">This may take a moment</p>
                           </div>
                         )}
                       </div>
                       {selectedTrainees.length > 0 && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Selected {selectedTrainees.length} trainee{selectedTrainees.length !== 1 ? 's' : ''}
+                        <p className="text-sm font-medium text-primary mt-2">
+                          Selected {selectedTrainees.length} of {traineesData.length} trainee{selectedTrainees.length !== 1 ? 's' : ''}
                         </p>
                       )}
                     </div>
@@ -2355,7 +2402,10 @@ export function QuizManagement() {
                     trainees: specificTrainees ? selectedTrainees : undefined
                   });
                 }}
-                disabled={generateQuizMutation.isPending || (assignmentType === 'specific' && selectedTrainees.length === 0 && quizTemplates.find(t => t.id === selectedTemplateId)?.batchId)}
+                disabled={
+                  generateQuizMutation.isPending || 
+                  (assignmentType === 'specific' && selectedTrainees.length === 0)
+                }
               >
                 {generateQuizMutation.isPending ? (
                   <>
