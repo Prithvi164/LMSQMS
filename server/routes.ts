@@ -706,6 +706,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           userId: userBatchProcesses.userId,
           status: userBatchProcesses.status,
+          traineeStatus: userBatchProcesses.traineeStatus,
+          isManualStatus: userBatchProcesses.isManualStatus,
           user: {
             id: users.id,
             fullName: users.fullName,
@@ -746,6 +748,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fullName: trainee.user.fullName,
         employeeId: trainee.user.employeeId,
         email: trainee.user.email,
+        traineeStatus: trainee.traineeStatus,
+        isManualStatus: trainee.isManualStatus,
         user: trainee.user
       }));
 
