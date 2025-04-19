@@ -2794,7 +2794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get quizzes assigned to trainee through their processes
+  // Get quizzes assigned to trainee through their processes or direct assignment
   app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -2824,13 +2824,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const assignedProcessIds = userProcessesResult.map(p => p.processId);
       
-      if (assignedProcessIds.length === 0) {
-        console.log('User has no assigned processes');
-        return res.json([]);
-      }
-
-      // Get quizzes for assigned processes
-      const result = await db
+      // Find user's batch assignments
+      const userBatchProcessesResult = await db
+        .select({
+          batchId: userBatchProcesses.batchId
+        })
+        .from(userBatchProcesses)
+        .where(
+          and(
+            eq(userBatchProcesses.userId, req.user.id),
+            eq(userBatchProcesses.status, 'active')
+          )
+        );
+      
+      const batchIds = userBatchProcessesResult.map(bp => bp.batchId);
+      
+      // Fetch quizzes based on process assignment (traditional way) or specific user assignment
+      
+      // Method 1: Get quizzes that are specifically assigned to this user
+      const assignedQuizIdsResult = await db
+        .select({
+          quizId: quizAssignments.quizId
+        })
+        .from(quizAssignments)
+        .where(
+          and(
+            eq(quizAssignments.userId, req.user.id),
+            eq(quizAssignments.status, 'assigned')
+          )
+        );
+        
+      const assignedQuizIds = assignedQuizIdsResult.map(qa => qa.quizId);
+      
+      // Method 2: Get quizzes for assigned processes (traditional way)
+      const processBatchQuizzesQuery = db
         .select({
           quiz_id: quizzes.id,
           quiz_name: quizzes.name,
@@ -2852,11 +2879,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(organizationProcesses.organizationId, req.user.organizationId),
             eq(quizzes.status, 'active'),
-            inArray(quizzes.processId, assignedProcessIds),
+            or(
+              // Either it's assigned to the user's process
+              inArray(quizzes.processId, assignedProcessIds.length > 0 ? assignedProcessIds : [-1]),
+              // Or it's specifically assigned to this user
+              inArray(quizzes.id, assignedQuizIds.length > 0 ? assignedQuizIds : [-1])
+            ),
             // Only return quizzes that haven't expired yet
             gte(quizzes.endTime, new Date())
           )
         );
+        
+      const result = await processBatchQuizzesQuery;
 
       console.log('Found quizzes:', result);
       res.json(result);
