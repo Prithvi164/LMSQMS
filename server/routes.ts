@@ -8961,11 +8961,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
       
+      console.log("Fetched refresher events:", events);
+      
       // Get all trainees in this batch who are in refresher status
       const trainees = await storage.getBatchTrainees(Number(batchId));
       const refresherTrainees = trainees.filter(trainee => 
         trainee.traineeStatus === 'refresher' && trainee.isManualStatus
       );
+      
+      console.log("Refresher trainees:", refresherTrainees);
       
       // For each event, try to find and attach the trainee information
       const eventsWithTraineeInfo = await Promise.all(events.map(async (event) => {
@@ -8992,11 +8996,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // Format the data for display
         return {
-          ...event,
+          id: event.id,
+          traineeId: traineeInfo?.id,
+          title: event.title,
+          description: event.description,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          status: event.status,
+          refresherReason: event.refresherReason,
+          createdAt: event.createdAt,
           trainee: traineeInfo
         };
       }));
+      
+      console.log("Events with trainee info:", eventsWithTraineeInfo);
       
       return res.json(eventsWithTraineeInfo);
     } catch (error) {

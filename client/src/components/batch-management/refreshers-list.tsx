@@ -11,9 +11,10 @@ import {
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CalendarClock, FileText, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RefreshersListProps {
   batchId: number;
@@ -91,40 +92,88 @@ export function RefreshersList({ batchId, organizationId }: RefreshersListProps)
   // If we have specific refresher events data, use that
   if (refresherEvents && refresherEvents.length > 0) {
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Trainee</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead>Notes</TableHead>
-            <TableHead>Start Date</TableHead>
-            <TableHead>End Date</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {refresherEvents.map((event: RefresherEvent) => (
-            <TableRow key={event.id}>
-              <TableCell>{event.trainee?.fullName || 'Unknown'}</TableCell>
-              <TableCell>{event.refresherReason || 'Not specified'}</TableCell>
-              <TableCell className="max-w-xs truncate" title={event.description}>
-                {event.description || 'No notes'}
-              </TableCell>
-              <TableCell>
-                {event.startDate ? format(new Date(event.startDate), 'MMM dd, yyyy') : 'Not set'}
-              </TableCell>
-              <TableCell>
-                {event.endDate ? format(new Date(event.endDate), 'MMM dd, yyyy') : 'Not set'}
-              </TableCell>
-              <TableCell>
-                <Badge variant={event.status === 'scheduled' ? 'outline' : 'default'}>
-                  {event.status || 'pending'}
-                </Badge>
-              </TableCell>
+      <div className="space-y-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Trainee</TableHead>
+              <TableHead>Employee ID</TableHead>
+              <TableHead>Reason</TableHead>
+              <TableHead>Start Date</TableHead>
+              <TableHead>End Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Notes</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {refresherEvents.map((event: RefresherEvent) => (
+              <TableRow key={event.id}>
+                <TableCell>{event.trainee?.fullName || 'Unknown'}</TableCell>
+                <TableCell>{event.trainee?.employeeId || 'N/A'}</TableCell>
+                <TableCell>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center space-x-1">
+                          <span>{event.refresherReason || 'Not specified'}</span>
+                          {!event.refresherReason && <Info className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {event.refresherReason ? 
+                          `Reason: ${event.refresherReason}` : 
+                          'No specific reason provided for this refresher'
+                        }
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-1">
+                    <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {event.startDate ? format(new Date(event.startDate), 'MMM dd, yyyy') : 'Not set'}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-1">
+                    <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {event.endDate ? format(new Date(event.endDate), 'MMM dd, yyyy') : 'Not set'}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge 
+                    variant={event.status === 'scheduled' ? 'outline' : 
+                            event.status === 'completed' ? 'default' : 'secondary'}>
+                    {event.status || 'pending'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center space-x-1 cursor-help">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="max-w-[150px] truncate">
+                            {event.description || 'No notes'}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-md">
+                        <p className="font-semibold">Notes:</p>
+                        <p>{event.description || 'No additional notes provided.'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     );
   }
 
@@ -163,8 +212,9 @@ export function RefreshersList({ batchId, organizationId }: RefreshersListProps)
         
         <Alert>
           <AlertDescription>
-            Refresher details like reason, notes, and scheduled dates are not available for these trainees.
-            When you set a trainee to refresher status with notes and dates, they will appear here with complete details.
+            These trainees are marked for refresher training, but full details like start/end dates and reasons
+            are not available. Use the Schedule Refresher option when marking a trainee as a refresher to provide
+            these details.
           </AlertDescription>
         </Alert>
       </div>
