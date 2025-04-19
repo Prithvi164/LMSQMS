@@ -2844,7 +2844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fetch quizzes based on process assignment (traditional way) or specific user assignment
       
-      // Method 1: Get quizzes that are specifically assigned to this user
+      // Method 1: Get quizzes that are specifically assigned to this user by trainee_id
       const assignedQuizIdsResult = await db
         .select({
           quizId: quizAssignments.quizId
@@ -2852,12 +2852,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(quizAssignments)
         .where(
           and(
-            eq(quizAssignments.userId, req.user.id),
+            eq(quizAssignments.traineeId, req.user.id),  // Check traineeId instead of userId
             eq(quizAssignments.status, 'assigned')
           )
         );
         
       const assignedQuizIds = assignedQuizIdsResult.map(qa => qa.quizId);
+      
+      console.log(`Found ${assignedQuizIds.length} quiz assignments for trainee ${req.user.id}:`, assignedQuizIds);
       
       // Method 2: Get quizzes for assigned processes (traditional way)
       const processBatchQuizzesQuery = db
@@ -2937,7 +2939,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const assignment = await storage.createQuizAssignment({
             quizId,
-            userId,
+            traineeId: userId, // Set traineeId as userId
+            userId,           // Keep userId same as traineeId for backward compatibility
             batchId,
             organizationId: req.user.organizationId,
             assignedBy: req.user.id,
@@ -3910,8 +3913,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const assignment = await storage.createQuizAssignment({
             quizId: quiz.id,
-            traineeId: userId, // Set traineeId to same as userId
-            userId,
+            traineeId: userId, // Set traineeId to the specific trainee
+            userId,  // Also keep userId the same for backward compatibility
             batchId: template.batchId || 0, // fallback to 0 if no batch ID
             organizationId: req.user.organizationId,
             assignedBy: req.user.id,
