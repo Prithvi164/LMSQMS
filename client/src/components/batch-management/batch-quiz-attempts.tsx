@@ -218,10 +218,10 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       }
       
       const generatedQuiz = await generateResponse.json();
-      console.log(`Successfully generated quiz:`, generatedQuiz);
+      console.log(`Successfully generated quiz ${generatedQuiz.id} and assigned to trainee ${selectedTraineeId}`);
       
-      // Return the generated quiz - we don't need to do a separate assignment
-      // as we assigned it directly to the trainee during generation
+      // Return the generated quiz - the backend API has already created
+      // a quiz_assignment record linking this trainee to the quiz
       return generatedQuiz;
     },
     onSuccess: (data) => {

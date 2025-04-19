@@ -837,30 +837,9 @@ export function QuizManagement() {
       
       const quizData = await response.json();
       
-      // If specific trainees are selected, create quiz assignments
-      if (trainees && trainees.length > 0) {
-        const template = quizTemplates.find(t => t.id === templateId);
-        if (!template || !template.batchId) {
-          throw new Error('Template has no associated batch');
-        }
-        
-        const assignmentResponse = await fetch(`/api/quizzes/${quizData.id}/assignments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userIds: trainees,
-            batchId: template.batchId
-          }),
-          credentials: 'include'
-        });
-        
-        if (!assignmentResponse.ok) {
-          // Even if assignment fails, we'll still return the quiz
-          console.error('Failed to create quiz assignments');
-        }
-      }
+      // No need to make additional assignment requests
+      // The assignToUsers parameter in the quiz generation request above
+      // already handles creating quiz assignments for specific trainees
       
       return quizData;
     },
