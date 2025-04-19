@@ -2908,25 +2908,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let result = await processBatchQuizzesQuery;
 
       // Now apply the assignment filtering logic:
-      // 1. If a quiz has specific assignments (in quizAssignmentCounts), only show it to assigned users
-      // 2. If a quiz has no assignments, show to all users in the process (traditional way)
-      // 3. The quiz being assigned to a process ID is a legacy behavior that can be progressively updated
+      // For this specific issue, we're making a more aggressive change to force specific
+      // assignment for process 27 quizzes (Inbound Call Handling)
       
-      // First check if any assignments exist in the system - this is important for us to know if
-      // we're operating in the new mode with selective assignments or old mode with everyone
-      const hasAnyAssignmentsInSystem = quizAssignmentCounts.size > 0;
-      console.log(`Quiz assignment system status: ${hasAnyAssignmentsInSystem ? 'Using selective assignments' : 'Using traditional assignment'}`);
+      // Check if this is a trainee account - only apply selective assignment to trainees
+      const isTrainee = req.user.category === 'trainee';
+      
+      console.log(`Quiz filtering for user ${req.user.username}: category=${req.user.category}`);
       
       result = result.filter(quiz => {
         const quizId = quiz.quiz_id;
-        const hasAssignments = quizAssignmentCounts.has(quizId);
         
-        // For process_id 27 quizzes: if ANY quiz in the system has assignments, we need to switch to selective mode
-        // This ensures backward compatibility while allowing new selective assignment feature
-        if (quiz.processId === 27 && hasAnyAssignmentsInSystem) {
-          // If we're using the new assignment system, only show quizzes directly assigned
+        // SPECIAL HANDLING FOR INBOUND CALL HANDLING PROCESS (ID 27)
+        // This is a specific fix for the selective quiz assignment feature
+        if (quiz.processId === 27 && isTrainee) {
+          console.log(`Applying selective quiz assignment filter for quiz ${quizId} (Inbound Call Handling)`);
+          // Only show quizzes that are specifically assigned to this user
           return assignedQuizIds.includes(quizId);
         }
+        
+        // STANDARD FILTERING FOR OTHER PROCESSES
+        // Check if this specific quiz has any assignments
+        const hasAssignments = quizAssignmentCounts.has(quizId);
         
         if (hasAssignments) {
           // If quiz has assignments, only show to users with direct assignment
