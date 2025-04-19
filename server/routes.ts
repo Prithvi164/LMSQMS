@@ -8664,17 +8664,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Setting trainee ${traineeId} to refresher status`);
       
-      // First get the user batch process record to get the ID
-      const traineeRecords = await storage.getTraineesForBatch(Number(batchId));
-      const traineeRecord = traineeRecords.find(t => t.id === Number(traineeId));
+      // Get the batch first to make sure it exists
+      const batch = await storage.getBatch(Number(batchId));
+      if (!batch) {
+        return res.status(404).json({ message: 'Batch not found' });
+      }
       
-      if (!traineeRecord || !traineeRecord.userBatchProcessId) {
-        return res.status(404).json({ message: 'Trainee not found in batch' });
+      // Get the trainee information
+      const trainee = await storage.getUser(Number(traineeId));
+      if (!trainee) {
+        return res.status(404).json({ message: 'Trainee not found' });
+      }
+      
+      // Get the user batch process record to get the ID
+      const userBatchProcess = await storage.getUserBatchProcess(Number(traineeId), Number(batchId));
+      if (!userBatchProcess) {
+        return res.status(404).json({ message: 'Trainee not enrolled in this batch' });
       }
       
       // Update the user batch process with refresher status
       const updated = await storage.updateUserBatchProcessStatus(
-        traineeRecord.userBatchProcessId,
+        userBatchProcess.id,
         {
           traineeStatus: 'refresher',
           isManualStatus: true
@@ -8702,17 +8712,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Scheduling refresher training for trainee ${traineeId} in batch ${batchId}`);
       
-      // First get the user batch process record to get the ID
-      const traineeRecords = await storage.getTraineesForBatch(Number(batchId));
-      const traineeRecord = traineeRecords.find(t => t.id === Number(traineeId));
+      // Get the batch first to make sure it exists
+      const batch = await storage.getBatch(Number(batchId));
+      if (!batch) {
+        return res.status(404).json({ message: 'Batch not found' });
+      }
       
-      if (!traineeRecord || !traineeRecord.userBatchProcessId) {
-        return res.status(404).json({ message: 'Trainee not found in batch' });
+      // Get the trainee information
+      const trainee = await storage.getUser(Number(traineeId));
+      if (!trainee) {
+        return res.status(404).json({ message: 'Trainee not found' });
+      }
+      
+      // Get the user batch process record to get the ID
+      const userBatchProcess = await storage.getUserBatchProcess(Number(traineeId), Number(batchId));
+      if (!userBatchProcess) {
+        return res.status(404).json({ message: 'Trainee not enrolled in this batch' });
       }
       
       // Update the user batch process with refresher status
       const updated = await storage.updateUserBatchProcessStatus(
-        traineeRecord.userBatchProcessId,
+        userBatchProcess.id,
         {
           traineeStatus: 'refresher',
           isManualStatus: true
@@ -8731,7 +8751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (typeof storage.createBatchEvent === 'function') {
             const eventData = {
               batchId: Number(batchId),
-              title: `Refresher Training: ${traineeRecord.fullName || `Trainee ${traineeId}`}`,
+              title: `Refresher Training: ${trainee.fullName || `Trainee ${traineeId}`}`,
               description: notes || 'Refresher training scheduled',
               startDate: tomorrow.toISOString(),
               endDate: tomorrow.toISOString(), // Same day event
