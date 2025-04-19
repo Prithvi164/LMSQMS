@@ -40,7 +40,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle, XCircle, Award, RefreshCw, FileQuestion, Filter } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Award, RefreshCw, FileQuestion, Filter, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
 
 type QuizAttempt = {
   id: number;
@@ -75,6 +79,8 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   const [refresherDialogOpen, setRefresherDialogOpen] = useState(false);
   const [refresherNotes, setRefresherNotes] = useState("");
   const [selectedTraineeId, setSelectedTraineeId] = useState<number | null>(null);
+  const [refresherStartDate, setRefresherStartDate] = useState<Date | undefined>(undefined);
+  const [refresherEndDate, setRefresherEndDate] = useState<Date | undefined>(undefined);
   
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
@@ -129,7 +135,9 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   // Mutation for scheduling refresher training
   const scheduleRefresherMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedTraineeId) return;
+      if (!selectedTraineeId || !refresherStartDate || !refresherEndDate) {
+        throw new Error("Missing required information for scheduling refresher");
+      }
       
       // Using fetch directly instead of apiRequest to ensure proper handling
       const response = await fetch(
@@ -137,7 +145,11 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes: refresherNotes }),
+          body: JSON.stringify({ 
+            notes: refresherNotes,
+            startDate: refresherStartDate.toISOString(),
+            endDate: refresherEndDate.toISOString()
+          }),
           credentials: 'include'
         }
       );
@@ -157,13 +169,15 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       setRefresherDialogOpen(false);
       setRefresherNotes("");
       setSelectedTraineeId(null);
+      setRefresherStartDate(undefined);
+      setRefresherEndDate(undefined);
       // Refresh batch events if needed
       queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/events`] });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to schedule refresher training",
+        description: error instanceof Error ? error.message : "Failed to schedule refresher training",
         variant: "destructive",
       });
     },
@@ -301,7 +315,16 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
 
   // Handler for refresher dialog
   const handleRefresherClick = (traineeId: number) => {
+    // Set default dates: tomorrow for start date and day after tomorrow for end date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    
     setSelectedTraineeId(traineeId);
+    setRefresherStartDate(tomorrow);
+    setRefresherEndDate(dayAfterTomorrow);
     setRefresherDialogOpen(true);
   };
 
@@ -518,6 +541,57 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
               value={refresherNotes}
               onChange={(e) => setRefresherNotes(e.target.value)}
             />
+            
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Start Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    id="startDate"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {refresherStartDate ? format(refresherStartDate, 'PPP') : <span>Pick a start date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={refresherStartDate}
+                    onSelect={(date) => setRefresherStartDate(date || new Date())}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="endDate">End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    id="endDate"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {refresherEndDate ? format(refresherEndDate, 'PPP') : <span>Pick an end date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={refresherEndDate}
+                    onSelect={(date) => setRefresherEndDate(date || new Date())}
+                    initialFocus
+                    disabled={(date) => 
+                      refresherStartDate ? date < refresherStartDate : false
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           <DialogFooter>
             <Button
