@@ -3868,43 +3868,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         generationCount: (template.generationCount || 0) + 1
       });
 
-      // Handle quiz assignments if specific users are provided
+      // Handle quiz assignments
       const assignToUsers = req.body.assignToUsers;
-      if (Array.isArray(assignToUsers) && assignToUsers.length > 0) {
-        console.log(`Assigning quiz ${quiz.id} to specific users:`, assignToUsers);
-        
-        // Create quiz assignments for each specified user
-        const assignments = [];
-        for (const userId of assignToUsers) {
-          try {
-            const assignment = await storage.createQuizAssignment({
-              quizId: quiz.id,
-              userId,
-              batchId: template.batchId || 0, // fallback to 0 if no batch ID
-              organizationId: req.user.organizationId,
-              assignedBy: req.user.id,
-              status: 'assigned'
-            });
-            assignments.push(assignment);
-          } catch (assignError) {
-            console.error(`Failed to create assignment for user ${userId}:`, assignError);
-            // Continue with other users
-          }
+      const assignToAllBatch = req.body.assignToAllBatch;
+      let userIds: number[] = [];
+      
+      // If assignToAllBatch is true and the template has a batchId, get all trainees in that batch
+      if (assignToAllBatch && template.batchId) {
+        console.log(`Assigning quiz ${quiz.id} to all trainees in batch ${template.batchId}`);
+        try {
+          // Get all active trainees in the batch
+          const batchTrainees = await db.select({ 
+              userId: userBatchProcesses.userId 
+            })
+            .from(userBatchProcesses)
+            .where(and(
+              eq(userBatchProcesses.batchId, template.batchId),
+              eq(userBatchProcesses.status, 'active')
+            ));
+          
+          userIds = batchTrainees.map(trainee => trainee.userId);
+          console.log(`Found ${userIds.length} active trainees in batch ${template.batchId}`);
+        } catch (error) {
+          console.error(`Error fetching trainees for batch ${template.batchId}:`, error);
         }
-        console.log(`Created ${assignments.length} quiz assignments for quiz ${quiz.id}`);
-        
-        // Return the quiz with assignment info
-        res.status(201).json({
-          ...quiz,
-          assignments: {
-            count: assignments.length,
-            userIds: assignToUsers
-          }
-        });
-      } else {
-        // No specific assignments requested
-        res.status(201).json(quiz);
+      } 
+      // If assignToUsers contains an array of user IDs, use those
+      else if (Array.isArray(assignToUsers) && assignToUsers.length > 0) {
+        console.log(`Assigning quiz ${quiz.id} to specific users:`, assignToUsers);
+        userIds = assignToUsers;
+      } 
+      // No assignment specified
+      else {
+        console.log(`No trainee assignment specified for quiz ${quiz.id}`);
+        return res.status(201).json(quiz);
       }
+      
+      // Create quiz assignments for each user
+      const assignments = [];
+      for (const userId of userIds) {
+        try {
+          const assignment = await storage.createQuizAssignment({
+            quizId: quiz.id,
+            userId,
+            batchId: template.batchId || 0, // fallback to 0 if no batch ID
+            organizationId: req.user.organizationId,
+            assignedBy: req.user.id,
+            status: 'assigned'
+          });
+          assignments.push(assignment);
+        } catch (assignError) {
+          console.error(`Failed to create assignment for user ${userId}:`, assignError);
+          // Continue with other users
+        }
+      }
+      
+      console.log(`Created ${assignments.length} quiz assignments for quiz ${quiz.id}`);
+      
+      // Return the quiz with assignment info
+      res.status(201).json({
+        ...quiz,
+        assignments: {
+          count: assignments.length,
+          userIds: userIds
+        }
+      });
     } catch (error: any) {
       console.error("Error generating quiz:", error);
       res.status(500).json({ message: error.message });
