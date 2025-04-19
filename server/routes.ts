@@ -2981,6 +2981,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get trainees for a specific batch
+  app.get("/api/batches/:batchId/trainees", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const batchId = parseInt(req.params.batchId);
+      if (isNaN(batchId)) {
+        return res.status(400).json({ message: "Invalid batch ID" });
+      }
+      
+      // Get all trainees for this batch
+      const trainees = await storage.getBatchTrainees(batchId);
+      
+      // Get full user details for each trainee
+      const traineesWithUserDetails = await Promise.all(
+        trainees.map(async (trainee) => {
+          const user = await storage.getUserById(trainee.userId);
+          return {
+            ...trainee,
+            user: user ? {
+              id: user.id,
+              fullName: user.fullName,
+              email: user.email
+            } : null
+          };
+        })
+      );
+      
+      res.json(traineesWithUserDetails);
+    } catch (error) {
+      console.error("Error fetching batch trainees:", error);
+      res.status(500).json({ message: "Failed to fetch batch trainees" });
+    }
+  });
+
   app.get("/api/batches/:batchId/trainees-for-quiz/:quizId", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
