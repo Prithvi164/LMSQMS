@@ -3363,15 +3363,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!traineeInBatch) {
         return res.status(404).json({ message: "Trainee not found in this batch" });
       }
+      
+      // Get trainee information
+      const trainee = await storage.getUser(userId);
+      if (!trainee) {
+        return res.status(404).json({ message: "Trainee not found" });
+      }
 
+      // Create a calendar event for the refresher training
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1); // Schedule for tomorrow
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1); // End the next day
+      
       // Create a record in batch_events to track the refresher scheduling
       await storage.createBatchEvent({
         organizationId,
         batchId,
-        userId: req.user.id, // the trainer/admin creating the refresher
-        eventType: 'milestone',
-        description: `Refresher training scheduled for trainee. Notes: ${notes || 'None provided'}`,
-        date: new Date().toISOString(),
+        createdBy: req.user.id, // the trainer/admin creating the refresher
+        title: `Refresher Training for ${trainee.fullName || `Trainee #${userId}`}`,
+        description: notes || 'Refresher training scheduled',
+        startDate: tomorrow.toISOString(),
+        endDate: dayAfterTomorrow.toISOString(),
+        eventType: 'refresher',
+        status: 'scheduled'
       });
 
       res.json({ message: "Refresher training scheduled successfully" });
@@ -3414,14 +3429,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Create a record in batch_events to track the reassignment
+      // Get trainee information
+      const trainee = await storage.getUser(userId);
+      if (!trainee) {
+        return res.status(404).json({ message: "Trainee not found" });
+      }
+      
+      // Schedule the quiz as an event
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1); // Schedule for tomorrow
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1); // End the next day
+      
+      // Create a calendar event for the quiz reassignment
       await storage.createBatchEvent({
         organizationId,
         batchId,
-        userId: req.user.id,
-        eventType: 'milestone',
-        description: `Quiz "${quiz.name}" has been reassigned to trainee`,
-        date: new Date().toISOString(),
+        createdBy: req.user.id,
+        title: `Quiz Reassigned: ${quiz.name || `Quiz ${quizId}`}`,
+        description: `Quiz reassigned to ${trainee.fullName || `Trainee #${userId}`}`,
+        startDate: tomorrow.toISOString(),
+        endDate: dayAfterTomorrow.toISOString(),
+        eventType: 'quiz',
+        status: 'scheduled'
       });
 
       res.json({ message: "Quiz reassigned successfully" });
