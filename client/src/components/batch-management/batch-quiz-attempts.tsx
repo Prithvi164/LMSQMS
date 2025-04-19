@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -225,6 +225,51 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       });
     },
   });
+  
+  // Mutation for setting trainee status to refresher immediately
+  const setRefresherStatusMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      console.log('Setting trainee to refresher status:', userId);
+      
+      const response = await fetch(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${userId}/set-refresher`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to set trainee to refresher status");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status Updated",
+        description: "Trainee status changed to Refresher",
+      });
+      
+      // Refresh trainee list to show updated status
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`] 
+      });
+      
+      // Also refresh quiz attempts as some UI elements might depend on status
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to set trainee status to refresher",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Handler for refresher dialog
   const handleRefresherClick = (traineeId: number) => {
@@ -350,10 +395,23 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                                   <Button 
                                     variant="outline" 
                                     size="sm"
+                                    onClick={() => setRefresherStatusMutation.mutate(attempt.userId)}
+                                    disabled={setRefresherStatusMutation.isPending}
+                                  >
+                                    {setRefresherStatusMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="h-4 w-4 mr-1" />
+                                    )}
+                                    Refresher
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
                                     onClick={() => handleRefresherClick(attempt.userId)}
                                   >
                                     <RefreshCw className="h-4 w-4 mr-1" />
-                                    Refresher
+                                    Schedule
                                   </Button>
                                   <Button 
                                     variant="outline" 
@@ -367,16 +425,31 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                               )}
                             </div>
                           ) : (
-                            <div className="flex justify-end">
+                            <div className="flex justify-end space-x-2">
                               {hasPermission("manage_batches") && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
-                                >
-                                  <Award className="h-4 w-4 mr-1" />
-                                  Certify
-                                </Button>
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
+                                  >
+                                    <Award className="h-4 w-4 mr-1" />
+                                    Certify
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => setRefresherStatusMutation.mutate(attempt.userId)}
+                                    disabled={setRefresherStatusMutation.isPending}
+                                  >
+                                    {setRefresherStatusMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="h-4 w-4 mr-1" />
+                                    )}
+                                    Refresher
+                                  </Button>
+                                </>
                               )}
                             </div>
                           )}

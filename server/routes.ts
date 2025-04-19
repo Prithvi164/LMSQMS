@@ -3289,6 +3289,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Set a trainee status to refresher
+  app.post("/api/organizations/:organizationId/batches/:batchId/trainees/:userId/set-refresher", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const userId = parseInt(req.params.userId);
+
+      if (isNaN(batchId) || isNaN(organizationId) || isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid ID parameters" });
+      }
+
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      // Find the userBatchProcess record
+      const userBatchProcess = await db.query.userBatchProcesses.findFirst({
+        where: and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(userBatchProcesses.userId, userId),
+          eq(userBatchProcesses.status, 'active')
+        )
+      });
+
+      if (!userBatchProcess) {
+        return res.status(404).json({ message: "User not enrolled in this batch" });
+      }
+
+      // Update the trainee status to refresher with manual override
+      const updatedUserBatchProcess = await storage.updateTraineeStatus(
+        userBatchProcess.id,
+        'refresher',
+        true // Set as manual status to prevent auto-updates
+      );
+
+      // Return updated user batch process record
+      res.json(updatedUserBatchProcess);
+    } catch (error) {
+      console.error("Error setting trainee to refresher status:", error);
+      res.status(500).json({ message: "Failed to set trainee to refresher status" });
+    }
+  });
+
   // Schedule refresher training for a trainee
   app.post("/api/organizations/:organizationId/batches/:batchId/trainees/:userId/refresher", async (req, res) => {
     if (!req.user) {
