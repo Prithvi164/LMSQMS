@@ -2884,17 +2884,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(organizationProcesses.organizationId, req.user.organizationId),
             eq(quizzes.status, 'active'),
-            // If there are specific quiz assignments for this trainee, only show those
-            // Otherwise, fall back to showing quizzes for assigned processes
-            assignedQuizIds.length > 0 
-              ? inArray(quizzes.id, assignedQuizIds)
-              : inArray(quizzes.processId, assignedProcessIds.length > 0 ? assignedProcessIds : [-1]),
+            // ONLY show quizzes specifically assigned to this trainee
+            // If no assignments, they won't see any quizzes (using -1 as a non-existent ID)
+            inArray(quizzes.id, assignedQuizIds.length > 0 ? assignedQuizIds : [-1]),
             // Only return quizzes that haven't expired yet
             gte(quizzes.endTime, new Date())
           )
         );
         
-        console.log(`Using quiz selection logic: ${assignedQuizIds.length > 0 ? 'traineeId-specific assignments' : 'process-based assignments'}`);
+        console.log(`Only showing traineeId-specific assignments. Found ${assignedQuizIds.length} assignments.`);
         
       const result = await processBatchQuizzesQuery;
 
