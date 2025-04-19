@@ -2858,8 +2858,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
       const assignedQuizIds = assignedQuizIdsResult.map(qa => qa.quizId);
+      console.log('Quizzes specifically assigned to this user:', assignedQuizIds);
       
-      // Method 2: Get quizzes for assigned processes (traditional way)
+      // Method 2: For each quiz, check if it has ANY assignments
+      // If a quiz has assignments, it should ONLY be shown to trainees who have it assigned
+      const quizzesWithAssignmentsResult = await db
+        .select({
+          quizId: quizAssignments.quizId,
+          count: count()
+        })
+        .from(quizAssignments)
+        .groupBy(quizAssignments.quizId);
+      
+      // Map of quiz IDs to assignment counts
+      const quizAssignmentCounts = new Map();
+      quizzesWithAssignmentsResult.forEach(item => {
+        quizAssignmentCounts.set(item.quizId, item.count);
+      });
+      console.log('Quizzes with assignment counts:', [...quizAssignmentCounts.entries()]);
+      
+      // Method 3: Get quizzes for assigned processes (traditional way)
       const processBatchQuizzesQuery = db
         .select({
           quiz_id: quizzes.id,
@@ -2882,20 +2900,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(organizationProcesses.organizationId, req.user.organizationId),
             eq(quizzes.status, 'active'),
-            or(
-              // Either it's assigned to the user's process
-              inArray(quizzes.processId, assignedProcessIds.length > 0 ? assignedProcessIds : [-1]),
-              // Or it's specifically assigned to this user
-              inArray(quizzes.id, assignedQuizIds.length > 0 ? assignedQuizIds : [-1])
-            ),
             // Only return quizzes that haven't expired yet
             gte(quizzes.endTime, new Date())
           )
         );
         
-      const result = await processBatchQuizzesQuery;
+      let result = await processBatchQuizzesQuery;
 
-      console.log('Found quizzes:', result);
+      // Now apply the assignment filtering logic:
+      // 1. If a quiz has specific assignments (in quizAssignmentCounts), only show it to assigned users
+      // 2. If a quiz has no assignments, show it to all users in the process (traditional way)
+      result = result.filter(quiz => {
+        const quizId = quiz.quiz_id;
+        const hasAssignments = quizAssignmentCounts.has(quizId);
+        
+        if (hasAssignments) {
+          // If quiz has assignments, only show to users with direct assignment
+          return assignedQuizIds.includes(quizId);
+        } else {
+          // If quiz has no assignments, show to all users in the process (traditional way)
+          return assignedProcessIds.includes(quiz.processId);
+        }
+      });
+
+      console.log('Found quizzes after filtering by assignment rules:', result);
       res.json(result);
 
     } catch (error: any) {
