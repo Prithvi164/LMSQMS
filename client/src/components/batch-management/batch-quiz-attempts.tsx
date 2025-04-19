@@ -82,7 +82,11 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   const [refresherStartDate, setRefresherStartDate] = useState<Date | undefined>(undefined);
   const [refresherEndDate, setRefresherEndDate] = useState<Date | undefined>(undefined);
   // Keep track of which trainees have been set to refresher status
-  const [refreshedTraineeIds, setRefreshedTraineeIds] = useState<number[]>([]);
+  // Use localStorage to persist the state across navigation
+  const [refreshedTraineeIds, setRefreshedTraineeIds] = useState<number[]>(() => {
+    const savedIds = localStorage.getItem(`refreshed-trainees-${batchId}`);
+    return savedIds ? JSON.parse(savedIds) : [];
+  });
   
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
@@ -297,7 +301,12 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       });
       
       // Add the trainee ID to the list of refreshed trainees
-      setRefreshedTraineeIds(prev => [...prev, variables]);
+      setRefreshedTraineeIds(prev => {
+        const newIds = [...prev, variables];
+        // Also store in localStorage for persistence
+        localStorage.setItem(`refreshed-trainees-${batchId}`, JSON.stringify(newIds));
+        return newIds;
+      });
       
       // Refresh trainee list to show updated status
       queryClient.invalidateQueries({ 
