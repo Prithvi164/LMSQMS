@@ -5642,6 +5642,43 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  async getBatchEvents(batchId: number, filters?: {
+    eventType?: string;
+    status?: string;
+    organizationId?: number;
+  }): Promise<any[]> {
+    try {
+      console.log(`Fetching batch events for batch ${batchId} with filters:`, filters);
+      
+      let query = db.select().from(batchEvents).where(eq(batchEvents.batchId, batchId));
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.eventType) {
+          query = query.where(eq(batchEvents.eventType, filters.eventType as any));
+        }
+        
+        if (filters.status) {
+          query = query.where(eq(batchEvents.status, filters.status));
+        }
+        
+        if (filters.organizationId) {
+          query = query.where(eq(batchEvents.organizationId, filters.organizationId));
+        }
+      }
+      
+      // Order by createdAt descending to get the most recent events first
+      query = query.orderBy(desc(batchEvents.createdAt));
+      
+      const events = await query;
+      console.log(`Retrieved ${events.length} events for batch ${batchId}`);
+      return events;
+    } catch (error) {
+      console.error('Error fetching batch events:', error);
+      return [];
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
