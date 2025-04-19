@@ -1336,6 +1336,44 @@ export const batchHistory = pgTable("batch_history", {  id: serial("id").primary
 
 export type BatchHistory = InferSelectModel<typeof batchHistory>;
 
+// Batch calendar events for scheduling refresher trainings, etc.
+export const batchEventStatusEnum = pgEnum('batch_event_status', [
+  'scheduled',
+  'completed',
+  'cancelled'
+]);
+
+export const batchEventTypeEnum = pgEnum('batch_event_type', [
+  'refresher',
+  'quiz',
+  'training',
+  'meeting',
+  'other'
+]);
+
+export const batchEvents = pgTable("batch_events", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  eventType: batchEventTypeEnum("event_type").default('other').notNull(),
+  status: batchEventStatusEnum("status").default('scheduled').notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type BatchEvent = InferSelectModel<typeof batchEvents>;
+
 export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   .omit({
     id: true,

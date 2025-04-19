@@ -5099,8 +5099,8 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching trainee ${userId} for batch ${batchId}`);
 
-      // Import the batch table from schema.ts at the top of the function
-      const { batch, organizationProcesses } = await import('@shared/schema');
+      // Import the correct tables from schema.ts
+      const { organizationBatches, organizationProcesses } = await import('@shared/schema');
 
       const [trainee] = await db
         .select({
@@ -5109,15 +5109,17 @@ export class DatabaseStorage implements IStorage {
           batchId: userBatchProcesses.batchId,
           processId: userBatchProcesses.processId,
           status: userBatchProcesses.status,
+          traineeStatus: userBatchProcesses.traineeStatus,
+          isManualStatus: userBatchProcesses.isManualStatus,
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
-          batchName: batch.name,
+          batchName: organizationBatches.name,
           processName: organizationProcesses.name,
         })
         .from(userBatchProcesses)
         .leftJoin(
-          batch,
-          eq(userBatchProcesses.batchId, batch.id)
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
         )
         .leftJoin(
           organizationProcesses,
