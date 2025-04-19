@@ -3299,6 +3299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organizationId = parseInt(req.params.organizationId);
       const batchId = parseInt(req.params.batchId);
       const userId = parseInt(req.params.userId);
+      const { reason } = req.body;
 
       if (isNaN(batchId) || isNaN(organizationId) || isNaN(userId)) {
         return res.status(400).json({ message: "Invalid ID parameters" });
@@ -3329,6 +3330,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         true // Set as manual status to prevent auto-updates
       );
 
+      // Get trainee information
+      const trainee = await storage.getUser(userId);
+      if (!trainee) {
+        return res.status(404).json({ message: "Trainee not found" });
+      }
+
+      // Create a batch event to track this immediate refresher action
+      await storage.createBatchEvent({
+        organizationId,
+        batchId,
+        createdBy: req.user.id,
+        title: `Immediate Refresher for ${trainee.fullName || `Trainee #${userId}`}`,
+        description: 'Trainee status set to refresher immediately',
+        eventType: 'refresher',
+        status: 'completed',
+        refresherReason: reason || null,
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString() // same date since this is an immediate action
+      });
+
       // Return updated user batch process record
       res.json(updatedUserBatchProcess);
     } catch (error) {
@@ -3347,7 +3368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organizationId = parseInt(req.params.organizationId);
       const batchId = parseInt(req.params.batchId);
       const userId = parseInt(req.params.userId);
-      const { notes } = req.body;
+      const { notes, reason } = req.body;
 
       if (isNaN(batchId) || isNaN(organizationId) || isNaN(userId)) {
         return res.status(400).json({ message: "Invalid ID parameters" });
@@ -3386,7 +3407,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startDate: tomorrow.toISOString(),
         endDate: dayAfterTomorrow.toISOString(),
         eventType: 'refresher',
-        status: 'scheduled'
+        status: 'scheduled',
+        refresherReason: reason || null
       });
 
       res.json({ message: "Refresher training scheduled successfully" });
