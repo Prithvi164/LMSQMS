@@ -5688,6 +5688,129 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+
+  // Quiz Assignment methods
+  async createQuizAssignment(assignment: InsertQuizAssignment): Promise<QuizAssignment> {
+    try {
+      // Check if quiz exists
+      const quiz = await this.getQuiz(assignment.quizId);
+      if (!quiz) {
+        throw new Error(`Quiz with ID ${assignment.quizId} does not exist`);
+      }
+
+      // Check if user exists
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, assignment.userId));
+        
+      if (!user) {
+        throw new Error(`User with ID ${assignment.userId} does not exist`);
+      }
+
+      // Check if user is enrolled in the batch
+      const [userInBatch] = await db
+        .select()
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.userId, assignment.userId))
+        .where(eq(userBatchProcesses.batchId, assignment.batchId));
+
+      if (!userInBatch) {
+        throw new Error(`User with ID ${assignment.userId} is not enrolled in batch ${assignment.batchId}`);
+      }
+
+      // Create the assignment
+      const [newAssignment] = await db
+        .insert(quizAssignments)
+        .values(assignment)
+        .returning() as QuizAssignment[];
+        
+      return newAssignment;
+    } catch (error) {
+      console.error('Error creating quiz assignment:', error);
+      throw error;
+    }
+  }
+
+  async getQuizAssignments(quizId: number): Promise<QuizAssignment[]> {
+    try {
+      const assignments = await db
+        .select()
+        .from(quizAssignments)
+        .where(eq(quizAssignments.quizId, quizId)) as QuizAssignment[];
+        
+      return assignments;
+    } catch (error) {
+      console.error('Error fetching quiz assignments:', error);
+      throw error;
+    }
+  }
+
+  async getQuizAssignmentsByUser(userId: number): Promise<QuizAssignment[]> {
+    try {
+      const assignments = await db
+        .select()
+        .from(quizAssignments)
+        .where(eq(quizAssignments.userId, userId)) as QuizAssignment[];
+        
+      return assignments;
+    } catch (error) {
+      console.error('Error fetching user quiz assignments:', error);
+      throw error;
+    }
+  }
+
+  async getQuizAssignmentByUserAndQuiz(userId: number, quizId: number): Promise<QuizAssignment | undefined> {
+    try {
+      const [assignment] = await db
+        .select()
+        .from(quizAssignments)
+        .where(eq(quizAssignments.userId, userId))
+        .where(eq(quizAssignments.quizId, quizId)) as QuizAssignment[];
+        
+      return assignment;
+    } catch (error) {
+      console.error('Error fetching quiz assignment:', error);
+      throw error;
+    }
+  }
+
+  async listTraineesForQuiz(quizId: number, batchId: number): Promise<{ userId: number; fullName: string }[]> {
+    try {
+      // Get the quiz
+      const quiz = await this.getQuiz(quizId);
+      if (!quiz) {
+        throw new Error(`Quiz with ID ${quizId} does not exist`);
+      }
+
+      // Get the trainees for the batch
+      const trainees = await db
+        .select({
+          userId: users.id,
+          fullName: users.fullName
+        })
+        .from(userBatchProcesses)
+        .innerJoin(users, eq(userBatchProcesses.userId, users.id))
+        .where(eq(userBatchProcesses.batchId, batchId))
+        .where(eq(users.category, 'trainee'));
+
+      return trainees;
+    } catch (error) {
+      console.error('Error listing trainees for quiz:', error);
+      throw error;
+    }
+  }
+
+  async deleteQuizAssignment(id: number): Promise<void> {
+    try {
+      await db
+        .delete(quizAssignments)
+        .where(eq(quizAssignments.id, id));
+    } catch (error) {
+      console.error('Error deleting quiz assignment:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
