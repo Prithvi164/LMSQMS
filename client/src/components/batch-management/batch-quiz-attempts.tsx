@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle, XCircle, Award, RefreshCw, FileQuestion, Filter, CalendarIcon } from "lucide-react";
+import { Loader2, CheckCircle, Check, XCircle, Award, RefreshCw, FileQuestion, Filter, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -464,6 +464,8 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                                   >
                                     {setRefresherStatusMutation.isPending ? (
                                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : refreshedTraineeIds.includes(attempt.userId) ? (
+                                      <Check className="h-4 w-4 mr-1 text-green-500" />
                                     ) : (
                                       <RefreshCw className="h-4 w-4 mr-1" />
                                     )}
@@ -508,6 +510,8 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                                   >
                                     {setRefresherStatusMutation.isPending ? (
                                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : refreshedTraineeIds.includes(attempt.userId) ? (
+                                      <Check className="h-4 w-4 mr-1 text-green-500" />
                                     ) : (
                                       <RefreshCw className="h-4 w-4 mr-1" />
                                     )}
