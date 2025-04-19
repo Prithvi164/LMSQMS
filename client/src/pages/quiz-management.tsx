@@ -809,16 +809,42 @@ export function QuizManagement() {
       durationInHours: number;
       trainees?: number[] 
     }) => {
-      // First, generate the quiz
+      // Get the template to check if it has a batch
+      const template = quizTemplates.find(t => t.id === templateId);
+      const hasBatch = template && template.batchId;
+      
+      // Prepare the request body
+      const requestBody: any = {
+        status: 'active',
+        durationInHours
+      };
+      
+      // Determine assignment strategy
+      if (hasBatch) {
+        if (assignmentType === 'all') {
+          // Assign to all trainees in batch
+          requestBody.assignToAllBatch = true;
+        } else if (trainees && trainees.length > 0) {
+          // Assign to specific trainees
+          requestBody.assignToUsers = trainees;
+        }
+      }
+      
+      console.log('Generating quiz with parameters:', {
+        templateId,
+        durationInHours,
+        assignmentType,
+        assignToAllBatch: requestBody.assignToAllBatch,
+        assignToUsers: requestBody.assignToUsers
+      });
+      
+      // Generate the quiz with assignments in a single request
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: 'active',
-          durationInHours 
-        }),
+        body: JSON.stringify(requestBody),
         credentials: 'include'
       });
       
@@ -828,32 +854,6 @@ export function QuizManagement() {
       }
       
       const quizData = await response.json();
-      
-      // If specific trainees are selected, create quiz assignments
-      if (trainees && trainees.length > 0) {
-        const template = quizTemplates.find(t => t.id === templateId);
-        if (!template || !template.batchId) {
-          throw new Error('Template has no associated batch');
-        }
-        
-        const assignmentResponse = await fetch(`/api/quizzes/${quizData.id}/assignments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userIds: trainees,
-            batchId: template.batchId
-          }),
-          credentials: 'include'
-        });
-        
-        if (!assignmentResponse.ok) {
-          // Even if assignment fails, we'll still return the quiz
-          console.error('Failed to create quiz assignments');
-        }
-      }
-      
       return quizData;
     },
     onSuccess: (data) => {

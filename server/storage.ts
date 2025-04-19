@@ -20,6 +20,7 @@ import {
   audioFileAllocations,
   audioFileBatchAllocations,
   evaluationFeedback,
+  quizAssignments,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -90,7 +91,9 @@ import {
   type EvaluationScore,
   type InsertEvaluationScore,
   type EvaluationFeedback,
-  type InsertEvaluationFeedback
+  type InsertEvaluationFeedback,
+  type QuizAssignment,
+  type InsertQuizAssignment
 } from "@shared/schema";
 
 // Add to IStorage interface
