@@ -704,6 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all trainees assigned to this batch and their attendance for the specified date and phase
       const batchTrainees = await db
         .select({
+          id: userBatchProcesses.id,
           userId: userBatchProcesses.userId,
           status: userBatchProcesses.status,
           traineeStatus: userBatchProcesses.traineeStatus,
@@ -743,6 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Map to expected format
       const formattedTrainees = batchTrainees.map((trainee) => ({
         id: trainee.userId,
+        userBatchProcessId: trainee.id,
         status: trainee.attendance?.status || null,
         lastUpdated: trainee.attendance?.lastUpdated?.toISOString(),
         fullName: trainee.user.fullName,
