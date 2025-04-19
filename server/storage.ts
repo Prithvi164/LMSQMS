@@ -5165,19 +5165,41 @@ export class DatabaseStorage implements IStorage {
         // This is a schedule/calendar event
         console.log('Creating batch calendar event');
         
+        // Parse dates properly to ensure they are valid Date objects
+        let startDate, endDate;
+        
+        try {
+          startDate = new Date(event.startDate);
+          endDate = new Date(event.endDate);
+          
+          // Validate the dates
+          if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            throw new Error('Invalid date format');
+          }
+        } catch (err) {
+          console.error('Date parsing error:', err);
+          // Fallback to current time + 1 day for end date if parsing fails
+          const now = new Date();
+          startDate = now;
+          endDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +1 day
+        }
+        
+        console.log('Using dates:', { startDate, endDate });
+        
         const [newEvent] = await db
           .insert(batchEvents)
           .values({
             batchId: event.batchId,
             title: event.title || 'Scheduled Event',
             description: event.description || '',
-            startDate: new Date(event.startDate),
-            endDate: new Date(event.endDate),
+            startDate: startDate,
+            endDate: endDate,
             eventType: event.eventType || 'refresher',
             organizationId: event.organizationId,
             createdBy: event.createdBy || event.userId || 1,
             status: event.status || 'scheduled',
-            createdAt: new Date()
+            createdAt: new Date(),
+            updatedAt: new Date()
           })
           .returning() as any[];
           
@@ -5202,7 +5224,7 @@ export class DatabaseStorage implements IStorage {
             userId: event.userId || event.createdBy || 1,
             eventType: event.eventType as "phase_change" | "status_update" | "milestone" | "note",
             description: event.description || 'Batch event',
-            date: event.date,
+            date: new Date(event.date),
             previousValue: event.previousValue,
             newValue: event.newValue,
             organizationId: event.organizationId,

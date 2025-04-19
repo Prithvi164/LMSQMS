@@ -8708,9 +8708,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const { organizationId, batchId, traineeId } = req.params;
-      const { notes } = req.body;
+      const { notes, startDate, endDate } = req.body;
       
-      console.log(`Scheduling refresher training for trainee ${traineeId} in batch ${batchId}`);
+      console.log(`Scheduling refresher training for trainee ${traineeId} in batch ${batchId}`, { 
+        notes, startDate, endDate 
+      });
       
       // Get the batch first to make sure it exists
       const batch = await storage.getBatch(Number(batchId));
@@ -8739,7 +8741,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
       
-      // Create an event for the batch calendar to track the refresher training
+      // Create a calendar event for the refresher training
+      const event = await storage.createBatchEvent({
+        organizationId: Number(organizationId),
+        batchId: Number(batchId),
+        createdBy: req.user.id,
+        title: `Refresher Training for ${trainee.fullName}`,
+        description: notes || 'Refresher training scheduled',
+        startDate: startDate || new Date().toISOString(),
+        endDate: endDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Default to 1 day
+        eventType: 'refresher',
+        status: 'scheduled'
+      });
       if (updated) {
         // Schedule the refresher for the next day
         const tomorrow = new Date();
