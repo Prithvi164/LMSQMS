@@ -5160,7 +5160,7 @@ export class DatabaseStorage implements IStorage {
     date?: string;
     previousValue?: string;
     newValue?: string;
-    reason?: string; // Added refresher reason field
+    refresherReason?: string | null; // Added refresher reason field
   }): Promise<any> {
     try {
       console.log('Creating batch event:', event);
@@ -5206,6 +5206,7 @@ export class DatabaseStorage implements IStorage {
             organizationId: event.organizationId,
             createdBy: event.createdBy || event.userId || 1,
             status: event.status || 'scheduled',
+            refresherReason: event.refresherReason || null,
             createdAt: new Date(),
             updatedAt: new Date()
           })
