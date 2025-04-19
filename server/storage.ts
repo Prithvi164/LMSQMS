@@ -335,6 +335,14 @@ export interface IStorage {
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
 
+  // Quiz Assignment functions for trainee-specific quiz assignments
+  createQuizAssignment(assignment: InsertQuizAssignment): Promise<QuizAssignment>;
+  getQuizAssignments(quizId: number): Promise<QuizAssignment[]>;
+  getQuizAssignmentsByUser(userId: number): Promise<QuizAssignment[]>;
+  getQuizAssignmentByUserAndQuiz(userId: number, quizId: number): Promise<QuizAssignment | undefined>;
+  listTraineesForQuiz(quizId: number, batchId: number): Promise<{ userId: number; fullName: string }[]>;
+  deleteQuizAssignment(id: number): Promise<void>;
+  
   getQuiz(id: number): Promise<Quiz | undefined>;
   getQuizzesByTemplateId(templateId: number): Promise<Quiz[]>;
 

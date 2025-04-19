@@ -343,11 +343,39 @@ export const quizResponses = pgTable("quiz_responses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Table for quiz assignments to specific trainees
+export const quizAssignments = pgTable("quiz_assignments", {
+  id: serial("id").primaryKey(),
+  quizId: integer("quiz_id")
+    .references(() => quizzes.id)
+    .notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  assignedBy: integer("assigned_by")
+    .references(() => users.id)
+    .notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  status: text("status").default('assigned').notNull(), // 'assigned', 'completed', 'expired'
+}, (table) => {
+  return {
+    // Create unique constraint on quizId and userId to prevent duplicate assignments
+    unq: unique().on(table.quizId, table.userId)
+  };
+});
+
 // Quiz-related types
 export type Question = InferSelectModel<typeof questions>;
 export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
 export type Quiz = InferSelectModel<typeof quizzes>;
 export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
+export type QuizAssignment = InferSelectModel<typeof quizAssignments>;
 export type QuizResponse = InferSelectModel<typeof quizResponses>;
 
 // Quiz-related schemas
@@ -448,11 +476,27 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
+// Schema for creating quiz assignments
+export const insertQuizAssignmentSchema = createInsertSchema(quizAssignments)
+  .omit({
+    id: true,
+    assignedAt: true,
+  })
+  .extend({
+    quizId: z.number().int().positive("Quiz is required"),
+    userId: z.number().int().positive("User is required"),
+    batchId: z.number().int().positive("Batch is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    assignedBy: z.number().int().positive("Assigner is required"),
+    status: z.string().default('assigned')
+  });
+
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;
 export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
 export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
+export type InsertQuizAssignment = z.infer<typeof insertQuizAssignmentSchema>;
 
 // Quiz-related relations
 export const questionsRelations = relations(questions, ({ one }) => ({
