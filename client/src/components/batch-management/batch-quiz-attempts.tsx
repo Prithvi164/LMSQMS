@@ -78,6 +78,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   // For modal states
   const [refresherDialogOpen, setRefresherDialogOpen] = useState(false);
   const [refresherNotes, setRefresherNotes] = useState("");
+  const [refresherReason, setRefresherReason] = useState<string>(""); // New state for reason dropdown
   const [selectedTraineeId, setSelectedTraineeId] = useState<number | null>(null);
   const [refresherStartDate, setRefresherStartDate] = useState<Date | undefined>(undefined);
   const [refresherEndDate, setRefresherEndDate] = useState<Date | undefined>(undefined);
@@ -154,7 +155,8 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
           body: JSON.stringify({ 
             notes: refresherNotes,
             startDate: refresherStartDate.toISOString(),
-            endDate: refresherEndDate.toISOString()
+            endDate: refresherEndDate.toISOString(),
+            reason: refresherReason
           }),
           credentials: 'include'
         }
@@ -561,6 +563,22 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="refresherReason">Reason for Refresher</Label>
+              <Select
+                value={refresherReason}
+                onValueChange={setRefresherReason}
+              >
+                <SelectTrigger id="refresherReason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fail_in_quiz_test">Fail in Quiz Test</SelectItem>
+                  <SelectItem value="fail_in_certification">Fail in Certification</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
             <Textarea
               id="refresherNotes"
               placeholder="Notes for the refresher training..."
