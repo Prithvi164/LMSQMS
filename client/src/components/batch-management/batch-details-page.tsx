@@ -707,8 +707,6 @@ export function BatchDetailsPage() {
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
           <TabsTrigger value="assessments">Assessment Results</TabsTrigger>
           <TabsTrigger value="refreshers">Refreshers</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="quiz">Quiz Attempts</TabsTrigger>
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
           )}
@@ -1057,32 +1055,6 @@ export function BatchDetailsPage() {
                 />
               ) : (
                 <p>Loading refresher data...</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="timeline" className="space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">Batch Timeline</h2>
-              </div>
-              <BatchTimeline batchId={batchId} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="quiz" className="space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Quiz Attempts</h2>
-              {batchId && user?.organizationId && (
-                <BatchQuizAttempts 
-                  batchId={parseInt(batchId)} 
-                  organizationId={user.organizationId} 
-                  filter="all" 
-                />
               )}
             </CardContent>
           </Card>
