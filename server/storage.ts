@@ -3181,10 +3181,18 @@ export class DatabaseStorage implements IStorage {
     joinedAt: Date;
   }): Promise<UserBatchProcess> {
     try {
+      // Get the current batch status to set initial trainee status
+      const batch = await db.query.organizationBatches.findFirst({
+        where: eq(organizationBatches.id, userBatchProcess.batchId)
+      });
+      
+      // Set the trainee status to match the batch status
       const [result] = await db
         .insert(userBatchProcesses)
         .values({
           ...userBatchProcess,
+          traineeStatus: batch?.status, // Set initial trainee status to match batch status
+          isManualStatus: false, // Mark as auto-synced
           createdAt: new Date(),
           updatedAt: new Date()
         })
