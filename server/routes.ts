@@ -10,6 +10,7 @@ import {
   organizationProcesses, 
   userProcesses, 
   quizzes, 
+  quizAssignments,
   insertMockCallScenarioSchema, 
   insertMockCallAttemptSchema, 
   mockCallScenarios, 
