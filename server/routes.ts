@@ -8781,7 +8781,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startDate: startDate || new Date().toISOString(),
         endDate: endDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Default to 1 day
         eventType: 'refresher',
-        status: 'scheduled'
+        status: 'scheduled',
+        reason: reason || null // Include refresher reason
       });
       if (updated) {
         // Schedule the refresher for the next day
@@ -8800,7 +8801,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eventType: 'refresher',
             organizationId: Number(organizationId),
             createdBy: req.user.id,
-            status: 'scheduled'
+            status: 'scheduled',
+            reason: reason || null // Include refresher reason
           };
           
           await storage.createBatchEvent(eventData);
