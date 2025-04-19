@@ -95,9 +95,9 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
   const [certificationDialogOpen, setCertificationDialogOpen] = useState(false);
   const [selectedQuizAttemptId, setSelectedQuizAttemptId] = useState<number | null>(null);
 
-  // Fetch quizzes for reassignment
-  const { data: quizzes } = useQuery({
-    queryKey: [`/api/organizations/${organizationId}/quizzes`],
+  // Fetch quiz templates for reassignment
+  const { data: quizTemplates } = useQuery({
+    queryKey: ['/api/quiz-templates'],
     enabled: reassignDialogOpen
   });
 
@@ -191,43 +191,52 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     },
   });
 
-  // Mutation for reassigning quiz
+  // Mutation for reassigning quiz using template
   const reassignQuizMutation = useMutation({
     mutationFn: async () => {
       if (!selectedTraineeId || !selectedQuizId) return;
       
-      const response = await fetch(
-        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/reassign-quiz`,
+      // First, generate a quiz from the template
+      const generateResponse = await fetch(
+        `/api/quiz-templates/${selectedQuizId}/generate`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quizId: selectedQuizId }),
+          body: JSON.stringify({ 
+            durationInHours: 24, // Default 24 hours
+            assignToUsers: [selectedTraineeId] // Only assign to this trainee
+          }),
           credentials: 'include'
         }
       );
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to reassign quiz");
+      if (!generateResponse.ok) {
+        const error = await generateResponse.json();
+        throw new Error(error.message || "Failed to generate quiz from template");
       }
       
-      return response.json();
+      const generatedQuiz = await generateResponse.json();
+      
+      // Return the generated quiz - we don't need to do a separate assignment
+      // as we assigned it directly to the trainee during generation
+      return generatedQuiz;
     },
     onSuccess: () => {
       toast({
-        title: "Quiz Reassigned",
-        description: "Quiz has been reassigned to the trainee",
+        title: "Quiz Assigned",
+        description: "New quiz has been generated and assigned to the trainee",
       });
       setReassignDialogOpen(false);
       setSelectedQuizId(null);
       setSelectedTraineeId(null);
       // Refresh relevant data
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`] });
       queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/events`] });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to reassign quiz",
+        description: error instanceof Error ? error.message : "Failed to assign quiz",
         variant: "destructive",
       });
     },
@@ -668,9 +677,9 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reassign Quiz</DialogTitle>
+            <DialogTitle>Assign New Quiz</DialogTitle>
             <DialogDescription>
-              Select a quiz to reassign to the trainee
+              Select a quiz template to generate a new quiz for the trainee
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -678,12 +687,12 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
               onValueChange={(value) => setSelectedQuizId(Number(value))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a quiz to reassign" />
+                <SelectValue placeholder="Select a quiz template" />
               </SelectTrigger>
               <SelectContent>
-                {quizzes?.map((quiz: any) => (
-                  <SelectItem key={quiz.id} value={quiz.id.toString()}>
-                    {quiz.name}
+                {quizTemplates?.map((template: any) => (
+                  <SelectItem key={template.id} value={template.id.toString()}>
+                    {template.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -705,10 +714,10 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
               {reassignQuizMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Reassigning...
+                  Generating...
                 </>
               ) : (
-                "Reassign Quiz"
+                "Generate & Assign Quiz"
               )}
             </Button>
           </DialogFooter>
