@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BatchTimeline } from "./batch-timeline";
 import { BatchQuizAttempts } from "./batch-quiz-attempts";
+import { RefreshersList } from "./refreshers-list";
 import {
   Dialog,
   DialogContent,
@@ -705,6 +706,7 @@ export function BatchDetailsPage() {
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
           <TabsTrigger value="assessments">Assessment Results</TabsTrigger>
+          <TabsTrigger value="refreshers">Refreshers</TabsTrigger>
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
           )}
@@ -1042,6 +1044,22 @@ export function BatchDetailsPage() {
             </Card>
           </TabsContent>
         )}
+        <TabsContent value="refreshers" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Refresher Trainings</h2>
+              {batchId && user?.organizationId ? (
+                <RefreshersList 
+                  batchId={parseInt(batchId)} 
+                  organizationId={user.organizationId} 
+                />
+              ) : (
+                <p>Loading refresher data...</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardContent className="p-6">

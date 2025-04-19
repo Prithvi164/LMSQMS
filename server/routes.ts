@@ -8918,6 +8918,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get batch refresher events (all events of type 'refresher')
+  app.get("/api/organizations/:organizationId/batches/:batchId/refresher-events", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const { organizationId, batchId } = req.params;
+      
+      // Check if the getBatchEvents function exists on storage 
+      if (typeof storage.getBatchEvents !== 'function') {
+        return res.status(501).json({ message: 'Feature not implemented yet' });
+      }
+      
+      // Get all refresher events for this batch
+      const events = await storage.getBatchEvents(
+        Number(batchId), 
+        { 
+          eventType: 'refresher',
+          organizationId: Number(organizationId)
+        }
+      );
+      
+      // Get all trainees in this batch who are in refresher status
+      const trainees = await storage.getBatchTrainees(Number(batchId));
+      const refresherTrainees = trainees.filter(trainee => 
+        trainee.traineeStatus === 'refresher' && trainee.isManualStatus
+      );
+      
+      // For each event, try to find and attach the trainee information
+      const eventsWithTraineeInfo = await Promise.all(events.map(async (event) => {
+        // Extract trainee ID from title or description if available
+        const traineeNameMatch = event.title.match(/for\s+(.*?)$/i) || 
+                               event.title.match(/:\s+(.*?)$/i);
+        
+        let traineeInfo = null;
+        
+        if (traineeNameMatch && traineeNameMatch[1]) {
+          const traineeName = traineeNameMatch[1].trim();
+          // Find trainee by name
+          const matchedTrainee = refresherTrainees.find(t => 
+            (t.fullName && t.fullName.includes(traineeName)) || 
+            (t.user && t.user.fullName && t.user.fullName.includes(traineeName))
+          );
+          
+          if (matchedTrainee) {
+            traineeInfo = {
+              id: matchedTrainee.id || matchedTrainee.userId,
+              fullName: matchedTrainee.fullName || (matchedTrainee.user && matchedTrainee.user.fullName),
+              employeeId: matchedTrainee.employeeId || (matchedTrainee.user && matchedTrainee.user.employeeId)
+            };
+          }
+        }
+        
+        return {
+          ...event,
+          trainee: traineeInfo
+        };
+      }));
+      
+      return res.json(eventsWithTraineeInfo);
+    } catch (error) {
+      console.error("Error fetching refresher events:", error);
+      return res.status(500).json({ message: 'Failed to fetch refresher events' });
+    }
+  });
+
   app.get("/api/organizations/:orgId/batches/:batchId/adjacent", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
