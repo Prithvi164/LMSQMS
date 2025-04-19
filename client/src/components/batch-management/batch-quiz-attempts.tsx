@@ -446,7 +446,15 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                                   <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setRefresherStatusMutation.mutate(attempt.userId)}
+                                    onClick={() => {
+                                      // First set the status to refresher
+                                      setRefresherStatusMutation.mutate(attempt.userId, {
+                                        onSuccess: () => {
+                                          // Then open the schedule dialog
+                                          handleRefresherClick(attempt.userId);
+                                        }
+                                      });
+                                    }}
                                     disabled={setRefresherStatusMutation.isPending}
                                   >
                                     {setRefresherStatusMutation.isPending ? (
@@ -455,14 +463,6 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                                       <RefreshCw className="h-4 w-4 mr-1" />
                                     )}
                                     Refresher
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleRefresherClick(attempt.userId)}
-                                  >
-                                    <RefreshCw className="h-4 w-4 mr-1" />
-                                    Schedule
                                   </Button>
                                   <Button 
                                     variant="outline" 
@@ -490,7 +490,15 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                                   <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => setRefresherStatusMutation.mutate(attempt.userId)}
+                                    onClick={() => {
+                                      // First set the status to refresher
+                                      setRefresherStatusMutation.mutate(attempt.userId, {
+                                        onSuccess: () => {
+                                          // Then open the schedule dialog
+                                          handleRefresherClick(attempt.userId);
+                                        }
+                                      });
+                                    }}
                                     disabled={setRefresherStatusMutation.isPending}
                                   >
                                     {setRefresherStatusMutation.isPending ? (
