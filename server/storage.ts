@@ -5719,11 +5719,28 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`User with ID ${assignment.userId} is not enrolled in batch ${assignment.batchId}`);
       }
 
-      // Create the assignment
-      const [newAssignment] = await db
-        .insert(quizAssignments)
-        .values(assignment)
-        .returning() as QuizAssignment[];
+      console.log("Creating quiz assignment with data:", {
+        ...assignment,
+        trainee_id: assignment.userId // Add trainee_id field to match database structure
+      });
+
+      // Create the assignment with both user_id and trainee_id fields
+      // Using raw SQL to handle the database column mismatch
+      const [newAssignment] = await db.execute(
+        `INSERT INTO quiz_assignments 
+        (quiz_id, user_id, trainee_id, batch_id, organization_id, assigned_by, status) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING *`,
+        [
+          assignment.quizId,
+          assignment.userId,
+          assignment.userId, // Set trainee_id equal to userId
+          assignment.batchId,
+          assignment.organizationId,
+          assignment.assignedBy,
+          assignment.status
+        ]
+      ) as QuizAssignment[];
         
       return newAssignment;
     } catch (error) {
