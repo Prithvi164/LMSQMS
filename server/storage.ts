@@ -3181,10 +3181,14 @@ export class DatabaseStorage implements IStorage {
     joinedAt: Date;
   }): Promise<UserBatchProcess> {
     try {
+      console.log(`Assigning user ${userBatchProcess.userId} to batch ${userBatchProcess.batchId}`);
+      
       // Get the current batch status to set initial trainee status
       const batch = await db.query.organizationBatches.findFirst({
         where: eq(organizationBatches.id, userBatchProcess.batchId)
       });
+      
+      console.log(`Retrieved batch info: ${batch?.name}, status: ${batch?.status}`);
       
       // Set the trainee status to match the batch status
       const [result] = await db
@@ -3197,6 +3201,9 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date()
         })
         .returning() as UserBatchProcess[];
+        
+      console.log(`User assigned to batch with trainee status: ${result.traineeStatus}`);
+      
 
       return result;
     } catch (error) {
