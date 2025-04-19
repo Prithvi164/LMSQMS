@@ -100,6 +100,13 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  // Batch Events operations
+  getBatchEvents(batchId: number, filters?: {
+    eventType?: string;
+    status?: string;
+    organizationId?: number;
+  }): Promise<any[]>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User>;
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
