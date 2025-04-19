@@ -2870,6 +2870,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Quiz assignment routes
+  app.post("/api/quizzes/:quizId/assignments", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const quizId = parseInt(req.params.quizId);
+      const { userIds, batchId } = req.body;
+      
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ message: "User IDs must be provided as an array" });
+      }
+      
+      if (!batchId) {
+        return res.status(400).json({ message: "Batch ID is required" });
+      }
+      
+      // Get the quiz
+      const quiz = await storage.getQuiz(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+      
+      // Create assignments for each user
+      const assignments = [];
+      for (const userId of userIds) {
+        try {
+          const assignment = await storage.createQuizAssignment({
+            quizId,
+            userId,
+            batchId,
+            organizationId: req.user.organizationId,
+            assignedBy: req.user.id,
+            status: 'assigned'
+          });
+          assignments.push(assignment);
+        } catch (error) {
+          console.error(`Error creating assignment for user ${userId}:`, error);
+          // Continue with other users even if one fails
+        }
+      }
+      
+      res.status(201).json({ 
+        message: `${assignments.length} quiz assignments created successfully`,
+        assignments
+      });
+    } catch (error) {
+      console.error("Error creating quiz assignments:", error);
+      res.status(500).json({ message: "Failed to create quiz assignments" });
+    }
+  });
+  
+  app.get("/api/quizzes/:quizId/assignments", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const quizId = parseInt(req.params.quizId);
+      
+      // Get the quiz
+      const quiz = await storage.getQuiz(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+      
+      // Get assignments for this quiz
+      const assignments = await storage.getQuizAssignments(quizId);
+      
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching quiz assignments:", error);
+      res.status(500).json({ message: "Failed to fetch quiz assignments" });
+    }
+  });
+  
+  app.get("/api/batches/:batchId/trainees-for-quiz/:quizId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const quizId = parseInt(req.params.quizId);
+      
+      // Get trainees for this batch and quiz
+      const trainees = await storage.listTraineesForQuiz(quizId, batchId);
+      
+      res.json(trainees);
+    } catch (error) {
+      console.error("Error fetching trainees for quiz:", error);
+      res.status(500).json({ message: "Failed to fetch trainees for quiz" });
+    }
+  });
+  
+  app.delete("/api/quizzes/assignments/:assignmentId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const assignmentId = parseInt(req.params.assignmentId);
+      
+      await storage.deleteQuizAssignment(assignmentId);
+      
+      res.json({ message: "Quiz assignment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting quiz assignment:", error);
+      res.status(500).json({ message: "Failed to delete quiz assignment" });
+    }
+  });
+  
   // Delete quiz endpoint
   app.delete("/api/quizzes/:id", async (req, res) => {
     if (!req.user) {
