@@ -70,6 +70,7 @@ import {
 type Trainee = {
   id: number;
   userId: number;
+  userBatchProcessId: number; // The ID of the user_batch_processes record
   employeeId: string;
   fullName: string;
   email: string;
@@ -703,7 +704,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 onClick={() => {
                   if (selectedTrainee) {
                     updateTraineeStatusMutation.mutate({
-                      traineeId: selectedTrainee.id,
+                      traineeId: selectedTrainee.userBatchProcessId,
                       status: selectedStatus,
                       isManualStatus: isManualStatusOverride
                     });
