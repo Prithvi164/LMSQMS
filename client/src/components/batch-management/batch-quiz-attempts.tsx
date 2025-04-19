@@ -196,6 +196,8 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     mutationFn: async () => {
       if (!selectedTraineeId || !selectedQuizId) return;
       
+      console.log(`Reassigning quiz to trainee ${selectedTraineeId} using template ${selectedQuizId}`);
+      
       // First, generate a quiz from the template
       const generateResponse = await fetch(
         `/api/quiz-templates/${selectedQuizId}/generate`,
@@ -204,7 +206,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             durationInHours: 24, // Default 24 hours
-            assignToUsers: [selectedTraineeId] // Only assign to this trainee
+            assignToUsers: [selectedTraineeId] // Only assign to this specific trainee
           }),
           credentials: 'include'
         }
@@ -216,15 +218,16 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       }
       
       const generatedQuiz = await generateResponse.json();
+      console.log(`Successfully generated quiz:`, generatedQuiz);
       
       // Return the generated quiz - we don't need to do a separate assignment
       // as we assigned it directly to the trainee during generation
       return generatedQuiz;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Quiz Assigned",
-        description: "New quiz has been generated and assigned to the trainee",
+        description: `New quiz has been generated and assigned to the trainee`,
       });
       setReassignDialogOpen(false);
       setSelectedQuizId(null);

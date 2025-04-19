@@ -810,15 +810,23 @@ export function QuizManagement() {
       trainees?: number[] 
     }) => {
       // First, generate the quiz
+      const payload: any = {
+        status: 'active',
+        durationInHours
+      };
+      
+      // Add assignToUsers if trainees are specified
+      if (trainees && trainees.length > 0) {
+        console.log(`Assigning quiz to specific trainees:`, trainees);
+        payload.assignToUsers = trainees;
+      }
+      
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: 'active',
-          durationInHours 
-        }),
+        body: JSON.stringify(payload),
         credentials: 'include'
       });
       

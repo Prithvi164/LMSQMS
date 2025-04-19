@@ -3870,6 +3870,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle quiz assignments if specific users are provided
       const assignToUsers = req.body.assignToUsers;
+      console.log(`Quiz generation for template ${templateId} complete - quiz ID: ${quiz.id}`);
+      console.log(`Assignment request data:`, req.body);
+      
       if (Array.isArray(assignToUsers) && assignToUsers.length > 0) {
         console.log(`Assigning quiz ${quiz.id} to specific users:`, assignToUsers);
         
@@ -3877,6 +3880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const assignments = [];
         for (const userId of assignToUsers) {
           try {
+            console.log(`Creating assignment for quiz ${quiz.id}, user ${userId}, batch ${template.batchId || 0}`);
             const assignment = await storage.createQuizAssignment({
               quizId: quiz.id,
               userId,
@@ -3886,8 +3890,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: 'assigned'
             });
             assignments.push(assignment);
+            console.log(`Successfully created assignment:`, assignment);
           } catch (assignError) {
             console.error(`Failed to create assignment for user ${userId}:`, assignError);
+            console.error(`Error details:`, assignError);
             // Continue with other users
           }
         }
@@ -3902,6 +3908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       } else {
+        console.log(`No specific trainees selected for assignment. The quiz will need to be assigned manually.`);
         // No specific assignments requested
         res.status(201).json(quiz);
       }
