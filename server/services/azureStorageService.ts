@@ -437,12 +437,26 @@ export class AzureStorageService {
       // PublicAccessType can be 'blob' or 'container'
       // 'blob' means public read access for blobs only
       // 'container' means public read access for container and blobs
-      const accessType = isPublic ? 'container' : undefined; // Use 'container' for public, undefined for private
       
-      // Log the operation we're about to perform
-      console.log(`Attempting to create container "${containerName}" with access type: ${accessType || 'private'}`);
+      // Log detailed information about our connection and attempt
+      console.log(`Creating container "${containerName}" in account "${this.accountName}"`);
+      console.log(`Container client URL: ${containerClient.url}`);
       
-      const createContainerResponse = await containerClient.create({ access: accessType });
+      // Set public or private access - needs to be exactly "blob", "container", or undefined according to SDK
+      let options;
+      if (isPublic) {
+        // For public access (container level)
+        options = { access: "container" };
+        console.log(`Setting container to public access with options:`, options);
+      } else {
+        // For private access
+        options = undefined;
+        console.log(`Setting container to private access (undefined options)`);
+      }
+      
+      // Create the container
+      console.log(`Sending create request to Azure for container: ${containerName}`);
+      const createContainerResponse = await containerClient.create(options);
       console.log(`Container "${containerName}" created successfully: ${createContainerResponse.requestId}`);
       
       return containerClient;
