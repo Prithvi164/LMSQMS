@@ -24,7 +24,6 @@ interface AzureFileUploaderProps {
 export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileUploaderProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [blobName, setBlobName] = useState<string>("");
-  const [metadata, setMetadata] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -47,28 +46,7 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
     }
   };
 
-  // Convert metadata string to object
-  const parseMetadata = (metadataStr: string): Record<string, string> => {
-    const result: Record<string, string> = {};
-    
-    if (!metadataStr.trim()) {
-      return result;
-    }
-    
-    try {
-      // Try to parse as JSON first
-      return JSON.parse(metadataStr);
-    } catch (e) {
-      // If not valid JSON, try to parse as key-value pairs
-      metadataStr.split('\n').forEach(line => {
-        const [key, value] = line.split(':').map(part => part.trim());
-        if (key && value) {
-          result[key] = value;
-        }
-      });
-      return result;
-    }
-  };
+  // The metadata handling is now done in a separate section of the application
 
   // Upload file mutation
   const uploadFile = useMutation({
@@ -93,12 +71,8 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
       formData.append("contentType", selectedFile.type);
       console.log(`File content type: ${selectedFile.type}`);
       
-      // Add metadata if provided
-      const metadataObj = parseMetadata(metadata);
-      Object.entries(metadataObj).forEach(([key, value]) => {
-        formData.append(`metadata-${key}`, value);
-        console.log(`Added metadata: ${key}=${value}`);
-      });
+      // Metadata is now handled in a separate section of the application
+      console.log("Metadata handling is now done in a separate section");
 
       // Simulate progress updates
       const progressInterval = setInterval(() => {
@@ -154,7 +128,6 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
         description: `Successfully uploaded ${selectedFile?.name} to ${containerName}`,
       });
       clearSelectedFile();
-      setMetadata("");
       setUploadProgress(0);
       
       // Invalidate blob list query
@@ -248,30 +221,18 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="blob-name" className="text-sm font-medium">File Name in Azure</Label>
-                <Input
-                  id="blob-name"
-                  value={blobName}
-                  onChange={(e) => setBlobName(e.target.value)}
-                  placeholder="Leave blank to use original filename"
-                  className="border-blue-200 focus:border-blue-400"
-                />
-              </div>
-              
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="metadata" className="text-sm font-medium">
-                  Metadata <span className="text-gray-400 font-normal">(Optional)</span>
-                </Label>
-                <Input
-                  id="metadata"
-                  value={metadata}
-                  onChange={(e) => setMetadata(e.target.value)}
-                  placeholder="key1:value1, key2:value2"
-                  className="border-blue-200 focus:border-blue-400"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="blob-name" className="text-sm font-medium">File Name in Azure</Label>
+              <Input
+                id="blob-name"
+                value={blobName}
+                onChange={(e) => setBlobName(e.target.value)}
+                placeholder="Leave blank to use original filename"
+                className="border-blue-200 focus:border-blue-400"
+              />
+              <p className="text-xs text-gray-500">
+                How the file will be named when stored in Azure
+              </p>
             </div>
             
             {/* Upload progress */}
