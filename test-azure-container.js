@@ -1,8 +1,10 @@
+// Use ES modules syntax
 import { BlobServiceClient, StorageSharedKeyCredential } from '@azure/storage-blob';
+import { env } from 'process';
 
-// Get Azure Storage credentials from environment variables
-const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
-const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
+// Get Azure Storage credentials from environment variables and trim any whitespace
+const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME?.trim();
+const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY?.trim();
 
 console.log('Testing Azure Storage connection with:');
 console.log(`Account Name: ${accountName}`);

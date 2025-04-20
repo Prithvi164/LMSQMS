@@ -52,8 +52,9 @@ export class AzureStorageService {
     accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME,
     accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY
   ) {
-    this.accountName = accountName || '';
-    this.accountKey = accountKey || '';
+    // Ensure we trim any whitespace from credentials to prevent URL formation issues
+    this.accountName = (accountName || '').trim();
+    this.accountKey = (accountKey || '').trim();
 
     // Check if credentials are available
     if (!this.accountName || !this.accountKey) {
@@ -443,21 +444,25 @@ export class AzureStorageService {
       console.log(`Container client URL: ${containerClient.url}`);
       
       // Set public or private access - needs to be exactly "blob", "container", or undefined according to SDK
-      let options;
       if (isPublic) {
         // For public access (container level)
-        options = { access: "container" };
-        console.log(`Setting container to public access with options:`, options);
+        // The access property must be a specific union type: "container" | "blob" | undefined
+        const publicAccessType: "container" | "blob" = "container";
+        console.log(`Setting container to public access with access type: ${publicAccessType}`);
+        
+        // Create the container with public access
+        console.log(`Sending create request to Azure for container: ${containerName}`);
+        const createContainerResponse = await containerClient.create({ access: publicAccessType });
+        console.log(`Container "${containerName}" created successfully: ${createContainerResponse.requestId}`);
       } else {
         // For private access
-        options = undefined;
         console.log(`Setting container to private access (undefined options)`);
+        
+        // Create the container with private access (no options)
+        console.log(`Sending create request to Azure for container: ${containerName}`);
+        const createContainerResponse = await containerClient.create();
+        console.log(`Container "${containerName}" created successfully: ${createContainerResponse.requestId}`);
       }
-      
-      // Create the container
-      console.log(`Sending create request to Azure for container: ${containerName}`);
-      const createContainerResponse = await containerClient.create(options);
-      console.log(`Container "${containerName}" created successfully: ${createContainerResponse.requestId}`);
       
       return containerClient;
     } catch (error) {
@@ -744,17 +749,20 @@ export class AzureStorageService {
 
 export const initAzureStorageService = (): AzureStorageService | null => {
   try {
-    // Check for required environment variables
-    if (!process.env.AZURE_STORAGE_ACCOUNT_NAME || !process.env.AZURE_STORAGE_ACCOUNT_KEY) {
+    // Check for required environment variables and trim whitespace
+    const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME?.trim();
+    const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY?.trim();
+    
+    if (!accountName || !accountKey) {
       console.error('Missing Azure Storage credentials. Set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY environment variables.');
       return null;
     }
 
-    console.log('Initializing Azure Storage Service with account:', process.env.AZURE_STORAGE_ACCOUNT_NAME);
+    console.log('Initializing Azure Storage Service with account:', accountName);
     
     const service = new AzureStorageService(
-      process.env.AZURE_STORAGE_ACCOUNT_NAME,
-      process.env.AZURE_STORAGE_ACCOUNT_KEY
+      accountName,
+      accountKey
     );
     
     // Verify service is correctly initialized
