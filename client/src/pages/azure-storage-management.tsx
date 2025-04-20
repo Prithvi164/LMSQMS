@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useParams } from "wouter";
 import { AzureContainerManager } from "@/components/azure-storage/azure-container-manager";
-import { AzureFileUploader } from "@/components/azure-storage/azure-file-uploader";
+import { MultipleFileUploader } from "@/components/azure-storage/multiple-file-uploader";
 import { Button } from "@/components/ui/button";
 import { 
   Tabs, 
@@ -357,16 +357,10 @@ export function AzureStorageManagement() {
             </div>
             
             <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-              <AzureFileUploader 
+              <MultipleFileUploader 
                 containerName={selectedContainer} 
                 onUploadSuccess={(fileData) => {
-                  console.log("File uploaded successfully:", fileData);
-                  // Show success toast with details
-                  toast({
-                    title: "File Uploaded Successfully",
-                    description: `${fileData.name || fileData.originalname} uploaded to ${selectedContainer}`,
-                    variant: "default",
-                  });
+                  console.log("Files uploaded successfully:", fileData);
                   
                   // Invalidate the relevant queries to refresh the file list
                   queryClient.invalidateQueries({ queryKey: [`/api/azure-blobs/${selectedContainer}`] });

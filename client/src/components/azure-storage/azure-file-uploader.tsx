@@ -22,25 +22,43 @@ interface AzureFileUploaderProps {
 }
 
 export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileUploaderProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [blobName, setBlobName] = useState<string>("");
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [overallProgress, setOverallProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setBlobName(file.name); // Default blob name to file name
+      // Convert FileList to array and add to existing files
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+      
+      // Initialize progress for new files
+      const newProgress = { ...uploadProgress };
+      newFiles.forEach(file => {
+        newProgress[file.name] = 0;
+      });
+      setUploadProgress(newProgress);
     }
   };
 
-  // Clear selected file
-  const clearSelectedFile = () => {
-    setSelectedFile(null);
-    setBlobName("");
+  // Remove a specific file
+  const removeFile = (fileName: string) => {
+    setSelectedFiles(prev => prev.filter(file => file.name !== fileName));
+    
+    // Remove from progress tracking
+    const newProgress = { ...uploadProgress };
+    delete newProgress[fileName];
+    setUploadProgress(newProgress);
+  };
+
+  // Clear all selected files
+  const clearAllFiles = () => {
+    setSelectedFiles([]);
+    setUploadProgress({});
+    setOverallProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
