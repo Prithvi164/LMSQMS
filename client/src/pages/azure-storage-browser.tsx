@@ -150,6 +150,14 @@ const AzureStorageBrowser = () => {
   
   const { toast } = useToast();
 
+  // Handle container name from URL params
+  useEffect(() => {
+    if (containerName) {
+      console.log(`Container name received from URL: ${containerName}`);
+      setSelectedContainer(containerName);
+    }
+  }, [containerName]);
+
   // Fetch containers
   const { 
     data: containers, 

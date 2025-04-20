@@ -163,7 +163,7 @@ export function AzureStorageManagement() {
           <Button asChild variant="outline" size="sm">
             <Link href="/azure-storage-browser">
               <FolderOpen className="mr-2 h-4 w-4" />
-              Browse Files
+              Browse All Files
             </Link>
           </Button>
         </div>
