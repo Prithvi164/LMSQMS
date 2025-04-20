@@ -21,7 +21,11 @@ import { Loader2 } from "lucide-react";
 // Container name validation regex
 const containerNameRegex = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 
-export function AzureContainerManager() {
+interface AzureContainerManagerProps {
+  onSelectContainer?: (containerName: string) => void;
+}
+
+export function AzureContainerManager({ onSelectContainer }: AzureContainerManagerProps = {}) {
   const [newContainerName, setNewContainerName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -125,10 +129,11 @@ export function AzureContainerManager() {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Azure Storage Containers</h2>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>Create Container</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>Create Container</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create new Azure Storage container</DialogTitle>
@@ -187,6 +192,7 @@ export function AzureContainerManager() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
       
       {isLoading ? (
@@ -209,7 +215,16 @@ export function AzureContainerManager() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {containers.map((container: any) => (
-            <Card key={container.name} className="overflow-hidden">
+            <Card 
+              key={container.name} 
+              className={`overflow-hidden ${onSelectContainer ? 'cursor-pointer hover:border-primary transition-colors' : ''}`}
+              onClick={() => {
+                if (onSelectContainer) {
+                  onSelectContainer(container.name);
+                  console.log("Container selected:", container.name);
+                }
+              }}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg truncate">{container.name}</CardTitle>
                 <CardDescription>
@@ -225,12 +240,30 @@ export function AzureContainerManager() {
                     : "Unknown"}
                 </p>
               </CardContent>
-              <CardFooter className="pt-2">
-                <Button variant="outline" size="sm" asChild>
+              <CardFooter className="pt-2 flex justify-between gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  asChild
+                  onClick={(e) => e.stopPropagation()} // Prevent card click event
+                >
                   <a href={`/azure-storage-browser/${container.name}`}>
                     Browse Files
                   </a>
                 </Button>
+                {onSelectContainer && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click event
+                      onSelectContainer(container.name);
+                      console.log("Container selected from button:", container.name);
+                    }}
+                  >
+                    Select for Upload
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           ))}
