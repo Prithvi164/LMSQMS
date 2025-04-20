@@ -479,7 +479,7 @@ export function AzureStorageManagement() {
                   </>
                 ) : (
                   <>
-                    <Plus className="mr-2 h-4 w-4" />
+                    <HardDrive className="mr-2 h-4 w-4" />
                     Create Container
                   </>
                 )}
