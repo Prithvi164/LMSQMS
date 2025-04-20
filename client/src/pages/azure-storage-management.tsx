@@ -171,19 +171,48 @@ export function AzureStorageManagement() {
 
       {/* Selected container info */}
       {selectedContainer && (
-        <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-green-800">Selected Container</h2>
-              <p className="text-green-700">{selectedContainer}</p>
+        <div className="mb-8 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-sm overflow-hidden">
+          <div className="border border-green-200 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-green-800 flex items-center">
+                  <HardDrive className="mr-2 h-5 w-5" />
+                  {selectedContainer}
+                </h2>
+                <p className="text-green-700 text-sm mt-1">Ready for file operations</p>
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedContainer(null)}
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  Deselect
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Scroll to the upload section
+                    const uploadSection = document.getElementById('upload-section');
+                    if (uploadSection) {
+                      uploadSection.scrollIntoView({ behavior: 'smooth' });
+                      
+                      // Try to trigger the file selection dialog
+                      setTimeout(() => {
+                        const selectFileButton = document.querySelector('[data-action="select-file"]');
+                        if (selectFileButton && selectFileButton instanceof HTMLButtonElement) {
+                          selectFileButton.click();
+                        }
+                      }, 300);
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Files
+                </Button>
+              </div>
             </div>
-            <Button 
-              onClick={() => setActiveTab("uploader")}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Files
-            </Button>
           </div>
         </div>
       )}
@@ -213,9 +242,20 @@ export function AzureStorageManagement() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {containers.map((container) => (
-                <Card key={container.name} className="overflow-hidden">
+                <Card 
+                  key={container.name} 
+                  className={`overflow-hidden hover:shadow-md transition-shadow ${selectedContainer === container.name ? 'ring-2 ring-primary/50' : ''}`}
+                  onClick={() => setSelectedContainer(container.name)}
+                >
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg truncate">{container.name}</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg truncate">{container.name}</CardTitle>
+                      {selectedContainer === container.name && (
+                        <div className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                          Selected
+                        </div>
+                      )}
+                    </div>
                     <CardDescription>
                       {container.properties?.publicAccess
                         ? `Public Access: ${container.properties.publicAccess}`
@@ -236,46 +276,12 @@ export function AzureStorageManagement() {
                         size="sm"
                         className="flex-1"
                         asChild
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <Link href={`/azure-storage-browser/${container.name}`}>
                           <FolderOpen className="mr-2 h-4 w-4" />
-                          Browse
+                          Browse Files
                         </Link>
-                      </Button>
-                      <Button 
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          // Set this container as selected
-                          setSelectedContainer(container.name);
-                          
-                          // Scroll to the upload section
-                          setTimeout(() => {
-                            const uploadSection = document.getElementById('upload-section');
-                            if (uploadSection) {
-                              uploadSection.scrollIntoView({ behavior: 'smooth' });
-                              
-                              // After scrolling, try to trigger the file selection dialog
-                              setTimeout(() => {
-                                // Look for the file input and trigger click
-                                const fileInput = document.getElementById('file-upload');
-                                if (fileInput) {
-                                  // This would work if the input is visible
-                                  // fileInput.click();
-                                  
-                                  // Instead, look for our button that triggers the file selection
-                                  const selectFileButton = document.querySelector('[data-action="select-file"]');
-                                  if (selectFileButton && selectFileButton instanceof HTMLButtonElement) {
-                                    selectFileButton.click();
-                                  }
-                                }
-                              }, 300);
-                            }
-                          }, 100);
-                        }}
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload
                       </Button>
                     </div>
                   </CardFooter>

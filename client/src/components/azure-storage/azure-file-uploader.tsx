@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, Upload, X, File as FileIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -184,62 +184,73 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload File to Azure Storage</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardTitle className="flex items-center">
+          <Upload className="mr-2 h-5 w-5 text-blue-600" />
+          Upload File to Azure Storage
+        </CardTitle>
         <CardDescription>
-          Upload a file to the {containerName} container in Azure Blob Storage.
+          Upload a file to the <span className="font-semibold text-blue-700">{containerName}</span> container
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-6 space-y-5">
         {/* File selector */}
-        <div className="space-y-2">
-          <Label htmlFor="file-upload">Select File</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              ref={fileInputRef}
-              id="file-upload"
-              type="file"
-              onChange={handleFileChange}
-              className="flex-1"
-              disabled={uploadFile.isPending}
-              style={{ display: selectedFile ? 'block' : 'none' }} // Hide when no file selected for cleaner UI
-            />
-            {!selectedFile && (
+        <div>
+          {!selectedFile ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+              <Input
+                ref={fileInputRef}
+                id="file-upload"
+                type="file"
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={uploadFile.isPending}
+              />
               <Button
                 type="button"
-                className="w-full"
+                variant="ghost"
+                size="lg"
+                className="w-full h-32 flex flex-col items-center justify-center gap-3 bg-blue-50/50 hover:bg-blue-100/50"
                 onClick={triggerFileSelect}
                 disabled={uploadFile.isPending}
                 data-action="select-file" // Important: added for programmatic access
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Select File
+                <Upload className="h-10 w-10 text-blue-500" />
+                <div className="flex flex-col">
+                  <span className="text-base font-medium">Click to select a file</span>
+                  <span className="text-xs text-gray-500">or drag and drop</span>
+                </div>
               </Button>
-            )}
-            {selectedFile && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={clearSelectedFile}
-                disabled={uploadFile.isPending}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 bg-white rounded-md mr-3 shadow-sm">
+                    <FileIcon className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium truncate max-w-xs">{selectedFile.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {(selectedFile.size / 1024).toFixed(2)} KB • {selectedFile.type || "Unknown type"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelectedFile}
+                  disabled={uploadFile.isPending}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* File information */}
-        {selectedFile && (
-          <div className="p-3 border rounded-md bg-gray-50 dark:bg-gray-900">
-            <p className="font-medium truncate">{selectedFile.name}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {(selectedFile.size / 1024).toFixed(2)} KB • {selectedFile.type || "Unknown type"}
-            </p>
-          </div>
-        )}
 
         {/* Custom blob name */}
         <div className="space-y-2">
