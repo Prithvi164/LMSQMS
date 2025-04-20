@@ -76,11 +76,24 @@ export function AzureContainerManager() {
         queryClient.invalidateQueries({ queryKey: ['/api/azure-containers'] });
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error creating container:", error);
+      
+      // Extract more detailed error message if available
+      let errorMessage = "Failed to create container. Please try again.";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      // Display error toast with more detailed message
       toast({
-        title: "Error",
-        description: "Failed to create container. Please try again.",
+        title: "Error Creating Container",
+        description: errorMessage,
         variant: "destructive",
       });
     },

@@ -45,7 +45,7 @@ export interface AudioFileMetadata {
 
 export class AzureStorageService {
   public blobServiceClient: BlobServiceClient;
-  private accountName: string;
+  public accountName: string; // Changed from private to public for debugging
   private accountKey: string;
 
   constructor(
