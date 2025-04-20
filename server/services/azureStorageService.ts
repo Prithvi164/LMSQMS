@@ -47,6 +47,51 @@ export class AzureStorageService {
   public blobServiceClient: BlobServiceClient;
   public accountName: string; // Changed from private to public for debugging
   private accountKey: string;
+  
+  /**
+   * Delete multiple blobs from a container
+   * @param containerName Name of the container
+   * @param blobNames Array of blob names to delete
+   * @returns Object with success count and failed blobs
+   */
+  async deleteBlobs(containerName: string, blobNames: string[]): Promise<{ 
+    successCount: number; 
+    failedBlobs: { name: string; error: string }[] 
+  }> {
+    try {
+      const containerClient = this.blobServiceClient.getContainerClient(containerName);
+      const results = {
+        successCount: 0,
+        failedBlobs: [] as { name: string; error: string }[]
+      };
+      
+      console.log(`Attempting to delete ${blobNames.length} blobs from container ${containerName}`);
+      
+      // Delete blobs in parallel for efficiency
+      const deletePromises = blobNames.map(async (blobName) => {
+        try {
+          const blobClient = containerClient.getBlobClient(blobName);
+          await blobClient.delete();
+          console.log(`Successfully deleted blob: ${blobName}`);
+          results.successCount++;
+          return { success: true, name: blobName };
+        } catch (error) {
+          console.error(`Failed to delete blob ${blobName}:`, error);
+          results.failedBlobs.push({ 
+            name: blobName, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+          return { success: false, name: blobName, error };
+        }
+      });
+      
+      await Promise.all(deletePromises);
+      return results;
+    } catch (error) {
+      console.error('Error in bulk delete operation:', error);
+      throw new Error(`Failed to delete blobs: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 
   constructor(
     accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME,

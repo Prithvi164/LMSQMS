@@ -52,6 +52,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -1685,6 +1695,18 @@ const AzureStorageBrowser = () => {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
+                  
+                  {selectedBlobItems.length > 0 && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      className="ml-2"
+                      onClick={handleDeleteFiles}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" /> 
+                      Delete Selected ({selectedBlobItems.length})
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
