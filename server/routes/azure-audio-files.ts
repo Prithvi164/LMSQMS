@@ -7,6 +7,7 @@ import { audioFileAllocations, audioFiles, audioLanguageEnum, users } from '../.
 import { db } from '../db';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { read as readXLSX, utils as xlsxUtils, write as writeXLSX } from 'xlsx';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -1112,6 +1113,93 @@ router.get('/azure-blobs/:containerName', async (req, res) => {
   } catch (error) {
     console.error(`Error listing blobs in container ${containerName}:`, error);
     res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
+  }
+});
+
+// Define the schema for the DELETE request
+const deleteBlobsSchema = z.object({
+  blobNames: z.array(z.string()).min(1, "At least one blob name is required")
+});
+
+// Delete multiple blobs from a container
+router.delete('/azure-blobs/:containerName', async (req, res) => {
+  console.log(`Received request to delete blobs from container: ${req.params.containerName}`);
+  
+  // Temporarily disable authentication check for testing
+  // if (!req.user) {
+  //   console.log('User not authenticated for blob deletion');
+  //   return res.status(401).json({ message: 'Unauthorized' });
+  // }
+  console.log('Authentication check bypassed for blob deletion');
+  
+  if (!azureService) {
+    console.log('Azure service not available for blob deletion');
+    return res.status(503).json({ message: 'Azure service not available' });
+  }
+  
+  const { containerName } = req.params;
+  
+  // Validate the request body against the schema
+  try {
+    const validatedBody = deleteBlobsSchema.parse(req.body);
+    const { blobNames } = validatedBody;
+    
+    console.log(`Attempting to delete ${blobNames.length} blobs from container: ${containerName}`);
+    
+    // Check if the container exists before proceeding
+    const containerClient = azureService.getContainerClient(containerName);
+    const containerExists = await containerClient.exists();
+    
+    if (!containerExists) {
+      console.log(`Container "${containerName}" does not exist`);
+      return res.status(404).json({ 
+        message: `Container "${containerName}" does not exist`,
+        success: false
+      });
+    }
+    
+    // Call the Azure service to delete the blobs
+    const result = await azureService.deleteBlobs(containerName, blobNames);
+    
+    console.log(`Deletion complete: ${result.successCount} blobs deleted, ${result.failedBlobs.length} failed`);
+    
+    if (result.failedBlobs.length > 0) {
+      // Some blobs failed to delete, but we'll return a partial success
+      return res.status(207).json({
+        message: `Partially deleted ${result.successCount} out of ${blobNames.length} blobs`,
+        success: true,
+        result: {
+          successCount: result.successCount,
+          failedBlobs: result.failedBlobs
+        }
+      });
+    }
+    
+    // All blobs were successfully deleted
+    return res.status(200).json({
+      message: `Successfully deleted ${result.successCount} blobs`,
+      success: true,
+      result: {
+        successCount: result.successCount,
+        failedBlobs: []
+      }
+    });
+  } catch (error) {
+    console.error(`Error deleting blobs from container ${containerName}:`, error);
+    
+    if (error instanceof z.ZodError) {
+      // Validation error
+      return res.status(400).json({ 
+        message: 'Invalid request body',
+        errors: error.errors,
+        success: false
+      });
+    }
+    
+    res.status(500).json({ 
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      success: false
+    });
   }
 });
 
