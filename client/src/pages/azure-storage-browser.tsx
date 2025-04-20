@@ -274,6 +274,32 @@ const AzureStorageBrowser = () => {
     }
   });
   
+  // Handle file selection
+  const handleBlobSelection = (blobName: string) => {
+    setSelectedBlobItems(prev => {
+      if (prev.includes(blobName)) {
+        return prev.filter(name => name !== blobName);
+      } else {
+        return [...prev, blobName];
+      }
+    });
+  };
+  
+  // Handle select all blobs
+  const handleSelectAllBlobs = () => {
+    if (!blobs || !Array.isArray(blobs)) return;
+    
+    const allSelected = blobs.every(blob => selectedBlobItems.includes(blob.name));
+    
+    if (allSelected) {
+      // If all are selected, deselect all
+      setSelectedBlobItems([]);
+    } else {
+      // If some or none are selected, select all
+      setSelectedBlobItems(blobs.map(blob => blob.name));
+    }
+  };
+
   // Handle file deletion
   const handleDeleteFiles = () => {
     if (!selectedContainer) {
@@ -629,16 +655,7 @@ const AzureStorageBrowser = () => {
       });
   };
 
-  // Handle blob selection for batch operations
-  const handleBlobSelection = (blobName: string) => {
-    setSelectedBlobItems(prev => {
-      if (prev.includes(blobName)) {
-        return prev.filter(item => item !== blobName);
-      } else {
-        return [...prev, blobName];
-      }
-    });
-  };
+  // Blob selection is handled above
   
   // No details view needed
 
@@ -946,8 +963,66 @@ const AzureStorageBrowser = () => {
     return String(value);
   };
 
+  // Add a delete button to the file browser
+  const renderDeleteButton = () => {
+    if (!selectedBlobItems.length) return null;
+    
+    return (
+      <Button 
+        variant="destructive" 
+        size="sm" 
+        className="ml-2"
+        onClick={handleDeleteFiles}
+      >
+        <Trash2 className="h-4 w-4 mr-2" /> 
+        Delete Selected ({selectedBlobItems.length})
+      </Button>
+    );
+  };
+
   return (
     <div className="container mx-auto py-6">
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-destructive" />
+              Confirm Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedBlobItems.length} file{selectedBlobItems.length !== 1 ? 's' : ''} from the {selectedContainer} container?
+              <div className="mt-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-md max-h-32 overflow-y-auto text-xs">
+                {selectedBlobItems.map(file => (
+                  <div key={file} className="mb-1">{file}</div>
+                ))}
+              </div>
+              <p className="mt-2 font-bold text-destructive">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteFiles();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>Delete Files</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <h1 className="text-3xl font-bold mb-6">Azure Storage Browser</h1>
       <p className="text-gray-500 mb-6">
         Browse and import audio files from your Azure Storage account
@@ -1636,7 +1711,11 @@ const AzureStorageBrowser = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">
-                        <span className="sr-only">Select</span>
+                        <Checkbox 
+                          checked={Array.isArray(blobs) && blobs.length > 0 && blobs.every(blob => selectedBlobItems.includes(blob.name))}
+                          onClick={() => handleSelectAllBlobs()}
+                          aria-label="Select all files"
+                        />
                       </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
@@ -1648,11 +1727,9 @@ const AzureStorageBrowser = () => {
                     {blobs.map((blob: BlobItem) => (
                       <TableRow key={blob.name}>
                         <TableCell>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedBlobItems.includes(blob.name)}
-                            onChange={() => handleBlobSelection(blob.name)}
-                            className="rounded border-gray-300"
+                            onCheckedChange={() => handleBlobSelection(blob.name)}
                           />
                         </TableCell>
                         <TableCell className="font-medium">
