@@ -9,7 +9,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { FolderOpen, HardDrive, Upload, Loader2 } from "lucide-react";
+import { FolderOpen, HardDrive, Upload, Loader2, Clock } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -241,72 +241,138 @@ export function AzureStorageManagement() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {containers.map((container) => (
-                <Card 
-                  key={container.name} 
-                  className={`overflow-hidden hover:shadow-md transition-shadow ${selectedContainer === container.name ? 'ring-2 ring-primary/50' : ''}`}
-                  onClick={() => setSelectedContainer(container.name)}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg truncate">{container.name}</CardTitle>
-                      {selectedContainer === container.name && (
-                        <div className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                          Selected
+              {containers.map((container) => {
+                const isSelected = selectedContainer === container.name;
+                
+                return (
+                  <Card 
+                    key={container.name} 
+                    className={`overflow-hidden hover:shadow-md transition-all cursor-pointer border 
+                              ${isSelected ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200'}`}
+                    onClick={() => {
+                      setSelectedContainer(container.name);
+                      
+                      // Scroll to upload section when a container is selected
+                      setTimeout(() => {
+                        const uploadSection = document.getElementById('upload-section');
+                        if (uploadSection) {
+                          uploadSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }, 100);
+                    }}
+                  >
+                    <div className={`absolute top-0 left-0 w-full h-1 ${isSelected ? 'bg-blue-500' : 'bg-transparent'}`}></div>
+                    
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <HardDrive className={`h-4 w-4 ${isSelected ? 'text-blue-500' : 'text-gray-500'}`} />
+                          <CardTitle className="text-lg truncate">{container.name}</CardTitle>
                         </div>
-                      )}
-                    </div>
-                    <CardDescription>
-                      {container.properties?.publicAccess
-                        ? `Public Access: ${container.properties.publicAccess}`
-                        : "Private Access"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <p className="text-sm text-gray-500">
-                      Last Modified: {container.properties?.lastModified 
-                        ? new Date(container.properties.lastModified).toLocaleString() 
-                        : "Unknown"}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="pt-2">
-                    <div className="flex gap-2 w-full">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex-1"
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Link href={`/azure-storage-browser/${container.name}`}>
-                          <FolderOpen className="mr-2 h-4 w-4" />
-                          Browse Files
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
+                        {isSelected && (
+                          <div className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                            Selected
+                          </div>
+                        )}
+                      </div>
+                      <CardDescription>
+                        <span className="inline-flex items-center text-xs">
+                          <span className={`w-2 h-2 rounded-full mr-1.5 ${container.properties?.publicAccess ? 'bg-blue-500' : 'bg-gray-500'}`}></span>
+                          {container.properties?.publicAccess
+                            ? `Public Access: ${container.properties.publicAccess}`
+                            : "Private Access"}
+                        </span>
+                      </CardDescription>
+                    </CardHeader>
+                    
+                    <CardContent className="pb-2">
+                      <p className="text-xs text-gray-500 flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-1.5" />
+                        {container.properties?.lastModified 
+                          ? new Date(container.properties.lastModified).toLocaleString() 
+                          : "Unknown"}
+                      </p>
+                    </CardContent>
+                    
+                    <CardFooter className={`pt-2 border-t ${isSelected ? 'border-blue-100 bg-blue-50' : 'border-gray-100'}`}>
+                      <div className="flex gap-1.5 w-full">
+                        <Button 
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedContainer(container.name);
+                            
+                            // Scroll to upload section immediately
+                            setTimeout(() => {
+                              const uploadSection = document.getElementById('upload-section');
+                              if (uploadSection) {
+                                uploadSection.scrollIntoView({ behavior: 'smooth' });
+                                
+                                // After scrolling, try to trigger the file selection dialog
+                                setTimeout(() => {
+                                  const selectFileButton = document.querySelector('[data-action="select-file"]');
+                                  if (selectFileButton && selectFileButton instanceof HTMLElement) {
+                                    selectFileButton.click();
+                                  }
+                                }, 300);
+                              }
+                            }, 100);
+                          }}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Files
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1"
+                          asChild
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link href={`/azure-storage-browser/${container.name}`}>
+                            <FolderOpen className="mr-2 h-4 w-4" />
+                            Browse Files
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
         
         {/* File Upload Section */}
         {selectedContainer && (
-          <div id="upload-section" className="space-y-4 pt-8 border-t">
-            <h2 className="text-2xl font-bold">Upload Files to {selectedContainer}</h2>
-            <AzureFileUploader 
-              containerName={selectedContainer} 
-              onUploadSuccess={(fileData) => {
-                console.log("File uploaded successfully:", fileData);
-                // Show success toast with details
-                toast({
-                  title: "File Uploaded Successfully",
-                  description: `${fileData.name || fileData.originalname} uploaded to ${selectedContainer}`,
-                  variant: "default",
-                });
-              }}
-            />
+          <div id="upload-section" className="space-y-4 pt-6 mt-8 border-t border-blue-100">
+            <div className="flex items-center">
+              <div className="mr-2 p-2 bg-blue-100 rounded-full">
+                <Upload className="h-5 w-5 text-blue-700" />
+              </div>
+              <h2 className="text-2xl font-bold text-blue-800">Upload Files</h2>
+            </div>
+            
+            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <AzureFileUploader 
+                containerName={selectedContainer} 
+                onUploadSuccess={(fileData) => {
+                  console.log("File uploaded successfully:", fileData);
+                  // Show success toast with details
+                  toast({
+                    title: "File Uploaded Successfully",
+                    description: `${fileData.name || fileData.originalname} uploaded to ${selectedContainer}`,
+                    variant: "default",
+                  });
+                  
+                  // Invalidate the relevant queries to refresh the file list
+                  queryClient.invalidateQueries({ queryKey: [`/api/azure-blobs/${selectedContainer}`] });
+                }}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -314,47 +380,78 @@ export function AzureStorageManagement() {
       {/* Container Creation Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Storage Container</DialogTitle>
-            <DialogDescription>
-              Create a new Azure Storage container for storing audio files.
-            </DialogDescription>
+          <DialogHeader className="pb-4 border-b">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <HardDrive className="h-5 w-5 text-blue-700" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Create Storage Container</DialogTitle>
+                <DialogDescription className="text-blue-600">
+                  Create a new container for storing audio files
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="container-name">Container Name</Label>
+          <div className="space-y-5 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="container-name" className="text-base font-medium">Container Name</Label>
               <Input
                 id="container-name"
-                placeholder="Enter container name"
+                placeholder="Enter a unique name for your container"
                 value={newContainerName}
                 onChange={(e) => {
                   setNewContainerName(e.target.value.toLowerCase());
                   setValidationError(null);
                 }}
+                className="border-blue-200 focus:border-blue-400"
               />
-              {validationError && (
-                <p className="text-sm text-red-500">{validationError}</p>
+              
+              {validationError ? (
+                <p className="text-sm text-red-500 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  {validationError}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  <span className="block font-medium mb-1">Container name requirements:</span>
+                  <span className="block ml-1">• 3 to 63 characters long</span>
+                  <span className="block ml-1">• Only lowercase letters, numbers, and dashes</span>
+                  <span className="block ml-1">• Must begin and end with a letter or number</span>
+                </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                Container names must be 3-63 characters, use only lowercase letters, numbers, 
-                and dashes, and begin and end with a letter or number.
-              </p>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="is-public" 
-                checked={isPublic} 
-                onCheckedChange={(checked) => setIsPublic(checked === true)}
-              />
-              <Label htmlFor="is-public" className="text-sm">
-                Make container public (allows anonymous access)
-              </Label>
+            <div className="p-4 border border-blue-100 rounded-lg bg-blue-50">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="is-public" 
+                  checked={isPublic} 
+                  onCheckedChange={(checked) => setIsPublic(checked === true)}
+                  className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                />
+                <div>
+                  <Label htmlFor="is-public" className="text-sm font-medium">
+                    Make container public
+                  </Label>
+                  <p className="text-xs text-gray-600">
+                    Allows anonymous access to container contents
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
           
-          <DialogFooter className="flex justify-between">
+          <DialogFooter className="border-t pt-4 flex justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCreateDialogOpen(false)}
+              className="border-gray-300"
+            >
+              Cancel
+            </Button>
+            
             <div className="flex gap-2">
               <Button 
                 variant="ghost" 
@@ -365,17 +462,15 @@ export function AzureStorageManagement() {
                   setValidationError(null);
                 }}
                 disabled={!newContainerName || createContainer.isPending}
+                className="text-gray-500"
               >
-                Clear
+                Reset
               </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
+              
               <Button
                 onClick={() => createContainer.mutate()}
                 disabled={!newContainerName || createContainer.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {createContainer.isPending ? (
                   <>
@@ -383,7 +478,10 @@ export function AzureStorageManagement() {
                     Creating...
                   </>
                 ) : (
-                  "Create Container"
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Container
+                  </>
                 )}
               </Button>
             </div>

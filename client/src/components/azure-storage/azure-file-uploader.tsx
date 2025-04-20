@@ -184,55 +184,54 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-        <CardTitle className="flex items-center">
-          <Upload className="mr-2 h-5 w-5 text-blue-600" />
-          Upload File to Azure Storage
+    <Card className="shadow-sm border-blue-100">
+      <CardHeader className="pb-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardTitle className="text-lg flex items-center text-blue-700">
+          <Upload className="mr-2 h-5 w-5" />
+          Upload to {containerName}
         </CardTitle>
-        <CardDescription>
-          Upload a file to the <span className="font-semibold text-blue-700">{containerName}</span> container
-        </CardDescription>
       </CardHeader>
-      <CardContent className="p-6 space-y-5">
-        {/* File selector */}
-        <div>
-          {!selectedFile ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-              <Input
-                ref={fileInputRef}
-                id="file-upload"
-                type="file"
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={uploadFile.isPending}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="w-full h-32 flex flex-col items-center justify-center gap-3 bg-blue-50/50 hover:bg-blue-100/50"
-                onClick={triggerFileSelect}
-                disabled={uploadFile.isPending}
-                data-action="select-file" // Important: added for programmatic access
-              >
-                <Upload className="h-10 w-10 text-blue-500" />
-                <div className="flex flex-col">
-                  <span className="text-base font-medium">Click to select a file</span>
-                  <span className="text-xs text-gray-500">or drag and drop</span>
-                </div>
-              </Button>
+      
+      <CardContent className="p-5 space-y-4">
+        {/* Hidden file input */}
+        <Input
+          ref={fileInputRef}
+          id="file-upload"
+          type="file"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        
+        {!selectedFile ? (
+          <div 
+            className="border-2 border-dashed border-blue-200 rounded-lg p-6 
+                     text-center hover:border-blue-400 transition-colors cursor-pointer"
+            onClick={triggerFileSelect}
+            data-action="select-file"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="p-3 bg-blue-50 rounded-full">
+                <Upload className="h-8 w-8 text-blue-500" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-700">Click to select a file</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Drop audio files here or click to browse
+                </p>
+              </div>
             </div>
-          ) : (
+          </div>
+        ) : (
+          <>
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center">
-                  <div className="p-2 bg-white rounded-md mr-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white rounded-md">
                     <FileIcon className="h-8 w-8 text-blue-500" />
                   </div>
                   <div>
                     <p className="font-medium truncate max-w-xs">{selectedFile.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs text-gray-500">
                       {(selectedFile.size / 1024).toFixed(2)} KB • {selectedFile.type || "Unknown type"}
                     </p>
                   </div>
@@ -242,80 +241,87 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
                   variant="ghost"
                   size="sm"
                   onClick={clearSelectedFile}
-                  disabled={uploadFile.isPending}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-red-500 hover:bg-red-50"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Custom blob name */}
-        <div className="space-y-2">
-          <Label htmlFor="blob-name">
-            Blob Name (Optional)
-          </Label>
-          <Input
-            id="blob-name"
-            value={blobName}
-            onChange={(e) => setBlobName(e.target.value)}
-            placeholder="Custom name for the blob (file) in Azure"
-            disabled={uploadFile.isPending || !selectedFile}
-          />
-          <p className="text-xs text-gray-500">
-            Leave blank to use the original filename.
-          </p>
-        </div>
-
-        {/* Metadata */}
-        <div className="space-y-2">
-          <Label htmlFor="metadata">
-            Metadata (Optional)
-          </Label>
-          <Textarea
-            id="metadata"
-            value={metadata}
-            onChange={(e) => setMetadata(e.target.value)}
-            placeholder="key1: value1&#10;key2: value2&#10;&#10;Or paste JSON object"
-            className="min-h-[100px]"
-            disabled={uploadFile.isPending || !selectedFile}
-          />
-          <p className="text-xs text-gray-500">
-            Add metadata as key-value pairs (one per line) or a JSON object.
-          </p>
-        </div>
-
-        {/* Upload progress */}
-        {uploadProgress > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span>Uploading...</span>
-              <span>{Math.round(uploadProgress)}%</span>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="blob-name" className="text-sm font-medium">File Name in Azure</Label>
+                <Input
+                  id="blob-name"
+                  value={blobName}
+                  onChange={(e) => setBlobName(e.target.value)}
+                  placeholder="Leave blank to use original filename"
+                  className="border-blue-200 focus:border-blue-400"
+                />
+              </div>
+              
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="metadata" className="text-sm font-medium">
+                  Metadata <span className="text-gray-400 font-normal">(Optional)</span>
+                </Label>
+                <Input
+                  id="metadata"
+                  value={metadata}
+                  onChange={(e) => setMetadata(e.target.value)}
+                  placeholder="key1:value1, key2:value2"
+                  className="border-blue-200 focus:border-blue-400"
+                />
+              </div>
             </div>
-            <Progress value={uploadProgress} max={100} />
-          </div>
+            
+            {/* Upload progress */}
+            {uploadProgress > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-medium text-blue-700">Uploading file...</span>
+                  <span className="text-blue-700 font-medium">{Math.round(uploadProgress)}%</span>
+                </div>
+                <Progress 
+                  value={uploadProgress} 
+                  max={100}
+                  className="h-2 bg-blue-100" 
+                />
+              </div>
+            )}
+          </>
         )}
       </CardContent>
-      <CardFooter>
-        <Button
-          className="w-full"
-          onClick={() => uploadFile.mutate()}
-          disabled={!selectedFile || uploadFile.isPending}
-        >
-          {uploadFile.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Uploading...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload to Azure
-            </>
-          )}
-        </Button>
+      
+      <CardFooter className={`border-t ${selectedFile ? 'bg-blue-50' : 'bg-gray-50'}`}>
+        {selectedFile && (
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            onClick={() => uploadFile.mutate()}
+            disabled={!selectedFile || uploadFile.isPending}
+          >
+            {uploadFile.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload to Azure
+              </>
+            )}
+          </Button>
+        )}
+        {!selectedFile && (
+          <Button 
+            className="w-full" 
+            variant="outline"
+            onClick={triggerFileSelect}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Select a file to upload
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
