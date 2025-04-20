@@ -84,7 +84,8 @@ function Router() {
             <ProtectedRoute path="/evaluation-feedback" component={PermissionGuardedEvaluationFeedback} />
             <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
             <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
-            <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
+            <ProtectedRoute path="/azure-storage-browser" component={AzureStorageBrowser} />
+            <ProtectedRoute path="/azure-storage-browser/:containerName" component={AzureStorageBrowser} />
             <ProtectedRoute path="/azure-storage-management" component={AzureStorageManagement} />
             <ProtectedRoute path="/azure-storage-management/:containerName" component={AzureStorageManagement} />
             <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useParams } from 'wouter';
 import { usePermissions } from '@/hooks/use-permissions';
 import { 
   Loader2, 
@@ -100,8 +101,9 @@ interface QualityAnalyst {
 }
 
 const AzureStorageBrowser = () => {
+  const { containerName } = useParams<{ containerName?: string }>();
   const { hasPermission } = usePermissions();
-  const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
+  const [selectedContainer, setSelectedContainer] = useState<string | null>(containerName || null);
   const [selectedBlobItems, setSelectedBlobItems] = useState<string[]>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
