@@ -19,7 +19,9 @@ import {
   ArrowLeft,
   Folder,
   Download,
-  X
+  X,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { MultiSelect } from '@/components/ui/multi-select';
 
@@ -114,7 +116,9 @@ const AzureStorageBrowser = () => {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
   
-  // No details dialog state needed
+  // Delete confirmation dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Filter states for import
   const [showFilters, setShowFilters] = useState(false);
@@ -219,6 +223,85 @@ const AzureStorageBrowser = () => {
   });
 
   // Process fetching logic removed as per user request
+
+  // Delete files mutation
+  const deleteFilesMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedContainer || selectedBlobItems.length === 0) {
+        return false;
+      }
+      
+      console.log(`Deleting ${selectedBlobItems.length} files from container ${selectedContainer}`);
+      setIsDeleting(true);
+      
+      try {
+        const response = await apiRequest('DELETE', `/api/azure-blobs/${selectedContainer}`, {
+          blobNames: selectedBlobItems
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || 'Failed to delete files');
+        }
+        
+        return true;
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Files Deleted',
+        description: `Successfully deleted ${selectedBlobItems.length} files.`,
+      });
+      
+      // Clear selection and refresh blobs
+      setSelectedBlobItems([]);
+      refetchBlobs();
+      queryClient.invalidateQueries({
+        queryKey: ['/api/azure-blobs', selectedContainer, selectedFolder],
+      });
+      
+      // Close the dialog
+      setIsDeleteDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Delete Failed',
+        description: error instanceof Error ? error.message : 'Failed to delete selected files',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Handle file deletion
+  const handleDeleteFiles = () => {
+    if (!selectedContainer) {
+      toast({
+        title: 'No Container Selected',
+        description: 'Please select a container first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (selectedBlobItems.length === 0) {
+      toast({
+        title: 'No Files Selected',
+        description: 'Please select at least one file to delete.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Open the confirmation dialog
+    setIsDeleteDialogOpen(true);
+  };
+  
+  // Confirm file deletion
+  const confirmDeleteFiles = () => {
+    deleteFilesMutation.mutate();
+  };
 
   // Fetch quality analysts for allocation
   const { data: qualityAnalysts } = useQuery<QualityAnalyst[]>({
