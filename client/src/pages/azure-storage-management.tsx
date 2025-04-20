@@ -79,8 +79,11 @@ export function AzureStorageManagement() {
         setIsCreateDialogOpen(false);
         setValidationError(null);
         
-        // Invalidate the containers query to refresh the list
+        // Invalidate the containers query to refresh the list and select the new container
         queryClient.invalidateQueries({ queryKey: ['/api/azure-containers'] });
+        
+        // Set the newly created container as selected
+        setSelectedContainer(newContainerName);
       }
     },
     onError: (error: any) => {
@@ -119,6 +122,12 @@ export function AzureStorageManagement() {
         setSelectedContainer(containerName);
         setActiveTab("uploader");
       }
+    }
+    
+    // Check for URL parameters
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create') === 'true') {
+      setIsCreateDialogOpen(true);
     }
   }, [containerName, containers]);
 
@@ -184,10 +193,7 @@ export function AzureStorageManagement() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Storage Containers</h2>
-            <Button onClick={() => {
-              // Navigate to the container tab with parameters for showing the create dialog
-              window.location.href = "/azure-storage-management?create=true";
-            }}>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
               <HardDrive className="mr-2 h-4 w-4" />
               Create Container
             </Button>
@@ -263,11 +269,97 @@ export function AzureStorageManagement() {
               containerName={selectedContainer} 
               onUploadSuccess={(fileData) => {
                 console.log("File uploaded successfully:", fileData);
+                // Show success toast with details
+                toast({
+                  title: "File Uploaded Successfully",
+                  description: `${fileData.originalname} uploaded to ${selectedContainer}`,
+                  variant: "default",
+                });
               }}
             />
           </div>
         )}
       </div>
+      
+      {/* Container Creation Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Storage Container</DialogTitle>
+            <DialogDescription>
+              Create a new Azure Storage container for storing audio files.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="container-name">Container Name</Label>
+              <Input
+                id="container-name"
+                placeholder="Enter container name"
+                value={newContainerName}
+                onChange={(e) => {
+                  setNewContainerName(e.target.value.toLowerCase());
+                  setValidationError(null);
+                }}
+              />
+              {validationError && (
+                <p className="text-sm text-red-500">{validationError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Container names must be 3-63 characters, use only lowercase letters, numbers, 
+                and dashes, and begin and end with a letter or number.
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="is-public" 
+                checked={isPublic} 
+                onCheckedChange={(checked) => setIsPublic(checked === true)}
+              />
+              <Label htmlFor="is-public" className="text-sm">
+                Make container public (allows anonymous access)
+              </Label>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex justify-between">
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setNewContainerName("");
+                  setIsPublic(false);
+                  setValidationError(null);
+                }}
+                disabled={!newContainerName || createContainer.isPending}
+              >
+                Clear
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => createContainer.mutate()}
+                disabled={!newContainerName || createContainer.isPending}
+              >
+                {createContainer.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Container"
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
