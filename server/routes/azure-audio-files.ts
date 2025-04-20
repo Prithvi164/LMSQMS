@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import fs, { existsSync, mkdirSync } from 'fs';
 import multer from 'multer';
 import { initAzureStorageService, AudioFileMetadata } from '../services/azureStorageService';
 import { audioFileAllocations, audioFiles, audioLanguageEnum, users } from '../../shared/schema';
@@ -870,6 +870,51 @@ router.get('/azure-containers', async (req, res) => {
   }
 });
 
+// Create a new container in Azure
+router.post('/azure-containers', async (req, res) => {
+  console.log('Received request to create Azure container:', req.body);
+  
+  if (!req.user) {
+    console.log('Unauthorized attempt to create container');
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  if (!azureService) {
+    console.error('Azure service not available for container creation');
+    return res.status(503).json({ message: 'Azure service not available' });
+  }
+  
+  const { containerName, isPublic = false } = req.body;
+  console.log(`Attempting to create container "${containerName}" with public access: ${isPublic}`);
+  
+  if (!containerName) {
+    console.log('No container name provided in request');
+    return res.status(400).json({ message: 'Container name is required' });
+  }
+  
+  try {
+    console.log('Calling Azure service to create container...');
+    const containerClient = await azureService.createContainer(containerName, isPublic);
+    console.log('Container created successfully');
+    
+    res.status(201).json({
+      success: true,
+      message: `Container "${containerName}" created successfully`,
+      containerName: containerName,
+      isPublic: isPublic
+    });
+  } catch (error) {
+    console.error('Error creating Azure container:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Error details:', errorMessage);
+    
+    res.status(500).json({ 
+      message: errorMessage,
+      success: false
+    });
+  }
+});
+
 // Get folders in a container
 router.get('/azure-folders/:containerName', async (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
@@ -883,6 +928,70 @@ router.get('/azure-folders/:containerName', async (req, res) => {
   } catch (error) {
     console.error(`Error listing folders in container ${containerName}:`, error);
     res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
+  }
+});
+
+// Upload a file to an Azure container
+router.post('/azure-upload/:containerName', multer({ storage: storage }).single('file'), async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  
+  try {
+    const { containerName } = req.params;
+    const { blobName, contentType } = req.body;
+    
+    // Check if the file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Use custom blob name if provided, otherwise use original filename
+    const finalBlobName = blobName || req.file.originalname;
+    
+    // Read the file as buffer
+    const fileBuffer = fs.readFileSync(req.file.path);
+    
+    // Set metadata from form data
+    const metadata: Record<string, string> = {};
+    
+    // Extract all metadata fields from request body
+    Object.keys(req.body).forEach(key => {
+      // Skip the blobName and contentType as they're used differently
+      if (key !== 'blobName' && key !== 'contentType' && key !== 'file') {
+        metadata[key] = req.body[key];
+      }
+    });
+    
+    // Upload the file to Azure
+    const uploadResult = await azureService.uploadFile(
+      containerName, 
+      finalBlobName, 
+      fileBuffer,
+      contentType,
+      metadata
+    );
+    
+    // Clean up the temporary file
+    fs.unlinkSync(req.file.path);
+    
+    // Return the upload result
+    res.status(201).json({
+      success: true,
+      message: `File "${finalBlobName}" uploaded successfully to container "${containerName}"`,
+      file: uploadResult
+    });
+  } catch (error) {
+    console.error('Error uploading file to Azure:', error);
+    
+    // Clean up the temporary file if it exists
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred during file upload'
+    });
   }
 });
 

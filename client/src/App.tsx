@@ -28,6 +28,7 @@ import AudioAssignmentDashboard from "@/pages/audio-assignment-dashboard";
 import PermissionGuardedConductEvaluation from "@/pages/conduct-evaluation";
 import PermissionGuardedEvaluationFeedback from "@/pages/evaluation-feedback";
 import AzureStorageBrowser from "@/pages/azure-storage-browser";
+import AzureStorageManagement from "@/pages/azure-storage-management";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -84,6 +85,8 @@ function Router() {
             <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
             <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
             <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
+            <ProtectedRoute path="/azure-storage-management" component={AzureStorageManagement} />
+            <ProtectedRoute path="/azure-storage-management/:containerName" component={AzureStorageManagement} />
             <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />
             <Route component={NotFound} />
           </Switch>

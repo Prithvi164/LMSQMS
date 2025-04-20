@@ -402,6 +402,154 @@ export class AzureStorageService {
   }
   
   /**
+   * Create a new container in the Azure Storage account
+   * @param containerName Name of the container to create
+   * @param isPublic Whether the container should have public access (optional, default: false)
+   * @returns The created ContainerClient if successful
+   */
+  async createContainer(containerName: string, isPublic: boolean = false): Promise<any> {
+    try {
+      console.log(`Creating new container: "${containerName}" with public access: ${isPublic}`);
+      
+      if (!containerName) {
+        throw new Error('Container name is required');
+      }
+      
+      // Validate container name according to Azure requirements
+      // Container names must be between 3-63 characters, start with a letter or number
+      // and can contain only lowercase letters, numbers, and the dash (-) character
+      const containerNameRegex = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+      if (!containerNameRegex.test(containerName)) {
+        throw new Error('Container name must be 3-63 characters, start with a letter or number, and contain only lowercase letters, numbers, and dashes');
+      }
+      
+      // Get a reference to the container
+      const containerClient = this.blobServiceClient.getContainerClient(containerName);
+      
+      // Check if the container already exists
+      const exists = await containerClient.exists();
+      if (exists) {
+        console.log(`Container "${containerName}" already exists`);
+        return containerClient;
+      }
+      
+      // Create the container with the appropriate access level
+      // PublicAccessType can be 'blob' or 'container'
+      // 'blob' means public read access for blobs only
+      // 'container' means public read access for container and blobs
+      const accessType = isPublic ? 'container' : undefined; // Use 'container' for public, undefined for private
+      
+      // Log the operation we're about to perform
+      console.log(`Attempting to create container "${containerName}" with access type: ${accessType || 'private'}`);
+      
+      const createContainerResponse = await containerClient.create({ access: accessType });
+      console.log(`Container "${containerName}" created successfully: ${createContainerResponse.requestId}`);
+      
+      return containerClient;
+    } catch (error) {
+      console.error(`Error creating container "${containerName}":`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Upload a file to a container in Azure Blob Storage
+   * @param containerName Name of the container
+   * @param blobName Name to give the blob (file) in Azure
+   * @param fileBuffer Buffer containing the file data
+   * @param contentType MIME type of the file (optional)
+   * @param metadata Additional metadata for the blob (optional)
+   * @returns Information about the uploaded blob
+   */
+  async uploadFile(
+    containerName: string, 
+    blobName: string, 
+    fileBuffer: Buffer,
+    contentType?: string,
+    metadata?: Record<string, string>
+  ): Promise<{
+    name: string;
+    url: string;
+    etag: string;
+    contentType: string;
+    contentLength: number;
+    lastModified: Date;
+  }> {
+    try {
+      console.log(`Uploading file to container "${containerName}" as "${blobName}"`);
+      
+      if (!containerName || !blobName || !fileBuffer) {
+        throw new Error('Container name, blob name, and file data are required');
+      }
+      
+      // Get the container client
+      const containerClient = this.getContainerClient(containerName);
+      
+      // Check if the container exists
+      const containerExists = await containerClient.exists();
+      if (!containerExists) {
+        console.error(`Container "${containerName}" does not exist`);
+        throw new Error(`Container "${containerName}" does not exist`);
+      }
+      
+      // Get the blob client for this file
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      
+      // Determine content type from file extension if not provided
+      if (!contentType) {
+        const fileExtension = blobName.split('.').pop()?.toLowerCase();
+        if (fileExtension) {
+          const contentTypeMap: Record<string, string> = {
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            'm4a': 'audio/mp4',
+            'aac': 'audio/aac',
+            'flac': 'audio/flac',
+            'webm': 'audio/webm',
+            'mp4': 'audio/mp4',
+            '3gp': 'audio/3gpp',
+            'amr': 'audio/amr',
+            'wma': 'audio/x-ms-wma'
+          };
+          
+          contentType = contentTypeMap[fileExtension] || 'application/octet-stream';
+        } else {
+          contentType = 'application/octet-stream';
+        }
+      }
+      
+      // Set upload options including content type and metadata
+      const options = {
+        blobHTTPHeaders: {
+          blobContentType: contentType
+        },
+        metadata: metadata || {}
+      };
+      
+      // Upload the file
+      const uploadResponse = await blockBlobClient.uploadData(fileBuffer, options);
+      console.log(`File uploaded successfully: ${blobName}, ETag: ${uploadResponse.etag}`);
+      
+      // Get properties of the uploaded blob
+      const properties = await blockBlobClient.getProperties();
+      
+      // Return information about the uploaded blob
+      return {
+        name: blobName,
+        url: blockBlobClient.url,
+        etag: properties.etag || '',
+        contentType: properties.contentType || contentType,
+        contentLength: properties.contentLength || fileBuffer.length,
+        lastModified: properties.lastModified || new Date()
+      };
+    } catch (error) {
+      console.error(`Error uploading file to container "${containerName}":`, error);
+      throw error;
+    }
+  }
+  
+  /**
    * Get properties of a specific blob
    */
   async getBlobProperties(containerName: string, blobName: string): Promise<any> {
@@ -588,11 +736,17 @@ export const initAzureStorageService = (): AzureStorageService | null => {
       return null;
     }
 
+    console.log('Initializing Azure Storage Service with account:', process.env.AZURE_STORAGE_ACCOUNT_NAME);
+    
     const service = new AzureStorageService(
       process.env.AZURE_STORAGE_ACCOUNT_NAME,
       process.env.AZURE_STORAGE_ACCOUNT_KEY
     );
-
+    
+    // Verify service is correctly initialized
+    console.log('Azure Storage Service initialized. Testing connection...');
+    
+    // Return the initialized service
     return service;
   } catch (error) {
     console.error('Failed to initialize Azure Storage Service:', error);
