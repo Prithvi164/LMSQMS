@@ -176,6 +176,13 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
     },
   });
 
+  // Function to trigger file input click
+  const triggerFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -196,7 +203,20 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
               onChange={handleFileChange}
               className="flex-1"
               disabled={uploadFile.isPending}
+              style={{ display: selectedFile ? 'block' : 'none' }} // Hide when no file selected for cleaner UI
             />
+            {!selectedFile && (
+              <Button
+                type="button"
+                className="w-full"
+                onClick={triggerFileSelect}
+                disabled={uploadFile.isPending}
+                data-action="select-file" // Important: added for programmatic access
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Select File
+              </Button>
+            )}
             {selectedFile && (
               <Button
                 type="button"

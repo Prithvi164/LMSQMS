@@ -246,8 +246,32 @@ export function AzureStorageManagement() {
                         size="sm"
                         className="flex-1"
                         onClick={() => {
+                          // Set this container as selected
                           setSelectedContainer(container.name);
-                          setActiveTab("uploader");
+                          
+                          // Scroll to the upload section
+                          setTimeout(() => {
+                            const uploadSection = document.getElementById('upload-section');
+                            if (uploadSection) {
+                              uploadSection.scrollIntoView({ behavior: 'smooth' });
+                              
+                              // After scrolling, try to trigger the file selection dialog
+                              setTimeout(() => {
+                                // Look for the file input and trigger click
+                                const fileInput = document.getElementById('file-upload');
+                                if (fileInput) {
+                                  // This would work if the input is visible
+                                  // fileInput.click();
+                                  
+                                  // Instead, look for our button that triggers the file selection
+                                  const selectFileButton = document.querySelector('[data-action="select-file"]');
+                                  if (selectFileButton && selectFileButton instanceof HTMLButtonElement) {
+                                    selectFileButton.click();
+                                  }
+                                }
+                              }, 300);
+                            }
+                          }, 100);
                         }}
                       >
                         <Upload className="mr-2 h-4 w-4" />
@@ -263,7 +287,7 @@ export function AzureStorageManagement() {
         
         {/* File Upload Section */}
         {selectedContainer && (
-          <div className="space-y-4 pt-8 border-t">
+          <div id="upload-section" className="space-y-4 pt-8 border-t">
             <h2 className="text-2xl font-bold">Upload Files to {selectedContainer}</h2>
             <AzureFileUploader 
               containerName={selectedContainer} 
@@ -272,7 +296,7 @@ export function AzureStorageManagement() {
                 // Show success toast with details
                 toast({
                   title: "File Uploaded Successfully",
-                  description: `${fileData.originalname} uploaded to ${selectedContainer}`,
+                  description: `${fileData.name || fileData.originalname} uploaded to ${selectedContainer}`,
                   variant: "default",
                 });
               }}
