@@ -811,20 +811,47 @@ if (!azureService) {
   console.error('Azure service could not be initialized. Routes will not function.');
 }
 
-// Configure multer storage for Excel file uploads
-const uploadsDir = join(process.cwd(), 'public', 'uploads', 'excel');
+// Configure multer storage for all file uploads
+const uploadsDir = join(process.cwd(), 'public', 'uploads');
 if (!existsSync(uploadsDir)) {
   mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Create specific folder for excel files
+const excelUploadsDir = join(uploadsDir, 'excel');
+if (!existsSync(excelUploadsDir)) {
+  mkdirSync(excelUploadsDir, { recursive: true });
+}
+
+// Create specific folder for audio files and other Azure uploads
+const azureUploadsDir = join(uploadsDir, 'azure');
+if (!existsSync(azureUploadsDir)) {
+  mkdirSync(azureUploadsDir, { recursive: true });
+}
+
+console.log(`Upload directories created: 
+- ${uploadsDir}
+- ${excelUploadsDir}
+- ${azureUploadsDir}`);
+
+// General storage for both Excel and Azure uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+    // Check if this is an Excel upload (based on route or file type)
+    if (file.mimetype.includes('spreadsheet') || 
+        file.originalname.endsWith('.xlsx') || 
+        file.originalname.endsWith('.xls')) {
+      cb(null, excelUploadsDir);
+    } else {
+      // For all other files, including audio files
+      cb(null, azureUploadsDir);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = file.originalname.split('.').pop();
-    cb(null, `azure-metadata-${uniqueSuffix}.${ext}`);
+    let ext = file.originalname.split('.').pop() || '';
+    if (!ext) ext = 'bin'; // Fallback extension if none detected
+    cb(null, `azure-upload-${uniqueSuffix}.${ext}`);
   }
 });
 
@@ -1010,11 +1037,17 @@ router.post('/azure-upload/:containerName', multer({ storage: storage }).single(
     const metadata: Record<string, string> = {};
     
     // Extract all metadata fields from request body
+    console.log('Request body keys:', Object.keys(req.body));
+    
     Object.keys(req.body).forEach(key => {
-      // Skip the blobName and contentType as they're used differently
-      if (key !== 'blobName' && key !== 'contentType' && key !== 'file') {
-        metadata[key] = req.body[key];
+      // Look for metadata prefix in keys
+      if (key.startsWith('metadata-')) {
+        // Remove the prefix and use the rest as the metadata key
+        const metadataKey = key.replace('metadata-', '');
+        metadata[metadataKey] = req.body[key];
+        console.log(`Adding metadata: ${metadataKey}=${req.body[key]}`);
       }
+      // Skip non-metadata fields and don't add them to metadata
     });
     
     // Upload the file to Azure

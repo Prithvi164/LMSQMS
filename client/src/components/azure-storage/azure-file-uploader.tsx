@@ -77,6 +77,8 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
         throw new Error("File and container name are required");
       }
 
+      console.log(`Starting file upload for container: ${containerName}, file: ${selectedFile.name}`);
+
       // Create FormData object
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -84,15 +86,18 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
       // Add custom blob name if provided
       if (blobName && blobName !== selectedFile.name) {
         formData.append("blobName", blobName);
+        console.log(`Using custom blob name: ${blobName}`);
       }
       
       // Add content type
       formData.append("contentType", selectedFile.type);
+      console.log(`File content type: ${selectedFile.type}`);
       
       // Add metadata if provided
       const metadataObj = parseMetadata(metadata);
       Object.entries(metadataObj).forEach(([key, value]) => {
-        formData.append(key, value);
+        formData.append(`metadata-${key}`, value);
+        console.log(`Added metadata: ${key}=${value}`);
       });
 
       // Simulate progress updates
@@ -105,23 +110,39 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
 
       try {
         // Upload file
-        console.log(`Uploading file to container: ${containerName}`);
-        const response = await fetch(`/api/azure-upload/${containerName}`, {
+        const uploadUrl = `/api/azure-upload/${encodeURIComponent(containerName)}`;
+        console.log(`Sending upload request to: ${uploadUrl}`);
+        
+        const response = await fetch(uploadUrl, {
           method: "POST",
           body: formData,
-          // No need for credentials as authentication check is bypassed for testing
         });
         
         clearInterval(progressInterval);
         setUploadProgress(100);
         
+        console.log(`Upload response status: ${response.status}`);
+        
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Upload failed");
+          const errorText = await response.text();
+          console.error(`Upload failed with status ${response.status}: ${errorText}`);
+          let errorMessage = "Upload failed";
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = errorText || errorMessage;
+          }
+          
+          throw new Error(errorMessage);
         }
         
-        return await response.json();
+        const result = await response.json();
+        console.log("Upload successful:", result);
+        return result;
       } catch (error) {
+        console.error("Error in upload:", error);
         clearInterval(progressInterval);
         setUploadProgress(0);
         throw error;
