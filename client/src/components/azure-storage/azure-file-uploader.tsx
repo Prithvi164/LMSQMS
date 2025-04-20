@@ -105,10 +105,11 @@ export function AzureFileUploader({ containerName, onUploadSuccess }: AzureFileU
 
       try {
         // Upload file
+        console.log(`Uploading file to container: ${containerName}`);
         const response = await fetch(`/api/azure-upload/${containerName}`, {
           method: "POST",
           body: formData,
-          credentials: "include",
+          // No need for credentials as authentication check is bypassed for testing
         });
         
         clearInterval(progressInterval);
