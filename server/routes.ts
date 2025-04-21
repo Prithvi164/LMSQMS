@@ -1556,10 +1556,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const name = req.query.name as string | undefined;
-      console.log(`Fetching processes for organization: ${req.user.organizationId}${name ? " with name filter: " + name : ""}`);
+      console.log(`Fetching processes for organization: ${req.user.organizationId}${name ? " with name filter: " + name : ""} for user ${req.user.id} with role ${req.user.role}`);
       
-      const processes = await storage.listProcesses(req.user.organizationId, name);
-      console.log(`Retrieved ${processes.length} processes`);
+      // Pass the user object to filter processes based on role and assignments
+      const processes = await storage.listProcesses(req.user.organizationId, name, req.user);
+      console.log(`Retrieved ${processes.length} processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
@@ -5048,13 +5049,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const lobId = parseInt(req.params.lobId);
+      
+      console.log(`Fetching processes for organization ${orgId}, LOB ${lobId} by user ${req.user.id} with role ${req.user.role}`);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
 
-      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
+      // Pass the user object to filter processes based on role and assignments
+      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId, req.user);
+      console.log(`Found ${processes.length} LOB processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
@@ -5731,15 +5736,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const orgId = parseInt(req.params.id);
-      console.log(`Fetching processes for organization ${orgId}`);
+      console.log(`Fetching processes for organization ${orgId} by user ${req.user.id} with role ${req.user.role}`);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
 
-      const processes = await storage.listProcesses(orgId);
-      console.log(`Found ${processes.length} processes`);
+      // Pass the user object to filter processes based on role and assignments
+      const processes = await storage.listProcesses(orgId, undefined, req.user);
+      console.log(`Found ${processes.length} processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
@@ -8150,7 +8156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processIdToUse = req.user.processId;
       } else {
         // Try to find a process, but don't require it to be valid
-        const processes = await storage.listProcesses(orgId);
+        // Pass the user object to filter processes based on role and assignments
+        const processes = await storage.listProcesses(orgId, undefined, req.user);
         if (processes && processes.length > 0) {
           processIdToUse = processes[0].id;
         } else {
@@ -8212,7 +8219,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the process ID from the request, the user, or use a default
       const processId = req.body.processId || req.user.processId;
       if (!processId) {
-        const processes = await storage.listProcesses(req.user.organizationId);
+        // Pass the user object to filter processes based on role and assignments
+        const processes = await storage.listProcesses(req.user.organizationId, undefined, req.user);
         if (processes && processes.length > 0) {
           req.body.processId = processes[0].id;
         } else {
@@ -8468,7 +8476,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let processIdToUse = fileMetadata?.processId || req.user.processId;
               if (!processIdToUse) {
                 // Try to find a valid process for this organization
-                const processes = await storage.listProcesses(orgId);
+                // Pass the user object to filter processes based on role and assignments
+                const processes = await storage.listProcesses(orgId, undefined, req.user);
                 if (processes && processes.length > 0) {
                   processIdToUse = processes[0].id;
                 } else {
