@@ -302,12 +302,17 @@ export function FixedEditUserModal({
                 const managerId = data.managerId === "none" ? null : 
                   typeof data.managerId === 'string' ? parseInt(data.managerId) : data.managerId;
                 
+                const processesArray = Array.isArray(data.processes) ? data.processes : [];
+                console.log('Form submission - processes data:', processesArray);
+                
                 const cleanedData = {
                   ...data,
                   locationId,
                   managerId,
-                  processes: Array.isArray(data.processes) ? data.processes : [],
+                  processes: processesArray,
                 };
+                
+                console.log('Final data being sent to server:', cleanedData);
                 
                 await onSave(user.id, cleanedData);
                 onClose();
