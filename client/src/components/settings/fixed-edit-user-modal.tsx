@@ -315,11 +315,7 @@ export function FixedEditUserModal({
                   processes: Array.isArray(data.processes) ? data.processes : [],
                 };
 
-                // Check if the current logged-in user is a manager
-                if (isCurrentUserManager) {
-                  // Only include locationId in the update data when the current user is a manager
-                  cleanedData = { locationId };
-                }
+                // Managers now have full edit permissions, so we don't need to filter the data
                 
                 await onSave(user.id, cleanedData);
                 onClose();
@@ -334,16 +330,7 @@ export function FixedEditUserModal({
                 </div>
               )}
               
-              {/* Manager role restriction notice - only shown to managers */}
-                {isCurrentUserManager && (
-                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-3 rounded-md flex gap-2 items-start">
-                    <Info className="h-5 w-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-amber-800 dark:text-amber-400">
-                      <p className="font-medium">Limited Edit Permission</p>
-                      <p>As a manager, you can only update the Location field. Other fields will be disabled or changes won't be saved.</p>
-                    </div>
-                  </div>
-                )}
+              {/* Information banner for managers - removed restrictions */}
 
                 <div className="grid grid-cols-2 gap-4">
                 {/* Username */}
@@ -354,12 +341,8 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Username</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ''} disabled={isCurrentUserManager} 
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""} />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -373,12 +356,8 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ''} disabled={isCurrentUserManager}
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""} />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -396,17 +375,14 @@ export function FixedEditUserModal({
                           {...field}
                           type="email"
                           value={field.value || ''}
-                          disabled={user.role === "owner" || isCurrentUserManager}
-                          className={(user.role === "owner" || isCurrentUserManager) ? "bg-muted cursor-not-allowed" : ""}
+                          disabled={user.role === "owner"}
+                          className={user.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
                       {user.role === "owner" && (
                         <p className="text-sm text-muted-foreground">
                           Email cannot be changed for owner accounts
                         </p>
-                      )}
-                      {isCurrentUserManager && user.role !== "owner" && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
                       )}
                       <FormMessage />
                     </FormItem>
@@ -424,13 +400,8 @@ export function FixedEditUserModal({
                         <Input 
                           {...field} 
                           value={field.value || ''} 
-                          disabled={isCurrentUserManager}
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -447,13 +418,8 @@ export function FixedEditUserModal({
                         <Input 
                           {...field} 
                           value={field.value || ''} 
-                          disabled={isCurrentUserManager}
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -467,7 +433,7 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Role</FormLabel>
                       <Select
-                        disabled={user.role === "owner" || isCurrentUserManager}
+                        disabled={user.role === "owner"}
                         onValueChange={(value) => {
                           field.onChange(value);
                         }}
@@ -480,7 +446,7 @@ export function FixedEditUserModal({
                         <FormControl>
                           <SelectTrigger 
                             onClick={(e) => e.stopPropagation()}
-                            className={(user.role === "owner" || isCurrentUserManager) ? "bg-muted cursor-not-allowed" : ""}
+                            className={user.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
                           >
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
@@ -499,9 +465,6 @@ export function FixedEditUserModal({
                         <p className="text-sm text-muted-foreground">
                           Role cannot be changed for owner accounts
                         </p>
-                      )}
-                      {isCurrentUserManager && user.role !== "owner" && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
                       )}
                       <FormMessage />
                     </FormItem>
@@ -552,21 +515,17 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
                       <Select
-                        disabled={isCurrentUserManager}
                         onValueChange={(value) => {
                           field.onChange(value);
                         }}
                         value={field.value}
                         onOpenChange={(open) => {
-                          if (!isCurrentUserManager) {
-                            setAnyDropdownOpen(open);
-                          }
+                          setAnyDropdownOpen(open);
                         }}
                       >
                         <FormControl>
                           <SelectTrigger 
                             onClick={(e) => e.stopPropagation()}
-                            className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                           >
                             <SelectValue placeholder="Select a manager" />
                           </SelectTrigger>
@@ -585,9 +544,6 @@ export function FixedEditUserModal({
                             ))}
                         </SelectContent>
                       </Select>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -605,13 +561,8 @@ export function FixedEditUserModal({
                           {...field} 
                           type="date" 
                           value={field.value || ''} 
-                          disabled={isCurrentUserManager}
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -629,13 +580,8 @@ export function FixedEditUserModal({
                           {...field} 
                           type="date" 
                           value={field.value || ''} 
-                          disabled={isCurrentUserManager}
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -652,13 +598,8 @@ export function FixedEditUserModal({
                         <Input 
                           {...field} 
                           value={field.value || ''} 
-                          disabled={isCurrentUserManager}
-                          className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -672,22 +613,18 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Category</FormLabel>
                       <Select
-                        disabled={isCurrentUserManager}
                         onValueChange={(value) => {
                           field.onChange(value);
                         }}
                         value={field.value}
                         onOpenChange={(open) => {
-                          if (!isCurrentUserManager) {
-                            // Track the open state in our parent component
-                            setAnyDropdownOpen(open);
-                          }
+                          // Track the open state in our parent component
+                          setAnyDropdownOpen(open);
                         }}
                       >
                         <FormControl>
                           <SelectTrigger 
                             onClick={(e) => e.stopPropagation()}
-                            className={isCurrentUserManager ? "bg-muted cursor-not-allowed" : ""}
                           >
                             <SelectValue placeholder="Select a category" />
                           </SelectTrigger>
@@ -697,9 +634,6 @@ export function FixedEditUserModal({
                           <SelectItem value="trainee">Trainee</SelectItem>
                         </SelectContent>
                       </Select>
-                      {isCurrentUserManager && (
-                        <p className="text-sm text-muted-foreground">Field not editable by managers</p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -719,11 +653,9 @@ export function FixedEditUserModal({
                       )}
                     </Label>
                     <Popover 
-                      open={openLOB && !isCurrentUserManager} 
+                      open={openLOB} 
                       onOpenChange={(open) => {
-                        if (!isCurrentUserManager) {
-                          setOpenLOB(open);
-                        }
+                        setOpenLOB(open);
                       }}
                     >
                       <PopoverTrigger asChild>
@@ -731,11 +663,9 @@ export function FixedEditUserModal({
                           variant="outline"
                           role="combobox"
                           aria-expanded={openLOB}
-                          disabled={isCurrentUserManager}
                           className={cn(
                             "w-full justify-between mt-1",
-                            requiresLineOfBusiness(form.watch('role')) && selectedLOBs.length === 0 && "border-destructive",
-                            isCurrentUserManager && "bg-muted cursor-not-allowed"
+                            requiresLineOfBusiness(form.watch('role')) && selectedLOBs.length === 0 && "border-destructive"
                           )}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -790,11 +720,9 @@ export function FixedEditUserModal({
                   <div>
                     <Label className="text-sm font-normal">Processes</Label>
                     <Popover 
-                      open={openProcess && !isCurrentUserManager} 
+                      open={openProcess} 
                       onOpenChange={(open) => {
-                        if (!isCurrentUserManager) {
-                          setOpenProcess(open);
-                        }
+                        setOpenProcess(open);
                       }}
                     >
                       <PopoverTrigger asChild>
@@ -802,11 +730,8 @@ export function FixedEditUserModal({
                           variant="outline"
                           role="combobox"
                           aria-expanded={openProcess}
-                          className={cn(
-                            "w-full justify-between mt-1",
-                            isCurrentUserManager && "bg-muted cursor-not-allowed"
-                          )}
-                          disabled={selectedLOBs.length === 0 || isCurrentUserManager}
+                          className="w-full justify-between mt-1"
+                          disabled={selectedLOBs.length === 0}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {form.watch("processes")?.length
@@ -869,11 +794,6 @@ export function FixedEditUserModal({
                     </Popover>
                   </div>
                 </div>
-                {isCurrentUserManager && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Process selections cannot be changed by managers
-                  </p>
-                )}
               </div>
               
               <div className="flex justify-end gap-2 pt-4 border-t mt-4">
