@@ -301,9 +301,29 @@ export function QuizManagement() {
       setDeletingQuestionId(null);
     },
     onError: (error: Error) => {
+      // Handle different error scenarios with user-friendly messages
+      let errorMessage = error.message;
+      let errorTitle = "Error";
+      
+      if (errorMessage.includes("permission") || errorMessage.includes("not authorized")) {
+        errorMessage = "You don't have permission to delete this question. Please contact your administrator.";
+        errorTitle = "Permission Denied";
+      } else if (errorMessage.includes("not found")) {
+        errorMessage = "This question couldn't be found. It may have been removed by another user.";
+        errorTitle = "Question Not Found";
+      } else if (errorMessage.includes("in use") || errorMessage.includes("reference")) {
+        errorMessage = "This question is being used in one or more quizzes and cannot be deleted.";
+        errorTitle = "Cannot Delete";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        errorTitle = "Connection Error";
+      } else {
+        errorMessage = "There was a problem deleting the question. Please try again later.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -386,9 +406,30 @@ export function QuizManagement() {
     },
     onError: (error: Error) => {
       console.error('Error in toggle active mutation:', error);
+      
+      // Create user-friendly error messages for toggle active/inactive
+      let errorMessage = error.message;
+      let errorTitle = "Action Failed";
+      
+      if (errorMessage.includes("permission") || errorMessage.includes("not authorized") || errorMessage.includes("Authentication failed")) {
+        errorMessage = "You don't have permission to change the status of this question.";
+        errorTitle = "Permission Denied";
+      } else if (errorMessage.includes("not found")) {
+        errorMessage = "This question couldn't be found. It may have been deleted by another user.";
+        errorTitle = "Question Not Found";
+      } else if (errorMessage.includes("in use") || errorMessage.includes("reference")) {
+        errorMessage = "This question is currently in use and its status cannot be changed.";
+        errorTitle = "Cannot Update";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        errorTitle = "Connection Error";
+      } else {
+        errorMessage = "Unable to change question status. Please try again later.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -557,11 +598,29 @@ export function QuizManagement() {
       setDeletingTemplateId(null);
     },
     onError: (error: Error) => {
+      // Handle different error scenarios with user-friendly messages
+      let errorMessage = error.message;
+      let errorTitle = "Error";
+      
+      if (errorMessage.includes("permission") || errorMessage.includes("not authorized")) {
+        errorMessage = "You don't have permission to delete this quiz template. Please contact your administrator.";
+        errorTitle = "Permission Denied";
+      } else if (errorMessage.includes("in use") || errorMessage.includes("active quizzes")) {
+        errorMessage = "This template has active quizzes and cannot be deleted. Please delete all associated quizzes first.";
+        errorTitle = "Cannot Delete";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        errorTitle = "Connection Error";
+      } else {
+        errorMessage = "Unable to delete the quiz template. Please try again later.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
+      
       setDeletingTemplateId(null);
       // Force a refetch to ensure UI is in sync
       queryClient.invalidateQueries({
@@ -634,9 +693,26 @@ export function QuizManagement() {
       setDeletingQuizId(null);
     },
     onError: (error: Error) => {
+      // Handle different error scenarios with user-friendly messages
+      let errorMessage = error.message;
+      let errorTitle = "Delete Failed";
+      
+      if (errorMessage.includes("permission") || errorMessage.includes("not authorized")) {
+        errorMessage = "You don't have permission to delete this quiz. Please contact your administrator.";
+        errorTitle = "Permission Denied";
+      } else if (errorMessage.includes("in progress") || errorMessage.includes("attempts")) {
+        errorMessage = "This quiz has active attempts and cannot be deleted. Please wait until all attempts are complete.";
+        errorTitle = "Quiz In Use";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        errorTitle = "Connection Error";
+      } else {
+        errorMessage = "Unable to delete the quiz. Please try again later.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
       setDeletingQuizId(null);

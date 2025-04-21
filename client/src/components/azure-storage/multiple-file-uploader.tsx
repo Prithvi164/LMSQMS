@@ -136,6 +136,23 @@ export function MultipleFileUploader({ containerName, onUploadSuccess }: Multipl
           errorMessage = errorText || "Upload failed";
         }
         
+        // Create more user-friendly error messages based on common errors
+        if (errorMessage.includes("storage account") || errorMessage.includes("account not found")) {
+          errorMessage = "Storage service unavailable. Please try again later.";
+        } else if (errorMessage.includes("container") && errorMessage.includes("not found")) {
+          errorMessage = "Storage container not found. It may have been deleted.";
+        } else if (errorMessage.includes("permission") || errorMessage.includes("access denied") || errorMessage.includes("unauthorized")) {
+          errorMessage = "Permission denied. Contact your administrator.";
+        } else if (errorMessage.includes("size") || errorMessage.includes("too large")) {
+          errorMessage = "File exceeds maximum allowed size.";
+        } else if (errorMessage.includes("format") || errorMessage.includes("invalid content type")) {
+          errorMessage = "Unsupported file format.";
+        } else if (errorMessage.includes("duplicate") || errorMessage.includes("already exists")) {
+          errorMessage = "A file with this name already exists.";
+        } else if (errorMessage.includes("invalid character") || errorMessage.includes("invalid name")) {
+          errorMessage = "File name contains invalid characters.";
+        }
+        
         console.error(`Failed to upload ${file.name}: ${errorMessage}`);
         
         // Update file status to error
@@ -253,9 +270,34 @@ export function MultipleFileUploader({ containerName, onUploadSuccess }: Multipl
     },
     onError: (error: Error) => {
       console.error("Error in batch upload:", error);
+      
+      // Create user-friendly error messages based on the error content
+      let errorMessage = error.message || "Failed to upload files. Please try again.";
+      let errorTitle = "Upload Failed";
+      
+      if (errorMessage.includes("storage account") || errorMessage.includes("account not found")) {
+        errorMessage = "The storage service is currently unavailable. Please try again later or contact support.";
+        errorTitle = "Storage Service Unavailable";
+      } else if (errorMessage.includes("container") && errorMessage.includes("not found")) {
+        errorMessage = "The storage container could not be found. It may have been deleted or renamed.";
+        errorTitle = "Container Not Found";
+      } else if (errorMessage.includes("permission") || errorMessage.includes("access denied") || errorMessage.includes("unauthorized")) {
+        errorMessage = "You don't have permission to upload files to this container. Please contact your administrator.";
+        errorTitle = "Permission Denied";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        errorTitle = "Connection Error";
+      } else if (errorMessage.includes("size") || errorMessage.includes("too large")) {
+        errorMessage = "One or more files exceed the maximum allowed size. Please compress or split your files.";
+        errorTitle = "File Size Error";
+      } else if (errorMessage.includes("format") || errorMessage.includes("type")) {
+        errorMessage = "One or more files have an unsupported format. Please check the allowed file types.";
+        errorTitle = "Unsupported File Format";
+      }
+      
       toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload files. Please try again.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
       setIsUploading(false);

@@ -179,9 +179,24 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
     onError: (error: Error) => {
+      // Create user-friendly error messages
+      let errorMessage = error.message || "Failed to create user";
+      let errorTitle = "Error";
+      
+      // Check for specific error patterns and provide more user-friendly messages
+      if (errorMessage.includes("invalid input syntax for type integer: 'none'")) {
+        errorMessage = "Please select a location and reporting manager before creating the user.";
+        errorTitle = "Missing Information";
+      } else if (errorMessage.includes("syntax")) {
+        errorMessage = "There is an issue with the information you provided. Please check all fields and try again.";
+      } else if (errorMessage.includes("duplicate") || errorMessage.includes("already exists")) {
+        errorMessage = "A user with this username or email already exists.";
+        errorTitle = "Duplicate User";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to create user",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -207,9 +222,25 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
     onError: (error: Error) => {
+      // Create user-friendly error messages for bulk upload
+      let errorMessage = error.message || "Failed to upload users";
+      let errorTitle = "Upload Error";
+      
+      // Check for specific error patterns
+      if (errorMessage.includes("invalid input syntax for type integer")) {
+        errorMessage = "Some users are missing required information. Please check that all users have required fields filled in correctly.";
+        errorTitle = "Missing Information";
+      } else if (errorMessage.includes("duplicate") || errorMessage.includes("already exists")) {
+        errorMessage = "Some users could not be created because usernames or emails already exist in the system.";
+        errorTitle = "Duplicate Users";
+      } else if (errorMessage.includes("validation")) {
+        errorMessage = "There are validation errors in your uploaded data. Please check the format and try again.";
+        errorTitle = "Validation Error";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to upload users",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -712,7 +743,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="managerId">Reporting Manager</Label>
+                <Label htmlFor="managerId">
+                  Reporting Manager <span className="text-red-500">*</span>
+                </Label>
                 <Popover open={openManager} onOpenChange={setOpenManager}>
                   <PopoverTrigger asChild>
                     <Button
@@ -768,7 +801,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
 
               <div>
-                <Label htmlFor="locationId">Location</Label>
+                <Label htmlFor="locationId">
+                  Location <span className="text-red-500">*</span>
+                </Label>
                 <Popover open={openLocation} onOpenChange={setOpenLocation}>
                   <PopoverTrigger asChild>
                     <Button
@@ -872,10 +907,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                       variant="outline"
                       role="combobox"
                       aria-expanded={openLOB}
-                      className={cn(
-                        "w-full justify-between",
-                        requiresLineOfBusiness(newUserData.role) && selectedLOBs.length === 0 && "border-destructive"
-                      )}
+                      className="w-full justify-between"
                     >
                       {selectedLOBs.length > 0
                         ? `${selectedLOBs.length} LOBs selected`
@@ -1011,6 +1043,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     ...prev,
                     phoneNumber: e.target.value
                   }))}
+                  pattern="[0-9]{10}"
+                  title="Please enter exactly 10 digits"
                   required
                 />
               </div>
@@ -1027,6 +1061,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     ...prev,
                     dateOfJoining: e.target.value
                   }))}
+                  max={new Date().toISOString().split('T')[0]}
                   required
                 />
               </div>
@@ -1041,6 +1076,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     ...prev,
                     dateOfBirth: e.target.value
                   }))}
+                  max={new Date().toISOString().split('T')[0]}
                 />
               </div>
 

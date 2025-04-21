@@ -75,9 +75,20 @@ export default function ResetPasswordPage() {
         }
       } catch (error) {
         console.error("Token validation error:", error);
+        // Create a more user-friendly error message
+        let errorMessage = "Failed to validate reset token. Please try again.";
+        
+        if (error instanceof Error) {
+          if (error.message.includes("network") || error.message.includes("connection")) {
+            errorMessage = "Unable to connect to the server. Please check your internet connection and try again.";
+          } else if (error.message.includes("timeout")) {
+            errorMessage = "The request timed out. The server might be experiencing high traffic. Please try again later.";
+          }
+        }
+        
         toast({
-          title: "Error",
-          description: "Failed to validate reset token. Please try again.",
+          title: "Link Verification Failed",
+          description: errorMessage,
           variant: "destructive",
         });
       } finally {
@@ -119,17 +130,53 @@ export default function ResetPasswordPage() {
         setSuccessMessage("Your password has been successfully reset. You can now login with your new password.");
         form.reset();
       } else {
+        // Create a user-friendly error message based on the response
+        let errorMessage = result.message || "Failed to reset password. Please try again.";
+        let errorTitle = "Password Reset Failed";
+        
+        if (errorMessage.includes("expired") || errorMessage.includes("invalid token")) {
+          errorMessage = "The password reset link has expired or is no longer valid. Please request a new password reset link.";
+          errorTitle = "Invalid or Expired Link";
+        } else if (errorMessage.includes("password") && errorMessage.includes("strength")) {
+          errorMessage = "Your new password doesn't meet the strength requirements. Please choose a stronger password with a mix of letters, numbers, and special characters.";
+          errorTitle = "Password Too Weak";
+        } else if (errorMessage.includes("match")) {
+          errorMessage = "The passwords you entered don't match. Please make sure both passwords are identical.";
+          errorTitle = "Passwords Don't Match";
+        } else if (errorMessage.includes("minimum") || errorMessage.includes("length")) {
+          errorMessage = "Your password must be at least 6 characters long. Please choose a longer password.";
+          errorTitle = "Password Too Short";
+        }
+        
         toast({
-          title: "Error",
-          description: result.message || "Failed to reset password. Please try again.",
+          title: errorTitle,
+          description: errorMessage,
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Password reset error:", error);
+      
+      // Create user-friendly error message for unexpected errors
+      let errorMessage = "An unexpected error occurred. Please try again later.";
+      let errorTitle = "Password Reset Error";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("network") || error.message.includes("connection")) {
+          errorMessage = "Unable to connect to the server. Please check your internet connection and try again.";
+          errorTitle = "Connection Error";
+        } else if (error.message.includes("timeout")) {
+          errorMessage = "The request timed out. The server might be experiencing high traffic. Please try again later.";
+          errorTitle = "Request Timeout";
+        } else if (error.message.includes("server") || error.message.includes("503") || error.message.includes("500")) {
+          errorMessage = "The server is currently experiencing issues. Please try again later or contact support if the problem persists.";
+          errorTitle = "Server Error";
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again later.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

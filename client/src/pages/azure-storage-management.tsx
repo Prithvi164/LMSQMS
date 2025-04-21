@@ -100,9 +100,33 @@ export function AzureStorageManagement() {
         errorMessage = error.response.data.message;
       }
       
-      // Display error toast with more detailed message
+      // Create user-friendly error messages based on the error content
+      let errorTitle = "Error Creating Container";
+      
+      if (errorMessage.includes("already exists")) {
+        errorMessage = "A container with this name already exists. Please choose a different name.";
+        errorTitle = "Name Conflict";
+      } else if (errorMessage.includes("special character") || errorMessage.includes("invalid character") || 
+                 errorMessage.includes("alphanumeric") || errorMessage.includes("valid name")) {
+        errorMessage = "Container name can only contain lowercase letters, numbers, and hyphens. It must begin with a letter or number.";
+        errorTitle = "Invalid Name Format";
+      } else if (errorMessage.includes("length") || errorMessage.includes("too short") || errorMessage.includes("too long")) {
+        errorMessage = "Container name must be between 3 and 63 characters long.";
+        errorTitle = "Name Length Error";
+      } else if (errorMessage.includes("permission") || errorMessage.includes("access denied") || errorMessage.includes("not authorized")) {
+        errorMessage = "You don't have permission to create containers. Please contact your administrator.";
+        errorTitle = "Permission Denied";
+      } else if (errorMessage.includes("storage account") || errorMessage.includes("account not found")) {
+        errorMessage = "The storage service is currently unavailable. Please try again later or contact support.";
+        errorTitle = "Storage Service Unavailable";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        errorTitle = "Connection Error";
+      }
+      
+      // Display error toast with user-friendly message
       toast({
-        title: "Error Creating Container",
+        title: errorTitle,
         description: errorMessage,
         variant: "destructive",
       });

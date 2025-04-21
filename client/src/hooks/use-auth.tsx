@@ -56,9 +56,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
+      // Create user-friendly error messages for login failures
+      let errorMessage = error.message;
+      let errorTitle = "Login failed";
+      
+      if (errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
+        errorMessage = "Your username or password is incorrect. Please try again.";
+      } else if (errorMessage.includes("account") && errorMessage.includes("inactive")) {
+        errorMessage = "Your account is inactive. Please contact your administrator.";
+      } else if (errorMessage.includes("locked")) {
+        errorMessage = "Your account has been locked due to too many failed attempts. Please contact your administrator.";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Unable to connect to the server. Please check your internet connection and try again.";
+      } else if (error.message.length > 100) {
+        // If the error message is too long, it's probably a technical message
+        errorMessage = "Something went wrong. Please try again later or contact support.";
+      }
+      
       toast({
-        title: "Login failed",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -79,9 +96,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
+      // Create user-friendly error messages for registration failures
+      let errorMessage = error.message;
+      let errorTitle = "Registration failed";
+      
+      if (errorMessage.includes("duplicate") || errorMessage.includes("already exists") || errorMessage.includes("unique constraint")) {
+        errorMessage = "This email or username is already registered. Please try a different one.";
+      } else if (errorMessage.includes("validation")) {
+        errorMessage = "Please check your information and make sure all required fields are filled correctly.";
+      } else if (errorMessage.includes("password")) {
+        errorMessage = "Your password does not meet the requirements. Please choose a stronger password.";
+      } else if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+        errorMessage = "Unable to connect to the server. Please check your internet connection and try again.";
+      } else if (error.message.length > 100) {
+        // If the error message is too long, it's probably a technical message
+        errorMessage = "Something went wrong. Please try again later or contact support.";
+      }
+      
       toast({
-        title: "Registration failed",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -146,13 +180,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onError: (error: Error) => {
       console.error("Logout mutation error:", error);
+      
+      // Create user-friendly error messages for logout failures
+      let errorMessage = "You've been logged out, but there was a problem with the server.";
+      
+      // Still provide a simple error message, but focus on the fact that the logout succeeded client-side
       toast({
-        title: "Logout failed",
-        description: error.message,
+        title: "Partial logout",
+        description: errorMessage,
         variant: "destructive",
       });
       
-      // If we get a serious error, we could still force a client-side logout as a fallback
+      // Force client-side logout even when there's an error on the server
       queryClient.setQueryData(["/api/user"], null);
     },
   });
