@@ -78,7 +78,7 @@ export function SidebarNav() {
       permission: 'manage_evaluation_feedback' },
     { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays,
       permission: 'view_allocation' },
-    { href: '/azure-storage', label: 'Browse Storage', icon: Cloud,
+    { href: '/azure-storage-browser', label: 'Browse Storage', icon: Cloud,
       permission: 'view_allocation' },
     { href: '/azure-storage-management', label: 'Manage Storage', icon: FileAudio,
       permission: 'view_allocation' },
