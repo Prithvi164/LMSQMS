@@ -300,14 +300,26 @@ export default function OrganizationSettings() {
   // Update user limit mutation
   const updateUserLimitMutation = useMutation({
     mutationFn: async (data: UserLimitForm) => {
-      return apiRequest(
-        "PATCH",
-        `/api/organizations/${user?.organizationId}/settings`,
-        {
-          type: "userLimit",
-          value: data.userLimit
-        }
-      );
+      console.log("Sending user limit update:", {
+        type: "userLimit", // Using camelCase as expected by the server
+        value: data.userLimit
+      });
+      
+      try {
+        const response = await apiRequest(
+          "PATCH",
+          `/api/organizations/${user?.organizationId}/settings`,
+          {
+            type: "userLimit", // Using camelCase as expected by the server
+            value: data.userLimit
+          }
+        );
+        console.log("User limit update response:", response);
+        return response;
+      } catch (error) {
+        console.error("User limit update failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/settings`] });
@@ -316,7 +328,8 @@ export default function OrganizationSettings() {
         description: "The organization user limit has been updated successfully.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      console.error("Error in user limit mutation:", error);
       toast({
         title: "Error updating user limit",
         description: error.message || "An error occurred while updating user limit. Please try again.",

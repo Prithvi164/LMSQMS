@@ -1572,10 +1572,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
+      // Log all details of the request for debugging
+      console.log("--- SETTINGS UPDATE REQUEST ---");
+      console.log("Request body:", JSON.stringify(req.body));
+      console.log("Request content-type:", req.headers["content-type"]);
+      console.log("User:", req.user?.id, req.user?.email);
       const orgId = parseInt(req.params.id);
+      console.log("Organization ID:", orgId);
 
       // Check if user belongs to the organization they're trying to modify
       if (req.user.organizationId !== orgId) {
+        console.log("User org ID doesn't match:", req.user.organizationId, "vs", orgId);
         return res.status(403).json({ message: "You can only modify your own organization's settings" });
       }
       
@@ -1632,6 +1639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let result;
       // Create new setting based on type
+      console.log("Processing settings update with type:", type, "and value:", value);
       switch (type) {
         case "locations":
           // Ensure value is an object with all required fields
