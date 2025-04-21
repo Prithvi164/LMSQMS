@@ -2167,10 +2167,13 @@ export class DatabaseStorage implements IStorage {
         query = query.where(sql`lower(${organizationProcesses.name}) like ${`%${name.toLowerCase()}%`}`);
       }
 
-      // For owner and admin roles, return all processes
-      if (!user || !user.role || user.role === 'owner' || user.role === 'admin') {
+      // Check if user has permissions to see all processes:
+      // 1. For owner and admin roles, return all processes 
+      // 2. Check if user has the manage_processes permission
+      if (!user || !user.role || user.role === 'owner' || user.role === 'admin' || 
+          (user.permissions && user.permissions.includes('manage_processes'))) {
         const processes = await query as OrganizationProcess[];
-        console.log(`Found ${processes.length} processes - returning all processes`);
+        console.log(`Found ${processes.length} processes - returning all processes${user.permissions?.includes('manage_processes') ? ' (user has manage_processes permission)' : ''}`);
         return processes;
       }
       
@@ -2648,10 +2651,13 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationProcesses.organizationId, organizationId))
         .where(eq(organizationProcesses.lineOfBusinessId, lobId));
 
-      // For owner and admin roles, return all processes for the LOB
-      if (!user || !user.role || user.role === 'owner' || user.role === 'admin') {
+      // Check if user has permissions to see all processes:
+      // 1. For owner and admin roles, return all processes for the LOB
+      // 2. Check if user has the manage_processes permission
+      if (!user || !user.role || user.role === 'owner' || user.role === 'admin' || 
+          (user.permissions && user.permissions.includes('manage_processes'))) {
         const processes = await query as OrganizationProcess[];
-        console.log(`Found ${processes.length} LOB processes - returning all processes`);
+        console.log(`Found ${processes.length} LOB processes - returning all processes${user.permissions?.includes('manage_processes') ? ' (user has manage_processes permission)' : ''}`);
         return processes;
       }
       
