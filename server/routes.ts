@@ -2392,16 +2392,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(updatedUser);
       }
 
-      // Check if user has edit_users permission for extended editing capabilities
+      // Define basic allowed fields for everyone
+      let allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education']; 
+      
+      // Get user's permissions
       const userPermissions = await storage.getUserPermissions(req.user.id);
-      const hasEditPermission = userPermissions.includes('edit_users');
-      const hasManagePermission = userPermissions.includes('manage_users');
+      const hasManageUsersPermission = userPermissions.includes('manage_users');
       
-      // Define allowed fields based on permissions
-      let allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education']; // Basic fields for all
-      
-      // Allow more fields for users with edit_users permission
-      if (hasEditPermission) {
+      // Users with manage_users permission get extended editing capabilities
+      if (req.user.role === 'owner' || req.user.role === 'admin' || hasManageUsersPermission) {
+        // Expand allowed fields to include all editable user properties
         allowedFields = [
           ...allowedFields,
           'role',         // Allow changing role
@@ -2413,13 +2413,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
       }
       
-      // For users with manage_users permission, also allow process management
+      // Extract and prepare processes for updating if present
       let processIds: number[] | undefined;
-      if (hasManagePermission && updateData.processes && Array.isArray(updateData.processes)) {
+      if (updateData.processes && Array.isArray(updateData.processes)) {
         processIds = updateData.processes.map((p: any) => 
           typeof p === 'number' ? p : Number(p.id || p.processId)
         ).filter((id: number) => !isNaN(id));
-        // Remove processes from updateData as they will be handled separately
+        // Remove processes from updateData as they'll be handled separately
         delete updateData.processes;
       }
       
@@ -2431,6 +2431,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, {});
 
       const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+      
+      // Handle process updates if available (only for users with manage_users permission)
+      if (processIds !== undefined && (req.user.role === 'owner' || req.user.role === 'admin' || 
+          hasManageUsersPermission)) {
+        console.log(`Updating processes for user ${userId}:`, processIds);
+        await storage.updateUserProcesses(userId, processIds, userToUpdate.organizationId);
+        
+        // Return the updated user with the latest processes
+        const userWithProcesses = {
+          ...updatedUser,
+          processes: await storage.getUserProcesses(userId)
+        };
+        
+        return res.json(userWithProcesses);
+      }
+      
       res.json(updatedUser);
     } catch (error: any) {
       console.error("User update error:", error);
