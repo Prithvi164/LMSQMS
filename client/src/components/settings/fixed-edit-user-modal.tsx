@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { X, Check } from "lucide-react";
+import { X, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
@@ -32,7 +32,11 @@ const editUserSchema = insertUserSchema.extend({
   // Required fields
   category: z.string().default("active"),
   // Process selection
-  processes: z.array(z.number()).optional().default([]),
+  processes: z.array(z.number()).default([]),
+  // Other fields with defaults
+  fullName: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  employeeId: z.string().optional(),
 }).omit({ certified: true }).partial();
 
 type UserFormData = z.infer<typeof editUserSchema>;
@@ -81,6 +85,9 @@ export function FixedEditUserModal({
       email: "",
       role: "advisor",
       processes: [],
+      managerId: "none",
+      locationId: "none",
+      category: "active"
     }
   });
   
@@ -451,7 +458,6 @@ export function FixedEditUserModal({
                         }}
                         value={field.value}
                         onOpenChange={(open) => {
-                          // Track the open state in our parent component
                           setAnyDropdownOpen(open);
                         }}
                       >
@@ -460,13 +466,16 @@ export function FixedEditUserModal({
                             <SelectValue placeholder="Select a manager" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent onClick={(e) => e.stopPropagation()}>
+                        <SelectContent className="max-h-[300px]" onClick={(e) => e.stopPropagation()}>
                           <SelectItem value="none">No Manager</SelectItem>
                           {users
-                            .filter(u => u.id !== user.id && u.active) // Can't self-assign
+                            .filter(u => u.id !== user.id && u.active)
                             .map(manager => (
-                              <SelectItem key={manager.id} value={manager.id.toString()}>
-                                {manager.fullName || manager.username}
+                              <SelectItem 
+                                key={manager.id} 
+                                value={manager.id.toString()}
+                              >
+                                {manager.fullName || manager.username} ({manager.role})
                               </SelectItem>
                             ))}
                         </SelectContent>
