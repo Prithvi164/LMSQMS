@@ -1,140 +1,148 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique, numeric, varchar } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  timestamp,
+  jsonb,
+  pgEnum,
+  date,
+  unique,
+  numeric,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
 // Define all enums at the top
-export const questionTypeEnum = pgEnum('question_type', [
-  'multiple_choice',
-  'true_false',
-  'short_answer'
+export const questionTypeEnum = pgEnum("question_type", [
+  "multiple_choice",
+  "true_false",
+  "short_answer",
 ]);
 
-export const evaluationFeedbackStatusEnum = pgEnum('evaluation_feedback_status', [
-  'pending',
-  'accepted',
-  'rejected'
+export const evaluationFeedbackStatusEnum = pgEnum(
+  "evaluation_feedback_status",
+  ["pending", "accepted", "rejected"],
+);
+
+export const quizStatusEnum = pgEnum("quiz_status", [
+  "active",
+  "completed",
+  "expired",
 ]);
 
-export const quizStatusEnum = pgEnum('quiz_status', [
-  'active',
-  'completed',
-  'expired'
+export const quizTypeEnum = pgEnum("quiz_type", ["internal", "final"]);
+
+export const batchCategoryEnum = pgEnum("batch_category", [
+  "new_training",
+  "upskill",
 ]);
 
-export const quizTypeEnum = pgEnum('quiz_type', [
-  'internal', 
-  'final'
+export const batchStatusEnum = pgEnum("batch_status", [
+  "planned",
+  "induction",
+  "training",
+  "certification",
+  "ojt",
+  "ojt_certification",
+  "completed",
 ]);
 
-export const batchCategoryEnum = pgEnum('batch_category', [
-  'new_training',
-  'upskill'
+export const userCategoryTypeEnum = pgEnum("user_category_type", [
+  "active",
+  "trainee",
+]);
+export const roleEnum = pgEnum("role", [
+  "owner",
+  "admin",
+  "manager",
+  "team_lead",
+  "quality_analyst",
+  "trainer",
+  "advisor",
+  "trainee",
 ]);
 
-export const batchStatusEnum = pgEnum('batch_status', [
-  'planned',
-  'induction',
-  'training',
-  'certification',
-  'ojt',
-  'ojt_certification',
-  'completed'
-]);
-
-export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
-export const roleEnum = pgEnum('role', [
-  'owner',
-  'admin',
-  'manager',
-  'team_lead',
-  'quality_analyst',
-  'trainer',
-  'advisor',
-  'trainee'
-]);
-
-export const permissionEnum = pgEnum('permission', [
-  'manage_billing',
-  'manage_subscription',
-  'manage_organization_settings',
-  'manage_users',
-  'view_users',
-  'edit_users',
-  'delete_users',
-  'upload_users',
-  'add_users',               // Create new user accounts
-  'manage_organization',     // Legacy - to be replaced with more specific permissions
-  'view_organization',       // Legacy - to be replaced with more specific permissions
-  'edit_organization',       // Legacy - to be replaced with more specific permissions
-  'manage_locations',        // Full access to locations management
-  'manage_processes',        // Full access to processes management
-  'manage_holidaylist',      // Full access to holiday management
-  'manage_lineofbusiness',   // Full access to line of business management
-  'view_performance',
-  'manage_performance',
-  'export_reports',
-  'manage_batches',
-  'manage_batch_users_add',  // Add users to batches
-  'manage_batch_users_remove', // Remove users from batches
-  'view_trainee_management', // View trainee management section (read-only)
-  'manage_trainee_management', // Full access to trainee management section
+export const permissionEnum = pgEnum("permission", [
+  "manage_billing",
+  "manage_subscription",
+  "manage_organization_settings",
+  "manage_users",
+  "view_users",
+  "edit_users",
+  "delete_users",
+  "upload_users",
+  "add_users", // Create new user accounts
+  "manage_organization", // Legacy - to be replaced with more specific permissions
+  "view_organization", // Legacy - to be replaced with more specific permissions
+  "edit_organization", // Legacy - to be replaced with more specific permissions
+  "manage_locations", // Full access to locations management
+  "manage_processes", // Full access to processes management
+  "manage_holidaylist", // Full access to holiday management
+  "manage_lineofbusiness", // Full access to line of business management
+  "view_performance",
+  "manage_performance",
+  "export_reports",
+  "manage_batches",
+  "manage_batch_users_add", // Add users to batches
+  "manage_batch_users_remove", // Remove users from batches
+  "view_trainee_management", // View trainee management section (read-only)
+  "manage_trainee_management", // Full access to trainee management section
   // Quiz management permissions
-  'manage_quiz',         // Create, edit, delete quizzes
-  'take_quiz',           // Take quizzes
-  'view_quiz',           // View quizzes
-  'view_take_quiz',      // View take quiz section
+  "manage_quiz", // Create, edit, delete quizzes
+  "take_quiz", // Take quizzes
+  "view_quiz", // View quizzes
+  "view_take_quiz", // View take quiz section
   // Evaluation form permissions
-  'manage_evaluation_form',    // Create, edit, delete evaluation forms
-  'edit_evaluation_form',      // Edit evaluation forms
-  'delete_evaluation_form',    // Delete evaluation forms
-  'create_evaluation_form',    // Create evaluation forms
-  'view_evaluation_form',      // View evaluation forms
-  'manage_conduct_form',       // Full control over conduct forms
-  'manage_evaluation_feedback', // Full control over evaluation feedback
+  "manage_evaluation_form", // Create, edit, delete evaluation forms
+  "edit_evaluation_form", // Edit evaluation forms
+  "delete_evaluation_form", // Delete evaluation forms
+  "create_evaluation_form", // Create evaluation forms
+  "view_evaluation_form", // View evaluation forms
+  "manage_conduct_form", // Full control over conduct forms
+  "manage_evaluation_feedback", // Full control over evaluation feedback
   // Allocation and feedback permissions
-  'manage_allocation',         // Manage allocations
-  'view_allocation',           // View allocations
-  'manage_feedback',           // Manage feedback
-  'view_feedback'             // View feedback
+  "manage_allocation", // Manage allocations
+  "view_allocation", // View allocations
+  "manage_feedback", // Manage feedback
+  "view_feedback", // View feedback
 ]);
 
-export const processStatusEnum = pgEnum('process_status', [
-  'active',
-  'inactive',
-  'archived'
+export const processStatusEnum = pgEnum("process_status", [
+  "active",
+  "inactive",
+  "archived",
 ]);
 
-export const featureTypeEnum = pgEnum('feature_type', [
-  'LMS',
-  'QMS',
-  'BOTH'
-]);
+export const featureTypeEnum = pgEnum("feature_type", ["LMS", "QMS", "BOTH"]);
 
 // Audio file related enums
-export const audioFileStatusEnum = pgEnum('audio_file_status', [
-  'pending',
-  'allocated',
-  'evaluated',
-  'archived'
+export const audioFileStatusEnum = pgEnum("audio_file_status", [
+  "pending",
+  "allocated",
+  "evaluated",
+  "archived",
 ]);
 
-export const audioLanguageEnum = pgEnum('audio_language', [
-  'english',
-  'spanish',
-  'french',
-  'german',
-  'portuguese',
-  'hindi',
-  'mandarin',
-  'japanese',
-  'korean',
-  'arabic',
-  'russian',
-  'tamil',
-  'bengali',
-  'telugu',
-  'other'
+export const audioLanguageEnum = pgEnum("audio_language", [
+  "english",
+  "spanish",
+  "french",
+  "german",
+  "portuguese",
+  "hindi",
+  "mandarin",
+  "japanese",
+  "korean",
+  "arabic",
+  "russian",
+  "tamil",
+  "bengali",
+  "telugu",
+  "other",
 ]);
 
 // Audio files management
@@ -167,7 +175,7 @@ export const audioFiles = pgTable("audio_files", {
     businessSegment: string;
     [key: string]: any; // For additional metrics
   }>(),
-  status: audioFileStatusEnum("status").default('pending').notNull(),
+  status: audioFileStatusEnum("status").default("pending").notNull(),
   uploadedBy: integer("uploaded_by")
     .references(() => users.id)
     .notNull(),
@@ -176,10 +184,8 @@ export const audioFiles = pgTable("audio_files", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id),
-  evaluationId: integer("evaluation_id")
-    .references(() => evaluations.id),
+  batchId: integer("batch_id").references(() => organizationBatches.id),
+  evaluationId: integer("evaluation_id").references(() => evaluations.id),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -196,36 +202,39 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   // Removed dueDate and notes fields that were causing issues
-  status: audioFileStatusEnum("status").default('allocated').notNull(),
+  status: audioFileStatusEnum("status").default("allocated").notNull(),
   allocatedBy: integer("allocated_by")
     .references(() => users.id)
     .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  evaluationTemplateId: integer("evaluation_template_id")
-    .references(() => evaluationTemplates.id),  // Nullable - the template to use for evaluation
-  evaluationId: integer("evaluation_id")
-    .references(() => evaluations.id),  // Nullable - will be set after evaluation is submitted
+  evaluationTemplateId: integer("evaluation_template_id").references(
+    () => evaluationTemplates.id,
+  ), // Nullable - the template to use for evaluation
+  evaluationId: integer("evaluation_id").references(() => evaluations.id), // Nullable - will be set after evaluation is submitted
 });
 
 // Audio file batch allocation
-export const audioFileBatchAllocations = pgTable("audio_file_batch_allocations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  status: audioFileStatusEnum("status").default('allocated').notNull(),
-  allocationDate: timestamp("allocation_date").defaultNow().notNull(),
-  allocatedBy: integer("allocated_by")
-    .references(() => users.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  dueDate: timestamp("due_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const audioFileBatchAllocations = pgTable(
+  "audio_file_batch_allocations",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: audioFileStatusEnum("status").default("allocated").notNull(),
+    allocationDate: timestamp("allocation_date").defaultNow().notNull(),
+    allocatedBy: integer("allocated_by")
+      .references(() => users.id)
+      .notNull(),
+    organizationId: integer("organization_id")
+      .references(() => organizations.id)
+      .notNull(),
+    dueDate: timestamp("due_date"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+);
 
 // Quiz-related tables
 export const questions = pgTable("questions", {
@@ -260,9 +269,13 @@ export const quizTemplates = pgTable("quiz_templates", {
   shuffleQuestions: boolean("shuffle_questions").default(false).notNull(),
   shuffleOptions: boolean("shuffle_options").default(false).notNull(),
   questionCount: integer("question_count").notNull(),
-  categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(),
-  difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(),
-  quizType: quizTypeEnum("quiz_type").default('internal').notNull(),
+  categoryDistribution: jsonb("category_distribution").$type<
+    Record<string, number>
+  >(),
+  difficultyDistribution: jsonb("difficulty_distribution").$type<
+    Record<string, number>
+  >(),
+  quizType: quizTypeEnum("quiz_type").default("internal").notNull(),
   oneTimeOnly: boolean("one_time_only").default(false).notNull(),
   generationCount: integer("generation_count").default(0).notNull(),
   processId: integer("process_id")
@@ -271,8 +284,7 @@ export const quizTemplates = pgTable("quiz_templates", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id),
+  batchId: integer("batch_id").references(() => organizationBatches.id),
   createdBy: integer("created_by")
     .references(() => users.id)
     .notNull(),
@@ -300,8 +312,8 @@ export const quizzes = pgTable("quizzes", {
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
-  status: quizStatusEnum("status").default('active').notNull(),
-  quizType: quizTypeEnum("quiz_type").default('internal').notNull(),
+  status: quizStatusEnum("status").default("active").notNull(),
+  quizType: quizTypeEnum("quiz_type").default("internal").notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
   oneTimeOnly: boolean("one_time_only").default(false).notNull(),
@@ -320,12 +332,16 @@ export const quizAttempts = pgTable("quiz_attempts", {
     .references(() => organizations.id)
     .notNull(),
   score: integer("score").notNull(),
-  answers: jsonb("answers").$type<{
-    questionId: number;
-    userAnswer: string;
-    correctAnswer: string;
-    isCorrect: boolean;
-  }[]>().notNull(),
+  answers: jsonb("answers")
+    .$type<
+      {
+        questionId: number;
+        userAnswer: string;
+        correctAnswer: string;
+        isCorrect: boolean;
+      }[]
+    >()
+    .notNull(),
   completedAt: timestamp("completed_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -344,31 +360,34 @@ export const quizResponses = pgTable("quiz_responses", {
 });
 
 // Table for quiz assignments to specific trainees
-export const quizAssignments = pgTable("quiz_assignments", {
-  id: serial("id").primaryKey(),
-  quizId: integer("quiz_id")
-    .references(() => quizzes.id)
-    .notNull(),
-  traineeId: integer("trainee_id")
-    .references(() => users.id)
-    .notNull(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id),
-  assignedBy: integer("assigned_by")
-    .references(() => users.id),
-  assignedAt: timestamp("assigned_at").defaultNow(),
-  status: text("status").default('assigned'),
-}, (table) => {
-  return {
-    // Create unique constraint on quizId and userId to prevent duplicate assignments
-    unq: unique().on(table.quizId, table.userId)
-  };
-});
+export const quizAssignments = pgTable(
+  "quiz_assignments",
+  {
+    id: serial("id").primaryKey(),
+    quizId: integer("quiz_id")
+      .references(() => quizzes.id)
+      .notNull(),
+    traineeId: integer("trainee_id")
+      .references(() => users.id)
+      .notNull(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    batchId: integer("batch_id").references(() => organizationBatches.id),
+    organizationId: integer("organization_id").references(
+      () => organizations.id,
+    ),
+    assignedBy: integer("assigned_by").references(() => users.id),
+    assignedAt: timestamp("assigned_at").defaultNow(),
+    status: text("status").default("assigned"),
+  },
+  (table) => {
+    return {
+      // Create unique constraint on quizId and userId to prevent duplicate assignments
+      unq: unique().on(table.quizId, table.userId),
+    };
+  },
+);
 
 // Quiz-related types
 export type Question = InferSelectModel<typeof questions>;
@@ -387,8 +406,10 @@ export const insertQuestionSchema = createInsertSchema(questions)
   })
   .extend({
     question: z.string().min(1, "Question text is required"),
-    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
-    options: z.array(z.string()).min(2, "At least two options are required for multiple choice"),
+    type: z.enum(["multiple_choice", "true_false", "short_answer"]),
+    options: z
+      .array(z.string())
+      .min(2, "At least two options are required for multiple choice"),
     correctAnswer: z.string().min(1, "Correct answer is required"),
     explanation: z.string().optional(),
     difficultyLevel: z.number().int().min(1).max(5),
@@ -412,11 +433,14 @@ export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
     passingScore: z.number().int().min(0).max(100),
     shuffleQuestions: z.boolean().default(false),
     shuffleOptions: z.boolean().default(false),
-    questionCount: z.number().int().positive("Must select at least one question"),
+    questionCount: z
+      .number()
+      .int()
+      .positive("Must select at least one question"),
     categoryDistribution: z.record(z.string(), z.number()).optional(),
     difficultyDistribution: z.record(z.string(), z.number()).optional(),
     oneTimeOnly: z.boolean().default(false),
-    quizType: z.enum(['internal', 'final']).default('internal'),
+    quizType: z.enum(["internal", "final"]).default("internal"),
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
     batchId: z.number().int().positive("Batch is required").optional(),
@@ -439,7 +463,7 @@ export const insertQuizSchema = createInsertSchema(quizzes)
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
     processId: z.number().int().positive("Process is required"),
-    status: z.enum(['active', 'completed', 'expired']).default('active'),
+    status: z.enum(["active", "completed", "expired"]).default("active"),
     startTime: z.date(),
     endTime: z.date(),
     oneTimeOnly: z.boolean().default(false),
@@ -455,12 +479,14 @@ export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
     userId: z.number().int().positive("User is required"),
     organizationId: z.number().int().positive("Organization is required"),
     score: z.number().int().min(0).max(100),
-    answers: z.array(z.object({
-      questionId: z.number(),
-      userAnswer: z.string(),
-      correctAnswer: z.string(),
-      isCorrect: z.boolean(),
-    })),
+    answers: z.array(
+      z.object({
+        questionId: z.number(),
+        userAnswer: z.string(),
+        correctAnswer: z.string(),
+        isCorrect: z.boolean(),
+      }),
+    ),
     completedAt: z.date(),
   });
 
@@ -489,7 +515,7 @@ export const insertQuizAssignmentSchema = createInsertSchema(quizAssignments)
     batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),
     assignedBy: z.number().int().positive("Assigner is required"),
-    status: z.string().default('assigned')
+    status: z.string().default("assigned"),
   });
 
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
@@ -554,21 +580,24 @@ export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
   attempts: many(quizAttempts),
 }));
 
-export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
-  quiz: one(quizzes, {
-    fields: [quizAttempts.quizId],
-    references: [quizzes.id],
+export const quizAttemptsRelations = relations(
+  quizAttempts,
+  ({ one, many }) => ({
+    quiz: one(quizzes, {
+      fields: [quizAttempts.quizId],
+      references: [quizzes.id],
+    }),
+    user: one(users, {
+      fields: [quizAttempts.userId],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [quizAttempts.organizationId],
+      references: [organizations.id],
+    }),
+    responses: many(quizResponses),
   }),
-  user: one(users, {
-    fields: [quizAttempts.userId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [quizAttempts.organizationId],
-    references: [organizations.id],
-  }),
-  responses: many(quizResponses)
-}));
+);
 
 export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   attempt: one(quizAttempts, {
@@ -580,7 +609,6 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
     references: [questions.id],
   }),
 }));
-
 
 export const batchTemplates = pgTable("batch_templates", {
   id: serial("id").primaryKey(),
@@ -598,8 +626,9 @@ export const batchTemplates = pgTable("batch_templates", {
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
-  trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  
+  trainerId: integer("trainer_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
   batchCategory: batchCategoryEnum("batch_category").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -609,7 +638,9 @@ export const batchTemplates = pgTable("batch_templates", {
 export type BatchTemplate = InferSelectModel<typeof batchTemplates>;
 export type AudioFile = InferSelectModel<typeof audioFiles>;
 export type AudioFileAllocation = InferSelectModel<typeof audioFileAllocations>;
-export type AudioFileBatchAllocation = InferSelectModel<typeof audioFileBatchAllocations>;
+export type AudioFileBatchAllocation = InferSelectModel<
+  typeof audioFileBatchAllocations
+>;
 
 // Audio file schemas
 export const insertAudioFileSchema = createInsertSchema(audioFiles)
@@ -624,37 +655,51 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
     fileUrl: z.string().url("File URL must be a valid URL"),
     fileSize: z.number().int().positive("File size must be positive"),
     duration: z.number().positive("Duration must be positive"), // Removed .int() to allow decimal values
-    language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']).optional(),
+    language: z
+      .enum(["english", "spanish", "french", "hindi", "other"])
+      .optional(),
     version: z.string().min(1, "Version is required").optional(),
-    call_date: z.string().refine(val => {
-      return !!val.match(/^\d{4}-\d{2}-\d{2}$/);
-    }, { message: "Call date must be in YYYY-MM-DD format" }).optional(),
-    callMetrics: z.object({
-      callId: z.string(),
-      callType: z.string(),
-      agentId: z.string(),
-      campaignName: z.string(),
-      duration: z.number(), // in minutes
-      disposition1: z.string(),
-      disposition2: z.string(),
-      customerMobile: z.string(),
-      callTime: z.string(),
-      subType: z.string(),
-      subSubType: z.string(),
-      VOC: z.string(),
-      userRole: z.string(),
-      advisorCategory: z.string(),
-      queryType: z.string(),
-      businessSegment: z.string(),
-    }).optional(),
-    status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('pending'),
+    call_date: z
+      .string()
+      .refine(
+        (val) => {
+          return !!val.match(/^\d{4}-\d{2}-\d{2}$/);
+        },
+        { message: "Call date must be in YYYY-MM-DD format" },
+      )
+      .optional(),
+    callMetrics: z
+      .object({
+        callId: z.string(),
+        callType: z.string(),
+        agentId: z.string(),
+        campaignName: z.string(),
+        duration: z.number(), // in minutes
+        disposition1: z.string(),
+        disposition2: z.string(),
+        customerMobile: z.string(),
+        callTime: z.string(),
+        subType: z.string(),
+        subSubType: z.string(),
+        VOC: z.string(),
+        userRole: z.string(),
+        advisorCategory: z.string(),
+        queryType: z.string(),
+        businessSegment: z.string(),
+      })
+      .optional(),
+    status: z
+      .enum(["pending", "allocated", "evaluated", "archived"])
+      .default("pending"),
     uploadedBy: z.number().int().positive("Uploader is required"),
     processId: z.number().int().positive("Process is required").optional(),
     organizationId: z.number().int().positive("Organization is required"),
     batchId: z.number().int().positive("Batch is required").optional(),
   });
 
-export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAllocations)
+export const insertAudioFileAllocationSchema = createInsertSchema(
+  audioFileAllocations,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -664,14 +709,26 @@ export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAlloc
     audioFileId: z.number().int().positive("Audio file is required"),
     qualityAnalystId: z.number().int().positive("Quality analyst is required"),
     // Removed dueDate, completedDate, and notes fields that were causing issues
-    status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
+    status: z
+      .enum(["pending", "allocated", "evaluated", "archived"])
+      .default("allocated"),
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
-    evaluationTemplateId: z.number().int().positive("Evaluation template is required").optional(),
-    evaluationId: z.number().int().positive("Evaluation is required").optional(),
+    evaluationTemplateId: z
+      .number()
+      .int()
+      .positive("Evaluation template is required")
+      .optional(),
+    evaluationId: z
+      .number()
+      .int()
+      .positive("Evaluation is required")
+      .optional(),
   });
 
-export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFileBatchAllocations)
+export const insertAudioFileBatchAllocationSchema = createInsertSchema(
+  audioFileBatchAllocations,
+)
   .omit({
     id: true,
     allocationDate: true,
@@ -681,15 +738,21 @@ export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFile
   .extend({
     name: z.string().min(1, "Batch name is required"),
     description: z.string().optional(),
-    status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
+    status: z
+      .enum(["pending", "allocated", "evaluated", "archived"])
+      .default("allocated"),
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
     dueDate: z.date().optional(),
   });
 
 export type InsertAudioFile = z.infer<typeof insertAudioFileSchema>;
-export type InsertAudioFileAllocation = z.infer<typeof insertAudioFileAllocationSchema>;
-export type InsertAudioFileBatchAllocation = z.infer<typeof insertAudioFileBatchAllocationSchema>;
+export type InsertAudioFileAllocation = z.infer<
+  typeof insertAudioFileAllocationSchema
+>;
+export type InsertAudioFileBatchAllocation = z.infer<
+  typeof insertAudioFileBatchAllocationSchema
+>;
 
 // Audio file relations
 export const audioFilesRelations = relations(audioFiles, ({ one, many }) => ({
@@ -712,43 +775,49 @@ export const audioFilesRelations = relations(audioFiles, ({ one, many }) => ({
   allocations: many(audioFileAllocations),
 }));
 
-export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ one }) => ({
-  audioFile: one(audioFiles, {
-    fields: [audioFileAllocations.audioFileId],
-    references: [audioFiles.id],
+export const audioFileAllocationsRelations = relations(
+  audioFileAllocations,
+  ({ one }) => ({
+    audioFile: one(audioFiles, {
+      fields: [audioFileAllocations.audioFileId],
+      references: [audioFiles.id],
+    }),
+    qualityAnalyst: one(users, {
+      fields: [audioFileAllocations.qualityAnalystId],
+      references: [users.id],
+    }),
+    allocator: one(users, {
+      fields: [audioFileAllocations.allocatedBy],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [audioFileAllocations.organizationId],
+      references: [organizations.id],
+    }),
+    evaluationTemplate: one(evaluationTemplates, {
+      fields: [audioFileAllocations.evaluationTemplateId],
+      references: [evaluationTemplates.id],
+    }),
+    evaluation: one(evaluations, {
+      fields: [audioFileAllocations.evaluationId],
+      references: [evaluations.id],
+    }),
   }),
-  qualityAnalyst: one(users, {
-    fields: [audioFileAllocations.qualityAnalystId],
-    references: [users.id],
-  }),
-  allocator: one(users, {
-    fields: [audioFileAllocations.allocatedBy],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [audioFileAllocations.organizationId],
-    references: [organizations.id],
-  }),
-  evaluationTemplate: one(evaluationTemplates, {
-    fields: [audioFileAllocations.evaluationTemplateId],
-    references: [evaluationTemplates.id],
-  }),
-  evaluation: one(evaluations, {
-    fields: [audioFileAllocations.evaluationId],
-    references: [evaluations.id],
-  }),
-}));
+);
 
-export const audioFileBatchAllocationsRelations = relations(audioFileBatchAllocations, ({ one }) => ({
-  allocator: one(users, {
-    fields: [audioFileBatchAllocations.allocatedBy],
-    references: [users.id],
+export const audioFileBatchAllocationsRelations = relations(
+  audioFileBatchAllocations,
+  ({ one }) => ({
+    allocator: one(users, {
+      fields: [audioFileBatchAllocations.allocatedBy],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [audioFileBatchAllocations.organizationId],
+      references: [organizations.id],
+    }),
   }),
-  organization: one(organizations, {
-    fields: [audioFileBatchAllocations.organizationId],
-    references: [organizations.id],
-  }),
-}));
+);
 
 // Add template schema validation
 export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)
@@ -765,7 +834,7 @@ export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)
     locationId: z.number().int().positive("Location is required"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
-    batchCategory: z.enum(['new_training', 'upskill']),
+    batchCategory: z.enum(["new_training", "upskill"]),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
   });
 
@@ -801,7 +870,7 @@ export const organizationBatches = pgTable("organization_batches", {
   name: text("name").notNull().unique(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
-  status: batchStatusEnum("status").default('planned').notNull(),
+  status: batchStatusEnum("status").default("planned").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
@@ -809,8 +878,9 @@ export const organizationBatches = pgTable("organization_batches", {
   locationId: integer("location_id")
     .references(() => organizationLocations.id)
     .notNull(),
-  trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  
+  trainerId: integer("trainer_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -841,7 +911,9 @@ export const organizationBatches = pgTable("organization_batches", {
   actualOjtCertificationStartDate: date("actual_ojt_certification_start_date"),
   actualOjtCertificationEndDate: date("actual_ojt_certification_end_date"),
   actualHandoverToOpsDate: date("actual_handover_to_ops_date"),
-  weeklyOffDays: text("weekly_off_days").array().default(['Saturday', 'Sunday']),
+  weeklyOffDays: text("weekly_off_days")
+    .array()
+    .default(["Saturday", "Sunday"]),
   considerHolidays: boolean("consider_holidays").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -850,38 +922,43 @@ export const organizationBatches = pgTable("organization_batches", {
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // Add relations for batches
-export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationBatches.organizationId],
-    references: [organizations.id],
+export const organizationBatchesRelations = relations(
+  organizationBatches,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationBatches.organizationId],
+      references: [organizations.id],
+    }),
+    process: one(organizationProcesses, {
+      fields: [organizationBatches.processId],
+      references: [organizationProcesses.id],
+    }),
+    location: one(organizationLocations, {
+      fields: [organizationBatches.locationId],
+      references: [organizationLocations.id],
+    }),
+    lob: one(organizationLineOfBusinesses, {
+      fields: [organizationBatches.lineOfBusinessId],
+      references: [organizationLineOfBusinesses.id],
+    }),
+    trainer: one(users, {
+      fields: [organizationBatches.trainerId],
+      references: [users.id],
+    }),
   }),
-  process: one(organizationProcesses, {
-    fields: [organizationBatches.processId],
-    references: [organizationProcesses.id],
-  }),
-  location: one(organizationLocations, {
-    fields: [organizationBatches.locationId],
-    references: [organizationLocations.id],
-  }),
-  lob: one(organizationLineOfBusinesses, {
-    fields: [organizationBatches.lineOfBusinessId],
-    references: [organizationLineOfBusinesses.id],
-  }),
-  trainer: one(users, {
-    fields: [organizationBatches.trainerId],
-    references: [users.id],
-  }),
-}));
+);
 
 // Update validation schema to properly handle the enum
-export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
+export const insertOrganizationBatchSchema = createInsertSchema(
+  organizationBatches,
+)
   .omit({
     id: true,
     createdAt: true,
     updatedAt: true,
   })
   .extend({
-    batchCategory: z.enum(['new_training', 'upskill']),
+    batchCategory: z.enum(["new_training", "upskill"]),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
@@ -896,10 +973,20 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     ojtCertificationStartDate: z.string().optional(),
     ojtCertificationEndDate: z.string().optional(),
     handoverToOpsDate: z.string().optional(),
-    weeklyOffDays: z.array(z.string()).default(['Saturday', 'Sunday']),
+    weeklyOffDays: z.array(z.string()).default(["Saturday", "Sunday"]),
     considerHolidays: z.boolean().default(true),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
-    status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
+    status: z
+      .enum([
+        "planned",
+        "induction",
+        "training",
+        "certification",
+        "ojt",
+        "ojt_certification",
+        "completed",
+      ])
+      .default("planned"),
     processId: z.number().int().positive("Process is required"),
     locationId: z.number().int().positive("Location is required"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
@@ -907,7 +994,9 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+export type InsertOrganizationBatch = z.infer<
+  typeof insertOrganizationBatchSchema
+>;
 
 // Organization settings for weekly off days and holidays
 export const organizationSettings = pgTable("organization_settings", {
@@ -915,16 +1004,23 @@ export const organizationSettings = pgTable("organization_settings", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  featureType: featureTypeEnum("feature_type").default('BOTH').notNull(),
-  weeklyOffDays: text("weekly_off_days").array().notNull().default(['Saturday', 'Sunday']),
-  userLimit: integer("user_limit").default(500).notNull(),
+  featureType: featureTypeEnum("feature_type").default("BOTH").notNull(),
+  weeklyOffDays: text("weekly_off_days")
+    .array()
+    .notNull()
+    .default(["Saturday", "Sunday"]),
+  userLimit: integer("user_limit").default(400).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export type OrganizationSettings = InferSelectModel<typeof organizationSettings>;
+export type OrganizationSettings = InferSelectModel<
+  typeof organizationSettings
+>;
 
-export const insertOrganizationSettingsSchema = createInsertSchema(organizationSettings)
+export const insertOrganizationSettingsSchema = createInsertSchema(
+  organizationSettings,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -932,18 +1028,23 @@ export const insertOrganizationSettingsSchema = createInsertSchema(organizationS
   })
   .extend({
     organizationId: z.number().int().positive("Organization is required"),
-    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH'),
-    userLimit: z.number().int().min(1).max(500).default(500)
+    featureType: z.enum(["LMS", "QMS", "BOTH"]).default("BOTH"),
+    userLimit: z.number().int().min(1).max(500).default(500),
   });
 
-export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
+export type InsertOrganizationSettings = z.infer<
+  typeof insertOrganizationSettingsSchema
+>;
 
-export const organizationSettingsRelations = relations(organizationSettings, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationSettings.organizationId],
-    references: [organizations.id],
+export const organizationSettingsRelations = relations(
+  organizationSettings,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationSettings.organizationId],
+      references: [organizations.id],
+    }),
   }),
-}));
+);
 
 // Organization holidays
 export const organizationHolidays = pgTable("organization_holidays", {
@@ -953,8 +1054,7 @@ export const organizationHolidays = pgTable("organization_holidays", {
     .notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   date: date("date").notNull(),
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id),
+  locationId: integer("location_id").references(() => organizationLocations.id),
   isRecurring: boolean("is_recurring").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -962,7 +1062,9 @@ export const organizationHolidays = pgTable("organization_holidays", {
 
 export type OrganizationHoliday = InferSelectModel<typeof organizationHolidays>;
 
-export const insertOrganizationHolidaySchema = createInsertSchema(organizationHolidays)
+export const insertOrganizationHolidaySchema = createInsertSchema(
+  organizationHolidays,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -971,23 +1073,30 @@ export const insertOrganizationHolidaySchema = createInsertSchema(organizationHo
   .extend({
     organizationId: z.number().int().positive("Organization is required"),
     name: z.string().min(1, "Holiday name is required"),
-    date: z.string().refine(val => !isNaN(Date.parse(val)), "Invalid date format"),
+    date: z
+      .string()
+      .refine((val) => !isNaN(Date.parse(val)), "Invalid date format"),
     locationId: z.number().int().positive("Location is required").optional(),
-    isRecurring: z.boolean().default(false)
+    isRecurring: z.boolean().default(false),
   });
 
-export type InsertOrganizationHoliday = z.infer<typeof insertOrganizationHolidaySchema>;
+export type InsertOrganizationHoliday = z.infer<
+  typeof insertOrganizationHolidaySchema
+>;
 
-export const organizationHolidaysRelations = relations(organizationHolidays, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationHolidays.organizationId],
-    references: [organizations.id],
+export const organizationHolidaysRelations = relations(
+  organizationHolidays,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationHolidays.organizationId],
+      references: [organizations.id],
+    }),
+    location: one(organizationLocations, {
+      fields: [organizationHolidays.locationId],
+      references: [organizationLocations.id],
+    }),
   }),
-  location: one(organizationLocations, {
-    fields: [organizationHolidays.locationId],
-    references: [organizationLocations.id],
-  }),
-}));
+);
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -1001,7 +1110,7 @@ export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   description: text("description"),
-  status: processStatusEnum("status").default('active').notNull(),
+  status: processStatusEnum("status").default("active").notNull(),
   inductionDays: integer("induction_days").notNull(),
   trainingDays: integer("training_days").notNull(),
   certificationDays: integer("certification_days").notNull(),
@@ -1032,19 +1141,26 @@ export const organizationLocations = pgTable("organization_locations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
+export type OrganizationLocation = InferSelectModel<
+  typeof organizationLocations
+>;
 
-export const organizationLineOfBusinesses = pgTable("organization_line_of_businesses", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  description: text("description").notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const organizationLineOfBusinesses = pgTable(
+  "organization_line_of_businesses",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    description: text("description").notNull(),
+    organizationId: integer("organization_id")
+      .references(() => organizations.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+);
 
-export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
+export type OrganizationLineOfBusiness = InferSelectModel<
+  typeof organizationLineOfBusinesses
+>;
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -1053,7 +1169,7 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   employeeId: text("employee_id").notNull().unique(),
   role: roleEnum("role").notNull(),
-  category: userCategoryTypeEnum("category").default('trainee').notNull(),
+  category: userCategoryTypeEnum("category").default("trainee").notNull(),
   locationId: integer("location_id").references(() => organizationLocations.id),
   email: text("email").notNull().unique(),
   education: text("education"),
@@ -1061,10 +1177,8 @@ export const users = pgTable("users", {
   phoneNumber: text("phone_number"),
   dateOfBirth: date("date_of_birth"),
   lastWorkingDay: date("last_working_day"),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id),
-  managerId: integer("manager_id")
-    .references(() => users.id),
+  organizationId: integer("organization_id").references(() => organizations.id),
+  managerId: integer("manager_id").references(() => users.id),
   active: boolean("active").notNull().default(true),
   certified: boolean("certified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1075,31 +1189,37 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-export const userProcesses = pgTable("user_processes", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),  
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id),  
-  status: text("status").default('assigned').notNull(),
-  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    unq: unique().on(table.userId, table.processId),
-  };
-});
+export const userProcesses = pgTable(
+  "user_processes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    processId: integer("process_id")
+      .references(() => organizationProcesses.id)
+      .notNull(),
+    organizationId: integer("organization_id")
+      .references(() => organizations.id)
+      .notNull(),
+    lineOfBusinessId: integer("line_of_business_id").references(
+      () => organizationLineOfBusinesses.id,
+    ),
+    locationId: integer("location_id").references(
+      () => organizationLocations.id,
+    ),
+    status: text("status").default("assigned").notNull(),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      unq: unique().on(table.userId, table.processId),
+    };
+  },
+);
 
 export type UserProcess = typeof userProcesses.$inferSelect;
 
@@ -1120,80 +1240,92 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   locations: many(organizationLocations),
   lineOfBusinesses: many(organizationLineOfBusinesses),
   rolePermissions: many(rolePermissions),
-  batches: many(organizationBatches)
-}));
-
-export const organizationProcessesRelations = relations(organizationProcesses, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [organizationProcesses.organizationId],
-    references: [organizations.id],
-  }),
-  lineOfBusiness: one(organizationLineOfBusinesses, {
-    fields: [organizationProcesses.lineOfBusinessId],
-    references: [organizationLineOfBusinesses.id],
-  }),
   batches: many(organizationBatches),
-  templates: many(batchTemplates)
 }));
 
-export const organizationLocationsRelations = relations(organizationLocations, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [organizationLocations.organizationId],
-    references: [organizations.id],
+export const organizationProcessesRelations = relations(
+  organizationProcesses,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [organizationProcesses.organizationId],
+      references: [organizations.id],
+    }),
+    lineOfBusiness: one(organizationLineOfBusinesses, {
+      fields: [organizationProcesses.lineOfBusinessId],
+      references: [organizationLineOfBusinesses.id],
+    }),
+    batches: many(organizationBatches),
+    templates: many(batchTemplates),
   }),
-  batches: many(organizationBatches)
-}));
+);
 
-export const userBatchStatusEnum = pgEnum('user_batch_status', [
-  'active',
-  'completed',
-  'dropped',
-  'on_hold'
+export const organizationLocationsRelations = relations(
+  organizationLocations,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [organizationLocations.organizationId],
+      references: [organizations.id],
+    }),
+    batches: many(organizationBatches),
+  }),
+);
+
+export const userBatchStatusEnum = pgEnum("user_batch_status", [
+  "active",
+  "completed",
+  "dropped",
+  "on_hold",
 ]);
 
 // Trainee phase status enum - includes all batch phases plus special statuses
-export const traineePhaseStatusEnum = pgEnum('trainee_phase_status', [
-  'planned',
-  'induction',
-  'training',
-  'certification', 
-  'ojt',
-  'ojt_certification',
-  'completed',
-  'refresher',     // Special status: Trainee needs additional training
-  'refer_to_hr'    // Special status: Trainee has HR-related issues
+export const traineePhaseStatusEnum = pgEnum("trainee_phase_status", [
+  "planned",
+  "induction",
+  "training",
+  "certification",
+  "ojt",
+  "ojt_certification",
+  "completed",
+  "refresher", // Special status: Trainee needs additional training
+  "refer_to_hr", // Special status: Trainee has HR-related issues
 ]);
 
-export const userBatchProcesses = pgTable("user_batch_processes", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  status: userBatchStatusEnum("status").default('active').notNull(),
-  // New field for trainee status that can be different from batch status
-  traineeStatus: traineePhaseStatusEnum("trainee_status"),
-  // Flag to indicate if trainee status has been manually set
-  isManualStatus: boolean("is_manual_status").default(false),
-  joinedAt: timestamp("joined_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    // Ensure a user can only be assigned to a batch-process combination once
-    unq: unique().on(table.userId, table.batchId, table.processId),
-  };
-});
+export const userBatchProcesses = pgTable(
+  "user_batch_processes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    batchId: integer("batch_id")
+      .references(() => organizationBatches.id)
+      .notNull(),
+    processId: integer("process_id")
+      .references(() => organizationProcesses.id)
+      .notNull(),
+    status: userBatchStatusEnum("status").default("active").notNull(),
+    // New field for trainee status that can be different from batch status
+    traineeStatus: traineePhaseStatusEnum("trainee_status"),
+    // Flag to indicate if trainee status has been manually set
+    isManualStatus: boolean("is_manual_status").default(false),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      // Ensure a user can only be assigned to a batch-process combination once
+      unq: unique().on(table.userId, table.batchId, table.processId),
+    };
+  },
+);
 
 export type UserBatchProcess = InferSelectModel<typeof userBatchProcesses>;
 
-export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesses)
+export const insertUserBatchProcessSchema = createInsertSchema(
+  userBatchProcesses,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -1203,29 +1335,48 @@ export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesse
     userId: z.number().int().positive("User ID is required"),
     batchId: z.number().int().positive("Batch ID is required"),
     processId: z.number().int().positive("Process ID is required"),
-    status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
-    traineeStatus: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed', 'refresher', 'refer_to_hr']).optional(),
+    status: z
+      .enum(["active", "completed", "dropped", "on_hold"])
+      .default("active"),
+    traineeStatus: z
+      .enum([
+        "planned",
+        "induction",
+        "training",
+        "certification",
+        "ojt",
+        "ojt_certification",
+        "completed",
+        "refresher",
+        "refer_to_hr",
+      ])
+      .optional(),
     isManualStatus: z.boolean().default(false),
     joinedAt: z.string().min(1, "Joined date is required"),
     completedAt: z.string().optional(),
   });
 
-export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
+export type InsertUserBatchProcess = z.infer<
+  typeof insertUserBatchProcessSchema
+>;
 
-export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one }) => ({
-  user: one(users, {
-    fields: [userBatchProcesses.userId],
-    references: [users.id],
+export const userBatchProcessesRelations = relations(
+  userBatchProcesses,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userBatchProcesses.userId],
+      references: [users.id],
+    }),
+    batch: one(organizationBatches, {
+      fields: [userBatchProcesses.batchId],
+      references: [organizationBatches.id],
+    }),
+    process: one(organizationProcesses, {
+      fields: [userBatchProcesses.processId],
+      references: [organizationProcesses.id],
+    }),
   }),
-  batch: one(organizationBatches, {
-    fields: [userBatchProcesses.batchId],
-    references: [organizationBatches.id],
-  }),
-  process: one(organizationProcesses, {
-    fields: [userBatchProcesses.processId],
-    references: [organizationProcesses.id],
-  }),
-}));
+);
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
@@ -1242,7 +1393,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   managedProcesses: many(userProcesses),
   batches: many(organizationBatches),
-  batchProcesses: many(userBatchProcesses)
+  batchProcesses: many(userBatchProcesses),
 }));
 
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
@@ -1268,36 +1419,47 @@ export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   }),
 }));
 
-export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [rolePermissions.organizationId],
-    references: [organizations.id],
+export const rolePermissionsRelations = relations(
+  rolePermissions,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [rolePermissions.organizationId],
+      references: [organizations.id],
+    }),
   }),
-}));
+);
 
-export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
+export const insertOrganizationProcessSchema = createInsertSchema(
+  organizationProcesses,
+)
   .omit({
     id: true,
     createdAt: true,
-    updatedAt: true
+    updatedAt: true,
   })
   .extend({
     name: z.string().min(1, "Process name is required"),
     description: z.string().optional(),
-    status: z.enum(['active', 'inactive', 'archived']).default('active'),
+    status: z.enum(["active", "inactive", "archived"]).default("active"),
     inductionDays: z.number().min(0, "Induction days cannot be negative"),
     trainingDays: z.number().min(0, "Training days cannot be negative"),
-    certificationDays: z.number().min(0, "Certification days cannot be negative"),
+    certificationDays: z
+      .number()
+      .min(0, "Certification days cannot be negative"),
     ojtDays: z.number().min(0, "OJT days cannot be negative"),
-    ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
+    ojtCertificationDays: z
+      .number()
+      .min(0, "OJT certification days cannot be negative"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
-    organizationId: z.number().int().positive("Organization is required")
+    organizationId: z.number().int().positive("Organization is required"),
   });
 
-export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
+export const insertOrganizationLocationSchema = createInsertSchema(
+  organizationLocations,
+)
   .omit({
     id: true,
-    createdAt: true
+    createdAt: true,
   })
   .extend({
     name: z.string().min(1, "Location name is required"),
@@ -1308,10 +1470,12 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
+export const insertOrganizationLineOfBusinessSchema = createInsertSchema(
+  organizationLineOfBusinesses,
+)
   .omit({
     id: true,
-    createdAt: true
+    createdAt: true,
   })
   .extend({
     name: z.string().min(1, "LOBname is required"),
@@ -1319,7 +1483,10 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+});
 
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true })
@@ -1334,11 +1501,24 @@ export const insertUserSchema = createInsertSchema(users)
     education: z.string().optional(),
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
-    category: z.enum(['active', 'trainee']).default('trainee'),
-    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor', 'trainee']).default('trainee'),
+    category: z.enum(["active", "trainee"]).default("trainee"),
+    role: z
+      .enum([
+        "owner",
+        "admin",
+        "manager",
+        "team_lead",
+        "quality_analyst",
+        "trainer",
+        "advisor",
+        "trainee",
+      ])
+      .default("trainee"),
   });
 
-export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+export const insertRolePermissionSchema = createInsertSchema(
+  rolePermissions,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -1348,22 +1528,26 @@ export const insertUserWithProcessesSchema = insertUserSchema.extend({
   processes: z.array(z.number()).optional(),
 });
 
-export type InsertUserWithProcesses = z.infer<typeof insertUserWithProcessesSchema>;
+export type InsertUserWithProcesses = z.infer<
+  typeof insertUserWithProcessesSchema
+>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
-export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
+export type InsertOrganizationProcess = z.infer<
+  typeof insertOrganizationProcessSchema
+>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
-
-export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
-  'phase_change',
-  'status_update',
-  'milestone',
-  'note'
+export const batchHistoryEventTypeEnum = pgEnum("batch_history_event_type", [
+  "phase_change",
+  "status_update",
+  "milestone",
+  "note",
 ]);
 
-export const batchHistory = pgTable("batch_history", {  id: serial("id").primaryKey(),
+export const batchHistory = pgTable("batch_history", {
+  id: serial("id").primaryKey(),
   batchId: integer("batch_id")
     .references(() => organizationBatches.id)
     .notNull(),
@@ -1384,18 +1568,18 @@ export const batchHistory = pgTable("batch_history", {  id: serial("id").primary
 export type BatchHistory = InferSelectModel<typeof batchHistory>;
 
 // Batch calendar events for scheduling refresher trainings, etc.
-export const batchEventStatusEnum = pgEnum('batch_event_status', [
-  'scheduled',
-  'completed',
-  'cancelled'
+export const batchEventStatusEnum = pgEnum("batch_event_status", [
+  "scheduled",
+  "completed",
+  "cancelled",
 ]);
 
-export const batchEventTypeEnum = pgEnum('batch_event_type', [
-  'refresher',
-  'quiz',
-  'training',
-  'meeting',
-  'other'
+export const batchEventTypeEnum = pgEnum("batch_event_type", [
+  "refresher",
+  "quiz",
+  "training",
+  "meeting",
+  "other",
 ]);
 
 export const batchEvents = pgTable("batch_events", {
@@ -1407,8 +1591,8 @@ export const batchEvents = pgTable("batch_events", {
   description: text("description"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  eventType: batchEventTypeEnum("event_type").default('other').notNull(),
-  status: batchEventStatusEnum("status").default('scheduled').notNull(),
+  eventType: batchEventTypeEnum("event_type").default("other").notNull(),
+  status: batchEventStatusEnum("status").default("scheduled").notNull(),
   refresherReason: text("refresher_reason"), // Added field for refresher reason
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -1429,7 +1613,8 @@ export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   })
   .extend({
     batchId: z.number().int().positive("Batch ID is required"),
-    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),    description: z.string().min(1, "Description is required"),
+    eventType: z.enum(["phase_change", "status_update", "milestone", "note"]),
+    description: z.string().min(1, "Description is required"),
     previousValue: z.string().optional(),
     newValue: z.string().optional(),
     date: z.string().min(1, "Date is required"),
@@ -1463,41 +1648,45 @@ export interface RolePermission {
   updatedAt: Date;
 }
 
-export const attendanceStatusEnum = pgEnum('attendance_status', [
-  'present',
-  'absent',
-  'late',
-  'leave',
-  'half_day',
-  'public_holiday',
-  'weekly_off'
+export const attendanceStatusEnum = pgEnum("attendance_status", [
+  "present",
+  "absent",
+  "late",
+  "leave",
+  "half_day",
+  "public_holiday",
+  "weekly_off",
 ]);
 
-export const attendance = pgTable("attendance", {
-  id: serial("id").primaryKey(),
-  traineeId: integer("trainee_id")
-    .references(() => users.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  phase: batchStatusEnum("phase").notNull(),
-  status: attendanceStatusEnum("status").notNull(),
-  date: date("date").notNull(),
-  markedById: integer("marked_by_id")
-    .references(() => users.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    // Ensure only one attendance record per trainee per day per batch
-    unq: unique().on(table.traineeId, table.date, table.batchId),
-  };
-});
+export const attendance = pgTable(
+  "attendance",
+  {
+    id: serial("id").primaryKey(),
+    traineeId: integer("trainee_id")
+      .references(() => users.id)
+      .notNull(),
+    batchId: integer("batch_id")
+      .references(() => organizationBatches.id)
+      .notNull(),
+    phase: batchStatusEnum("phase").notNull(),
+    status: attendanceStatusEnum("status").notNull(),
+    date: date("date").notNull(),
+    markedById: integer("marked_by_id")
+      .references(() => users.id)
+      .notNull(),
+    organizationId: integer("organization_id")
+      .references(() => organizations.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      // Ensure only one attendance record per trainee per day per batch
+      unq: unique().on(table.traineeId, table.date, table.batchId),
+    };
+  },
+);
 
 export const attendanceRelations = relations(attendance, ({ one }) => ({
   trainee: one(users, {
@@ -1527,8 +1716,22 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
   .extend({
     traineeId: z.number().int().positive("Trainee ID is required"),
     batchId: z.number().int().positive("Batch ID is required"),
-    phase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
-    status: z.enum(['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'weekly_off']),
+    phase: z.enum([
+      "induction",
+      "training",
+      "certification",
+      "ojt",
+      "ojt_certification",
+    ]),
+    status: z.enum([
+      "present",
+      "absent",
+      "late",
+      "leave",
+      "half_day",
+      "public_holiday",
+      "weekly_off",
+    ]),
     date: z.string().min(1, "Date is required"),
     markedById: z.number().int().positive("Marker ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
@@ -1537,11 +1740,10 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type Attendance = InferSelectModel<typeof attendance>;
 
-export const phaseChangeRequestStatusEnum = pgEnum('phase_change_request_status', [
-  'pending',
-  'approved',
-  'rejected'
-]);
+export const phaseChangeRequestStatusEnum = pgEnum(
+  "phase_change_request_status",
+  ["pending", "approved", "rejected"],
+);
 
 export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   id: serial("id").primaryKey(),
@@ -1557,7 +1759,7 @@ export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   currentPhase: batchStatusEnum("current_phase").notNull(),
   requestedPhase: batchStatusEnum("requested_phase").notNull(),
   justification: text("justification").notNull(),
-  status: phaseChangeRequestStatusEnum("status").default('pending').notNull(),
+  status: phaseChangeRequestStatusEnum("status").default("pending").notNull(),
   managerComments: text("manager_comments"),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -1566,28 +1768,35 @@ export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const batchPhaseChangeRequestsRelations = relations(batchPhaseChangeRequests, ({ one }) => ({
-  batch: one(organizationBatches, {
-    fields: [batchPhaseChangeRequests.batchId],
-    references: [organizationBatches.id],
+export const batchPhaseChangeRequestsRelations = relations(
+  batchPhaseChangeRequests,
+  ({ one }) => ({
+    batch: one(organizationBatches, {
+      fields: [batchPhaseChangeRequests.batchId],
+      references: [organizationBatches.id],
+    }),
+    trainer: one(users, {
+      fields: [batchPhaseChangeRequests.trainerId],
+      references: [users.id],
+    }),
+    manager: one(users, {
+      fields: [batchPhaseChangeRequests.managerId],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [batchPhaseChangeRequests.organizationId],
+      references: [organizations.id],
+    }),
   }),
-  trainer: one(users, {
-    fields: [batchPhaseChangeRequests.trainerId],
-    references: [users.id],
-  }),
-  manager: one(users, {
-    fields: [batchPhaseChangeRequests.managerId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [batchPhaseChangeRequests.organizationId],
-    references: [organizations.id],
-  }),
-}));
+);
 
-export type BatchPhaseChangeRequest = InferSelectModel<typeof batchPhaseChangeRequests>;
+export type BatchPhaseChangeRequest = InferSelectModel<
+  typeof batchPhaseChangeRequests
+>;
 
-export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhaseChangeRequests)
+export const insertBatchPhaseChangeRequestSchema = createInsertSchema(
+  batchPhaseChangeRequests,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -1597,15 +1806,33 @@ export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhase
     batchId: z.number().int().positive("Batch ID is required"),
     trainerId: z.number().int().positive("Trainer ID is required"),
     managerId: z.number().int().positive("Manager ID is required"),
-    currentPhase: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']),
-    requestedPhase: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']),
+    currentPhase: z.enum([
+      "planned",
+      "induction",
+      "training",
+      "certification",
+      "ojt",
+      "ojt_certification",
+      "completed",
+    ]),
+    requestedPhase: z.enum([
+      "planned",
+      "induction",
+      "training",
+      "certification",
+      "ojt",
+      "ojt_certification",
+      "completed",
+    ]),
     justification: z.string().min(1, "Justification is required"),
-    status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+    status: z.enum(["pending", "approved", "rejected"]).default("pending"),
     managerComments: z.string().optional(),
     organizationId: z.number().int().positive("Organization ID is required"),
   });
 
-export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChangeRequestSchema>;
+export type InsertBatchPhaseChangeRequest = z.infer<
+  typeof insertBatchPhaseChangeRequestSchema
+>;
 
 export type {
   Organization,
@@ -1661,20 +1888,20 @@ export type {
   AudioFileBatchAllocation,
   InsertAudioFile,
   InsertAudioFileAllocation,
-  InsertAudioFileBatchAllocation
+  InsertAudioFileBatchAllocation,
 };
 
 // Add new enums for mock calls
-export const mockCallDifficultyEnum = pgEnum('mock_call_difficulty', [
-  'basic',
-  'intermediate',
-  'advanced'
+export const mockCallDifficultyEnum = pgEnum("mock_call_difficulty", [
+  "basic",
+  "intermediate",
+  "advanced",
 ]);
 
-export const callEvaluationStatusEnum = pgEnum('call_evaluation_status', [
-  'pending',
-  'completed',
-  'failed'
+export const callEvaluationStatusEnum = pgEnum("call_evaluation_status", [
+  "pending",
+  "completed",
+  "failed",
 ]);
 
 // Mock call scenarios table
@@ -1683,25 +1910,31 @@ export const mockCallScenarios = pgTable("mock_call_scenarios", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   difficulty: mockCallDifficultyEnum("difficulty").notNull(),
-  customerProfile: jsonb("customer_profile").$type<{
-    name: string;
-    background: string;
-    personality: string;
-    concerns: string[];
-  }>().notNull(),
-  expectedDialogue: jsonb("expected_dialogue").$type<{
-    greeting: string;
-    keyPoints: string[];
-    resolutions: string[];
-    closingStatements: string[];
-  }>().notNull(),
-  evaluationRubric: jsonb("evaluation_rubric").$type<{
-    greetingScore: number;
-    problemIdentificationScore: number;
-    solutionScore: number;
-    communicationScore: number;
-    closingScore: number;
-  }>().notNull(),
+  customerProfile: jsonb("customer_profile")
+    .$type<{
+      name: string;
+      background: string;
+      personality: string;
+      concerns: string[];
+    }>()
+    .notNull(),
+  expectedDialogue: jsonb("expected_dialogue")
+    .$type<{
+      greeting: string;
+      keyPoints: string[];
+      resolutions: string[];
+      closingStatements: string[];
+    }>()
+    .notNull(),
+  evaluationRubric: jsonb("evaluation_rubric")
+    .$type<{
+      greetingScore: number;
+      problemIdentificationScore: number;
+      solutionScore: number;
+      communicationScore: number;
+      closingScore: number;
+    }>()
+    .notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
@@ -1730,7 +1963,7 @@ export const mockCallAttempts = pgTable("mock_call_attempts", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  status: callEvaluationStatusEnum("status").default('pending').notNull(),
+  status: callEvaluationStatusEnum("status").default("pending").notNull(),
   recordingUrl: text("recording_url"),
   scores: jsonb("scores").$type<{
     greeting: number;
@@ -1752,7 +1985,9 @@ export type MockCallScenario = typeof mockCallScenarios.$inferSelect;
 export type MockCallAttempt = typeof mockCallAttempts.$inferSelect;
 
 // Insert schemas for validation
-export const insertMockCallScenarioSchema = createInsertSchema(mockCallScenarios)
+export const insertMockCallScenarioSchema = createInsertSchema(
+  mockCallScenarios,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -1761,7 +1996,7 @@ export const insertMockCallScenarioSchema = createInsertSchema(mockCallScenarios
   .extend({
     title: z.string().min(1, "Title is required"),
     description: z.string().min(1, "Description is required"),
-    difficulty: z.enum(['basic', 'intermediate', 'advanced']),
+    difficulty: z.enum(["basic", "intermediate", "advanced"]),
     customerProfile: z.object({
       name: z.string(),
       background: z.string(),
@@ -1797,71 +2032,81 @@ export const insertMockCallAttemptSchema = createInsertSchema(mockCallAttempts)
     userId: z.number().int().positive("User is required"),
     evaluatorId: z.number().int().positive("Evaluator is required"),
     organizationId: z.number().int().positive("Organization is required"),
-    status: z.enum(['pending', 'completed', 'failed']).default('pending'),
+    status: z.enum(["pending", "completed", "failed"]).default("pending"),
     recordingUrl: z.string().optional(),
-    scores: z.object({
-      greeting: z.number().min(0).max(100),
-      problemIdentification: z.number().min(0).max(100),
-      solution: z.number().min(0).max(100),
-      communication: z.number().min(0).max(100),
-      closing: z.number().min(0).max(100),
-      total: z.number().min(0).max(100),
-    }).optional(),
+    scores: z
+      .object({
+        greeting: z.number().min(0).max(100),
+        problemIdentification: z.number().min(0).max(100),
+        solution: z.number().min(0).max(100),
+        communication: z.number().min(0).max(100),
+        closing: z.number().min(0).max(100),
+        total: z.number().min(0).max(100),
+      })
+      .optional(),
     feedback: z.string().optional(),
     startedAt: z.string().min(1, "Start time is required"),
     completedAt: z.string().optional(),
   });
 
-export type InsertMockCallScenario = z.infer<typeof insertMockCallScenarioSchema>;
+export type InsertMockCallScenario = z.infer<
+  typeof insertMockCallScenarioSchema
+>;
 export type InsertMockCallAttempt = z.infer<typeof insertMockCallAttemptSchema>;
 
 // Add relations for the new tables
-export const mockCallScenariosRelations = relations(mockCallScenarios, ({ one, many }) => ({
-  process: one(organizationProcesses, {
-    fields: [mockCallScenarios.processId],
-    references: [organizationProcesses.id],
+export const mockCallScenariosRelations = relations(
+  mockCallScenarios,
+  ({ one, many }) => ({
+    process: one(organizationProcesses, {
+      fields: [mockCallScenarios.processId],
+      references: [organizationProcesses.id],
+    }),
+    organization: one(organizations, {
+      fields: [mockCallScenarios.organizationId],
+      references: [organizations.id],
+    }),
+    creator: one(users, {
+      fields: [mockCallScenarios.createdBy],
+      references: [users.id],
+    }),
+    attempts: many(mockCallAttempts),
   }),
-  organization: one(organizations, {
-    fields: [mockCallScenarios.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [mockCallScenarios.createdBy],
-    references: [users.id],
-  }),
-  attempts: many(mockCallAttempts),
-}));
+);
 
-export const mockCallAttemptsRelations = relations(mockCallAttempts, ({ one }) => ({
-  scenario: one(mockCallScenarios, {
-    fields: [mockCallAttempts.scenarioId],
-    references: [mockCallScenarios.id],
+export const mockCallAttemptsRelations = relations(
+  mockCallAttempts,
+  ({ one }) => ({
+    scenario: one(mockCallScenarios, {
+      fields: [mockCallAttempts.scenarioId],
+      references: [mockCallScenarios.id],
+    }),
+    user: one(users, {
+      fields: [mockCallAttempts.userId],
+      references: [users.id],
+    }),
+    evaluator: one(users, {
+      fields: [mockCallAttempts.evaluatorId],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [mockCallAttempts.organizationId],
+      references: [organizations.id],
+    }),
   }),
-  user: one(users, {
-    fields: [mockCallAttempts.userId],
-    references: [users.id],
-  }),
-  evaluator: one(users, {
-    fields: [mockCallAttempts.evaluatorId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [mockCallAttempts.organizationId],
-    references: [organizations.id],
-  }),
-}));
+);
 
 // Evaluation related enums
-export const evaluationRatingTypeEnum = pgEnum('evaluation_rating_type', [
-  'yes_no_na',
-  'numeric',
-  'custom'
+export const evaluationRatingTypeEnum = pgEnum("evaluation_rating_type", [
+  "yes_no_na",
+  "numeric",
+  "custom",
 ]);
 
-export const evaluationStatusEnum = pgEnum('evaluation_status', [
-  'draft',
-  'active',
-  'archived'
+export const evaluationStatusEnum = pgEnum("evaluation_status", [
+  "draft",
+  "active",
+  "archived",
 ]);
 
 // Evaluation Templates
@@ -1875,13 +2120,12 @@ export const evaluationTemplates = pgTable("evaluation_templates", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  status: evaluationStatusEnum("status").default('draft').notNull(),
+  status: evaluationStatusEnum("status").default("draft").notNull(),
   createdBy: integer("created_by")
     .references(() => users.id)
     .notNull(),
-  feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered 
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id), // New field to associate template with a batch
+  feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered
+  batchId: integer("batch_id").references(() => organizationBatches.id), // New field to associate template with a batch
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1957,22 +2201,26 @@ export const evaluationResults = pgTable("evaluation_results", {
 });
 
 // Parameter-level evaluation results
-export const evaluationParameterResults = pgTable("evaluation_parameter_results", {
-  id: serial("id").primaryKey(),
-  evaluationResultId: integer("evaluation_result_id")
-    .references(() => evaluationResults.id)
-    .notNull(),
-  parameterId: integer("parameter_id")
-    .references(() => evaluationParameters.id)
-    .notNull(),
-  rating: text("rating").notNull(), // The actual rating given (yes/no/na or numeric value)
-  subReasonId: integer("sub_reason_id")
-    .references(() => evaluationSubReasons.id),
-  comment: text("comment"),
-  score: integer("score").notNull(), // Calculated score based on weightage
-  isFatal: boolean("is_fatal").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const evaluationParameterResults = pgTable(
+  "evaluation_parameter_results",
+  {
+    id: serial("id").primaryKey(),
+    evaluationResultId: integer("evaluation_result_id")
+      .references(() => evaluationResults.id)
+      .notNull(),
+    parameterId: integer("parameter_id")
+      .references(() => evaluationParameters.id)
+      .notNull(),
+    rating: text("rating").notNull(), // The actual rating given (yes/no/na or numeric value)
+    subReasonId: integer("sub_reason_id").references(
+      () => evaluationSubReasons.id,
+    ),
+    comment: text("comment"),
+    score: integer("score").notNull(), // Calculated score based on weightage
+    isFatal: boolean("is_fatal").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+);
 
 // Add types
 export type EvaluationTemplate = InferSelectModel<typeof evaluationTemplates>;
@@ -1980,10 +2228,14 @@ export type EvaluationPillar = InferSelectModel<typeof evaluationPillars>;
 export type EvaluationParameter = InferSelectModel<typeof evaluationParameters>;
 export type EvaluationSubReason = InferSelectModel<typeof evaluationSubReasons>;
 export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
-export type EvaluationParameterResult = InferSelectModel<typeof evaluationParameterResults>;
+export type EvaluationParameterResult = InferSelectModel<
+  typeof evaluationParameterResults
+>;
 
 // Add insert schemas
-export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTemplates)
+export const insertEvaluationTemplateSchema = createInsertSchema(
+  evaluationTemplates,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -1994,13 +2246,24 @@ export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTempl
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
-    batchId: z.number().int().positive("Batch is required").optional().nullable(),
-    status: z.enum(['draft', 'active', 'archived']).default('draft'),
-    feedbackThreshold: z.number().min(0).max(100).optional()
-      .transform(val => val === undefined ? null : Number(val.toFixed(2))),
+    batchId: z
+      .number()
+      .int()
+      .positive("Batch is required")
+      .optional()
+      .nullable(),
+    status: z.enum(["draft", "active", "archived"]).default("draft"),
+    feedbackThreshold: z
+      .number()
+      .min(0)
+      .max(100)
+      .optional()
+      .transform((val) => (val === undefined ? null : Number(val.toFixed(2)))),
   });
 
-export const insertEvaluationPillarSchema = createInsertSchema(evaluationPillars)
+export const insertEvaluationPillarSchema = createInsertSchema(
+  evaluationPillars,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -2013,7 +2276,9 @@ export const insertEvaluationPillarSchema = createInsertSchema(evaluationPillars
     orderIndex: z.number().int().min(0),
   });
 
-export const insertEvaluationParameterSchema = createInsertSchema(evaluationParameters)
+export const insertEvaluationParameterSchema = createInsertSchema(
+  evaluationParameters,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -2033,7 +2298,9 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
     orderIndex: z.number().int().min(0),
   });
 
-export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubReasons)
+export const insertEvaluationSubReasonSchema = createInsertSchema(
+  evaluationSubReasons,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -2045,7 +2312,9 @@ export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubR
     orderIndex: z.number().int().min(0),
   });
 
-export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
+export const insertEvaluationResultSchema = createInsertSchema(
+  evaluationResults,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -2061,13 +2330,18 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     evaluatedAt: z.string().min(1, "Evaluation date is required"),
   });
 
-export const insertEvaluationParameterResultSchema = createInsertSchema(evaluationParameterResults)
+export const insertEvaluationParameterResultSchema = createInsertSchema(
+  evaluationParameterResults,
+)
   .omit({
     id: true,
     createdAt: true,
   })
   .extend({
-    evaluationResultId: z.number().int().positive("Evaluation result is required"),
+    evaluationResultId: z
+      .number()
+      .int()
+      .positive("Evaluation result is required"),
     parameterId: z.number().int().positive("Parameter is required"),
     rating: z.string().min(1, "Rating is required"),
     subReasonId: z.number().int().positive("Sub-reason is required").optional(),
@@ -2077,100 +2351,133 @@ export const insertEvaluationParameterResultSchema = createInsertSchema(evaluati
   });
 
 // Add relations
-export const evaluationTemplatesRelations = relations(evaluationTemplates, ({ one, many }) => ({
-  process: one(organizationProcesses, {
-    fields: [evaluationTemplates.processId],
-    references: [organizationProcesses.id],
+export const evaluationTemplatesRelations = relations(
+  evaluationTemplates,
+  ({ one, many }) => ({
+    process: one(organizationProcesses, {
+      fields: [evaluationTemplates.processId],
+      references: [organizationProcesses.id],
+    }),
+    organization: one(organizations, {
+      fields: [evaluationTemplates.organizationId],
+      references: [organizations.id],
+    }),
+    creator: one(users, {
+      fields: [evaluationTemplates.createdBy],
+      references: [users.id],
+    }),
+    batch: one(organizationBatches, {
+      fields: [evaluationTemplates.batchId],
+      references: [organizationBatches.id],
+    }),
+    pillars: many(evaluationPillars),
+    results: many(evaluationResults),
   }),
-  organization: one(organizations, {
-    fields: [evaluationTemplates.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [evaluationTemplates.createdBy],
-    references: [users.id],
-  }),
-  batch: one(organizationBatches, {
-    fields: [evaluationTemplates.batchId],
-    references: [organizationBatches.id],
-  }),
-  pillars: many(evaluationPillars),
-  results: many(evaluationResults),
-}));
+);
 
-export const evaluationPillarsRelations = relations(evaluationPillars, ({ one, many }) => ({
-  template: one(evaluationTemplates, {
-    fields: [evaluationPillars.templateId],
-    references: [evaluationTemplates.id],
+export const evaluationPillarsRelations = relations(
+  evaluationPillars,
+  ({ one, many }) => ({
+    template: one(evaluationTemplates, {
+      fields: [evaluationPillars.templateId],
+      references: [evaluationTemplates.id],
+    }),
+    parameters: many(evaluationParameters),
   }),
-  parameters: many(evaluationParameters),
-}));
+);
 
-export const evaluationParametersRelations = relations(evaluationParameters, ({ one, many }) => ({
-  pillar: one(evaluationPillars, {
-    fields: [evaluationParameters.pillarId],
-    references: [evaluationPillars.id],
+export const evaluationParametersRelations = relations(
+  evaluationParameters,
+  ({ one, many }) => ({
+    pillar: one(evaluationPillars, {
+      fields: [evaluationParameters.pillarId],
+      references: [evaluationPillars.id],
+    }),
+    subReasons: many(evaluationSubReasons),
+    results: many(evaluationParameterResults),
   }),
-  subReasons: many(evaluationSubReasons),
-  results: many(evaluationParameterResults),
-}));
+);
 
-export const evaluationSubReasonsRelations = relations(evaluationSubReasons, ({ one }) => ({
-  parameter: one(evaluationParameters, {
-    fields: [evaluationSubReasons.parameterId],
-    references: [evaluationParameters.id],
+export const evaluationSubReasonsRelations = relations(
+  evaluationSubReasons,
+  ({ one }) => ({
+    parameter: one(evaluationParameters, {
+      fields: [evaluationSubReasons.parameterId],
+      references: [evaluationParameters.id],
+    }),
   }),
-}));
+);
 
-export const evaluationResultsRelations = relations(evaluationResults, ({ one, many }) => ({
-  template: one(evaluationTemplates, {
-    fields: [evaluationResults.templateId],
-    references: [evaluationTemplates.id],
+export const evaluationResultsRelations = relations(
+  evaluationResults,
+  ({ one, many }) => ({
+    template: one(evaluationTemplates, {
+      fields: [evaluationResults.templateId],
+      references: [evaluationTemplates.id],
+    }),
+    batch: one(organizationBatches, {
+      fields: [evaluationResults.batchId],
+      references: [organizationBatches.id],
+    }),
+    trainee: one(users, {
+      fields: [evaluationResults.traineeId],
+      references: [users.id],
+    }),
+    evaluator: one(users, {
+      fields: [evaluationResults.evaluatorId],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [evaluationResults.organizationId],
+      references: [organizations.id],
+    }),
+    parameterResults: many(evaluationParameterResults),
   }),
-  batch: one(organizationBatches, {
-    fields: [evaluationResults.batchId],
-    references: [organizationBatches.id],
-  }),
-  trainee: one(users, {
-    fields: [evaluationResults.traineeId],
-    references: [users.id],
-  }),
-  evaluator: one(users, {
-    fields: [evaluationResults.evaluatorId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [evaluationResults.organizationId],
-    references: [organizations.id],
-  }),
-  parameterResults: many(evaluationParameterResults),
-}));
+);
 
-export const evaluationParameterResultsRelations = relations(evaluationParameterResults, ({ one }) => ({
-  evaluationResult: one(evaluationResults, {
-    fields: [evaluationParameterResults.evaluationResultId],
-    references: [evaluationResults.id],
+export const evaluationParameterResultsRelations = relations(
+  evaluationParameterResults,
+  ({ one }) => ({
+    evaluationResult: one(evaluationResults, {
+      fields: [evaluationParameterResults.evaluationResultId],
+      references: [evaluationResults.id],
+    }),
+    parameter: one(evaluationParameters, {
+      fields: [evaluationParameterResults.parameterId],
+      references: [evaluationParameters.id],
+    }),
+    subReason: one(evaluationSubReasons, {
+      fields: [evaluationParameterResults.subReasonId],
+      references: [evaluationSubReasons.id],
+    }),
   }),
-  parameter: one(evaluationParameters, {
-    fields: [evaluationParameterResults.parameterId],
-    references: [evaluationParameters.id],
-  }),
-  subReason: one(evaluationSubReasons, {
-    fields: [evaluationParameterResults.subReasonId],
-    references: [evaluationSubReasons.id],
-  }),
-}));
+);
 
 // Export types for insertion
-export type InsertEvaluationTemplate = z.infer<typeof insertEvaluationTemplateSchema>;
-export type InsertEvaluationPillar = z.infer<typeof insertEvaluationPillarSchema>;
-export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameterSchema>;
-export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReasonSchema>;
-export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
-export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
+export type InsertEvaluationTemplate = z.infer<
+  typeof insertEvaluationTemplateSchema
+>;
+export type InsertEvaluationPillar = z.infer<
+  typeof insertEvaluationPillarSchema
+>;
+export type InsertEvaluationParameter = z.infer<
+  typeof insertEvaluationParameterSchema
+>;
+export type InsertEvaluationSubReason = z.infer<
+  typeof insertEvaluationSubReasonSchema
+>;
+export type InsertEvaluationResult = z.infer<
+  typeof insertEvaluationResultSchema
+>;
+export type InsertEvaluationParameterResult = z.infer<
+  typeof insertEvaluationParameterResultSchema
+>;
 
 // Evaluation type enum
-export const evaluationTypeEnum = pgEnum('evaluation_type', ['audio', 'standard']);
+export const evaluationTypeEnum = pgEnum("evaluation_type", [
+  "audio",
+  "standard",
+]);
 
 // Evaluation-related tables
 export const evaluations = pgTable("evaluations", {
@@ -2178,11 +2485,11 @@ export const evaluations = pgTable("evaluations", {
   templateId: integer("template_id")
     .references(() => evaluationTemplates.id)
     .notNull(),
-  evaluationType: evaluationTypeEnum("evaluation_type").default('standard').notNull(),
-  traineeId: integer("trainee_id")
-    .references(() => users.id),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id),
+  evaluationType: evaluationTypeEnum("evaluation_type")
+    .default("standard")
+    .notNull(),
+  traineeId: integer("trainee_id").references(() => users.id),
+  batchId: integer("batch_id").references(() => organizationBatches.id),
   evaluatorId: integer("evaluator_id")
     .references(() => users.id)
     .notNull(),
@@ -2192,8 +2499,7 @@ export const evaluations = pgTable("evaluations", {
   finalScore: numeric("final_score", { precision: 5, scale: 2 }).notNull(),
   status: text("status").notNull(),
   feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered
-  audioFileId: integer("audio_file_id")
-    .references(() => audioFiles.id),  // Reference to audio file for audio evaluations
+  audioFileId: integer("audio_file_id").references(() => audioFiles.id), // Reference to audio file for audio evaluations
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2225,15 +2531,28 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
   })
   .extend({
     templateId: z.number().int().positive("Template ID is required"),
-    evaluationType: z.enum(['audio', 'standard']).default('standard'),
+    evaluationType: z.enum(["audio", "standard"]).default("standard"),
     traineeId: z.number().int().positive("Trainee ID is required").optional(),
     batchId: z.number().int().positive("Batch ID is required").optional(),
     evaluatorId: z.number().int().positive("Evaluator ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
-    finalScore: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))),
+    finalScore: z
+      .number()
+      .min(0)
+      .max(100)
+      .transform((score) => Number(score.toFixed(2))),
     status: z.string().min(1, "Status is required"),
-    feedbackThreshold: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))).optional(),
-    audioFileId: z.number().int().positive("Audio File ID is required").optional(),
+    feedbackThreshold: z
+      .number()
+      .min(0)
+      .max(100)
+      .transform((score) => Number(score.toFixed(2)))
+      .optional(),
+    audioFileId: z
+      .number()
+      .int()
+      .positive("Audio File ID is required")
+      .optional(),
   });
 
 export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
@@ -2265,7 +2584,7 @@ export const evaluationFeedback = pgTable("evaluation_feedback", {
   reportingHeadId: integer("reporting_head_id")
     .references(() => users.id)
     .notNull(),
-  status: evaluationFeedbackStatusEnum("status").default('pending').notNull(),
+  status: evaluationFeedbackStatusEnum("status").default("pending").notNull(),
   agentResponse: text("agent_response"),
   reportingHeadResponse: text("reporting_head_response"),
   agentResponseDate: timestamp("agent_response_date"),
@@ -2277,7 +2596,9 @@ export const evaluationFeedback = pgTable("evaluation_feedback", {
 
 export type EvaluationFeedback = InferSelectModel<typeof evaluationFeedback>;
 
-export const insertEvaluationFeedbackSchema = createInsertSchema(evaluationFeedback)
+export const insertEvaluationFeedbackSchema = createInsertSchema(
+  evaluationFeedback,
+)
   .omit({
     id: true,
     createdAt: true,
@@ -2287,7 +2608,7 @@ export const insertEvaluationFeedbackSchema = createInsertSchema(evaluationFeedb
     evaluationId: z.number().int().positive("Evaluation ID is required"),
     agentId: z.number().int().positive("Agent ID is required"),
     reportingHeadId: z.number().int().positive("Reporting Head ID is required"),
-    status: z.enum(['pending', 'accepted', 'rejected']).default('pending'),
+    status: z.enum(["pending", "accepted", "rejected"]).default("pending"),
     agentResponse: z.string().optional(),
     reportingHeadResponse: z.string().optional(),
     agentResponseDate: z.date().optional(),
@@ -2295,22 +2616,27 @@ export const insertEvaluationFeedbackSchema = createInsertSchema(evaluationFeedb
     rejectionReason: z.string().optional(),
   });
 
-export type InsertEvaluationFeedback = z.infer<typeof insertEvaluationFeedbackSchema>;
+export type InsertEvaluationFeedback = z.infer<
+  typeof insertEvaluationFeedbackSchema
+>;
 
-export const evaluationFeedbackRelations = relations(evaluationFeedback, ({ one }) => ({
-  evaluation: one(evaluations, {
-    fields: [evaluationFeedback.evaluationId],
-    references: [evaluations.id],
+export const evaluationFeedbackRelations = relations(
+  evaluationFeedback,
+  ({ one }) => ({
+    evaluation: one(evaluations, {
+      fields: [evaluationFeedback.evaluationId],
+      references: [evaluations.id],
+    }),
+    agent: one(users, {
+      fields: [evaluationFeedback.agentId],
+      references: [users.id],
+    }),
+    reportingHead: one(users, {
+      fields: [evaluationFeedback.reportingHeadId],
+      references: [users.id],
+    }),
   }),
-  agent: one(users, {
-    fields: [evaluationFeedback.agentId],
-    references: [users.id],
-  }),
-  reportingHead: one(users, {
-    fields: [evaluationFeedback.reportingHeadId],
-    references: [users.id],
-  }),
-}));
+);
 
 export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   template: one(evaluationTemplates, {
@@ -2338,13 +2664,16 @@ export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   feedback: many(evaluationFeedback),
 }));
 
-export const evaluationScoresRelations = relations(evaluationScores, ({ one }) => ({
-  evaluation: one(evaluations, {
-    fields: [evaluationScores.evaluationId],
-    references: [evaluations.id],
+export const evaluationScoresRelations = relations(
+  evaluationScores,
+  ({ one }) => ({
+    evaluation: one(evaluations, {
+      fields: [evaluationScores.evaluationId],
+      references: [evaluations.id],
+    }),
+    parameter: one(evaluationParameters, {
+      fields: [evaluationScores.parameterId],
+      references: [evaluationParameters.id],
+    }),
   }),
-  parameter: one(evaluationParameters, {
-    fields: [evaluationScores.parameterId],
-    references: [evaluationParameters.id],
-  }),
-}));
+);
