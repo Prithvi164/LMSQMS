@@ -5057,8 +5057,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
 
-      // Pass the user object to filter processes based on role and assignments
-      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId, req.user);
+      // Get user's permissions
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      
+      // Pass the user object with permissions to filter processes based on role and assignments
+      const userWithPermissions = {
+        ...req.user,
+        permissions: userPermissions
+      };
+      
+      console.log(`User ${req.user.id} has permissions: ${userPermissions.join(', ')}`);
+      
+      // Pass the enhanced user object to filter processes
+      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId, userWithPermissions);
       console.log(`Found ${processes.length} LOB processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
@@ -5743,8 +5754,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
 
-      // Pass the user object to filter processes based on role and assignments
-      const processes = await storage.listProcesses(orgId, undefined, req.user);
+      // Get user's permissions
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      
+      // Pass the user object with permissions to filter processes based on role and assignments
+      const userWithPermissions = {
+        ...req.user,
+        permissions: userPermissions
+      };
+      
+      console.log(`User ${req.user.id} has permissions: ${userPermissions.join(', ')}`);
+      
+      // Pass the enhanced user object to filter processes
+      const processes = await storage.listProcesses(orgId, undefined, userWithPermissions);
       console.log(`Found ${processes.length} processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
