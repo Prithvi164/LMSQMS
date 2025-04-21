@@ -191,7 +191,7 @@ export interface IStorage {
 
   // Organization settings operations
   createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
-  listProcesses(organizationId: number, name?: string, user?: any): Promise<OrganizationProcess[]>;
+  listProcesses(organizationId: number, name?: string): Promise<OrganizationProcess[]>;
 
   // Role Permissions operations
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
@@ -221,7 +221,7 @@ export interface IStorage {
   ): Promise<{ user: User; processes: UserProcess[] }>;
 
   // Add new method for getting processes by line of business
-  getProcessesByLineOfBusiness(organizationId: number, lobId: number, user?: any): Promise<OrganizationProcess[]>;
+  getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]>;
 
   // Location operations
   listLocations(organizationId: number): Promise<OrganizationLocation[]>;
@@ -2134,11 +2134,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listProcesses(organizationId: number, name?: string, user?: any): Promise<OrganizationProcess[]> {
+  async listProcesses(organizationId: number, name?: string): Promise<OrganizationProcess[]> {
     try {
-      console.log(`Fetching processes for organization ${organizationId}${name ? ` with name filter: ${name}` : ''}${user ? ` for user ${user.id} with role ${user.role}` : ''}`);
-      
-      // Base query to select all processes with line of business details
+      console.log(`Fetching processes for organization ${organizationId}${name ? ` with name filter: ${name}` : ''}`);
+
       let query = db
         .select({
           id: organizationProcesses.id,
@@ -2167,49 +2166,10 @@ export class DatabaseStorage implements IStorage {
         query = query.where(sql`lower(${organizationProcesses.name}) like ${`%${name.toLowerCase()}%`}`);
       }
 
-      // Check if user has permissions to see all processes:
-      // 1. For owner and admin roles, return all processes 
-      // 2. Check if user has the manage_processes permission
-      if (!user || !user.role || user.role === 'owner' || user.role === 'admin' || 
-          (user.permissions && user.permissions.includes('manage_processes'))) {
-        const processes = await query as OrganizationProcess[];
-        console.log(`Found ${processes.length} processes - returning all processes${user.permissions?.includes('manage_processes') ? ' (user has manage_processes permission)' : ''}`);
-        return processes;
-      }
-      
-      // For other roles, only return processes assigned to the user
-      console.log(`Filtering processes for user ${user.id} with role ${user.role}`);
-      
-      try {
-        // Get assigned process IDs for this user
-        const userProcessesResult = await db
-          .select({
-            processId: userProcesses.processId
-          })
-          .from(userProcesses)
-          .where(eq(userProcesses.userId, user.id));
-        
-        const assignedProcessIds = userProcessesResult.map(p => p.processId);
-        console.log(`User ${user.id} is assigned to ${assignedProcessIds.length} processes: ${assignedProcessIds.join(', ')}`);
-        
-        // Add process filter if user has assigned processes
-        if (assignedProcessIds.length > 0) {
-          query = query.where(inArray(organizationProcesses.id, assignedProcessIds));
-          const processes = await query as OrganizationProcess[];
-          console.log(`Found ${processes.length} processes assigned to user ${user.id}`);
-          return processes;
-        } else {
-          // If user has no assigned processes, return empty array
-          console.log(`User ${user.id} has no assigned processes`);
-          return [];
-        }
-      } catch (err) {
-        console.error('Error getting user process assignments:', err);
-        // In case of error in fetching user processes, return empty array for security 
-        // rather than showing all processes (which could leak access)
-        console.log(`Error in fetching user assignments. Returning empty array for security reasons.`);
-        return [];
-      }
+      const processes = await query as OrganizationProcess[];
+
+      console.log(`Found ${processes.length} processes with line of business details`);
+      return processes;
     } catch (error) {
       console.error('Error fetching processes:', error);
       throw new Error('Failed to fetch processes');
@@ -2640,60 +2600,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProcessesByLineOfBusiness(organizationId: number, lobId: number, user?: any): Promise<OrganizationProcess[]> {
+  async getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]> {
     try {
-      console.log(`Fetching processes for organization ${organizationId}, LOB ${lobId}${user ? ` and user ${user.id}` : ''}`);
-      
-      // Base query to select processes by LOB
-      let query = db
+      const processes = await db
         .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.organizationId, organizationId))
-        .where(eq(organizationProcesses.lineOfBusinessId, lobId));
+        .where(eq(organizationProcesses.lineOfBusinessId, lobId)) as OrganizationProcess[];
 
-      // Check if user has permissions to see all processes:
-      // 1. For owner and admin roles, return all processes for the LOB
-      // 2. Check if user has the manage_processes permission
-      if (!user || !user.role || user.role === 'owner' || user.role === 'admin' || 
-          (user.permissions && user.permissions.includes('manage_processes'))) {
-        const processes = await query as OrganizationProcess[];
-        console.log(`Found ${processes.length} LOB processes - returning all processes${user.permissions?.includes('manage_processes') ? ' (user has manage_processes permission)' : ''}`);
-        return processes;
-      }
-      
-      // For other roles, only return processes assigned to the user
-      console.log(`Filtering LOB processes for user ${user.id} with role ${user.role}`);
-      
-      try {
-        // Get assigned process IDs for this user
-        const userProcessesResult = await db
-          .select({
-            processId: userProcesses.processId
-          })
-          .from(userProcesses)
-          .where(eq(userProcesses.userId, user.id));
-        
-        const assignedProcessIds = userProcessesResult.map(p => p.processId);
-        console.log(`User ${user.id} is assigned to ${assignedProcessIds.length} processes: ${assignedProcessIds.join(', ')}`);
-        
-        // Add process filter if user has assigned processes
-        if (assignedProcessIds.length > 0) {
-          query = query.where(inArray(organizationProcesses.id, assignedProcessIds));
-          const processes = await query as OrganizationProcess[];
-          console.log(`Found ${processes.length} LOB processes assigned to user ${user.id}`);
-          return processes;
-        } else {
-          // If user has no assigned processes, return empty array
-          console.log(`User ${user.id} has no assigned processes`);
-          return [];
-        }
-      } catch (err) {
-        console.error('Error getting user process assignments:', err);
-        // In case of error in fetching user processes, return empty array for security
-        // rather than showing all processes (which could leak access)
-        console.log(`Error in fetching user LOB assignments. Returning empty array for security reasons.`);
-        return [];
-      }
+      return processes;
     } catch (error) {
       console.error('Error fetching processes by LOB:', error);
       throw new Error('Failed to fetch processes for Line of Business');
