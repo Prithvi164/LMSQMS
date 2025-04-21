@@ -1666,9 +1666,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         case "userLimit":
           // Validate that value is a valid number for user limit
           const userLimit = Number(value);
-          if (isNaN(userLimit) || userLimit < 1 || userLimit > 5000) {
+          if (isNaN(userLimit) || userLimit < 1) {
             return res.status(400).json({ 
-              message: "User limit must be a number between 1 and 5000" 
+              message: "User limit must be a number greater than or equal to 1" 
             });
           }
           

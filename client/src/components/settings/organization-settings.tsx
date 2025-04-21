@@ -122,7 +122,6 @@ const featureTypeSchema = z.object({
 const userLimitSchema = z.object({
   userLimit: z.number()
     .min(1, "User limit must be at least 1")
-    .max(5000, "User limit cannot exceed 5000")
     .transform(val => parseInt(val.toString(), 10))
 });
 
@@ -300,8 +299,9 @@ export default function OrganizationSettings() {
   // Update user limit mutation
   const updateUserLimitMutation = useMutation({
     mutationFn: async (data: UserLimitForm) => {
+      // Log the exact data being sent for debugging
       console.log("Sending user limit update:", {
-        type: "userLimit", // Using camelCase as expected by the server
+        type: "userLimit",
         value: data.userLimit
       });
       
@@ -310,7 +310,7 @@ export default function OrganizationSettings() {
           "PATCH",
           `/api/organizations/${user?.organizationId}/settings`,
           {
-            type: "userLimit", // Using camelCase as expected by the server
+            type: "userLimit", // This must match exactly what the server expects in the switch statement
             value: data.userLimit
           }
         );
@@ -408,7 +408,6 @@ export default function OrganizationSettings() {
                                 type="number" 
                                 placeholder="500" 
                                 min={1} 
-                                max={5000} 
                                 {...field} 
                                 onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                               />
