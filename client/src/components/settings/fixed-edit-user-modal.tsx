@@ -13,7 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { User, OrganizationLocation, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { z } from "zod";
-import { insertUserSchema } from "@shared/schema";
+import { insertUserSchema, requiresLineOfBusiness } from "@shared/schema";
 
 // Extended schema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -162,12 +162,38 @@ export function FixedEditUserModal({
       const currentSelections = form.getValues("processes") || [];
       console.log('Current process selections:', currentSelections);
       console.log('Available processes in selected LOBs:', filtered.map(p => p.id));
+      
+      // Clear form validation error if LOB is now selected and was previously required
+      if (requiresLineOfBusiness(form.watch('role'))) {
+        form.clearErrors('root');
+      }
     } else {
       setFilteredProcesses([]);
       // We should NOT clear process selections when no LOB is selected
       // The user might be in the middle of making their selections
     }
   }, [selectedLOBs, processes, form]);
+  
+  // Watch for role changes to enforce Line of Business requirements
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      // Only react to role changes
+      if (name === 'role') {
+        const role = value.role as string;
+        // If the new role requires LOB but none is selected, show validation error
+        if (requiresLineOfBusiness(role) && selectedLOBs.length === 0) {
+          form.setError("root", { 
+            type: "manual", 
+            message: "Line of Business is required for this role"
+          });
+        } else {
+          form.clearErrors('root');
+        }
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form, selectedLOBs]);
   
   // Monitor dropdown states
   useEffect(() => {
@@ -259,6 +285,16 @@ export function FixedEditUserModal({
                 // Safely cast form data
                 const data = formData as any;
                 
+                // Check if Line of Business is required but not selected
+                if (requiresLineOfBusiness(data.role) && selectedLOBs.length === 0) {
+                  // Show validation error and prevent submission
+                  form.setError("root", { 
+                    type: "manual", 
+                    message: "Line of Business is required for this role"
+                  });
+                  return; // Prevent form submission
+                }
+                
                 // Clean data for submission
                 const locationId = data.locationId === "none" ? null : 
                   typeof data.locationId === 'string' ? parseInt(data.locationId) : data.locationId;
@@ -279,6 +315,13 @@ export function FixedEditUserModal({
                 console.error('Error updating user:', error);
               }
             })} className="space-y-4">
+              {/* Display form-level errors */}
+              {form.formState.errors.root && (
+                <div className="bg-destructive/15 border border-destructive text-destructive p-3 rounded-md mb-4">
+                  {form.formState.errors.root.message}
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-4">
                 {/* Username */}
                 <FormField
@@ -569,7 +612,12 @@ export function FixedEditUserModal({
                 <div className="grid grid-cols-2 gap-4">
                   {/* Line of Business Selection */}
                   <div>
-                    <Label className="text-sm font-normal">Line of Business</Label>
+                    <Label className="text-sm font-normal">
+                      Line of Business
+                      {requiresLineOfBusiness(form.watch('role')) && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </Label>
                     <Popover 
                       open={openLOB} 
                       onOpenChange={(open) => {
@@ -581,7 +629,10 @@ export function FixedEditUserModal({
                           variant="outline"
                           role="combobox"
                           aria-expanded={openLOB}
-                          className="w-full justify-between mt-1"
+                          className={cn(
+                            "w-full justify-between mt-1",
+                            requiresLineOfBusiness(form.watch('role')) && selectedLOBs.length === 0 && "border-destructive"
+                          )}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {selectedLOBs.length > 0
@@ -626,6 +677,9 @@ export function FixedEditUserModal({
                         </Command>
                       </PopoverContent>
                     </Popover>
+                    {requiresLineOfBusiness(form.watch('role')) && selectedLOBs.length === 0 && (
+                      <p className="text-sm font-medium text-destructive mt-1">Line of Business is required for this role</p>
+                    )}
                   </div>
                   
                   {/* Process Selection */}

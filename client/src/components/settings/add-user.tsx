@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { User, Organization, OrganizationProcess, OrganizationLineOfBusiness, OrganizationLocation } from "@shared/schema";
+import { requiresLineOfBusiness } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -68,28 +69,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     }
   }, [hasPermission]);
   
-  // Clear form data when component mounts/opens
-  useEffect(() => {
-    // Reset form data to defaults when component mounts
-    setNewUserData({
-      username: "",
-      password: "",
-      fullName: "",
-      employeeId: "",
-      role: "",
-      category: "active",
-      email: "",
-      phoneNumber: "",
-      education: "",
-      dateOfJoining: "",
-      dateOfBirth: "",
-      managerId: "none",
-      locationId: "none",
-      processes: [],
-    });
-    setSelectedLOBs([]);
-  }, []);
-
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -128,17 +107,47 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const filteredProcesses = processes.filter(process => 
     selectedLOBs.includes(process.lineOfBusinessId)
   );
+  
+  // Clear form data when component mounts/opens
+  useEffect(() => {
+    // Reset form data to defaults when component mounts
+    setNewUserData({
+      username: "",
+      password: "",
+      fullName: "",
+      employeeId: "",
+      role: "",
+      category: "active",
+      email: "",
+      phoneNumber: "",
+      education: "",
+      dateOfJoining: "",
+      dateOfBirth: "",
+      managerId: "none",
+      locationId: "none",
+      processes: [],
+    });
+    setSelectedLOBs([]);
+  }, []);
+  
+  // Watch for role changes to enforce Line of Business validation
+  useEffect(() => {
+    // Check role and update LOB requirement visuals
+    if (requiresLineOfBusiness(newUserData.role) && selectedLOBs.length === 0) {
+      console.log(`Role ${newUserData.role} requires Line of Business selection`);
+    }
+  }, [newUserData.role, selectedLOBs]);
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
-      // If processes are selected, include the lineOfBusinessId from the first selected LOB
-      const payload = {
+      // Prepare payload with required data
+      const payload: any = {
         ...data,
         organizationId: organization?.id,
       };
       
-      // Only include lineOfBusinessId if processes are selected and we have LOBs selected
-      if (data.processes.length > 0 && selectedLOBs.length > 0) {
+      // Include lineOfBusinessId if we have LOBs selected
+      if (selectedLOBs.length > 0) {
         // Using the first selected LOB as the lineOfBusinessId
         payload.lineOfBusinessId = selectedLOBs[0];
       }
@@ -554,6 +563,17 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           className={`space-y-6 ${!canAddUsers ? 'opacity-70 pointer-events-none' : ''}`}
           onSubmit={(e) => {
             e.preventDefault();
+            
+            // Check if Line of Business is required but not selected
+            if (requiresLineOfBusiness(newUserData.role) && selectedLOBs.length === 0) {
+              toast({
+                title: "Validation Error",
+                description: "Line of Business is required for this role. Please select at least one Line of Business.",
+                variant: "destructive",
+              });
+              return; // Prevent form submission
+            }
+            
             if (canAddUsers) {
               createUserMutation.mutate(newUserData);
             } else {
@@ -840,14 +860,22 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label>Line of Business</Label>
+                <Label>
+                  Line of Business
+                  {requiresLineOfBusiness(newUserData.role) && (
+                    <span className="text-destructive ml-1">*</span>
+                  )}
+                </Label>
                 <Popover open={openLOB} onOpenChange={setOpenLOB}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={openLOB}
-                      className="w-full justify-between"
+                      className={cn(
+                        "w-full justify-between",
+                        requiresLineOfBusiness(newUserData.role) && selectedLOBs.length === 0 && "border-destructive"
+                      )}
                     >
                       {selectedLOBs.length > 0
                         ? `${selectedLOBs.length} LOBs selected`

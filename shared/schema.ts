@@ -1514,7 +1514,13 @@ export const insertUserSchema = createInsertSchema(users)
         "trainee",
       ])
       .default("trainee"),
+    // We'll add line of business validation through userProcesses which will be validated separately
   });
+
+// Helper function to check if a role requires line of business selection
+export const requiresLineOfBusiness = (role: string): boolean => {
+  return !["owner", "admin"].includes(role);
+};
 
 export const insertRolePermissionSchema = createInsertSchema(
   rolePermissions,
