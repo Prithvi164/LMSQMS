@@ -2392,8 +2392,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(updatedUser);
       }
 
-      // For other roles, restrict certain fields
-      const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
+      // Check if user has edit_users permission for extended editing capabilities
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      const hasEditPermission = userPermissions.includes('edit_users');
+      const hasManagePermission = userPermissions.includes('manage_users');
+      
+      // Define allowed fields based on permissions
+      let allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education']; // Basic fields for all
+      
+      // Allow more fields for users with edit_users permission
+      if (hasEditPermission) {
+        allowedFields = [
+          ...allowedFields,
+          'role',         // Allow changing role
+          'email',        // Allow changing email
+          'username',     // Allow changing username
+          'employeeId',   // Allow changing employee ID
+          'category',     // Allow changing category (active/inactive)
+          'managerId'     // Allow changing manager
+        ];
+      }
+      
+      // For users with manage_users permission, also allow process management
+      let processIds: number[] | undefined;
+      if (hasManagePermission && updateData.processes && Array.isArray(updateData.processes)) {
+        processIds = updateData.processes.map((p: any) => 
+          typeof p === 'number' ? p : Number(p.id || p.processId)
+        ).filter((id: number) => !isNaN(id));
+        // Remove processes from updateData as they will be handled separately
+        delete updateData.processes;
+      }
+      
       const filteredUpdateData = Object.keys(updateData)
         .filter(key => allowedFields.includes(key))
         .reduce<Partial<AllowedUpdateFields>>((obj, key) => {
