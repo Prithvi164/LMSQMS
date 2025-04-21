@@ -1655,6 +1655,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             organizationId: orgId,
           });
           break;
+        case "userLimit":
+          // Validate that value is a valid number for user limit
+          const userLimit = Number(value);
+          if (isNaN(userLimit) || userLimit < 1 || userLimit > 5000) {
+            return res.status(400).json({ 
+              message: "User limit must be a number between 1 and 5000" 
+            });
+          }
+          
+          // Get existing settings
+          const existingSettings = await storage.getOrganizationSettings(orgId);
+          
+          if (existingSettings) {
+            // Update existing settings with the new user limit
+            result = await storage.updateOrganizationSettings(orgId, { userLimit });
+          } else {
+            // Create new settings with the user limit
+            result = await storage.createOrganizationSettings({
+              organizationId: orgId,
+              featureType: 'BOTH',  // Default feature type
+              weeklyOffDays: ['Saturday', 'Sunday'],  // Default weekend days
+              userLimit,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+          }
+          break;
         default:
           return res.status(400).json({ message: "Invalid settings type" });
       }
@@ -1698,6 +1725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locations: Array.isArray(locations) ? locations : [],
         featureType: orgSettings?.featureType || 'BOTH', // Default to BOTH if not set
         weeklyOffDays: orgSettings?.weeklyOffDays || ['Saturday', 'Sunday'], // Default weekend days
+        userLimit: orgSettings?.userLimit || 500, // Default user limit
       };
 
       return res.json(response);
@@ -1936,6 +1964,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(users) || users.length === 0) {
         return res.status(400).json({ message: "Invalid users data" });
       }
+      
+      // Check user limit
+      const organizationId = req.user.organizationId;
+      const currentUserCount = await storage.countUsers(organizationId);
+      
+      // Get organization settings to check user limit
+      const orgSettings = await storage.getOrganizationSettings(organizationId);
+      const userLimit = orgSettings?.userLimit || 500; // Default to 500 if not set
+      
+      // Check if adding these users would exceed the limit
+      if (currentUserCount + users.length > userLimit) {
+        return res.status(400).json({ 
+          message: `Adding ${users.length} users would exceed your user limit of ${userLimit}. You currently have ${currentUserCount} users. Please reduce the number of users being added or contact support to increase your user limit.`
+        });
+      }
 
       console.log(`Starting bulk user upload validation for ${users.length} users`);
       
@@ -2119,6 +2162,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingUserByUsername) {
           return res.status(400).json({ message: "Username already exists. Please choose a different username." });
         }
+      }
+      
+      // Check user limit
+      const organizationId = req.user.organizationId;
+      const currentUserCount = await storage.countUsers(organizationId);
+      
+      // Get organization settings to check user limit
+      const orgSettings = await storage.getOrganizationSettings(organizationId);
+      const userLimit = orgSettings?.userLimit || 500; // Default to 500 if not set
+      
+      if (currentUserCount >= userLimit) {
+        return res.status(400).json({ 
+          message: `User limit of ${userLimit} has been reached. Please contact support to increase your user limit or remove unused users.`
+        });
       }
 
       // Validate that lineOfBusinessId is provided when processes are specified

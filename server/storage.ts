@@ -114,6 +114,7 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
+  countUsers(organizationId: number): Promise<number>;
   
   // Permission operations
   getUserPermissions(userId: number): Promise<string[]>;
@@ -1919,6 +1920,26 @@ export class DatabaseStorage implements IStorage {
     }
 
     return await query as User[];
+  }
+  
+  async countUsers(organizationId: number, includeInactive: boolean = false): Promise<number> {
+    try {
+      let query = db
+        .select({ count: count() })
+        .from(users)
+        .where(eq(users.organizationId, organizationId));
+        
+      // Only count active users unless specifically requested
+      if (!includeInactive) {
+        query = query.where(eq(users.active, true));
+      }
+      
+      const result = await query;
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error('Error counting users:', error);
+      throw new Error('Failed to count users');
+    }
   }
 
   // User Process operations

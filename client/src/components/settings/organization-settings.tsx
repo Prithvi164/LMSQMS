@@ -33,7 +33,8 @@ import {
   AppWindow,
   Calendar as CalendarIcon2,
   Loader2,
-  Save
+  Save,
+  Users
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -77,6 +78,7 @@ type OrganizationSettings = {
   organizationId: number;
   featureType: 'LMS' | 'QMS' | 'BOTH';
   weeklyOffDays: string[];
+  userLimit: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -117,8 +119,16 @@ const featureTypeSchema = z.object({
   featureType: z.enum(['LMS', 'QMS', 'BOTH'])
 });
 
+const userLimitSchema = z.object({
+  userLimit: z.number()
+    .min(1, "User limit must be at least 1")
+    .max(5000, "User limit cannot exceed 5000")
+    .transform(val => parseInt(val.toString(), 10))
+});
+
 type HolidayForm = z.infer<typeof holidaySchema>;
 type FeatureTypeForm = z.infer<typeof featureTypeSchema>;
+type UserLimitForm = z.infer<typeof userLimitSchema>;
 
 export default function OrganizationSettings() {
   const { user } = useAuth();
@@ -131,6 +141,7 @@ export default function OrganizationSettings() {
   // Check permissions with new specific permission structure
   const canManageHolidays = hasPermission("manage_holidaylist");
   const canViewHolidays = hasPermission("view_organization") || canManageHolidays;
+  const canManageUserLimit = hasPermission("manage_organization") || user?.role === 'owner';
 
   // Holiday form setup
   const holidayForm = useForm<HolidayForm>({
@@ -150,11 +161,20 @@ export default function OrganizationSettings() {
       featureType: 'BOTH'
     }
   });
+  
+  // User limit form setup
+  const userLimitForm = useForm<UserLimitForm>({
+    resolver: zodResolver(userLimitSchema),
+    defaultValues: {
+      userLimit: 500
+    }
+  });
 
   // Define type for API responses
   type SettingsResponse = {
     featureType: 'LMS' | 'QMS' | 'BOTH';
     weeklyOffDays: string[];
+    userLimit?: number;
     locations?: Location[];
   };
 
@@ -195,7 +215,10 @@ export default function OrganizationSettings() {
     if (settings?.featureType) {
       featureTypeForm.setValue('featureType', settings.featureType);
     }
-  }, [settings, featureTypeForm]);
+    if (settings?.userLimit) {
+      userLimitForm.setValue('userLimit', settings.userLimit);
+    }
+  }, [settings, featureTypeForm, userLimitForm]);
   
   // Update feature type mutation
   const updateFeatureTypeMutation = useMutation({
@@ -274,6 +297,34 @@ export default function OrganizationSettings() {
     }
   });
 
+  // Update user limit mutation
+  const updateUserLimitMutation = useMutation({
+    mutationFn: async (data: UserLimitForm) => {
+      return apiRequest(
+        "PATCH",
+        `/api/organizations/${user?.organizationId}/settings`,
+        {
+          type: "userLimit",
+          value: data.userLimit
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/settings`] });
+      toast({
+        title: "User limit updated",
+        description: "The organization user limit has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating user limit",
+        description: error.message || "An error occurred while updating user limit. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Form submission handlers
   
   const onFeatureTypeSubmit = (data: FeatureTypeForm) => {
@@ -282,6 +333,10 @@ export default function OrganizationSettings() {
 
   const onHolidaySubmit = (data: HolidayForm) => {
     createHolidayMutation.mutate(data);
+  };
+  
+  const onUserLimitSubmit = (data: UserLimitForm) => {
+    updateUserLimitMutation.mutate(data);
   };
 
   const handleDeleteHoliday = (holiday: Holiday) => {
@@ -305,6 +360,93 @@ export default function OrganizationSettings() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg border-b">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-primary/15 rounded-full">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">User Limit</CardTitle>
+                <CardDescription>
+                  Configure maximum number of users for your organization
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {isLoadingSettings ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {canManageUserLimit ? (
+                  <Form {...userLimitForm}>
+                    <form onSubmit={userLimitForm.handleSubmit(onUserLimitSubmit)} className="space-y-4">
+                      <FormField
+                        control={userLimitForm.control}
+                        name="userLimit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Maximum Users</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="500" 
+                                min={1} 
+                                max={5000} 
+                                {...field} 
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              The maximum number of users allowed in your organization.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button 
+                        type="submit" 
+                        className="gap-1.5"
+                        disabled={updateUserLimitMutation.isPending}
+                      >
+                        {updateUserLimitMutation.isPending && (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        )}
+                        <Save className="h-4 w-4" />
+                        Save User Limit
+                      </Button>
+                    </form>
+                  </Form>
+                ) : (
+                  <div className="p-4 bg-card border rounded-md">
+                    <div className="flex items-start space-x-3">
+                      <Users className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <h3 className="font-medium">Maximum Users: {settings.userLimit || 500}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your organization is limited to {settings.userLimit || 500} users. Contact an administrator to change this limit.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-start space-x-2.5 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
+                  <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                      You will not be able to add more users once you reach your limit. Your current limit is {settings.userLimit || 500} users.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
         <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg border-b">
             <div className="flex items-center space-x-3">

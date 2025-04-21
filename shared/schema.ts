@@ -917,6 +917,7 @@ export const organizationSettings = pgTable("organization_settings", {
     .notNull(),
   featureType: featureTypeEnum("feature_type").default('BOTH').notNull(),
   weeklyOffDays: text("weekly_off_days").array().notNull().default(['Saturday', 'Sunday']),
+  userLimit: integer("user_limit").default(500).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -931,7 +932,8 @@ export const insertOrganizationSettingsSchema = createInsertSchema(organizationS
   })
   .extend({
     organizationId: z.number().int().positive("Organization is required"),
-    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH')
+    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH'),
+    userLimit: z.number().int().min(1).max(500).default(500)
   });
 
 export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
