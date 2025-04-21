@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { X, Check, ChevronDown, ChevronsUpDown, Info } from "lucide-react";
+import { X, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
@@ -14,7 +14,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { User, OrganizationLocation, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { z } from "zod";
 import { insertUserSchema, requiresLineOfBusiness } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
 
 // Extended schema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -65,16 +64,12 @@ export function FixedEditUserModal({
   processes,
   userProcesses
 }: EditUserModalProps) {
-  const { user: currentUser } = useAuth(); // Get the current logged-in user
   const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
   const [openLOB, setOpenLOB] = useState(false);
   const [openProcess, setOpenProcess] = useState(false);
   const [filteredProcesses, setFilteredProcesses] = useState<OrganizationProcess[]>([]);
   const [anyDropdownOpen, setAnyDropdownOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
-  
-  // Check if current user is a manager (used for form field restrictions)
-  const isCurrentUserManager = currentUser?.role === "manager";
   
   // Safe string conversion to prevent null/undefined values
   const safeString = (value: any): string => {
@@ -307,15 +302,12 @@ export function FixedEditUserModal({
                 const managerId = data.managerId === "none" ? null : 
                   typeof data.managerId === 'string' ? parseInt(data.managerId) : data.managerId;
                 
-                // Create full data object with all fields
-                let cleanedData: any = {
+                const cleanedData = {
                   ...data,
                   locationId,
                   managerId,
                   processes: Array.isArray(data.processes) ? data.processes : [],
                 };
-
-                // Managers now have full edit permissions, so we don't need to filter the data
                 
                 await onSave(user.id, cleanedData);
                 onClose();
@@ -330,9 +322,7 @@ export function FixedEditUserModal({
                 </div>
               )}
               
-              {/* Information banner for managers - removed restrictions */}
-
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {/* Username */}
                 <FormField
                   control={form.control}
@@ -397,10 +387,7 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ''} 
-                        />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -415,10 +402,7 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Employee ID</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ''} 
-                        />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -444,10 +428,7 @@ export function FixedEditUserModal({
                         }}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onClick={(e) => e.stopPropagation()}
-                            className={user.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
-                          >
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
@@ -524,9 +505,7 @@ export function FixedEditUserModal({
                         }}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a manager" />
                           </SelectTrigger>
                         </FormControl>
@@ -557,11 +536,7 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Date of Joining</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="date" 
-                          value={field.value || ''} 
-                        />
+                        <Input {...field} type="date" value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -576,11 +551,7 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Date of Birth</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="date" 
-                          value={field.value || ''} 
-                        />
+                        <Input {...field} type="date" value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -595,10 +566,7 @@ export function FixedEditUserModal({
                     <FormItem>
                       <FormLabel>Education</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ''} 
-                        />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -623,9 +591,7 @@ export function FixedEditUserModal({
                         }}
                       >
                         <FormControl>
-                          <SelectTrigger 
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <SelectTrigger onClick={(e) => e.stopPropagation()}>
                             <SelectValue placeholder="Select a category" />
                           </SelectTrigger>
                         </FormControl>
