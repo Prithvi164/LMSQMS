@@ -1,331 +1,222 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AttendanceBreakdown } from '@/components/batch-management/attendance-breakdown';
+import { AttendanceFilterPanel } from '@/components/dashboard/attendance-filter-panel';
+import { Spinner } from '@/components/ui/spinner';
+import { Button } from '@/components/ui/button';
+import { 
+  CalendarClock,
+  Calendar,
+  BarChart4,
+  UsersRound,
+  Save,
+  Check
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQuery } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
-import { formatIST } from '@/lib/date-utils';
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Sector } from 'recharts';
-import AttendanceFilterPanel from './attendance-filter-panel';
-import AttendanceBreakdown from '../batch-management/attendance-breakdown';
-import { useUser } from '@/hooks/use-auth';
+import { WidgetConfig } from './dashboard-configuration';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
-// Define types
-type BreakdownViewType = 'overall' | 'daily' | 'phase' | 'trainee';
-type DateRange = { from: Date; to: Date } | undefined;
-
+// Props for the widget component
 interface EnhancedAttendanceBreakdownWidgetProps {
-  title?: string;
-  description?: string;
-  defaultTab?: string;
+  config?: WidgetConfig;
+  className?: string;
 }
 
-export function EnhancedAttendanceBreakdownWidget({
-  title = "Attendance Breakdown",
-  description = "Detailed attendance analysis with multiple views",
-  defaultTab = "view"
+// Valid view types
+type ViewType = 'overall' | 'daily' | 'phase' | 'trainee';
+
+export function EnhancedAttendanceBreakdownWidget({ 
+  config,
+  className
 }: EnhancedAttendanceBreakdownWidgetProps) {
-  const user = useUser();
-
-  // Define the filter state
-  const [filters, setFilters] = useState<{
-    viewType: BreakdownViewType;
-    processIds: number[];
-    batchIds: number[];
-    locationIds: number[];
-    lineOfBusinessIds: number[];
-    dateRange: DateRange;
-  }>({
-    viewType: 'overall',
-    processIds: [],
-    batchIds: [],
-    locationIds: [],
-    lineOfBusinessIds: [],
-    dateRange: undefined
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  // Get default view from config if available
+  const defaultView = config?.defaultOptions?.view || 'overall';
+  
+  // State for current view and filters
+  const [currentView, setCurrentView] = useState<ViewType>(defaultView as ViewType);
+  const [filters, setFilters] = useState<any>({});
+  const [saveButtonText, setSaveButtonText] = useState('Save Preferences');
+  const [saveButtonIcon, setSaveButtonIcon] = useState<React.ReactNode>(<Save className="mr-2 h-4 w-4" />);
+  
+  // Query for attendance data based on filters
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['/api/attendance/breakdown', filters],
+    enabled: !!user && Object.keys(filters).length > 0,
   });
-
-  // Convert date range to string format for API
-  const getDateRangeParams = () => {
-    if (!filters.dateRange) return {};
-    return {
-      from: formatIST(filters.dateRange.from, 'yyyy-MM-dd'),
-      to: formatIST(filters.dateRange.to, 'yyyy-MM-dd')
-    };
-  };
-
-  // Build the query parameters based on selected filters
-  const buildQueryParams = () => {
-    const params: Record<string, string> = {};
-    
-    if (filters.processIds.length > 0) {
-      params.processes = filters.processIds.join(',');
+  
+  // Mutation for saving user preferences
+  const { mutate: savePreferences, isPending: isSaving } = useMutation({
+    mutationFn: async (preferences: any) => {
+      return fetch('/api/user/attendance-filter-preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences),
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to save preferences');
+        return res.json();
+      });
+    },
+    onSuccess: () => {
+      // Show success message
+      toast({
+        title: 'Preferences Saved',
+        description: 'Your filter preferences have been saved successfully.',
+        variant: 'default',
+      });
+      
+      // Update button text and icon temporarily to show success
+      setSaveButtonText('Saved!');
+      setSaveButtonIcon(<Check className="mr-2 h-4 w-4" />);
+      
+      // Revert button text after 2 seconds
+      setTimeout(() => {
+        setSaveButtonText('Save Preferences');
+        setSaveButtonIcon(<Save className="mr-2 h-4 w-4" />);
+      }, 2000);
+      
+      // Invalidate the preferences query to reload saved preferences
+      queryClient.invalidateQueries({ queryKey: ['/api/user/attendance-filter-preferences'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to save preferences: ' + error.message,
+        variant: 'destructive',
+      });
     }
-    
-    if (filters.batchIds.length > 0) {
-      params.batches = filters.batchIds.join(',');
-    }
-    
-    if (filters.locationIds.length > 0) {
-      params.locations = filters.locationIds.join(',');
-    }
-    
-    if (filters.lineOfBusinessIds.length > 0) {
-      params.lineOfBusinesses = filters.lineOfBusinessIds.join(',');
-    }
-    
-    if (filters.dateRange) {
-      const { from, to } = getDateRangeParams();
-      params.from = from;
-      params.to = to;
-    }
-    
-    return params;
-  };
-
-  // Handle filter changes from the filter panel
-  const handleFilterChange = (newFilters: typeof filters) => {
+  });
+  
+  // Handler for filter changes from the AttendanceFilterPanel
+  const handleFilterChange = (newFilters: any) => {
     setFilters(newFilters);
   };
-
-  // Query for attendance data based on filters and view type
-  const {
-    data: attendanceData,
-    isLoading,
-    error
-  } = useQuery({
-    queryKey: ['/api/attendance/breakdown', filters],
-    queryFn: async () => {
-      const params = buildQueryParams();
-      const queryString = new URLSearchParams(params).toString();
-      const endpoint = `/api/attendance/breakdown/${filters.viewType}${queryString ? `?${queryString}` : ''}`;
-      
-      try {
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-          throw new Error('Failed to fetch attendance data');
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching attendance data:', error);
-        throw error;
-      }
-    },
-    enabled: user !== null, // Only run the query if the user is logged in
-    // The above endpoint doesn't exist yet, so this will error in development
-    // This is a placeholder for when the backend is implemented
-    // Remove this query or mock it if needed for now
-    onError: (error: any) => {
-      // Silently handle error - we'll show placeholder until backend is ready
-      console.log('Note: Attendance breakdown API endpoint not implemented yet');
-    }
-  });
-
-  // Function to render the appropriate attendance view based on the filter selection
-  const renderAttendanceView = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col space-y-3">
-          <Skeleton className="h-[240px] w-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-[80%]" />
-          </div>
-        </div>
-      );
-    }
-
-    if (error) {
-      // For development without the backend, render a placeholder
-      return (
-        <div className="p-4 border border-muted rounded-md">
-          <p className="text-center font-medium">
-            Attendance data will appear here based on your filter selections.
-          </p>
-          <p className="text-center text-muted-foreground mt-2">
-            View Type: {filters.viewType}
-          </p>
-          <p className="text-center text-muted-foreground mt-1">
-            Selected Filters: {Object.entries(filters)
-              .filter(([key, value]) => {
-                if (key === 'viewType') return false;
-                if (Array.isArray(value) && value.length > 0) return true;
-                if (key === 'dateRange' && value) return true;
-                return false;
-              })
-              .map(([key, value]) => {
-                if (key === 'dateRange' && value) {
-                  return `Date Range: ${formatIST(value.from, 'MMM dd')} - ${formatIST(value.to, 'MMM dd')}`;
-                }
-                return `${key.replace('Ids', '')}: ${Array.isArray(value) ? value.length : 0}`;
-              })
-              .join(', ')}
-          </p>
-          
-          {/* Fallback to show the batch-specific component when a batch is selected */}
-          {filters.batchIds.length === 1 && (
-            <div className="mt-4">
-              <AttendanceBreakdown 
-                batchId={filters.batchIds[0]} 
-              />
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // When we have data, render the appropriate view based on the viewType
-    switch (filters.viewType) {
-      case 'overall':
-        return (
-          <div className="mt-4">
-            {/* Overall attendance summary with pie chart */}
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={attendanceData?.summary}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  nameKey="name"
-                  label
-                >
-                  {attendanceData?.summary.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        );
-
-      case 'daily':
-        return (
-          <div className="mt-4">
-            {/* Daily attendance chart */}
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={attendanceData?.daily}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="present" fill="#8884d8" name="Present" />
-                <Bar dataKey="absent" fill="#82ca9d" name="Absent" />
-                <Bar dataKey="late" fill="#ffc658" name="Late" />
-                <Bar dataKey="leave" fill="#ff8042" name="Leave" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        );
-
-      case 'phase':
-        return (
-          <div className="mt-4">
-            {/* Phase-wise attendance chart */}
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={attendanceData?.phases}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="phase" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="attendanceRate" fill="#8884d8" name="Attendance %" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        );
-
-      case 'trainee':
-        return (
-          <div className="mt-4">
-            {/* Trainee-wise attendance breakdown */}
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {attendanceData?.trainees.map((trainee: any) => (
-                <div key={trainee.id} className="flex justify-between items-center p-2 border-b">
-                  <span className="font-medium">{trainee.name}</span>
-                  <div className="flex space-x-4">
-                    <span className="text-sm">Present: {trainee.presentCount}</span>
-                    <span className="text-sm">Absent: {trainee.absentCount}</span>
-                    <span className="text-sm">Rate: {trainee.attendanceRate}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
+  
+  // Handler for saving user preferences
+  const handleSavePreferences = () => {
+    if (!user) return;
+    
+    // Save both the filter preferences and current view
+    savePreferences({
+      ...filters,
+      view: currentView
+    });
   };
+  
+  // Icons for different view tabs
+  const viewIcons = {
+    overall: <BarChart4 className="h-4 w-4 mr-1" />,
+    daily: <Calendar className="h-4 w-4 mr-1" />,
+    phase: <CalendarClock className="h-4 w-4 mr-1" />,
+    trainee: <UsersRound className="h-4 w-4 mr-1" />
+  };
+  
+  // Helper function to render loading skeleton 
+  const renderSkeleton = () => (
+    <div className="space-y-4 p-4">
+      <Skeleton className="h-8 w-40" />
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  );
 
   return (
-    <Card className="col-span-3">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue={defaultTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="view">View</TabsTrigger>
-            <TabsTrigger value="filter">Filters</TabsTrigger>
+    <div className={`flex flex-col w-full ${className}`}>
+      {/* Filter panel at the top */}
+      <AttendanceFilterPanel 
+        onFilterChange={handleFilterChange}
+        className="mb-4" 
+      />
+      
+      <div className="flex justify-between items-center mb-4">
+        {/* View tabs on the left */}
+        <Tabs 
+          value={currentView} 
+          onValueChange={(value) => setCurrentView(value as ViewType)}
+          className="w-full"
+        >
+          <TabsList>
+            <TabsTrigger value="overall">
+              {viewIcons.overall}
+              <span className="hidden sm:inline-block">Overall</span>
+            </TabsTrigger>
+            <TabsTrigger value="daily">
+              {viewIcons.daily}
+              <span className="hidden sm:inline-block">Daily</span>
+            </TabsTrigger>
+            <TabsTrigger value="phase">
+              {viewIcons.phase}
+              <span className="hidden sm:inline-block">Phase</span>
+            </TabsTrigger>
+            <TabsTrigger value="trainee">
+              {viewIcons.trainee}
+              <span className="hidden sm:inline-block">Trainees</span>
+            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="filter">
-            <AttendanceFilterPanel onFilterChange={handleFilterChange} />
-          </TabsContent>
-          
-          <TabsContent value="view">
-            {/* Show active filters as badges */}
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold mb-1">Active Filters:</h4>
-              <div className="flex flex-wrap gap-2">
-                <div className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-md">
-                  View: {filters.viewType}
-                </div>
-                
-                {filters.processIds.length > 0 && (
-                  <div className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-md">
-                    Processes: {filters.processIds.length}
-                  </div>
-                )}
-                
-                {filters.batchIds.length > 0 && (
-                  <div className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-md">
-                    Batches: {filters.batchIds.length}
-                  </div>
-                )}
-                
-                {filters.locationIds.length > 0 && (
-                  <div className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-md">
-                    Locations: {filters.locationIds.length}
-                  </div>
-                )}
-                
-                {filters.lineOfBusinessIds.length > 0 && (
-                  <div className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-md">
-                    Line of Business: {filters.lineOfBusinessIds.length}
-                  </div>
-                )}
-                
-                {filters.dateRange && (
-                  <div className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-md">
-                    Date: {formatIST(filters.dateRange.from, 'MMM dd')} - {formatIST(filters.dateRange.to, 'MMM dd')}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {renderAttendanceView()}
-          </TabsContent>
         </Tabs>
-      </CardContent>
-    </Card>
+        
+        {/* Save preferences button on the right */}
+        <Button 
+          size="sm" 
+          onClick={handleSavePreferences}
+          disabled={isSaving || Object.keys(filters).length === 0}
+          className="ml-2"
+        >
+          {isSaving ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Saving...
+            </>
+          ) : saveButtonIcon}
+          {saveButtonText}
+        </Button>
+      </div>
+      
+      {/* Loading state */}
+      {attendanceLoading && (
+        <Card>
+          <CardContent className="p-0">
+            {renderSkeleton()}
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* No data state */}
+      {!attendanceLoading && (!attendanceData || Object.keys(filters).length === 0) && (
+        <Card className="border-dashed">
+          <CardContent className="p-6 flex flex-col items-center justify-center text-center text-muted-foreground">
+            <div className="mb-4">
+              <BarChart4 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <h3 className="text-lg font-medium">No attendance data to display</h3>
+            </div>
+            <p className="max-w-md">
+              {Object.keys(filters).length === 0 
+                ? "Select filters above to view attendance data for specific processes, batches, or time periods."
+                : "No attendance data found for the selected filters. Try selecting different filters or date ranges."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Attendance data display */}
+      {!attendanceLoading && attendanceData && (
+        <AttendanceBreakdown 
+          attendanceData={attendanceData} 
+          initialView={currentView}
+          className="border rounded-lg overflow-hidden shadow-sm" 
+        />
+      )}
+    </div>
   );
 }

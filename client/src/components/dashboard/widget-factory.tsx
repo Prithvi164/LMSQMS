@@ -1,68 +1,67 @@
-import { AttendanceOverviewWidget } from "./attendance-overview-widget";
-import { AttendanceTrendsWidget } from "./attendance-trends-widget";
-import { PerformanceDistributionWidget } from "./performance-distribution-widget";
-import { PhaseCompletionWidget } from "./phase-completion-widget";
-import { WidgetConfig, WidgetType } from "./dashboard-configuration";
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { widgetRegistry } from './widget-registry';
+import { WidgetConfig } from './dashboard-configuration';
+import { usePermissions } from '@/hooks/use-permissions';
 
-type WidgetFactoryProps = {
-  config: WidgetConfig;
-  batchIds?: number[];
+interface WidgetFactoryProps {
+  widget: WidgetConfig;
   className?: string;
-};
+}
 
-export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProps) {
-  const { type, title, chartType } = config;
+export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
+  const { hasPermissions } = usePermissions();
   
-  // Return the appropriate widget based on type
-  switch (type) {
-    case "attendance-overview":
-      return (
-        <AttendanceOverviewWidget 
-          title={title} 
-          chartType={chartType || "pie"}
-          batchIds={batchIds}
-          className={className}
-        />
-      );
-      
-    case "attendance-trends":
-      return (
-        <AttendanceTrendsWidget 
-          title={title} 
-          chartType={chartType || "line"}
-          batchIds={batchIds}
-          className={className}
-        />
-      );
-      
-    case "performance-distribution":
-      return (
-        <PerformanceDistributionWidget 
-          title={title} 
-          chartType={chartType || "bar"}
-          batchIds={batchIds}
-          className={className}
-        />
-      );
-      
-    case "phase-completion":
-      return (
-        <PhaseCompletionWidget 
-          title={title} 
-          chartType={chartType || "bar"}
-          batchIds={batchIds}
-          className={className}
-        />
-      );
-      
-    default:
-      return (
-        <div className={`p-6 rounded-lg border shadow-sm ${className}`}>
-          <h3 className="text-lg font-medium mb-2">Unknown Widget Type</h3>
-          <div className="h-[250px] flex items-center justify-center bg-muted rounded">
-            <span className="text-muted-foreground">Widget type '{type}' not recognized</span>
-          </div>
-        </div>
-      );
+  // Check if user has required permissions to view this widget
+  const canViewWidget = !widget.permissions || 
+    widget.permissions.length === 0 || 
+    hasPermissions(widget.permissions);
+  
+  // If user doesn't have permission, don't render the widget
+  if (!canViewWidget) {
+    return null;
   }
+  
+  // Get the widget component from the registry
+  const WidgetComponent = widgetRegistry[widget.type];
+  
+  // If widget type is not found in registry, show error message
+  if (!WidgetComponent) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle>Widget Error</CardTitle>
+          <CardDescription>Unknown widget type: {widget.type}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">
+            This widget type is not registered in the widget registry.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Determine size class based on widget size
+  const sizeClass = {
+    sm: 'col-span-1',
+    md: 'col-span-2',
+    lg: 'col-span-3',
+    full: 'col-span-full',
+  }[widget.size || 'md'];
+  
+  // Render the widget with its configuration
+  return (
+    <Card className={`overflow-hidden ${sizeClass} ${className}`}>
+      <CardHeader className="pb-3">
+        <CardTitle>{widget.title}</CardTitle>
+        {widget.description && (
+          <CardDescription>{widget.description}</CardDescription>
+        )}
+      </CardHeader>
+      <CardContent className="p-0">
+        <WidgetComponent config={widget} />
+      </CardContent>
+    </Card>
+  );
 }
