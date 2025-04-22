@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { 
@@ -52,7 +52,7 @@ import {
   Save, 
   Settings, 
   Trash,
-  Users
+  Users 
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WidgetFactory } from "./widget-factory";
@@ -492,7 +492,7 @@ export function DashboardConfiguration() {
                                 )}
                               </CardTitle>
                               <div className="flex items-center gap-2">
-                                {isEditMode && (
+                                {isEditMode ? (
                                   <>
                                     <Select 
                                       value={widget.chartType} 
@@ -517,9 +517,7 @@ export function DashboardConfiguration() {
                                       <Trash className="h-4 w-4" />
                                     </Button>
                                   </>
-                                )}
-                                
-                                {!isEditMode && (
+                                ) : (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -535,7 +533,7 @@ export function DashboardConfiguration() {
                               </div>
                             </CardHeader>
                             <CardContent className="p-4">
-                              <div className={`bg-white rounded-md p-2 shadow-inner min-h-[250px] ${isEditMode ? 'pointer-events-none' : ''}`}>
+                              <div className="bg-white rounded-md p-2 shadow-inner min-h-[250px]">
                                 <WidgetFactory 
                                   config={widget} 
                                   batchIds={selectedBatches} 
