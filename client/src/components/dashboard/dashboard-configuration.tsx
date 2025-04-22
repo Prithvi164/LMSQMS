@@ -49,6 +49,7 @@ import {
   Layers,
   LayoutDashboard, 
   Maximize2,
+  Pencil,
   Plus, 
   Save, 
   Settings, 
@@ -472,12 +473,7 @@ export function DashboardConfiguration() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-xs">Widget Movement</Label>
-                    <div className="flex items-center h-8 text-xs border rounded-md px-3 bg-slate-50">
-                      In Edit Mode Only
-                    </div>
-                  </div>
+
                 </div>
               </div>
             </div>
@@ -657,17 +653,28 @@ export function DashboardConfiguration() {
                                     </div>
                                   </>
                                 ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleUpdateWidgetConfig(widget.id, { 
-                                      size: widget.size === "full" ? "md" : "full" 
-                                    })}
-                                    className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
-                                    title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
-                                  >
-                                    <Maximize2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setIsEditMode(true)}
+                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
+                                      title="Edit widget"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleUpdateWidgetConfig(widget.id, { 
+                                        size: widget.size === "full" ? "md" : "full" 
+                                      })}
+                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
+                                      title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
+                                    >
+                                      <Maximize2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </CardHeader>
