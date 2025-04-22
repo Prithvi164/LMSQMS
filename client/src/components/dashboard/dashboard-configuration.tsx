@@ -605,9 +605,14 @@ export function DashboardConfiguration() {
                                         </Select>
                                         
                                         <Button 
-                                          variant="ghost" 
+                                          variant="destructive" 
                                           size="icon" 
-                                          onClick={() => handleRemoveWidget(widget.id)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirm('Are you sure you want to remove this widget?')) {
+                                              handleRemoveWidget(widget.id);
+                                            }
+                                          }}
                                           className="h-8 w-8"
                                         >
                                           <Trash className="h-4 w-4" />
