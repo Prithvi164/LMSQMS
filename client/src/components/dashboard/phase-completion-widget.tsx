@@ -180,7 +180,7 @@ export function PhaseCompletionWidget({
   const renderChart = () => {
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center h-[200px]">
+        <div className="flex justify-center items-center h-full">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       );
@@ -188,7 +188,7 @@ export function PhaseCompletionWidget({
     
     if (error) {
       return (
-        <div className="flex justify-center items-center h-[200px]">
+        <div className="flex justify-center items-center h-full">
           <span className="text-destructive">Error loading phase completion data</span>
         </div>
       );

@@ -135,7 +135,7 @@ export function PerformanceDistributionWidget({
     
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center h-[200px]">
+        <div className="flex justify-center items-center h-full">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       );
@@ -143,7 +143,7 @@ export function PerformanceDistributionWidget({
     
     if (error) {
       return (
-        <div className="flex justify-center items-center h-[200px]">
+        <div className="flex justify-center items-center h-full">
           <span className="text-destructive">Error loading performance data</span>
         </div>
       );
@@ -152,14 +152,14 @@ export function PerformanceDistributionWidget({
     switch (chartType) {
       case "pie":
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
                 labelLine={true}
-                outerRadius={90}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
@@ -186,7 +186,7 @@ export function PerformanceDistributionWidget({
         ];
         
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={lineData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -210,7 +210,7 @@ export function PerformanceDistributionWidget({
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
@@ -239,7 +239,9 @@ export function PerformanceDistributionWidget({
         )}
       </CardHeader>
       <CardContent>
-        {renderChart()}
+        <div className="w-full h-[260px] rounded-md">
+          {renderChart()}
+        </div>
         
         {/* Summary stats */}
         <div className="grid grid-cols-5 gap-2 mt-2">

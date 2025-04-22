@@ -255,14 +255,14 @@ export function AttendanceTrendsWidget({
         ];
         
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
                 labelLine={true}
-                outerRadius={90}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
@@ -280,7 +280,7 @@ export function AttendanceTrendsWidget({
         
       case "bar":
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={dateKey} />
@@ -299,7 +299,7 @@ export function AttendanceTrendsWidget({
       default:
         // For line charts, the attendance rate is the most important trend to visualize
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
@@ -357,8 +357,8 @@ export function AttendanceTrendsWidget({
         </div>
       </div>
       
-      {/* Main chart container with proper styling */}
-      <div className="w-full rounded-md">
+      {/* Main chart container with proper sizing */}
+      <div className="w-full h-[260px] rounded-md">
         {renderChart()}
       </div>
     </div>
