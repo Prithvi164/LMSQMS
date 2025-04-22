@@ -39,7 +39,7 @@ export function ResizableChart({
   const [isResizingHeight, setIsResizingHeight] = useState(false);
   const [isResizingWidth, setIsResizingWidth] = useState(false);
   const [isResizingCorner, setIsResizingCorner] = useState(false);
-  const [showControls, setShowControls] = useState(false);
+  const [showControls, setShowControls] = useState(true); // Always show controls by default
   
   const containerRef = useRef<HTMLDivElement>(null);
   const startPosRef = useRef({ x: 0, y: 0 });
@@ -52,6 +52,7 @@ export function ResizableChart({
   useEffect(() => {
     if (!responsive || customMode) return;
     
+    // Resize observer for container width changes
     const resizeObserver = new ResizeObserver(entries => {
       const containerWidth = entries[0].contentRect.width;
       if (typeof width !== 'string') {
@@ -59,12 +60,31 @@ export function ResizableChart({
       }
     });
     
+    // Immediately set width to match container on mount
     if (containerRef.current) {
+      const parentWidth = containerRef.current.parentElement?.clientWidth || containerRef.current.clientWidth;
+      if (typeof width !== 'string' && parentWidth > 0) {
+        setWidth(parentWidth);
+      }
+      
       resizeObserver.observe(containerRef.current.parentElement || containerRef.current);
     }
     
+    // Handle window resize events to ensure chart is responsive to viewport changes
+    const handleWindowResize = () => {
+      if (containerRef.current && typeof width !== 'string') {
+        const parentWidth = containerRef.current.parentElement?.clientWidth || containerRef.current.clientWidth;
+        if (parentWidth > 0) {
+          setWidth(parentWidth);
+        }
+      }
+    };
+    
+    window.addEventListener('resize', handleWindowResize);
+    
     return () => {
       resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
     };
   }, [responsive, customMode]);
 
@@ -191,7 +211,7 @@ export function ResizableChart({
         transition: isResizingHeight || isResizingWidth || isResizingCorner ? 'none' : 'all 0.2s ease',
       }}
       onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
+      onMouseLeave={() => customMode ? setShowControls(true) : setShowControls(false)}
     >
       <div className="absolute inset-0 overflow-hidden">
         {children}
@@ -211,60 +231,58 @@ export function ResizableChart({
         <>
           {/* Bottom resize handle (height) */}
           <div 
-            className="absolute bottom-0 left-0 right-6 h-6 cursor-ns-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-10"
+            className="absolute bottom-0 left-0 right-8 h-8 cursor-ns-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-10"
             onMouseDown={handleHeightResizeStart}
           >
-            <div className="w-20 h-2 bg-gray-400 rounded-full" />
+            <div className="w-24 h-3 bg-primary/80 rounded-full shadow-md" />
           </div>
           
           {/* Right resize handle (width) */}
           <div 
-            className="absolute top-0 bottom-6 right-0 w-6 cursor-ew-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-10"
+            className="absolute top-0 bottom-8 right-0 w-8 cursor-ew-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-10"
             onMouseDown={handleWidthResizeStart}
           >
-            <div className="h-20 w-2 bg-gray-400 rounded-full" />
+            <div className="h-24 w-3 bg-primary/80 rounded-full shadow-md" />
           </div>
           
           {/* Corner resize handle (both) */}
           <div 
-            className="absolute bottom-0 right-0 w-12 h-12 cursor-nwse-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-20"
+            className="absolute bottom-0 right-0 w-16 h-16 cursor-nwse-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-20"
             onMouseDown={handleCornerResizeStart}
           >
-            <div className="w-8 h-8 bg-gray-400 rounded-sm flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 7H7M0 5H5M0 3H3M0 1H1" stroke="#444" strokeWidth="1.5"/>
+            <div className="w-10 h-10 bg-primary/80 rounded flex items-center justify-center shadow-md">
+              <svg width="20" height="20" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 7H7M0 5H5M0 3H3M0 1H1" stroke="white" strokeWidth="1.5"/>
               </svg>
             </div>
           </div>
         </>
       )}
       
-      {/* Size indicator and control buttons */}
-      {showControls && (
-        <div className="absolute top-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded opacity-80 z-30 flex items-center gap-2">
-          <span>{Math.round(height)}px × {typeof width === 'number' ? `${Math.round(width)}px` : 'auto'}</span>
-          <button 
-            onClick={() => {
-              const newCustomMode = !customMode;
-              toggleCustomMode();
-              if (onResize) {
-                onResize({ 
-                  width: typeof width === 'number' ? width : containerRef.current?.clientWidth || 0, 
-                  height 
-                });
-              }
-            }}
-            className={`px-1 py-0.5 rounded text-[10px] ${customMode ? 'bg-primary' : 'bg-gray-600'}`}
-          >
-            {customMode ? 'Custom' : 'Auto'}
-          </button>
-        </div>
-      )}
+      {/* Always visible resize controls */}
+      <div className="absolute top-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded opacity-80 z-30 flex items-center gap-2">
+        <span>{Math.round(height)}px × {typeof width === 'number' ? `${Math.round(width)}px` : 'auto'}</span>
+        <button 
+          onClick={() => {
+            const newCustomMode = !customMode;
+            toggleCustomMode();
+            if (onResize) {
+              onResize({ 
+                width: typeof width === 'number' ? width : containerRef.current?.clientWidth || 0, 
+                height 
+              });
+            }
+          }}
+          className={`px-2 py-1 rounded text-[11px] font-medium ${customMode ? 'bg-primary text-white' : 'bg-gray-600'}`}
+        >
+          {customMode ? 'Custom Size' : 'Auto Resize'}
+        </button>
+      </div>
       
-      {/* Instructional tooltip that appears briefly on hover */}
-      {customMode && showControls && (
-        <div className="absolute bottom-16 right-4 bg-black/75 text-white text-xs py-1 px-2 rounded pointer-events-none opacity-0 transition-opacity duration-500 hover:opacity-100" 
-          style={{animation: 'fadeInOut 3s ease-in-out'}}>
+      {/* Always visible instructional tooltip when in custom mode */}
+      {customMode && (
+        <div className="absolute bottom-16 right-4 bg-black/75 text-white text-xs py-1 px-2 rounded pointer-events-none" 
+          style={{opacity: 0.8}}>
           <p>Drag edges or corner to resize</p>
         </div>
       )}
