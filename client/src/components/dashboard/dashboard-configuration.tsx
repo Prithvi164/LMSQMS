@@ -398,33 +398,23 @@ export function DashboardConfiguration() {
         </Card>
       )}
       
-      {/* Responsive Widget Layout */}
+      {/* Resizable Widget Layout */}
       <div className="mt-6">
         {activeDashboard.widgets.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {activeDashboard.widgets.map((widget, index) => {
-              // Determine column span based on widget size
-              let colSpan = "lg:col-span-6"; // Default medium size (half width)
-              
-              if (widget.size === "sm") {
-                colSpan = "lg:col-span-4"; // Small widget (1/3 width)
-              } else if (widget.size === "lg") {
-                colSpan = "lg:col-span-8"; // Large widget (2/3 width)
-              } else if (widget.size === "full") {
-                colSpan = "lg:col-span-12"; // Full width widget
-              }
-              
-              return (
+          <div className="w-full overflow-hidden">
+            {/* Row-based layout for widgets */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {activeDashboard.widgets.map((widget, index) => (
                 <div 
                   key={widget.id} 
-                  className={`transition-all duration-200 ease-in-out ${colSpan}`}
+                  className={`transition-all duration-200 ease-in-out w-full ${widget.size === "full" ? "md:col-span-2" : ""}`}
                 >
                   <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 border-b">
                       <CardTitle className="text-base md:text-lg font-medium flex items-center">
                         {isEditMode ? (
                           <>
-                            <GripVertical className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <GripVertical className="h-4 w-4 mr-2 text-muted-foreground cursor-move" />
                             <Input 
                               value={widget.title}
                               onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
@@ -458,35 +448,51 @@ export function DashboardConfiguration() {
                           </span>
                         )}
                       </CardTitle>
-                      {isEditMode && (
-                        <div className="flex items-center gap-2">
-                          <Select 
-                            value={widget.chartType} 
-                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                      <div className="flex items-center gap-2">
+                        {isEditMode && (
+                          <>
+                            <Select 
+                              value={widget.chartType} 
+                              onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                            >
+                              <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
+                                <SelectValue placeholder="Chart Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="bar">Bar</SelectItem>
+                                <SelectItem value="pie">Pie</SelectItem>
+                                <SelectItem value="line">Line</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleRemoveWidget(widget.id)}
+                              className="h-8 w-8"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        
+                        {!isEditMode && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleUpdateWidgetConfig(widget.id, { 
+                              size: widget.size === "full" ? "md" : "full" 
+                            })}
+                            className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
+                            title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
                           >
-                            <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
-                              <SelectValue placeholder="Chart Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="bar">Bar</SelectItem>
-                              <SelectItem value="pie">Pie</SelectItem>
-                              <SelectItem value="line">Line</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleRemoveWidget(widget.id)}
-                            className="h-8 w-8"
-                          >
-                            <Trash className="h-4 w-4" />
+                            <Maximize2 className="h-4 w-4" />
                           </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent className="p-4">
-                      <div className="bg-white rounded-md p-2 shadow-inner">
+                      <div className="bg-white rounded-md p-2 shadow-inner min-h-[250px]">
                         <WidgetFactory 
                           config={widget} 
                           batchIds={selectedBatches} 
@@ -496,8 +502,8 @@ export function DashboardConfiguration() {
                     </CardContent>
                   </Card>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center border rounded-lg p-12 min-h-[300px] bg-slate-50">
