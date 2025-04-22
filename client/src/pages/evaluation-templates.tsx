@@ -82,9 +82,9 @@ export default function EvaluationTemplatesPage() {
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
   const [filteredBatches, setFilteredBatches] = useState<any[]>([]);
 
-  // Fetch available processes (using filtered endpoint for security compliance)
+  // Fetch available processes
   const { data: processes = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    queryKey: [`/api/processes`],
     enabled: !!user?.organizationId,
   });
 

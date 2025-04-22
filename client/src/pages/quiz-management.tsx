@@ -143,9 +143,9 @@ export function QuizManagement() {
   // Get selected process ID from form
   const selectedProcessId = filterForm.watch("processId") !== "all" ? parseInt(filterForm.watch("processId")) : null;
 
-  // Update process query with proper typing (using filtered endpoint for security compliance)
+  // Update process query with proper typing
   const { data: processes = [], isLoading: processesLoading } = useQuery<Process[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    queryKey: ['/api/processes'],
     enabled: !!user?.organizationId
   });
   
