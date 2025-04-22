@@ -25,6 +25,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle
+} from "@/components/ui/resizable";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -47,11 +52,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WidgetFactory } from "./widget-factory";
-import {
-  ResizablePanel,
-  ResizablePanelGroup,
-  ResizableHandle
-} from "@/components/ui/resizable";
+
 
 // Types
 type Batch = {
@@ -397,88 +398,106 @@ export function DashboardConfiguration() {
         </Card>
       )}
       
-      {/* Resizable Widget Layout */}
+      {/* Responsive Widget Layout */}
       <div className="mt-6">
         {activeDashboard.widgets.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {activeDashboard.widgets.map((widget, index) => (
-              <div key={widget.id} className="transition-all duration-200 ease-in-out">
-                <Card className="h-full border border-slate-200 shadow-sm overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 border-b">
-                    <CardTitle className="text-lg font-medium flex items-center">
-                      {isEditMode ? (
-                        <>
-                          <GripVertical className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <Input 
-                            value={widget.title}
-                            onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
-                            className="h-8 px-2 py-1 text-base mr-2 max-w-[180px] bg-background"
-                          />
-                        </>
-                      ) : (
-                        <span className="flex items-center">
-                          {widget.type === "attendance-overview" && <ArrowDown className="h-4 w-4 mr-2 text-green-500" />}
-                          {widget.type === "attendance-trends" && <ArrowDown className="h-4 w-4 mr-2 text-blue-500" />}
-                          {widget.type === "performance-distribution" && <ArrowDown className="h-4 w-4 mr-2 text-amber-500" />}
-                          {widget.type === "phase-completion" && <ArrowDown className="h-4 w-4 mr-2 text-purple-500" />}
-                          {widget.title}
-                        </span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {activeDashboard.widgets.map((widget, index) => {
+              // Determine column span based on widget size
+              let colSpan = "lg:col-span-6"; // Default medium size (half width)
+              
+              if (widget.size === "sm") {
+                colSpan = "lg:col-span-4"; // Small widget (1/3 width)
+              } else if (widget.size === "lg") {
+                colSpan = "lg:col-span-8"; // Large widget (2/3 width)
+              } else if (widget.size === "full") {
+                colSpan = "lg:col-span-12"; // Full width widget
+              }
+              
+              return (
+                <div 
+                  key={widget.id} 
+                  className={`transition-all duration-200 ease-in-out ${colSpan}`}
+                >
+                  <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 border-b">
+                      <CardTitle className="text-base md:text-lg font-medium flex items-center">
+                        {isEditMode ? (
+                          <>
+                            <GripVertical className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <Input 
+                              value={widget.title}
+                              onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
+                              className="h-8 px-2 py-1 text-base mr-2 max-w-[180px] bg-background"
+                            />
+                          </>
+                        ) : (
+                          <span className="flex items-center">
+                            {widget.type === "attendance-overview" && 
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                            }
+                            {widget.type === "attendance-trends" && 
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                              </svg>
+                            }
+                            {widget.type === "performance-distribution" && 
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                              </svg>
+                            }
+                            {widget.type === "phase-completion" && 
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            }
+                            {widget.title}
+                          </span>
+                        )}
+                      </CardTitle>
+                      {isEditMode && (
+                        <div className="flex items-center gap-2">
+                          <Select 
+                            value={widget.chartType} 
+                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                          >
+                            <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
+                              <SelectValue placeholder="Chart Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="bar">Bar</SelectItem>
+                              <SelectItem value="pie">Pie</SelectItem>
+                              <SelectItem value="line">Line</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleRemoveWidget(widget.id)}
+                            className="h-8 w-8"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
-                    </CardTitle>
-                    {isEditMode && (
-                      <div className="flex items-center gap-2">
-                        <Select 
-                          value={widget.chartType} 
-                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                        >
-                          <SelectTrigger className="w-[90px] h-8 text-sm bg-background">
-                            <SelectValue placeholder="Chart Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bar">Bar</SelectItem>
-                            <SelectItem value="pie">Pie</SelectItem>
-                            <SelectItem value="line">Line</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        <Select 
-                          value={widget.size} 
-                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { size: value as "sm" | "md" | "lg" | "full" })}
-                        >
-                          <SelectTrigger className="w-[90px] h-8 text-sm bg-background">
-                            <SelectValue placeholder="Size" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sm">Small</SelectItem>
-                            <SelectItem value="md">Medium</SelectItem>
-                            <SelectItem value="lg">Large</SelectItem>
-                            <SelectItem value="full">Full</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleRemoveWidget(widget.id)}
-                          className="h-8 w-8"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <div className="bg-white rounded-md p-2 shadow-inner">
+                        <WidgetFactory 
+                          config={widget} 
+                          batchIds={selectedBatches} 
+                          className={isEditMode ? "opacity-80 pointer-events-none" : ""}
+                        />
                       </div>
-                    )}
-                  </CardHeader>
-                  <CardContent className={`p-4 ${widget.size === "full" ? "col-span-2" : ""}`}>
-                    <div className="bg-white rounded-md p-2 shadow-inner">
-                      <WidgetFactory 
-                        config={widget} 
-                        batchIds={selectedBatches} 
-                        className={isEditMode ? "opacity-80 pointer-events-none" : ""}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="flex items-center justify-center border rounded-lg p-12 min-h-[300px] bg-slate-50">
