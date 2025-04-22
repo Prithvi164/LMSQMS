@@ -199,14 +199,14 @@ export function PhaseCompletionWidget({
     switch (chartType) {
       case "pie":
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={phaseData}
                 cx="50%"
                 cy="50%"
                 labelLine={true}
-                outerRadius={90}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
@@ -226,7 +226,7 @@ export function PhaseCompletionWidget({
         const projectionData = prepareCompletionProjection();
         
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={projectionData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -250,7 +250,7 @@ export function PhaseCompletionWidget({
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={phaseData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
@@ -277,7 +277,9 @@ export function PhaseCompletionWidget({
         </div>
       </CardHeader>
       <CardContent>
-        {renderChart()}
+        <div className="w-full h-[260px] rounded-md">
+          {renderChart()}
+        </div>
         
         {/* Status summary */}
         <div className="grid grid-cols-3 gap-3 mt-4">

@@ -729,7 +729,7 @@ export function DashboardConfiguration() {
                             </CardHeader>
                             <CardContent className="p-4 flex-grow h-[calc(100%-60px)]">
                               <div 
-                                className="bg-white rounded-md p-2 shadow-inner h-full flex flex-col" 
+                                className="bg-white dark:bg-slate-800 rounded-md p-2 shadow-inner h-full flex flex-col" 
                                 style={{ 
                                   height: widget.gridHeight ? `${widget.gridHeight * 150}px` : '150px'
                                 }}
@@ -751,10 +751,10 @@ export function DashboardConfiguration() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center border rounded-lg p-12 min-h-[300px] bg-slate-50">
+          <div className="flex items-center justify-center border rounded-lg p-12 min-h-[300px] bg-slate-50 dark:bg-slate-800/50">
             <div className="text-center text-muted-foreground">
               <LayoutDashboard className="mx-auto h-12 w-12 mb-4 text-primary" />
-              <h3 className="text-lg font-medium mb-2">No widgets added</h3>
+              <h3 className="text-lg font-medium mb-2 dark:text-slate-200">No widgets added</h3>
               <p className="mb-4">Click "Add Widget" to customize your dashboard</p>
               {!isEditMode && (
                 <Button onClick={() => setIsEditMode(true)} variant="outline" className="gap-2">
