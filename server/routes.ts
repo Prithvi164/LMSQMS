@@ -5155,23 +5155,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // For non-admin users, we need to filter the Lines of Business based on their assigned processes
         
-        // First get all processes for the organization
+        // Get the user's processes
+        const userProcesses = await storage.getUserProcesses(req.user.id);
+        
+        // First get all processes for the organization to have complete process data
         const allProcesses = await storage.listProcesses(orgId);
         
-        // Then get the processes assigned to this user
-        const userProcessIds = await storage.getUserProcessIds(req.user.id);
+        // Extract the process IDs from the user's processes
+        const userProcessIds = userProcesses.map(p => p.processId);
         
-        // Find the user's processes from all processes 
-        const userProcesses = allProcesses.filter(process => 
+        // Get the full process objects for the user's assigned processes
+        const userProcessObjects = allProcesses.filter(process => 
           userProcessIds.includes(process.id)
         );
         
-        // Extract unique line of business IDs from user's processes
+        // Extract the unique line of business IDs from the user's processes
         const userLOBIds = Array.from(
-          new Set(userProcesses.map(process => process.lineOfBusinessId))
+          new Set(userProcessObjects
+            .filter(p => p.lineOfBusinessId !== null)
+            .map(p => p.lineOfBusinessId))
         );
         
-        // Filter all LOBs to only include those in the user's processes
+        console.log(`Line of Business IDs for user ${req.user.id}:`, userLOBIds);
+        
+        // Filter the LOBs to only include those related to the user's processes
         const filteredLOBs = allLOBs.filter(lob => 
           userLOBIds.includes(lob.id)
         );
