@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { widgetRegistry, widgetConfigurations } from './widget-registry';
 import { WidgetConfig } from './dashboard-configuration.ts';
 import { usePermissions } from '@/hooks/use-permissions';
+import { ResizableChart } from '@/components/ui/resizable-chart';
 
 interface WidgetFactoryProps {
   widget: WidgetConfig;
@@ -11,6 +12,11 @@ interface WidgetFactoryProps {
 
 export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
   const { hasAllPermissions } = usePermissions();
+  const [chartHeight, setChartHeight] = useState<number>(
+    widget.chartOptions?.height || 
+    (widgetConfigurations[widget.type as keyof typeof widgetConfigurations]?.chartOptions?.height) || 
+    300
+  );
   
   // Check if user has required permissions to view this widget
   const canViewWidget = 
@@ -65,22 +71,28 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
         )}
       </CardHeader>
       <CardContent className="p-0">
-        <div style={{
-            height: widget.chartOptions?.height || presetConfig?.chartOptions?.height || 300,
-            width: widget.chartOptions?.width || '100%',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
+        <ResizableChart 
+          defaultHeight={chartHeight}
+          minHeight={200}
+          maxHeight={800}
+          onHeightChange={(newHeight) => {
+            setChartHeight(newHeight);
+            // Here you can add API call to save the user preference if needed
+          }}
+          className="w-full"
+        >
           <WidgetComponent 
             config={widget}
             chartOptions={{
-              responsive: widget.chartOptions?.responsive !== false,
-              maintainAspectRatio: widget.chartOptions?.maintainAspectRatio !== false,
               ...(presetConfig?.chartOptions || {}),
               ...widget.chartOptions,
+              // Override with our current settings
+              responsive: true,
+              maintainAspectRatio: false,
+              height: chartHeight,
             }} 
           />
-        </div>
+        </ResizableChart>
       </CardContent>
     </Card>
   );
