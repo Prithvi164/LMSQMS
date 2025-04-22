@@ -1,155 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { widgetRegistry, widgetConfigurations } from './widget-registry';
-import { WidgetConfig } from './dashboard-configuration.ts';
-import { usePermissions } from '@/hooks/use-permissions';
-import { ResizableChart } from '@/components/ui/resizable-chart';
+import { AttendanceOverviewWidget } from "./attendance-overview-widget";
+import { AttendanceTrendsWidget } from "./attendance-trends-widget";
+import { PerformanceDistributionWidget } from "./performance-distribution-widget";
+import { PhaseCompletionWidget } from "./phase-completion-widget";
+import { WidgetConfig, WidgetType } from "./dashboard-configuration";
 
-interface WidgetFactoryProps {
-  widget: WidgetConfig;
+type WidgetFactoryProps = {
+  config: WidgetConfig;
+  batchIds?: number[];
   className?: string;
-}
+};
 
-export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
-  const { hasAllPermissions } = usePermissions();
+export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProps) {
+  const { type, title, chartType } = config;
   
-  // Get the initial dimensions from the configuration or defaults
-  const [chartDimensions, setChartDimensions] = useState({
-    height: widget.chartOptions?.height || 
-      (widgetConfigurations[widget.type as keyof typeof widgetConfigurations]?.chartOptions?.height) || 
-      300,
-    width: widget.chartOptions?.width || '100%'
-  });
-  
-  // Check if user has required permissions to view this widget
-  const canViewWidget = 
-    !widget || 
-    !widget.permissions || 
-    widget.permissions.length === 0 || 
-    hasAllPermissions(widget.permissions);
-  
-  // If user doesn't have permission, or widget is undefined, don't render anything
-  if (!canViewWidget || !widget) {
-    return null;
-  }
-  
-  // Get the widget component from the registry
-  const WidgetComponent = widgetRegistry[widget.type];
-  
-  // If widget type is not found in registry, show error message
-  if (!WidgetComponent) {
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle>Widget Error</CardTitle>
-          <CardDescription>Unknown widget type: {widget.type}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">
-            This widget type is not registered in the widget registry.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-  
-  // Get preset configuration for this widget type if available
-  const presetConfig = widgetConfigurations[widget.type as keyof typeof widgetConfigurations];
-  
-  // Determine size class based on widget size
-  const sizeClass = {
-    sm: 'col-span-1',
-    md: 'col-span-2',
-    lg: 'col-span-3',
-    full: 'col-span-full',
-  }[widget.size || 'md'];
-  
-  // Render the widget with its configuration
-  // State for custom/auto mode
-  const [isCustomMode, setIsCustomMode] = useState(!!widget.customDimensions);
-
-  // Load custom dimensions from widget config if available
-  useEffect(() => {
-    if (widget.customDimensions) {
-      setIsCustomMode(true);
-      setChartDimensions({
-        height: widget.customDimensions.height || chartDimensions.height,
-        width: widget.customDimensions.width || chartDimensions.width
-      });
-    }
-  }, [widget.id]);
-
-  // Save preferences to the dashboard preferences API
-  const saveChartPreferences = async (newDimensions: {width: number, height: number}) => {
-    try {
-      const response = await fetch('/api/dashboard/preferences', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: `Widget ${widget.id} Preferences`,
-          config: {
-            ...widget,
-            customDimensions: newDimensions
-          },
-          isDefault: true
-        })
-      });
+  // Return the appropriate widget based on type
+  switch (type) {
+    case "attendance-overview":
+      return (
+        <AttendanceOverviewWidget 
+          title={title} 
+          chartType={chartType || "pie"}
+          batchIds={batchIds}
+          className={className}
+        />
+      );
       
-      if (response.ok) {
-        console.log('Saved chart dimensions:', newDimensions);
-      }
-    } catch (error) {
-      console.error('Failed to save chart preferences:', error);
-    }
-  };
-
-  return (
-    <Card className={`overflow-hidden ${sizeClass} ${className}`}>
-      <CardHeader className="pb-3">
-        <CardTitle>{widget.title}</CardTitle>
-        {widget.description && (
-          <CardDescription>{widget.description}</CardDescription>
-        )}
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative w-full">
-          <ResizableChart 
-            defaultHeight={chartDimensions.height}
-            defaultWidth={chartDimensions.width}
-            minHeight={200}
-            minWidth={200}
-            maxHeight={800}
-            maxWidth={1600}
-            responsive={!isCustomMode}
-            customMode={isCustomMode}
-            onResize={(newDimensions) => {
-              setChartDimensions(newDimensions);
-            }}
-            savePreferences={(newDimensions) => {
-              saveChartPreferences(newDimensions);
-            }}
-            className="w-full relative"
-          >
-            <WidgetComponent 
-              config={widget}
-              chartOptions={{
-                ...(presetConfig?.chartOptions || {}),
-                ...widget.chartOptions,
-                // Override with our current settings
-                responsive: true,
-                maintainAspectRatio: false,
-                height: chartDimensions.height,
-                width: typeof chartDimensions.width === 'number' ? chartDimensions.width : undefined,
-                animation: {
-                  duration: 0 // Disable animations during resize for better performance
-                }
-              }} 
-            />
-          </ResizableChart>
+    case "attendance-trends":
+      return (
+        <AttendanceTrendsWidget 
+          title={title} 
+          chartType={chartType || "line"}
+          batchIds={batchIds}
+          className={className}
+        />
+      );
+      
+    case "performance-distribution":
+      return (
+        <PerformanceDistributionWidget 
+          title={title} 
+          chartType={chartType || "bar"}
+          batchIds={batchIds}
+          className={className}
+        />
+      );
+      
+    case "phase-completion":
+      return (
+        <PhaseCompletionWidget 
+          title={title} 
+          chartType={chartType || "bar"}
+          batchIds={batchIds}
+          className={className}
+        />
+      );
+      
+    default:
+      return (
+        <div className={`p-6 rounded-lg border shadow-sm ${className}`}>
+          <h3 className="text-lg font-medium mb-2">Unknown Widget Type</h3>
+          <div className="h-[250px] flex items-center justify-center bg-muted rounded">
+            <span className="text-muted-foreground">Widget type '{type}' not recognized</span>
+          </div>
         </div>
-      </CardContent>
-    </Card>
-  );
+      );
+  }
 }

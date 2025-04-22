@@ -45,7 +45,6 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WidgetFactory } from "./widget-factory";
-import { WidgetType, widgetConfigurations } from "./widget-registry";
 
 // Types
 type Batch = {
@@ -65,27 +64,23 @@ type Batch = {
   };
 };
 
-// Widget configuration type
-export interface WidgetConfig {
+export type WidgetType = 
+  | "attendance-overview"
+  | "attendance-trends"
+  | "performance-distribution"
+  | "phase-completion";
+
+export type WidgetConfig = {
   id: string;
   type: WidgetType;
   title: string;
-  size: "sm" | "md" | "lg" | "full";
+  size: "small" | "medium" | "large";
   chartType?: "bar" | "pie" | "line";
-  description?: string;
-  permissions?: string[];
-  chartOptions?: {
-    height?: number;
-    width?: string | number;
-    responsive?: boolean;
-    maintainAspectRatio?: boolean;
-    [key: string]: any;
-  };
-  position?: {
+  position: {
     x: number;
     y: number;
   };
-}
+};
 
 type DashboardConfig = {
   id: string;
@@ -108,7 +103,7 @@ const defaultWidgets: WidgetConfig[] = [
     id: "widget-1",
     type: "attendance-overview",
     title: "Attendance Overview",
-    size: "md",
+    size: "medium",
     chartType: "pie",
     position: { x: 0, y: 0 }
   },
@@ -116,7 +111,7 @@ const defaultWidgets: WidgetConfig[] = [
     id: "widget-2",
     type: "attendance-trends",
     title: "Attendance Trends",
-    size: "lg",
+    size: "large",
     chartType: "line",
     position: { x: 0, y: 1 }
   }
@@ -136,27 +131,6 @@ export function DashboardConfiguration() {
   ]);
   const [activeDashboardId, setActiveDashboardId] = useState<string>("default");
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Load saved dashboard preferences when the component mounts
-  // Note: For demo purpose, we're using local configs since the API isn't fully set up yet
-  useEffect(() => {
-    const loadDashboardPreferences = async () => {
-      try {
-        setIsLoading(true);
-        
-        // For demo purposes, just use the default configs since the database table doesn't exist yet
-        // In a real implementation, this would fetch from the API
-        // const response = await fetch('/api/dashboard/preferences');
-      } catch (error) {
-        console.error('Error loading dashboard preferences:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadDashboardPreferences();
-  }, []);
   
   // Get the active dashboard config
   const activeDashboard = dashboardConfigs.find(config => config.id === activeDashboardId) || dashboardConfigs[0];
@@ -186,64 +160,20 @@ export function DashboardConfiguration() {
     }
   };
   
-  const handleSaveConfig = async () => {
-    try {
-      // Save to the database through API
-      const response = await fetch('/api/dashboard/preferences', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: activeDashboard.name,
-          isDefault: activeDashboard.isDefault || false,
-          config: {
-            widgets: activeDashboard.widgets.map(widget => ({
-              ...widget,
-              // Ensure widgets have all required properties
-              size: widget.size || 'md',
-              chartOptions: widget.chartOptions || {
-                height: 300,
-                width: '100%',
-                responsive: true,
-                maintainAspectRatio: false
-              }
-            }))
-          }
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save dashboard configuration');
-      }
-      
-      alert("Dashboard configuration saved successfully!");
-      setIsEditMode(false);
-    } catch (error) {
-      console.error('Error saving dashboard configuration:', error);
-      alert('Error saving dashboard configuration. Please try again.');
-    }
+  const handleSaveConfig = () => {
+    // In a real implementation, this would save to the database
+    alert("Dashboard configuration saved!");
+    setIsEditMode(false);
   };
   
   const handleAddWidget = (type: WidgetType) => {
-    // Get predefined configuration for this widget type if available
-    const presetConfig = widgetConfigurations[type as keyof typeof widgetConfigurations];
-    
-    // Create widget with default or preset configurations
     const newWidget: WidgetConfig = {
       id: `widget-${Date.now()}`,
       type,
-      title: presetConfig?.title || getWidgetTitle(type),
-      size: "md", // Default size
+      title: getWidgetTitle(type),
+      size: "medium",
       chartType: getDefaultChartType(type),
-      position: { x: 0, y: activeDashboard.widgets.length },
-      chartOptions: presetConfig?.chartOptions || {
-        height: 300,
-        width: '100%',
-        responsive: true,
-        maintainAspectRatio: false
-      },
-      description: presetConfig?.description
+      position: { x: 0, y: activeDashboard.widgets.length }
     };
     
     setDashboardConfigs(prev => {
@@ -294,39 +224,23 @@ export function DashboardConfiguration() {
   
   // Helper functions
   const getWidgetTitle = (type: WidgetType): string => {
-    const defaultTitles: Record<string, string> = {
+    const titles: Record<WidgetType, string> = {
       "attendance-overview": "Attendance Overview",
       "attendance-trends": "Attendance Trends",
       "performance-distribution": "Performance Distribution",
-      "phase-completion": "Phase Completion",
-      "attendance-breakdown": "Attendance Breakdown",
-      "enhanced-attendance-breakdown": "Enhanced Attendance Breakdown",
-      "batch-summary": "Batch Summary",
-      "trainee-progress": "Trainee Progress",
-      "recent-activity": "Recent Activity",
-      "quick-actions": "Quick Actions",
-      "announcements": "Announcements",
-      "calendar": "Calendar",
-      "evaluation-summary": "Evaluation Summary"
+      "phase-completion": "Phase Completion"
     };
-    
-    return defaultTitles[type] || `${type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+    return titles[type];
   };
   
   const getDefaultChartType = (type: WidgetType): "bar" | "pie" | "line" => {
-    const defaultChartTypes: Record<string, "bar" | "pie" | "line"> = {
+    const chartTypes: Record<WidgetType, "bar" | "pie" | "line"> = {
       "attendance-overview": "pie",
       "attendance-trends": "line",
       "performance-distribution": "bar",
-      "phase-completion": "bar",
-      "attendance-breakdown": "pie",
-      "enhanced-attendance-breakdown": "bar",
-      "batch-summary": "bar",
-      "trainee-progress": "line",
-      "evaluation-summary": "bar"
+      "phase-completion": "bar"
     };
-    
-    return defaultChartTypes[type] || "bar";
+    return chartTypes[type];
   };
   
   // Batch filter dialog
@@ -448,14 +362,11 @@ export function DashboardConfiguration() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleAddWidget("enhanced-attendance-breakdown")}>
-                    Enhanced Attendance Breakdown
+                  <DropdownMenuItem onClick={() => handleAddWidget("attendance-overview")}>
+                    Attendance Overview
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleAddWidget("attendance-trends")}>
                     Attendance Trends
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAddWidget("attendance-overview")}>
-                    Attendance Overview
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleAddWidget("performance-distribution")}>
                     Performance Distribution
@@ -480,50 +391,26 @@ export function DashboardConfiguration() {
         {/* This will be filled with actual widgets */}
         {activeDashboard.widgets.map((widget) => (
           <Card key={widget.id} className={`
-            ${widget.size === "lg" ? "col-span-full" : 
-              widget.size === "md" ? "md:col-span-1 lg:col-span-1" : ""}
+            ${widget.size === "large" ? "col-span-full" : 
+              widget.size === "medium" ? "md:col-span-1 lg:col-span-1" : ""}
           `}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">{widget.title}</CardTitle>
               {isEditMode && (
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Select 
-                      value={widget.chartType} 
-                      onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                    >
-                      <SelectTrigger className="w-[100px]">
-                        <SelectValue placeholder="Chart Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bar">Bar</SelectItem>
-                        <SelectItem value="pie">Pie</SelectItem>
-                        <SelectItem value="line">Line</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select
-                      value={String(widget.chartOptions?.height || 300)}
-                      onValueChange={(value) => {
-                        const height = parseInt(value);
-                        const chartOptions = {
-                          ...(widget.chartOptions || {}),
-                          height: height
-                        };
-                        handleUpdateWidgetConfig(widget.id, { chartOptions });
-                      }}
-                    >
-                      <SelectTrigger className="w-[100px]">
-                        <SelectValue placeholder="Height" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="200">Small (200px)</SelectItem>
-                        <SelectItem value="300">Medium (300px)</SelectItem>
-                        <SelectItem value="400">Large (400px)</SelectItem>
-                        <SelectItem value="500">X-Large (500px)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select 
+                    value={widget.chartType} 
+                    onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Chart Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bar">Bar</SelectItem>
+                      <SelectItem value="pie">Pie</SelectItem>
+                      <SelectItem value="line">Line</SelectItem>
+                    </SelectContent>
+                  </Select>
                   
                   <Button 
                     variant="ghost" 
@@ -537,7 +424,8 @@ export function DashboardConfiguration() {
             </CardHeader>
             <CardContent className="p-0">
               <WidgetFactory 
-                widget={widget} 
+                config={widget} 
+                batchIds={selectedBatches} 
                 className={isEditMode ? "opacity-70 pointer-events-none" : ""}
               />
             </CardContent>

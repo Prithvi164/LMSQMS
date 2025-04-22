@@ -29,7 +29,6 @@ import PermissionGuardedConductEvaluation from "@/pages/conduct-evaluation";
 import PermissionGuardedEvaluationFeedback from "@/pages/evaluation-feedback";
 import AzureStorageBrowser from "@/pages/azure-storage-browser";
 import AzureStorageManagement from "@/pages/azure-storage-management";
-import AttendanceBreakdownDemo from "@/pages/attendance-breakdown-demo";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -90,7 +89,6 @@ function Router() {
             <ProtectedRoute path="/azure-storage-management" component={AzureStorageManagement} />
             <ProtectedRoute path="/azure-storage-management/:containerName" component={AzureStorageManagement} />
             <ProtectedRoute path="/fix-holiday-permissions" component={FixHolidayPermissions} />
-            <ProtectedRoute path="/attendance-breakdown-demo" component={AttendanceBreakdownDemo} />
             <Route component={NotFound} />
           </Switch>
         </div>

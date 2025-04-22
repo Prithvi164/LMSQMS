@@ -148,21 +148,9 @@ function AttendanceDetailDialog({
 
 // Main component
 export function AttendanceBreakdown({ 
-  attendanceData,
-  initialView = 'overall',
-  className = '',
-  chartOptions = {}
+  attendanceData 
 }: { 
-  attendanceData: BatchAttendanceOverview;
-  initialView?: 'overall' | 'daily' | 'phase' | 'trainee';
-  className?: string;
-  chartOptions?: {
-    height?: number;
-    width?: string | number;
-    responsive?: boolean;
-    maintainAspectRatio?: boolean;
-    [key: string]: any;
-  };
+  attendanceData: BatchAttendanceOverview 
 }) {
   const [breakdownTab, setBreakdownTab] = useState("overall");
   
@@ -320,8 +308,8 @@ export function AttendanceBreakdown({
   const renderChart = (data: any[]) => {
     if (data.length === 0) return null;
     
-    // Use the height from chartOptions or calculate based on the number of items
-    const chartHeight = chartOptions.height || Math.max(300, data.length * 40);
+    // Height based on number of items (with a minimum)
+    const chartHeight = Math.max(300, data.length * 40);
     
     // Determine if we're dealing with daily/phase data (has 'present', 'absent', etc.)
     // or overall data (has 'name', 'value' properties)
@@ -329,10 +317,7 @@ export function AttendanceBreakdown({
     
     if (hasAttendanceBreakdown) {
       return (
-        <ResponsiveContainer 
-          width={typeof chartOptions.width === 'number' ? chartOptions.width : "100%"} 
-          height={chartHeight}
-        >
+        <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={data}
             layout="vertical"
@@ -357,10 +342,7 @@ export function AttendanceBreakdown({
     } else {
       // For overall data
       return (
-        <ResponsiveContainer 
-          width={typeof chartOptions.width === 'number' ? chartOptions.width : "100%"} 
-          height={chartHeight}
-        >
+        <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart
             data={data}
             layout="vertical"
