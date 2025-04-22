@@ -145,7 +145,7 @@ const defaultWidgets: WidgetConfig[] = [
     chartType: "pie",
     position: { x: 0, y: 0 },
     defaultSize: 50,
-    gridSpan: 1,
+    gridSpan: 2, // Half width (6 of 12 columns)
     gridHeight: 1
   },
   {
@@ -157,7 +157,7 @@ const defaultWidgets: WidgetConfig[] = [
     chartType: "line",
     position: { x: 0, y: 1 },
     defaultSize: 50,
-    gridSpan: 2,
+    gridSpan: 2, // Half width (6 of 12 columns)
     gridHeight: 1
   }
 ];
@@ -229,7 +229,7 @@ export function DashboardConfiguration() {
       chartType: getDefaultChartType(type),
       position: { x: 0, y: activeDashboard.widgets.length },
       defaultSize: 50,
-      gridSpan: 1,
+      gridSpan: 2, // Default to half width (6 columns)
       gridHeight: 1
     };
     
@@ -520,18 +520,18 @@ export function DashboardConfiguration() {
 
                   {/* Category Widgets */}
                   {!collapsedCategories.includes(category) && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                       {activeDashboard.widgets
                         .filter(w => w.category === category)
                         .map((widget, index) => (
                         <div 
                           key={widget.id} 
                           className={`transition-all duration-200 ease-in-out w-full 
-                            ${widget.size === "full" ? "md:col-span-4" : 
-                              widget.gridSpan === 2 ? "md:col-span-2" :
-                              widget.gridSpan === 3 ? "md:col-span-3" :
-                              widget.gridSpan === 4 ? "md:col-span-4" :
-                              "md:col-span-1"} 
+                            ${widget.size === "full" ? "md:col-span-12" : 
+                              widget.gridSpan === 2 ? "md:col-span-6" :
+                              widget.gridSpan === 3 ? "md:col-span-4" :
+                              widget.gridSpan === 4 ? "md:col-span-3" :
+                              "md:col-span-12"} 
                             ${widget.gridHeight === 2 ? "row-span-2" :
                                widget.gridHeight === 3 ? "row-span-3" :
                                widget.gridHeight === 4 ? "row-span-4" :
@@ -615,19 +615,19 @@ export function DashboardConfiguration() {
                                       
                                       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-slate-100 p-2 rounded-md w-full">
                                         <div className="flex flex-col">
-                                          <span>Grid Span:</span>
+                                          <span>Width:</span>
                                           <Select 
                                             value={String(widget.gridSpan || 1)} 
                                             onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridSpan: parseInt(value) })}
                                           >
                                             <SelectTrigger className="w-[70px] h-7 text-xs">
-                                              <SelectValue placeholder="Columns" />
+                                              <SelectValue placeholder="Width" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              <SelectItem value="1">1 Column</SelectItem>
-                                              <SelectItem value="2">2 Columns</SelectItem>
-                                              <SelectItem value="3">3 Columns</SelectItem>
-                                              <SelectItem value="4">4 Columns</SelectItem>
+                                              <SelectItem value="1">Full width</SelectItem>
+                                              <SelectItem value="2">Half width</SelectItem>
+                                              <SelectItem value="3">One-third</SelectItem>
+                                              <SelectItem value="4">One-fourth</SelectItem>
                                             </SelectContent>
                                           </Select>
                                         </div>
@@ -673,6 +673,20 @@ export function DashboardConfiguration() {
                                       title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
                                     >
                                       <Maximize2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm('Are you sure you want to remove this widget?')) {
+                                          handleRemoveWidget(widget.id);
+                                        }
+                                      }}
+                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100 hover:text-red-500"
+                                      title="Delete widget"
+                                    >
+                                      <Trash className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 )}
