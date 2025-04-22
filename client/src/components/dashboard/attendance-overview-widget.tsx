@@ -114,19 +114,12 @@ export function AttendanceOverviewWidget({
   const renderChart = () => {
     const data = prepareChartData();
     
-    // Extract height class or use default
-    const heightClass = className?.match(/h-\[\d+px\]/) 
-      ? className.match(/h-\[\d+px\]/)?.[0] 
-      : "h-[250px]";
-    
-    // Determine chart height - extract the pixel value from the class
-    const heightPx = heightClass
-      ? parseInt(heightClass.match(/\d+/)?.[0] || "250", 10)
-      : 250;
+    // Use 100% of the available container height instead of fixed pixel heights
+    // This makes the chart fully responsive to its parent container
     
     if (isLoading) {
       return (
-        <div className={`flex justify-center items-center ${heightClass}`}>
+        <div className="flex justify-center items-center h-full">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       );
@@ -134,7 +127,7 @@ export function AttendanceOverviewWidget({
     
     if (error) {
       return (
-        <div className={`flex justify-center items-center ${heightClass}`}>
+        <div className="flex justify-center items-center h-full">
           <span className="text-destructive">Error loading attendance data</span>
         </div>
       );
@@ -143,14 +136,14 @@ export function AttendanceOverviewWidget({
     switch (chartType) {
       case "pie":
         return (
-          <ResponsiveContainer width="100%" height={heightPx}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
                 labelLine={true}
-                outerRadius={heightPx < 200 ? heightPx / 3 : 90}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
@@ -204,14 +197,14 @@ export function AttendanceOverviewWidget({
         
         if (isTrendLoading) {
           return (
-            <div className={`flex justify-center items-center ${heightClass}`}>
+            <div className="flex justify-center items-center h-full">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           );
         }
         
         return (
-          <ResponsiveContainer width="100%" height={heightPx}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={trendData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -232,7 +225,7 @@ export function AttendanceOverviewWidget({
       case "bar":
       default:
         return (
-          <ResponsiveContainer width="100%" height={heightPx}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
@@ -259,7 +252,7 @@ export function AttendanceOverviewWidget({
       )}
       
       {/* Main chart container with proper sizing */}
-      <div className="w-full rounded-md">
+      <div className="w-full h-[260px] rounded-md">
         {renderChart()}
       </div>
       

@@ -728,7 +728,12 @@ export function DashboardConfiguration() {
                               </div>
                             </CardHeader>
                             <CardContent className="p-4 flex-grow h-[calc(100%-60px)]">
-                              <div className="bg-white rounded-md p-2 shadow-inner h-full flex flex-col">
+                              <div 
+                                className="bg-white rounded-md p-2 shadow-inner h-full flex flex-col" 
+                                style={{ 
+                                  height: widget.gridHeight ? `${widget.gridHeight * 150}px` : '150px'
+                                }}
+                              >
                                 <WidgetFactory 
                                   config={widget} 
                                   batchIds={selectedBatches} 

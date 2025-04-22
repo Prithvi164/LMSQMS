@@ -13,8 +13,8 @@ type WidgetFactoryProps = {
 export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProps) {
   const { type, title, chartType, size = "md" } = config;
   
-  // Make charts fully responsive to their container
-  const combinedClassName = `${className} h-full w-full flex flex-col`;
+  // Make charts fully responsive to their container with proper dimensions
+  const combinedClassName = `${className} h-full w-full`;
   
   // Return the appropriate widget based on type
   switch (type) {
