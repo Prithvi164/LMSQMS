@@ -9574,12 +9574,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { organizationId, id: userId } = req.user;
-      const validatedData = insertUserDashboardPreferenceSchema.parse({
+      
+      // Add default name if not provided
+      const preferenceData = {
         ...req.body,
         userId,
-        organizationId
-      });
+        organizationId,
+        name: req.body.name || "Default Dashboard"
+      };
       
+      const validatedData = insertUserDashboardPreferenceSchema.parse(preferenceData);
+      
+      // Check if preference with this name already exists for this user
+      try {
+        const existingPreference = await db
+          .select()
+          .from(userDashboardPreferences)
+          .where(
+            and(
+              eq(userDashboardPreferences.userId, userId),
+              eq(userDashboardPreferences.organizationId, organizationId),
+              eq(userDashboardPreferences.name, validatedData.name)
+            )
+          );
+          
+        // If preference exists, update it instead of creating a new one
+        if (existingPreference.length > 0) {
+          const [updated] = await db
+            .update(userDashboardPreferences)
+            .set({
+              config: validatedData.config,
+              isDefault: validatedData.isDefault,
+              updatedAt: new Date()
+            })
+            .where(eq(userDashboardPreferences.id, existingPreference[0].id))
+            .returning();
+            
+          // If this preference is marked as default, update any existing defaults
+          if (validatedData.isDefault) {
+            await storage.setDefaultUserDashboardPreference(updated.id, userId, organizationId);
+          }
+          
+          return res.status(200).json(updated);
+        }
+      } catch (err) {
+        console.log("No existing preference found, creating new one");
+      }
+      
+      // Create new preference
       const preference = await storage.createUserDashboardPreference(validatedData);
       
       // If this preference is marked as default, update any existing default
@@ -9589,8 +9631,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(preference);
     } catch (error: any) {
-      console.error("Error creating dashboard preference:", error);
-      res.status(400).json({ message: error.message });
+      console.error("Error creating user dashboard preference:", error);
+      res.status(400).json({ message: "Error saving dashboard configuration: " + error.message });
     }
   });
 
