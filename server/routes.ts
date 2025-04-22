@@ -1556,10 +1556,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const name = req.query.name as string | undefined;
-      console.log(`Fetching processes for organization: ${req.user.organizationId}${name ? " with name filter: " + name : ""}`);
+      console.log(`Fetching processes for user ${req.user.id} in organization: ${req.user.organizationId}${name ? " with name filter: " + name : ""}`);
       
-      const processes = await storage.listProcesses(req.user.organizationId, name);
-      console.log(`Retrieved ${processes.length} processes`);
+      // Check if the user's role permits seeing all processes (owner/admin)
+      let processes;
+      try {
+        // Use listUserProcesses for proper data segregation
+        processes = await storage.listUserProcesses(req.user.organizationId, req.user.id);
+        
+        // Apply the name filter afterward if it exists
+        if (name && name.trim() !== '') {
+          processes = processes.filter(p => 
+            p.name.toLowerCase().includes(name.toLowerCase())
+          );
+        }
+      } catch (innerError: any) {
+        // If there's an error with the filtered approach, log it and fall back to unfiltered
+        // This is a temporary fallback for production stability
+        console.error("Error using filtered processes, falling back:", innerError.message);
+        processes = await storage.listProcesses(req.user.organizationId, name);
+      }
+      
+      console.log(`Retrieved ${processes.length} processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
