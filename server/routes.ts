@@ -5142,11 +5142,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
-      console.log(`Fetching LOBs for organization ${orgId}`);
-      const lobs = await storage.listLineOfBusinesses(orgId);
-      console.log(`Found ${lobs.length} LOBs:`, lobs);
-
-      return res.json(lobs || []);
+      // Get all lines of business from the organization
+      const allLOBs = await storage.listLineOfBusinesses(orgId);
+      
+      // Check if the user has admin/owner privileges
+      const isAdminOrOwner = req.user.role === 'admin' || req.user.role === 'owner';
+      
+      if (isAdminOrOwner) {
+        // Admin/owner sees all lines of business
+        console.log(`Admin/owner user (${req.user.id}) - returning all ${allLOBs.length} lines of business`);
+        return res.json(allLOBs || []);
+      } else {
+        // Get the processes assigned to this user
+        const userProcesses = await storage.getUserProcesses(req.user.id);
+        
+        // Extract the unique line of business IDs from user's assigned processes
+        const userLOBIds = Array.from(new Set(
+          userProcesses
+            .filter(up => up.lineOfBusinessId !== null)
+            .map(up => up.lineOfBusinessId)
+        ));
+        
+        // Filter the LOBs to only include those related to the user's processes
+        const filteredLOBs = allLOBs.filter(lob => 
+          userLOBIds.includes(lob.id)
+        );
+        
+        console.log(`Non-admin user (${req.user.id}) - returning ${filteredLOBs.length} of ${allLOBs.length} total lines of business`);
+        return res.json(filteredLOBs || []);
+      }
     } catch (error: any) {
       console.error("Error fetching LOBs:", error);
       return res.status(500).json({
