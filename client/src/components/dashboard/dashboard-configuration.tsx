@@ -540,10 +540,16 @@ export function DashboardConfiguration() {
                           key={widget.id} 
                           className={`transition-all duration-200 ease-in-out w-full 
                             ${widget.size === "full" ? "md:col-span-4" : 
-                              `md:col-span-${widget.gridSpan || 1}`} 
-                            ${widget.gridHeight ? `row-span-${widget.gridHeight}` : ""}`}
+                              widget.gridSpan === 2 ? "md:col-span-2" :
+                              widget.gridSpan === 3 ? "md:col-span-3" :
+                              widget.gridSpan === 4 ? "md:col-span-4" :
+                              "md:col-span-1"} 
+                            ${widget.gridHeight === 2 ? "row-span-2" :
+                               widget.gridHeight === 3 ? "row-span-3" :
+                               widget.gridHeight === 4 ? "row-span-4" :
+                               "row-span-1"}`}
                           style={{
-                            minHeight: widget.gridHeight ? `${widget.gridHeight * 120}px` : ""
+                            minHeight: widget.gridHeight ? `${widget.gridHeight * 120}px` : "120px"
                           }}
                         >
                           <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
