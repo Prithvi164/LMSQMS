@@ -74,6 +74,13 @@ export interface WidgetConfig {
   chartType?: "bar" | "pie" | "line";
   description?: string;
   permissions?: string[];
+  chartOptions?: {
+    height?: number;
+    width?: string | number;
+    responsive?: boolean;
+    maintainAspectRatio?: boolean;
+    [key: string]: any;
+  };
   position?: {
     x: number;
     y: number;

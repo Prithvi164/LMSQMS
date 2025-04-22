@@ -51,10 +51,24 @@ export function EnhancedAttendanceBreakdownWidget({
   const [currentView, setCurrentView] = useState<ViewType>(defaultView as ViewType);
   const [filters, setFilters] = useState<any>({});
   const [saveButtonText, setSaveButtonText] = useState('Save Preferences');
-  const [saveButtonIcon, setSaveButtonIcon] = useState<React.ReactNode>(<Save className="mr-2 h-4 w-4" />);
+  const [saveButtonIcon, setSaveButtonIcon] = useState(() => <Save className="mr-2 h-4 w-4" />);
   
+  // Type definition for attendance data
+  type BatchAttendanceOverview = {
+    totalDays: number;
+    completedDays: number;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    dailyAttendance: any[];
+    phaseAttendance: any[];
+    traineeAttendance: any[];
+  };
+    
   // Query for attendance data based on filters
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery<BatchAttendanceOverview>({
     queryKey: ['/api/attendance/breakdown', filters],
     enabled: !!user && Object.keys(filters).length > 0,
   });
@@ -83,12 +97,12 @@ export function EnhancedAttendanceBreakdownWidget({
       
       // Update button text and icon temporarily to show success
       setSaveButtonText('Saved!');
-      setSaveButtonIcon(<Check className="mr-2 h-4 w-4" />);
+      setSaveButtonIcon(() => <Check className="mr-2 h-4 w-4" />);
       
       // Revert button text after 2 seconds
       setTimeout(() => {
         setSaveButtonText('Save Preferences');
-        setSaveButtonIcon(<Save className="mr-2 h-4 w-4" />);
+        setSaveButtonIcon(() => <Save className="mr-2 h-4 w-4" />);
       }, 2000);
       
       // Invalidate the preferences query to reload saved preferences
