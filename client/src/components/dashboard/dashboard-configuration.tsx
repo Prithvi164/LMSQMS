@@ -541,60 +541,53 @@ export function DashboardConfiguration() {
                             height: widget.gridHeight ? `${widget.gridHeight * 120}px` : "250px"
                           }}
                         >
-                          <Card className="h-full border shadow-sm overflow-hidden">
-                            <div className="flex flex-col h-full">
-                              {/* Widget title and controls */}
-                              <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 border-b">
-                                <div className="flex items-center text-base font-medium">
-                                  {isEditMode ? (
-                                    <>
-                                      <GripVertical className="h-4 w-4 mr-2 text-muted-foreground cursor-move" />
-                                      <Input 
-                                        value={widget.title}
-                                        onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
-                                        className="h-8 px-2 py-1 text-base mr-2 max-w-[180px] bg-background"
-                                      />
-                                    </>
-                                  ) : (
-                                    <span className="flex items-center">
-                                      {widget.type === "attendance-overview" && 
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                        </svg>
-                                      }
-                                      {widget.type === "attendance-trends" && 
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                                        </svg>
-                                      }
-                                      {widget.type === "performance-distribution" && 
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                                        </svg>
-                                      }
-                                      {widget.type === "phase-completion" && 
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                      }
-                                      {widget.title}
-                                    </span>
-                                  )}
-                                  {widget.chartType && !isEditMode && (
-                                    <Badge variant="outline" className="ml-2">
-                                      {widget.chartType.charAt(0).toUpperCase() + widget.chartType.slice(1)}
-                                    </Badge>
-                                  )}
-                                </div>
-                                
-                                {/* Controls */}
-                                <div className="flex items-center gap-2">
-                                  {isEditMode ? (
-                                    <div className="flex items-center gap-2">
-                                      <Select 
-                                        value={widget.chartType} 
-                                        onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                          <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 border-b">
+                              <CardTitle className="text-base md:text-lg font-medium flex items-center">
+                                {isEditMode ? (
+                                  <>
+                                    <GripVertical className="h-4 w-4 mr-2 text-muted-foreground cursor-move" />
+                                    <Input 
+                                      value={widget.title}
+                                      onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
+                                      className="h-8 px-2 py-1 text-base mr-2 max-w-[180px] bg-background"
+                                    />
+                                  </>
+                                ) : (
+                                  <span className="flex items-center">
+                                    {widget.type === "attendance-overview" && 
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                      </svg>
+                                    }
+                                    {widget.type === "attendance-trends" && 
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                      </svg>
+                                    }
+                                    {widget.type === "performance-distribution" && 
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                      </svg>
+                                    }
+                                    {widget.type === "phase-completion" && 
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    }
+                                    {widget.title}
+                                  </span>
+                                )}
+                              </CardTitle>
+                              <div className="flex items-center gap-2">
+                                {isEditMode ? (
+                                  <>
+                                    <div className="flex flex-col items-end gap-2 min-w-[260px]">
+                                      <div className="flex items-center gap-2">
+                                        <Select 
+                                          value={widget.chartType} 
+                                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
                                         >
                                           <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
                                             <SelectValue placeholder="Chart Type" />
@@ -695,44 +688,42 @@ export function DashboardConfiguration() {
                                     </div>
                                   </>
                                 ) : (
-                                  {isEditMode && (
-                                    <div className="flex gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setIsEditMode(true)}
-                                        className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
-                                        title="Edit widget"
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleUpdateWidgetConfig(widget.id, { 
-                                          size: widget.size === "full" ? "md" : "full" 
-                                        })}
-                                        className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
-                                        title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
-                                      >
-                                        <Maximize2 className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (confirm('Are you sure you want to remove this widget?')) {
-                                            handleRemoveWidget(widget.id);
-                                          }
-                                        }}
-                                        className="h-7 w-7 rounded-full opacity-70 hover:opacity-100 hover:text-red-500"
-                                        title="Delete widget"
-                                      >
-                                        <Trash className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setIsEditMode(true)}
+                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
+                                      title="Edit widget"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleUpdateWidgetConfig(widget.id, { 
+                                        size: widget.size === "full" ? "md" : "full" 
+                                      })}
+                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
+                                      title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
+                                    >
+                                      <Maximize2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm('Are you sure you want to remove this widget?')) {
+                                          handleRemoveWidget(widget.id);
+                                        }
+                                      }}
+                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100 hover:text-red-500"
+                                      title="Delete widget"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </CardHeader>

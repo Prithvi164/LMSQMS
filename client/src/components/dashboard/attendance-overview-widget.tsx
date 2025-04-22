@@ -137,25 +137,24 @@ export function AttendanceOverviewWidget({
       case "pie":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
+            <PieChart>
               <Pie
                 data={data}
                 cx="50%"
-                cy="45%"
-                labelLine={false}
-                outerRadius={60}
-                innerRadius={30}
+                cy="50%"
+                labelLine={true}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
-                label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend verticalAlign="bottom" height={36} />
+              <Legend />
             </PieChart>
           </ResponsiveContainer>
         );

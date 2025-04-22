@@ -153,25 +153,24 @@ export function PerformanceDistributionWidget({
       case "pie":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
+            <PieChart>
               <Pie
                 data={data}
                 cx="50%"
-                cy="45%"
-                labelLine={false}
-                outerRadius={60}
-                innerRadius={30}
+                cy="50%"
+                labelLine={true}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
-                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend verticalAlign="bottom" height={36} />
+              <Legend />
             </PieChart>
           </ResponsiveContainer>
         );
@@ -244,27 +243,27 @@ export function PerformanceDistributionWidget({
           {renderChart()}
         </div>
         
-        {/* Summary stats with improved layout */}
-        <div className="grid grid-cols-5 gap-2 mt-4">
-          <div className="text-center p-2 rounded-md bg-green-50 dark:bg-green-900/20">
-            <div className="text-xs font-medium text-green-800 dark:text-green-300">Excellent</div>
-            <div className="text-lg font-bold text-green-600 dark:text-green-400">{aggregatedData.excellent}</div>
+        {/* Summary stats */}
+        <div className="grid grid-cols-5 gap-2 mt-2">
+          <div className="text-center">
+            <div className="text-xs font-medium">Excellent</div>
+            <div className="text-lg font-bold text-green-600">{aggregatedData.excellent}</div>
           </div>
-          <div className="text-center p-2 rounded-md bg-blue-50 dark:bg-blue-900/20">
-            <div className="text-xs font-medium text-blue-800 dark:text-blue-300">Good</div>
-            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{aggregatedData.good}</div>
+          <div className="text-center">
+            <div className="text-xs font-medium">Good</div>
+            <div className="text-lg font-bold text-blue-600">{aggregatedData.good}</div>
           </div>
-          <div className="text-center p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20">
-            <div className="text-xs font-medium text-yellow-800 dark:text-yellow-300">Average</div>
-            <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{aggregatedData.average}</div>
+          <div className="text-center">
+            <div className="text-xs font-medium">Average</div>
+            <div className="text-lg font-bold text-yellow-600">{aggregatedData.average}</div>
           </div>
-          <div className="text-center p-2 rounded-md bg-orange-50 dark:bg-orange-900/20">
-            <div className="text-xs font-medium text-orange-800 dark:text-orange-300">Below Avg</div>
-            <div className="text-lg font-bold text-orange-600 dark:text-orange-400">{aggregatedData.belowAverage}</div>
+          <div className="text-center">
+            <div className="text-xs font-medium">Below Avg</div>
+            <div className="text-lg font-bold text-orange-600">{aggregatedData.belowAverage}</div>
           </div>
-          <div className="text-center p-2 rounded-md bg-red-50 dark:bg-red-900/20">
-            <div className="text-xs font-medium text-red-800 dark:text-red-300">Poor</div>
-            <div className="text-lg font-bold text-red-600 dark:text-red-400">{aggregatedData.poor}</div>
+          <div className="text-center">
+            <div className="text-xs font-medium">Poor</div>
+            <div className="text-lg font-bold text-red-600">{aggregatedData.poor}</div>
           </div>
         </div>
       </CardContent>
