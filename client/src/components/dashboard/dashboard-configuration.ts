@@ -32,6 +32,10 @@ export interface WidgetConfig {
     maintainAspectRatio?: boolean;
     [key: string]: any;
   };
+  customDimensions?: {
+    height: number;
+    width: number;
+  };
   position?: {
     x: number;
     y: number;
