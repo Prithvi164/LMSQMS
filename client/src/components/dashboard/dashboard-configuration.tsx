@@ -537,7 +537,7 @@ export function DashboardConfiguration() {
                                widget.gridHeight === 4 ? "row-span-4" :
                                "row-span-1"}`}
                           style={{
-                            minHeight: widget.gridHeight ? `${widget.gridHeight * 120}px` : "120px"
+                            height: widget.gridHeight ? `${widget.gridHeight * 120}px` : "250px"
                           }}
                         >
                           <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
@@ -634,20 +634,54 @@ export function DashboardConfiguration() {
                                         
                                         <div className="flex flex-col">
                                           <span>Height:</span>
-                                          <Select 
-                                            value={String(widget.gridHeight || 1)} 
-                                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridHeight: parseInt(value) })}
-                                          >
-                                            <SelectTrigger className="w-[70px] h-7 text-xs">
-                                              <SelectValue placeholder="Height" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="1">1 Unit</SelectItem>
-                                              <SelectItem value="2">2 Units</SelectItem>
-                                              <SelectItem value="3">3 Units</SelectItem>
-                                              <SelectItem value="4">4 Units</SelectItem>
-                                            </SelectContent>
-                                          </Select>
+                                          <div className="flex items-center gap-1">
+                                            <Button 
+                                              variant="outline" 
+                                              size="icon"
+                                              onClick={() => {
+                                                const currentHeight = widget.gridHeight || 1;
+                                                if (currentHeight > 1) {
+                                                  handleUpdateWidgetConfig(widget.id, { gridHeight: currentHeight - 1 });
+                                                }
+                                              }}
+                                              className="h-6 w-6 rounded-full"
+                                              disabled={(widget.gridHeight || 1) <= 1}
+                                            >
+                                              <Minus className="h-3 w-3" />
+                                            </Button>
+                                            
+                                            <Select 
+                                              value={String(widget.gridHeight || 1)} 
+                                              onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridHeight: parseInt(value) })}
+                                            >
+                                              <SelectTrigger className="w-[50px] h-7 text-xs">
+                                                <SelectValue placeholder="Height" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="1">1</SelectItem>
+                                                <SelectItem value="2">2</SelectItem>
+                                                <SelectItem value="3">3</SelectItem>
+                                                <SelectItem value="4">4</SelectItem>
+                                                <SelectItem value="5">5</SelectItem>
+                                                <SelectItem value="6">6</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                            
+                                            <Button 
+                                              variant="outline" 
+                                              size="icon"
+                                              onClick={() => {
+                                                const currentHeight = widget.gridHeight || 1;
+                                                if (currentHeight < 6) {
+                                                  handleUpdateWidgetConfig(widget.id, { gridHeight: currentHeight + 1 });
+                                                }
+                                              }}
+                                              className="h-6 w-6 rounded-full"
+                                              disabled={(widget.gridHeight || 1) >= 6}
+                                            >
+                                              <Plus className="h-3 w-3" />
+                                            </Button>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
@@ -692,12 +726,12 @@ export function DashboardConfiguration() {
                                 )}
                               </div>
                             </CardHeader>
-                            <CardContent className="p-4">
-                              <div className="bg-white rounded-md p-2 shadow-inner min-h-[250px]">
+                            <CardContent className="p-4 flex-grow h-[calc(100%-60px)]">
+                              <div className="bg-white rounded-md p-2 shadow-inner h-full flex flex-col">
                                 <WidgetFactory 
                                   config={widget} 
                                   batchIds={selectedBatches} 
-                                  className={isEditMode ? "opacity-80 pointer-events-none" : ""}
+                                  className={`h-full w-full ${isEditMode ? "opacity-80 pointer-events-none" : ""}`}
                                 />
                               </div>
                             </CardContent>
