@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AttendanceBreakdown } from '@/components/batch-management/attendance-breakdown';
@@ -153,10 +153,10 @@ export function EnhancedAttendanceBreakdownWidget({
     }
   });
   
-  // Handler for filter changes from the AttendanceFilterPanel
-  const handleFilterChange = (newFilters: any) => {
+  // Handler for filter changes from the AttendanceFilterPanel - memoized to prevent infinite loops
+  const handleFilterChange = useCallback((newFilters: any) => {
     setFilters(newFilters);
-  };
+  }, []);
   
   // Handler for saving user preferences
   const handleSavePreferences = () => {
