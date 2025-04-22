@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { widgetRegistry } from './widget-registry';
+import { widgetRegistry, widgetConfigurations } from './widget-registry';
 import { WidgetConfig } from './dashboard-configuration.ts';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -44,6 +44,9 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
     );
   }
   
+  // Get preset configuration for this widget type if available
+  const presetConfig = widgetConfigurations[widget.type as keyof typeof widgetConfigurations];
+  
   // Determine size class based on widget size
   const sizeClass = {
     sm: 'col-span-1',
@@ -63,7 +66,7 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
       </CardHeader>
       <CardContent className="p-0">
         <div style={{
-            height: widget.chartOptions?.height || 300,
+            height: widget.chartOptions?.height || presetConfig?.chartOptions?.height || 300,
             width: widget.chartOptions?.width || '100%',
             position: 'relative',
             overflow: 'hidden'
@@ -73,7 +76,8 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
             chartOptions={{
               responsive: widget.chartOptions?.responsive !== false,
               maintainAspectRatio: widget.chartOptions?.maintainAspectRatio !== false,
-              ...widget.chartOptions
+              ...(presetConfig?.chartOptions || {}),
+              ...widget.chartOptions,
             }} 
           />
         </div>
