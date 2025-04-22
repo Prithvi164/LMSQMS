@@ -5869,6 +5869,173 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Dashboard operations
+  async getUserDashboards(userId: number): Promise<schema.UserDashboard[]> {
+    try {
+      const dashboards = await db
+        .select()
+        .from(userDashboards)
+        .where(eq(userDashboards.userId, userId))
+        .orderBy(userDashboards.createdAt);
+      return dashboards;
+    } catch (error) {
+      console.error('Error fetching user dashboards:', error);
+      throw error;
+    }
+  }
+
+  async createUserDashboard(dashboard: schema.InsertUserDashboard): Promise<schema.UserDashboard> {
+    try {
+      const [newDashboard] = await db
+        .insert(userDashboards)
+        .values(dashboard)
+        .returning();
+      return newDashboard;
+    } catch (error) {
+      console.error('Error creating user dashboard:', error);
+      throw error;
+    }
+  }
+
+  async getUserDashboard(id: number): Promise<schema.UserDashboard | undefined> {
+    try {
+      const [dashboard] = await db
+        .select()
+        .from(userDashboards)
+        .where(eq(userDashboards.id, id));
+      return dashboard;
+    } catch (error) {
+      console.error('Error fetching user dashboard:', error);
+      throw error;
+    }
+  }
+
+  async updateUserDashboard(id: number, dashboard: Partial<schema.InsertUserDashboard>): Promise<schema.UserDashboard> {
+    try {
+      const [updatedDashboard] = await db
+        .update(userDashboards)
+        .set({
+          ...dashboard,
+          updatedAt: new Date()
+        })
+        .where(eq(userDashboards.id, id))
+        .returning();
+      return updatedDashboard;
+    } catch (error) {
+      console.error('Error updating user dashboard:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserDashboard(id: number): Promise<void> {
+    try {
+      // First delete all associated widgets
+      await db
+        .delete(dashboardWidgets)
+        .where(eq(dashboardWidgets.dashboardId, id));
+      
+      // Then delete the dashboard
+      await db
+        .delete(userDashboards)
+        .where(eq(userDashboards.id, id));
+    } catch (error) {
+      console.error('Error deleting user dashboard:', error);
+      throw error;
+    }
+  }
+
+  async setDefaultDashboard(userId: number, dashboardId: number): Promise<void> {
+    try {
+      // Begin transaction
+      await db.transaction(async (tx) => {
+        // Clear default status on all user dashboards
+        await tx
+          .update(userDashboards)
+          .set({ isDefault: false })
+          .where(eq(userDashboards.userId, userId));
+        
+        // Set new default dashboard
+        await tx
+          .update(userDashboards)
+          .set({ isDefault: true })
+          .where(eq(userDashboards.id, dashboardId))
+          .where(eq(userDashboards.userId, userId));
+      });
+    } catch (error) {
+      console.error('Error setting default dashboard:', error);
+      throw error;
+    }
+  }
+
+  // Dashboard widget operations
+  async getDashboardWidgets(dashboardId: number): Promise<schema.DashboardWidget[]> {
+    try {
+      const widgets = await db
+        .select()
+        .from(dashboardWidgets)
+        .where(eq(dashboardWidgets.dashboardId, dashboardId))
+        .orderBy(dashboardWidgets.position);
+      return widgets;
+    } catch (error) {
+      console.error('Error fetching dashboard widgets:', error);
+      throw error;
+    }
+  }
+
+  async createDashboardWidget(widget: schema.InsertDashboardWidget): Promise<schema.DashboardWidget> {
+    try {
+      // Get current highest position
+      const [lastPositionResult] = await db
+        .select({ maxPosition: sql`MAX(${dashboardWidgets.position})` })
+        .from(dashboardWidgets)
+        .where(eq(dashboardWidgets.dashboardId, widget.dashboardId));
+      
+      const position = (lastPositionResult?.maxPosition || 0) + 1;
+      
+      const [newWidget] = await db
+        .insert(dashboardWidgets)
+        .values({
+          ...widget,
+          position
+        })
+        .returning();
+      
+      return newWidget;
+    } catch (error) {
+      console.error('Error creating dashboard widget:', error);
+      throw error;
+    }
+  }
+
+  async updateDashboardWidget(id: number, widget: Partial<schema.InsertDashboardWidget>): Promise<schema.DashboardWidget> {
+    try {
+      const [updatedWidget] = await db
+        .update(dashboardWidgets)
+        .set({
+          ...widget,
+          updatedAt: new Date()
+        })
+        .where(eq(dashboardWidgets.id, id))
+        .returning();
+      
+      return updatedWidget;
+    } catch (error) {
+      console.error('Error updating dashboard widget:', error);
+      throw error;
+    }
+  }
+
+  async deleteDashboardWidget(id: number): Promise<void> {
+    try {
+      await db
+        .delete(dashboardWidgets)
+        .where(eq(dashboardWidgets.id, id));
+    } catch (error) {
+      console.error('Error deleting dashboard widget:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

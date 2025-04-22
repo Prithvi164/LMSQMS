@@ -25,8 +25,16 @@ import {
   evaluationPillars,
   EvaluationParameter,
   EvaluationPillar,
+  userDashboards,
+  dashboardWidgets,
+  insertUserDashboardSchema,
+  insertDashboardWidgetSchema,
   type InsertQuizAssignment,
-  type QuizAssignment
+  type QuizAssignment,
+  type InsertUserDashboard,
+  type InsertDashboardWidget,
+  type UserDashboard,
+  type DashboardWidget
 } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
@@ -9538,6 +9546,302 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error fetching adjacent batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Dashboard API routes
+  // Get user dashboards
+  app.get("/api/dashboards", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboards = await storage.getUserDashboards(req.user.id);
+      res.json(dashboards);
+    } catch (error: any) {
+      console.error("Error fetching user dashboards:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create dashboard
+  app.post("/api/dashboards", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardData = insertUserDashboardSchema.parse({
+        ...req.body,
+        userId: req.user.id,
+        organizationId: req.user.organizationId
+      });
+      
+      const newDashboard = await storage.createUserDashboard(dashboardData);
+      res.status(201).json(newDashboard);
+    } catch (error: any) {
+      console.error("Error creating dashboard:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get specific dashboard
+  app.get("/api/dashboards/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const dashboard = await storage.getUserDashboard(dashboardId);
+      
+      if (!dashboard) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(dashboard);
+    } catch (error: any) {
+      console.error("Error fetching dashboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update dashboard
+  app.put("/api/dashboards/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const dashboard = await storage.getUserDashboard(dashboardId);
+      
+      if (!dashboard) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedDashboard = await storage.updateUserDashboard(dashboardId, req.body);
+      res.json(updatedDashboard);
+    } catch (error: any) {
+      console.error("Error updating dashboard:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Delete dashboard
+  app.delete("/api/dashboards/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const dashboard = await storage.getUserDashboard(dashboardId);
+      
+      if (!dashboard) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteUserDashboard(dashboardId);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting dashboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Set default dashboard
+  app.post("/api/dashboards/:id/set-default", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const dashboard = await storage.getUserDashboard(dashboardId);
+      
+      if (!dashboard) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.setDefaultDashboard(req.user.id, dashboardId);
+      res.status(200).json({ success: true });
+    } catch (error: any) {
+      console.error("Error setting default dashboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get widgets for dashboard
+  app.get("/api/dashboards/:id/widgets", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const dashboard = await storage.getUserDashboard(dashboardId);
+      
+      if (!dashboard) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const widgets = await storage.getDashboardWidgets(dashboardId);
+      res.json(widgets);
+    } catch (error: any) {
+      console.error("Error fetching dashboard widgets:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create widget
+  app.post("/api/dashboards/:id/widgets", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const dashboardId = parseInt(req.params.id);
+      const dashboard = await storage.getUserDashboard(dashboardId);
+      
+      if (!dashboard) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const widgetData = insertDashboardWidgetSchema.parse({
+        ...req.body,
+        dashboardId,
+        organizationId: req.user.organizationId
+      });
+      
+      const newWidget = await storage.createDashboardWidget(widgetData);
+      res.status(201).json(newWidget);
+    } catch (error: any) {
+      console.error("Error creating widget:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Update widget
+  app.put("/api/widgets/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const widgetId = parseInt(req.params.id);
+      
+      // Get widget to check ownership
+      const widgets = await db
+        .select()
+        .from(dashboardWidgets)
+        .where(eq(dashboardWidgets.id, widgetId));
+      
+      if (widgets.length === 0) {
+        return res.status(404).json({ message: "Widget not found" });
+      }
+      
+      const widget = widgets[0];
+      
+      // Check dashboard ownership
+      const dashboards = await db
+        .select()
+        .from(userDashboards)
+        .where(eq(userDashboards.id, widget.dashboardId));
+      
+      if (dashboards.length === 0) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      const dashboard = dashboards[0];
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedWidget = await storage.updateDashboardWidget(widgetId, req.body);
+      res.json(updatedWidget);
+    } catch (error: any) {
+      console.error("Error updating widget:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Delete widget
+  app.delete("/api/widgets/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const widgetId = parseInt(req.params.id);
+      
+      // Get widget to check ownership
+      const widgets = await db
+        .select()
+        .from(dashboardWidgets)
+        .where(eq(dashboardWidgets.id, widgetId));
+      
+      if (widgets.length === 0) {
+        return res.status(404).json({ message: "Widget not found" });
+      }
+      
+      const widget = widgets[0];
+      
+      // Check dashboard ownership
+      const dashboards = await db
+        .select()
+        .from(userDashboards)
+        .where(eq(userDashboards.id, widget.dashboardId));
+      
+      if (dashboards.length === 0) {
+        return res.status(404).json({ message: "Dashboard not found" });
+      }
+      
+      const dashboard = dashboards[0];
+      
+      // Ensure user has access to this dashboard
+      if (dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteDashboardWidget(widgetId);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting widget:", error);
       res.status(500).json({ message: error.message });
     }
   });
