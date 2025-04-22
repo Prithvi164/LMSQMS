@@ -134,40 +134,50 @@ export function ResizableChart({
   return (
     <div 
       ref={containerRef} 
-      className={`relative ${className}`}
+      className={`relative ${className} ${isResizingHeight || isResizingWidth || isResizingCorner ? 'ring-2 ring-primary' : ''}`}
       style={{ 
         height: `${height}px`,
         width: typeof width === 'number' ? `${width}px` : width,
+        transition: isResizingHeight || isResizingWidth || isResizingCorner ? 'none' : 'all 0.2s ease',
       }}
     >
       <div className="absolute inset-0 overflow-hidden">
         {children}
       </div>
       
+      {/* Overlay when resizing */}
+      {(isResizingHeight || isResizingWidth || isResizingCorner) && (
+        <div className="absolute inset-0 bg-primary/5 pointer-events-none z-10">
+          <div className="absolute bottom-2 right-2 bg-primary text-white text-xs px-2 py-1 rounded">
+            {Math.round(height)}px × {typeof width === 'number' ? `${Math.round(width)}px` : width}
+          </div>
+        </div>
+      )}
+      
       {/* Bottom resize handle (height) */}
       <div 
-        className="absolute bottom-0 left-0 right-6 h-3 cursor-ns-resize bg-transparent hover:bg-primary/10 flex items-center justify-center z-10"
+        className="absolute bottom-0 left-0 right-6 h-6 cursor-ns-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-10"
         onMouseDown={handleHeightResizeStart}
       >
-        <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        <div className="w-20 h-2 bg-gray-400 rounded-full" />
       </div>
       
       {/* Right resize handle (width) */}
       <div 
-        className="absolute top-0 bottom-6 right-0 w-3 cursor-ew-resize bg-transparent hover:bg-primary/10 flex items-center justify-center z-10"
+        className="absolute top-0 bottom-6 right-0 w-6 cursor-ew-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-10"
         onMouseDown={handleWidthResizeStart}
       >
-        <div className="h-10 w-1 bg-gray-300 rounded-full" />
+        <div className="h-20 w-2 bg-gray-400 rounded-full" />
       </div>
       
       {/* Corner resize handle (both) */}
       <div 
-        className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize bg-transparent hover:bg-primary/10 flex items-center justify-center z-20"
+        className="absolute bottom-0 right-0 w-12 h-12 cursor-nwse-resize bg-transparent hover:bg-primary/20 flex items-center justify-center z-20"
         onMouseDown={handleCornerResizeStart}
       >
-        <div className="w-4 h-4 bg-gray-300 rounded-sm flex items-center justify-center">
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 7H7M0 5H5M0 3H3M0 1H1" stroke="#666" strokeWidth="1.5"/>
+        <div className="w-8 h-8 bg-gray-400 rounded-sm flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 7H7M0 5H5M0 3H3M0 1H1" stroke="#444" strokeWidth="1.5"/>
           </svg>
         </div>
       </div>

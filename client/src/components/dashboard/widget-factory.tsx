@@ -74,34 +74,65 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
         )}
       </CardHeader>
       <CardContent className="p-0">
-        <ResizableChart 
-          defaultHeight={chartDimensions.height}
-          defaultWidth={chartDimensions.width}
-          minHeight={200}
-          minWidth={200}
-          maxHeight={800}
-          maxWidth={1600}
-          onResize={(newDimensions) => {
-            setChartDimensions(newDimensions);
-            // Here you can add API call to save the user preference if needed
-            // Example: apiRequest('/api/dashboard/preferences', { method: 'POST', body: {..., chartDimensions: newDimensions }})
-          }}
-          className="w-full"
-        >
-          <WidgetComponent 
-            config={widget}
-            chartOptions={{
-              ...(presetConfig?.chartOptions || {}),
-              ...widget.chartOptions,
-              // Override with our current settings
-              responsive: true,
-              maintainAspectRatio: false,
-              height: chartDimensions.height,
-              width: typeof chartDimensions.width === 'number' ? chartDimensions.width : undefined,
-            }} 
-          />
-        </ResizableChart>
+        <div className="relative w-full">
+          <ResizableChart 
+            defaultHeight={chartDimensions.height}
+            defaultWidth={chartDimensions.width}
+            minHeight={200}
+            minWidth={200}
+            maxHeight={800}
+            maxWidth={1600}
+            onResize={(newDimensions) => {
+              console.log('Resizing chart to:', newDimensions);
+              setChartDimensions(newDimensions);
+              
+              // Save user preferences via API
+              // This is commented out but would save preferences when implemented
+              /*
+              apiRequest('/api/dashboard/preferences', {
+                method: 'POST', 
+                body: {
+                  widgetId: widget.id,
+                  chartDimensions: newDimensions
+                }
+              });
+              */
+            }}
+            className="w-full relative"
+          >
+            <WidgetComponent 
+              config={widget}
+              chartOptions={{
+                ...(presetConfig?.chartOptions || {}),
+                ...widget.chartOptions,
+                // Override with our current settings
+                responsive: true,
+                maintainAspectRatio: false,
+                height: chartDimensions.height,
+                width: typeof chartDimensions.width === 'number' ? chartDimensions.width : undefined,
+                animation: {
+                  duration: 0 // Disable animations during resize for better performance
+                }
+              }} 
+            />
+          </ResizableChart>
+          
+          {/* Instructional overlay that appears briefly */}
+          <div className="absolute bottom-16 right-4 bg-black/75 text-white text-xs py-1 px-2 rounded pointer-events-none opacity-0 transition-opacity duration-500 hover:opacity-100" 
+            style={{animation: 'fadeInOut 3s ease-in-out'}}>
+            <p>Drag edges or corner to resize</p>
+          </div>
+        </div>
       </CardContent>
+      
+      <style jsx>{`
+        @keyframes fadeInOut {
+          0% { opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
     </Card>
   );
 }
