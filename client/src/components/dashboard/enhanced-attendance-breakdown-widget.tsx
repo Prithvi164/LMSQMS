@@ -24,6 +24,13 @@ import { useToast } from '@/hooks/use-toast';
 interface EnhancedAttendanceBreakdownWidgetProps {
   config?: WidgetConfig;
   className?: string;
+  chartOptions?: {
+    height?: number;
+    width?: string | number;
+    responsive?: boolean;
+    maintainAspectRatio?: boolean;
+    [key: string]: any;
+  };
 }
 
 // Valid view types
@@ -31,7 +38,8 @@ type ViewType = 'overall' | 'daily' | 'phase' | 'trainee';
 
 export function EnhancedAttendanceBreakdownWidget({ 
   config,
-  className
+  className,
+  chartOptions
 }: EnhancedAttendanceBreakdownWidgetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -211,11 +219,23 @@ export function EnhancedAttendanceBreakdownWidget({
       
       {/* Attendance data display */}
       {!attendanceLoading && attendanceData && (
-        <AttendanceBreakdown 
-          attendanceData={attendanceData} 
-          initialView={currentView}
-          className="border rounded-lg overflow-hidden shadow-sm" 
-        />
+        <div style={{
+          height: chartOptions?.height || config?.chartOptions?.height || 400,
+          width: chartOptions?.width || config?.chartOptions?.width || '100%',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <AttendanceBreakdown 
+            attendanceData={attendanceData} 
+            initialView={currentView}
+            className="border rounded-lg overflow-hidden shadow-sm"
+            chartOptions={{
+              responsive: chartOptions?.responsive !== false,
+              maintainAspectRatio: chartOptions?.maintainAspectRatio !== false,
+              ...chartOptions
+            }}
+          />
+        </div>
       )}
     </div>
   );
