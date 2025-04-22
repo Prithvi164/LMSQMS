@@ -36,7 +36,7 @@ export function AttendanceFilterPanel({
 
   // Query for saved user filter preferences
   const { data: savedFilters, isLoading: filtersLoading } = useQuery({
-    queryKey: ['/api/user/attendance-filter-preferences'],
+    queryKey: ['/api/attendance/filters/default'],
     enabled: !!user,
   });
 
@@ -91,17 +91,32 @@ export function AttendanceFilterPanel({
   // Apply saved filter preferences when data is loaded
   useEffect(() => {
     if (savedFilters && !filtersLoading) {
-      setProcessSelections(savedFilters.processes || []);
-      setBatchSelections(savedFilters.batches || []);
-      setLocationSelections(savedFilters.locations || []);
-      setLobSelections(savedFilters.lobs || []);
+      // The schema uses array fields for IDs in JSONB format
+      const processIds = savedFilters.processIds ? 
+        (Array.isArray(savedFilters.processIds) ? savedFilters.processIds : JSON.parse(savedFilters.processIds)) : [];
+      const batchIds = savedFilters.batchIds ? 
+        (Array.isArray(savedFilters.batchIds) ? savedFilters.batchIds : JSON.parse(savedFilters.batchIds)) : [];
+      const locationIds = savedFilters.locationIds ? 
+        (Array.isArray(savedFilters.locationIds) ? savedFilters.locationIds : JSON.parse(savedFilters.locationIds)) : [];
+      const lobIds = savedFilters.lobIds ? 
+        (Array.isArray(savedFilters.lobIds) ? savedFilters.lobIds : JSON.parse(savedFilters.lobIds)) : [];
       
+      // Convert all IDs to strings for the MultiSelect components
+      setProcessSelections(processIds.map(id => id.toString()));
+      setBatchSelections(batchIds.map(id => id.toString()));
+      setLocationSelections(locationIds.map(id => id.toString()));
+      setLobSelections(lobIds.map(id => id.toString()));
+      
+      // Handle date range if present
       if (savedFilters.dateRange) {
-        if (savedFilters.dateRange.startDate) {
-          setStartDate(savedFilters.dateRange.startDate);
+        const dateRange = typeof savedFilters.dateRange === 'string' ? 
+          JSON.parse(savedFilters.dateRange) : savedFilters.dateRange;
+        
+        if (dateRange && dateRange.startDate) {
+          setStartDate(dateRange.startDate);
         }
-        if (savedFilters.dateRange.endDate) {
-          setEndDate(savedFilters.dateRange.endDate);
+        if (dateRange && dateRange.endDate) {
+          setEndDate(dateRange.endDate);
         }
       }
     }

@@ -9741,6 +9741,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Attendance Data Breakdown Endpoint - For retrieving attendance data based on filters
+  app.post("/api/attendance/breakdown", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { 
+        processIds, 
+        batchIds, 
+        locationIds, 
+        lobIds, 
+        trainerIds,
+        managerIds, 
+        dateRange 
+      } = req.body;
+      
+      // Check user permissions to view this data
+      const userRole = req.user.role;
+      const userId = req.user.id;
+      const hasPermission = [
+        'super_admin', 
+        'admin', 
+        'process_owner', 
+        'trainer', 
+        'manager'
+      ].includes(userRole);
+      
+      if (!hasPermission) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Retrieve attendance data based on filters
+      // For now, we'll return example data. In production, this would be queried from the database.
+      const exampleData = {
+        totalDays: 30,
+        completedDays: 15,
+        presentCount: 120,
+        absentCount: 15,
+        lateCount: 8,
+        leaveCount: 7,
+        attendanceRate: 85.2,
+        dailyAttendance: [
+          {
+            date: "2025-04-01",
+            presentCount: 10,
+            absentCount: 2,
+            lateCount: 1,
+            leaveCount: 0,
+            attendanceRate: 83.3,
+            totalTrainees: 13
+          },
+          {
+            date: "2025-04-02",
+            presentCount: 12,
+            absentCount: 0,
+            lateCount: 1,
+            leaveCount: 0,
+            attendanceRate: 92.3,
+            totalTrainees: 13
+          },
+          {
+            date: "2025-04-03",
+            presentCount: 11,
+            absentCount: 1,
+            lateCount: 0,
+            leaveCount: 1,
+            attendanceRate: 84.6,
+            totalTrainees: 13
+          }
+        ],
+        phaseAttendance: [
+          {
+            phase: "Introduction",
+            presentCount: 50,
+            absentCount: 5,
+            lateCount: 3,
+            leaveCount: 2,
+            attendanceRate: 86.7,
+            totalDays: 10,
+            totalRecords: 60
+          },
+          {
+            phase: "Core Training",
+            presentCount: 45,
+            absentCount: 7,
+            lateCount: 2,
+            leaveCount: 1,
+            attendanceRate: 82.0,
+            totalDays: 11,
+            totalRecords: 55
+          },
+          {
+            phase: "Advanced Topics",
+            presentCount: 25,
+            absentCount: 3,
+            lateCount: 3,
+            leaveCount: 4,
+            attendanceRate: 73.5,
+            totalDays: 9,
+            totalRecords: 35
+          }
+        ],
+        traineeAttendance: [
+          {
+            traineeId: 1,
+            traineeName: "Alex Johnson",
+            presentCount: 12,
+            absentCount: 2,
+            lateCount: 1,
+            leaveCount: 0,
+            attendanceRate: 85.7
+          },
+          {
+            traineeId: 2,
+            traineeName: "Jamie Smith",
+            presentCount: 14,
+            absentCount: 0,
+            lateCount: 1,
+            leaveCount: 0,
+            attendanceRate: 93.3
+          },
+          {
+            traineeId: 3,
+            traineeName: "Pat Wilson",
+            presentCount: 11,
+            absentCount: 1,
+            lateCount: 0,
+            leaveCount: 3,
+            attendanceRate: 78.6
+          }
+        ]
+      };
+      
+      // Send response
+      res.json(exampleData);
+    } catch (error: any) {
+      console.error("Error retrieving attendance breakdown data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
   // User Attendance Filter Preferences Routes
   app.get("/api/attendance/filters", async (req, res) => {
     if (!req.user) {

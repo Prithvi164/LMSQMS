@@ -107,12 +107,17 @@ export function EnhancedAttendanceBreakdownWidget({
   // Mutation for saving user preferences
   const { mutate: savePreferences, isPending: isSaving } = useMutation({
     mutationFn: async (preferences: any) => {
-      return fetch('/api/user/attendance-filter-preferences', {
+      // Use the new API endpoint for attendance filter preferences
+      return fetch('/api/attendance/filters', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(preferences),
+        body: JSON.stringify({
+          ...preferences,
+          name: 'Default Attendance Filter',
+          isDefault: true
+        }),
       }).then(res => {
         if (!res.ok) throw new Error('Failed to save preferences');
         return res.json();
@@ -137,7 +142,7 @@ export function EnhancedAttendanceBreakdownWidget({
       }, 2000);
       
       // Invalidate the preferences query to reload saved preferences
-      queryClient.invalidateQueries({ queryKey: ['/api/user/attendance-filter-preferences'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/filters'] });
     },
     onError: (error) => {
       toast({
@@ -157,11 +162,21 @@ export function EnhancedAttendanceBreakdownWidget({
   const handleSavePreferences = () => {
     if (!user) return;
     
-    // Save both the filter preferences and current view
-    savePreferences({
-      ...filters,
-      view: currentView
-    });
+    // Convert the filter structure to match our database schema
+    const preferenceData = {
+      // Convert string arrays to number arrays
+      processIds: filters.processes ? filters.processes.map(Number) : [],
+      batchIds: filters.batches ? filters.batches.map(Number) : [],
+      locationIds: filters.locations ? filters.locations.map(Number) : [],
+      lobIds: filters.lobs ? filters.lobs.map(Number) : [],
+      managerIds: [],  // Not used in this implementation
+      trainerIds: [],  // Not used in this implementation
+      dateRange: filters.dateRange,
+      breakdownView: currentView, // Set the current view as the breakdown view type
+    };
+    
+    // Save the filter preferences
+    savePreferences(preferenceData);
   };
   
   // Icons for different view tabs
