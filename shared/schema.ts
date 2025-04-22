@@ -1032,9 +1032,102 @@ export const insertOrganizationSettingsSchema = createInsertSchema(
     userLimit: z.number().int().min(1).max(500).default(500),
   });
 
-export type InsertOrganizationSettings = z.infer<
-  typeof insertOrganizationSettingsSchema
->;
+export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
+
+// User dashboard configurations
+export const userDashboards = pgTable("user_dashboards", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserDashboard = InferSelectModel<typeof userDashboards>;
+
+export const insertUserDashboardSchema = createInsertSchema(userDashboards)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    userId: z.number().int().positive("User is required"),
+    name: z.string().min(1, "Dashboard name is required"),
+    description: z.string().optional(),
+    isDefault: z.boolean().default(false),
+  });
+
+export type InsertUserDashboard = z.infer<typeof insertUserDashboardSchema>;
+
+// Dashboard widget configurations
+export const dashboardWidgets = pgTable("dashboard_widgets", {
+  id: serial("id").primaryKey(),
+  dashboardId: integer("dashboard_id")
+    .references(() => userDashboards.id)
+    .notNull(),
+  widgetType: text("widget_type").notNull(),
+  position: jsonb("position").$type<{ x: number; y: number; w: number; h: number }>().notNull(),
+  configuration: jsonb("configuration").$type<{
+    title: string;
+    description?: string;
+    chartType?: string;
+    size?: string;
+    customColors?: Record<string, string>;
+    filters?: Record<string, any>;
+  }>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type DashboardWidget = InferSelectModel<typeof dashboardWidgets>;
+
+export const insertDashboardWidgetSchema = createInsertSchema(dashboardWidgets)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    dashboardId: z.number().int().positive("Dashboard is required"),
+    widgetType: z.string().min(1, "Widget type is required"),
+    position: z.object({
+      x: z.number().int().min(0),
+      y: z.number().int().min(0),
+      w: z.number().int().min(1),
+      h: z.number().int().min(1),
+    }),
+    configuration: z.object({
+      title: z.string().min(1, "Title is required"),
+      description: z.string().optional(),
+      chartType: z.string().optional(),
+      size: z.string().optional(),
+      customColors: z.record(z.string(), z.string()).optional(),
+      filters: z.record(z.string(), z.any()).optional(),
+    }),
+  });
+
+export type InsertDashboardWidget = z.infer<typeof insertDashboardWidgetSchema>;
+
+// Dashboard relations
+export const userDashboardsRelations = relations(userDashboards, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userDashboards.userId],
+    references: [users.id],
+  }),
+  widgets: many(dashboardWidgets),
+}));
+
+export const dashboardWidgetsRelations = relations(dashboardWidgets, ({ one }) => ({
+  dashboard: one(userDashboards, {
+    fields: [dashboardWidgets.dashboardId],
+    references: [userDashboards.id],
+  }),
+}));
 
 export const organizationSettingsRelations = relations(
   organizationSettings,
