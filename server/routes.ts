@@ -25,8 +25,17 @@ import {
   evaluationPillars,
   EvaluationParameter,
   EvaluationPillar,
+  userDashboardPreferences,
+  userAttendanceFilterPreferences,
+  insertUserDashboardPreferenceSchema,
+  insertUserAttendanceFilterPreferenceSchema,
+  breakdownViewTypeEnum,
   type InsertQuizAssignment,
-  type QuizAssignment
+  type QuizAssignment,
+  type UserDashboardPreference,
+  type InsertUserDashboardPreference,
+  type UserAttendanceFilterPreference,
+  type InsertUserAttendanceFilterPreference
 } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
@@ -9538,6 +9547,302 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error fetching adjacent batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // User Dashboard Preferences Routes
+  app.get("/api/dashboard/preferences", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { organizationId, id: userId } = req.user;
+      const preferences = await storage.getUserDashboardPreferences(userId, organizationId);
+      res.json(preferences);
+    } catch (error: any) {
+      console.error("Error fetching dashboard preferences:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dashboard/preferences", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { organizationId, id: userId } = req.user;
+      const validatedData = insertUserDashboardPreferenceSchema.parse({
+        ...req.body,
+        userId,
+        organizationId
+      });
+      
+      const preference = await storage.createUserDashboardPreference(validatedData);
+      
+      // If this preference is marked as default, update any existing default
+      if (validatedData.isDefault) {
+        await storage.setDefaultUserDashboardPreference(preference.id, userId, organizationId);
+      }
+      
+      res.status(201).json(preference);
+    } catch (error: any) {
+      console.error("Error creating dashboard preference:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/dashboard/preferences/default", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { organizationId, id: userId } = req.user;
+      const preference = await storage.getDefaultUserDashboardPreference(userId, organizationId);
+      
+      if (!preference) {
+        return res.status(404).json({ message: "No default dashboard preference found" });
+      }
+      
+      res.json(preference);
+    } catch (error: any) {
+      console.error("Error fetching default dashboard preference:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/dashboard/preferences/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const preference = await storage.getUserDashboardPreference(parseInt(id));
+      
+      if (!preference) {
+        return res.status(404).json({ message: "Dashboard preference not found" });
+      }
+      
+      // Verify ownership of the preference
+      if (preference.userId !== req.user.id || preference.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(preference);
+    } catch (error: any) {
+      console.error("Error fetching dashboard preference:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/dashboard/preferences/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const preferenceId = parseInt(id);
+      const currentPreference = await storage.getUserDashboardPreference(preferenceId);
+      
+      if (!currentPreference) {
+        return res.status(404).json({ message: "Dashboard preference not found" });
+      }
+      
+      // Verify ownership of the preference
+      if (currentPreference.userId !== req.user.id || currentPreference.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedPreference = await storage.updateUserDashboardPreference(preferenceId, req.body);
+      
+      // If this preference is now set as default, update any existing default
+      if (req.body.isDefault) {
+        await storage.setDefaultUserDashboardPreference(preferenceId, req.user.id, req.user.organizationId);
+      }
+      
+      res.json(updatedPreference);
+    } catch (error: any) {
+      console.error("Error updating dashboard preference:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/dashboard/preferences/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const preferenceId = parseInt(id);
+      const preference = await storage.getUserDashboardPreference(preferenceId);
+      
+      if (!preference) {
+        return res.status(404).json({ message: "Dashboard preference not found" });
+      }
+      
+      // Verify ownership of the preference
+      if (preference.userId !== req.user.id || preference.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteUserDashboardPreference(preferenceId);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting dashboard preference:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // User Attendance Filter Preferences Routes
+  app.get("/api/attendance/filters", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { organizationId, id: userId } = req.user;
+      const preferences = await storage.getUserAttendanceFilterPreferences(userId, organizationId);
+      res.json(preferences);
+    } catch (error: any) {
+      console.error("Error fetching attendance filter preferences:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/attendance/filters", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { organizationId, id: userId } = req.user;
+      const validatedData = insertUserAttendanceFilterPreferenceSchema.parse({
+        ...req.body,
+        userId,
+        organizationId
+      });
+      
+      const preference = await storage.createUserAttendanceFilterPreference(validatedData);
+      
+      // If this preference is marked as default, update any existing default
+      if (validatedData.isDefault) {
+        await storage.setDefaultUserAttendanceFilterPreference(preference.id, userId, organizationId);
+      }
+      
+      res.status(201).json(preference);
+    } catch (error: any) {
+      console.error("Error creating attendance filter preference:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/attendance/filters/default", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { organizationId, id: userId } = req.user;
+      const preference = await storage.getDefaultUserAttendanceFilterPreference(userId, organizationId);
+      
+      if (!preference) {
+        return res.status(404).json({ message: "No default attendance filter preference found" });
+      }
+      
+      res.json(preference);
+    } catch (error: any) {
+      console.error("Error fetching default attendance filter preference:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/attendance/filters/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const preference = await storage.getUserAttendanceFilterPreference(parseInt(id));
+      
+      if (!preference) {
+        return res.status(404).json({ message: "Attendance filter preference not found" });
+      }
+      
+      // Verify ownership of the preference
+      if (preference.userId !== req.user.id || preference.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(preference);
+    } catch (error: any) {
+      console.error("Error fetching attendance filter preference:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/attendance/filters/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const preferenceId = parseInt(id);
+      const currentPreference = await storage.getUserAttendanceFilterPreference(preferenceId);
+      
+      if (!currentPreference) {
+        return res.status(404).json({ message: "Attendance filter preference not found" });
+      }
+      
+      // Verify ownership of the preference
+      if (currentPreference.userId !== req.user.id || currentPreference.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedPreference = await storage.updateUserAttendanceFilterPreference(preferenceId, req.body);
+      
+      // If this preference is now set as default, update any existing default
+      if (req.body.isDefault) {
+        await storage.setDefaultUserAttendanceFilterPreference(preferenceId, req.user.id, req.user.organizationId);
+      }
+      
+      res.json(updatedPreference);
+    } catch (error: any) {
+      console.error("Error updating attendance filter preference:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/attendance/filters/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { id } = req.params;
+      const preferenceId = parseInt(id);
+      const preference = await storage.getUserAttendanceFilterPreference(preferenceId);
+      
+      if (!preference) {
+        return res.status(404).json({ message: "Attendance filter preference not found" });
+      }
+      
+      // Verify ownership of the preference
+      if (preference.userId !== req.user.id || preference.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteUserAttendanceFilterPreference(preferenceId);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting attendance filter preference:", error);
       res.status(500).json({ message: error.message });
     }
   });
