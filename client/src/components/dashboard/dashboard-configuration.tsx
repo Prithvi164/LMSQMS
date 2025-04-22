@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WidgetFactory } from "./widget-factory";
-import { WidgetType } from "./widget-registry";
+import { WidgetType, widgetConfigurations } from "./widget-registry";
 
 // Types
 type Batch = {
@@ -226,13 +226,24 @@ export function DashboardConfiguration() {
   };
   
   const handleAddWidget = (type: WidgetType) => {
+    // Get predefined configuration for this widget type if available
+    const presetConfig = widgetConfigurations[type as keyof typeof widgetConfigurations];
+    
+    // Create widget with default or preset configurations
     const newWidget: WidgetConfig = {
       id: `widget-${Date.now()}`,
       type,
-      title: getWidgetTitle(type),
-      size: "md",
+      title: presetConfig?.title || getWidgetTitle(type),
+      size: "md", // Default size
       chartType: getDefaultChartType(type),
-      position: { x: 0, y: activeDashboard.widgets.length }
+      position: { x: 0, y: activeDashboard.widgets.length },
+      chartOptions: presetConfig?.chartOptions || {
+        height: 300,
+        width: '100%',
+        responsive: true,
+        maintainAspectRatio: false
+      },
+      description: presetConfig?.description
     };
     
     setDashboardConfigs(prev => {
@@ -437,11 +448,14 @@ export function DashboardConfiguration() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleAddWidget("attendance-overview")}>
-                    Attendance Overview
+                  <DropdownMenuItem onClick={() => handleAddWidget("enhanced-attendance-breakdown")}>
+                    Enhanced Attendance Breakdown
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleAddWidget("attendance-trends")}>
                     Attendance Trends
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAddWidget("attendance-overview")}>
+                    Attendance Overview
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleAddWidget("performance-distribution")}>
                     Performance Distribution

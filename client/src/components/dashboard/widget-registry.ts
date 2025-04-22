@@ -111,6 +111,67 @@ const BasicAttendanceBreakdownWidget = (props: any) => {
   });
 };
 
+// Define standard widget configurations
+export const widgetConfigurations = {
+  'enhanced-attendance-breakdown': {
+    title: 'Attendance Breakdown',
+    description: 'Enhanced widget with filters for viewing attendance data across processes and batches',
+    defaultHeight: 550,
+    defaultWidth: 12, // 12 column span in grid (full width)
+    minHeight: 400,
+    minWidth: 6,
+    maxWidth: 12,
+    resizable: true,
+    removable: true,
+    chartOptions: {
+      height: 400,
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    defaultOptions: {
+      view: 'overall'
+    }
+  },
+  'attendance-trends': {
+    title: 'Attendance Trends',
+    description: 'View attendance trends over time with daily breakdown',
+    defaultHeight: 450,
+    defaultWidth: 12,
+    minHeight: 350, 
+    minWidth: 6,
+    maxWidth: 12,
+    resizable: true,
+    removable: true,
+    chartOptions: {
+      height: 350,
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    defaultOptions: {
+      view: 'daily'
+    }
+  },
+  'attendance-overview': {
+    title: 'Attendance Overview',
+    description: 'Basic overview of attendance statistics',
+    defaultHeight: 400,
+    defaultWidth: 6,
+    minHeight: 300,
+    minWidth: 4,
+    maxWidth: 6,
+    resizable: true,
+    removable: true,
+    chartOptions: {
+      height: 300,
+      responsive: true,
+      maintainAspectRatio: false
+    },
+    defaultOptions: {
+      view: 'overall'
+    }
+  }
+};
+
 // Registry of widget components mapped by their type
 export const widgetRegistry: Record<WidgetType, React.ComponentType<any>> = {
   'attendance-breakdown': BasicAttendanceBreakdownWidget,
