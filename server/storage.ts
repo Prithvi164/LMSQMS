@@ -179,6 +179,7 @@ export interface IStorage {
 
   // User Process operations
   assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]>;
+  getUserProcessIds(userId: number): Promise<number[]>;
   getUserProcesses(userId: number): Promise<UserProcess[]>;
   removeUserProcess(userId: number, processId: number): Promise<void>;
 
