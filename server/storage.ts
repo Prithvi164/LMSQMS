@@ -1,7 +1,13 @@
 import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between, ne } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
-import { batchStatusEnum, attendance, permissionEnum } from "@shared/schema";
+import { 
+  batchStatusEnum, 
+  attendance, 
+  permissionEnum,
+  userDashboardPreferences,
+  userAttendanceFilterPreferences
+} from "@shared/schema";
 import {
   users,
   organizations,
@@ -21,6 +27,8 @@ import {
   audioFileBatchAllocations,
   evaluationFeedback,
   quizAssignments,
+  userDashboardPreferences,
+  userAttendanceFilterPreferences,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -93,7 +101,11 @@ import {
   type EvaluationFeedback,
   type InsertEvaluationFeedback,
   type QuizAssignment,
-  type InsertQuizAssignment
+  type InsertQuizAssignment,
+  type UserDashboardPreference,
+  type InsertUserDashboardPreference,
+  type UserAttendanceFilterPreference,
+  type InsertUserAttendanceFilterPreference
 } from "@shared/schema";
 
 // Add to IStorage interface

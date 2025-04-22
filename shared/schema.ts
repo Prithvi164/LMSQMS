@@ -2690,3 +2690,82 @@ export const evaluationScoresRelations = relations(
     }),
   }),
 );
+
+// User dashboard preferences tables
+export const userDashboardPreferences = pgTable(
+  "user_dashboard_preferences",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    organizationId: integer("organization_id")
+      .references(() => organizations.id)
+      .notNull(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    config: jsonb("config").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      // Ensure unique name per user per organization
+      userConfigName: unique().on(table.userId, table.organizationId, table.name),
+    };
+  }
+);
+
+// User attendance filter preferences
+export const userAttendanceFilterPreferences = pgTable(
+  "user_attendance_filter_preferences",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    organizationId: integer("organization_id")
+      .references(() => organizations.id)
+      .notNull(),
+    name: text("name").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    breakdownView: breakdownViewTypeEnum("breakdown_view").default("overall").notNull(),
+    batchIds: jsonb("batch_ids").$type<number[]>().default([]).notNull(),
+    processIds: jsonb("process_ids").$type<number[]>().default([]).notNull(),
+    lobIds: jsonb("lob_ids").$type<number[]>().default([]).notNull(),
+    locationIds: jsonb("location_ids").$type<number[]>().default([]).notNull(),
+    trainerIds: jsonb("trainer_ids").$type<number[]>().default([]).notNull(),
+    managerIds: jsonb("manager_ids").$type<number[]>().default([]).notNull(),
+    dateRange: jsonb("date_range").$type<{startDate: string, endDate: string} | null>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      // Ensure unique name per user per organization
+      userFilterName: unique().on(table.userId, table.organizationId, table.name),
+    };
+  }
+);
+
+// Define types for the new tables
+export type UserDashboardPreference = InferSelectModel<typeof userDashboardPreferences>;
+export type UserAttendanceFilterPreference = InferSelectModel<typeof userAttendanceFilterPreferences>;
+
+// Insert schemas for the new tables
+export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashboardPreferences)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export const insertUserAttendanceFilterPreferenceSchema = createInsertSchema(userAttendanceFilterPreferences)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export type InsertUserDashboardPreference = z.infer<typeof insertUserDashboardPreferenceSchema>;
+export type InsertUserAttendanceFilterPreference = z.infer<typeof insertUserAttendanceFilterPreferenceSchema>;
