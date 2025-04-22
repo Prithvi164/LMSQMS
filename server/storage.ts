@@ -450,6 +450,24 @@ export interface IStorage {
     totalTrainees: number;
   }[]>;
   
+  // User Dashboard Preferences operations
+  getUserDashboardPreferences(userId: number, organizationId: number): Promise<UserDashboardPreference[]>;
+  getUserDashboardPreference(id: number): Promise<UserDashboardPreference | undefined>;
+  createUserDashboardPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference>;
+  updateUserDashboardPreference(id: number, preference: Partial<InsertUserDashboardPreference>): Promise<UserDashboardPreference>;
+  deleteUserDashboardPreference(id: number): Promise<void>;
+  getDefaultUserDashboardPreference(userId: number, organizationId: number): Promise<UserDashboardPreference | undefined>;
+  setDefaultUserDashboardPreference(id: number, userId: number, organizationId: number): Promise<UserDashboardPreference>;
+
+  // User Attendance Filter Preferences operations
+  getUserAttendanceFilterPreferences(userId: number, organizationId: number): Promise<UserAttendanceFilterPreference[]>;
+  getUserAttendanceFilterPreference(id: number): Promise<UserAttendanceFilterPreference | undefined>;
+  createUserAttendanceFilterPreference(preference: InsertUserAttendanceFilterPreference): Promise<UserAttendanceFilterPreference>;
+  updateUserAttendanceFilterPreference(id: number, preference: Partial<InsertUserAttendanceFilterPreference>): Promise<UserAttendanceFilterPreference>;
+  deleteUserAttendanceFilterPreference(id: number): Promise<void>;
+  getDefaultUserAttendanceFilterPreference(userId: number, organizationId: number): Promise<UserAttendanceFilterPreference | undefined>;
+  setDefaultUserAttendanceFilterPreference(id: number, userId: number, organizationId: number): Promise<UserAttendanceFilterPreference>;
+  
   // Audio File operations
   createAudioFile(file: InsertAudioFile): Promise<AudioFile>;
   getAudioFile(id: number): Promise<AudioFile | undefined>;
@@ -5858,6 +5876,232 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizAssignments.id, id));
     } catch (error) {
       console.error('Error deleting quiz assignment:', error);
+      throw error;
+    }
+  }
+
+  // User Dashboard Preferences operations
+  async getUserDashboardPreferences(userId: number, organizationId: number): Promise<UserDashboardPreference[]> {
+    try {
+      const preferences = await db
+        .select()
+        .from(userDashboardPreferences)
+        .where(eq(userDashboardPreferences.userId, userId))
+        .where(eq(userDashboardPreferences.organizationId, organizationId));
+      
+      return preferences;
+    } catch (error) {
+      console.error('Error fetching user dashboard preferences:', error);
+      throw error;
+    }
+  }
+
+  async getUserDashboardPreference(id: number): Promise<UserDashboardPreference | undefined> {
+    try {
+      const [preference] = await db
+        .select()
+        .from(userDashboardPreferences)
+        .where(eq(userDashboardPreferences.id, id));
+      
+      return preference;
+    } catch (error) {
+      console.error('Error fetching user dashboard preference:', error);
+      throw error;
+    }
+  }
+
+  async createUserDashboardPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference> {
+    try {
+      const [newPreference] = await db
+        .insert(userDashboardPreferences)
+        .values(preference)
+        .returning();
+      
+      return newPreference;
+    } catch (error) {
+      console.error('Error creating user dashboard preference:', error);
+      throw error;
+    }
+  }
+
+  async updateUserDashboardPreference(id: number, preference: Partial<InsertUserDashboardPreference>): Promise<UserDashboardPreference> {
+    try {
+      const [updatedPreference] = await db
+        .update(userDashboardPreferences)
+        .set({
+          ...preference,
+          updatedAt: new Date()
+        })
+        .where(eq(userDashboardPreferences.id, id))
+        .returning();
+      
+      return updatedPreference;
+    } catch (error) {
+      console.error('Error updating user dashboard preference:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserDashboardPreference(id: number): Promise<void> {
+    try {
+      await db
+        .delete(userDashboardPreferences)
+        .where(eq(userDashboardPreferences.id, id));
+    } catch (error) {
+      console.error('Error deleting user dashboard preference:', error);
+      throw error;
+    }
+  }
+
+  async getDefaultUserDashboardPreference(userId: number, organizationId: number): Promise<UserDashboardPreference | undefined> {
+    try {
+      const [preference] = await db
+        .select()
+        .from(userDashboardPreferences)
+        .where(eq(userDashboardPreferences.userId, userId))
+        .where(eq(userDashboardPreferences.organizationId, organizationId))
+        .where(eq(userDashboardPreferences.isDefault, true));
+      
+      return preference;
+    } catch (error) {
+      console.error('Error fetching default user dashboard preference:', error);
+      throw error;
+    }
+  }
+
+  async setDefaultUserDashboardPreference(id: number, userId: number, organizationId: number): Promise<UserDashboardPreference> {
+    try {
+      // First, remove default status from any current default
+      await db
+        .update(userDashboardPreferences)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(userDashboardPreferences.userId, userId))
+        .where(eq(userDashboardPreferences.organizationId, organizationId))
+        .where(eq(userDashboardPreferences.isDefault, true));
+      
+      // Then set the new default
+      const [updatedPreference] = await db
+        .update(userDashboardPreferences)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(userDashboardPreferences.id, id))
+        .returning();
+      
+      return updatedPreference;
+    } catch (error) {
+      console.error('Error setting default user dashboard preference:', error);
+      throw error;
+    }
+  }
+
+  // User Attendance Filter Preferences operations
+  async getUserAttendanceFilterPreferences(userId: number, organizationId: number): Promise<UserAttendanceFilterPreference[]> {
+    try {
+      const preferences = await db
+        .select()
+        .from(userAttendanceFilterPreferences)
+        .where(eq(userAttendanceFilterPreferences.userId, userId))
+        .where(eq(userAttendanceFilterPreferences.organizationId, organizationId));
+      
+      return preferences;
+    } catch (error) {
+      console.error('Error fetching user attendance filter preferences:', error);
+      throw error;
+    }
+  }
+
+  async getUserAttendanceFilterPreference(id: number): Promise<UserAttendanceFilterPreference | undefined> {
+    try {
+      const [preference] = await db
+        .select()
+        .from(userAttendanceFilterPreferences)
+        .where(eq(userAttendanceFilterPreferences.id, id));
+      
+      return preference;
+    } catch (error) {
+      console.error('Error fetching user attendance filter preference:', error);
+      throw error;
+    }
+  }
+
+  async createUserAttendanceFilterPreference(preference: InsertUserAttendanceFilterPreference): Promise<UserAttendanceFilterPreference> {
+    try {
+      const [newPreference] = await db
+        .insert(userAttendanceFilterPreferences)
+        .values(preference)
+        .returning();
+      
+      return newPreference;
+    } catch (error) {
+      console.error('Error creating user attendance filter preference:', error);
+      throw error;
+    }
+  }
+
+  async updateUserAttendanceFilterPreference(id: number, preference: Partial<InsertUserAttendanceFilterPreference>): Promise<UserAttendanceFilterPreference> {
+    try {
+      const [updatedPreference] = await db
+        .update(userAttendanceFilterPreferences)
+        .set({
+          ...preference,
+          updatedAt: new Date()
+        })
+        .where(eq(userAttendanceFilterPreferences.id, id))
+        .returning();
+      
+      return updatedPreference;
+    } catch (error) {
+      console.error('Error updating user attendance filter preference:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserAttendanceFilterPreference(id: number): Promise<void> {
+    try {
+      await db
+        .delete(userAttendanceFilterPreferences)
+        .where(eq(userAttendanceFilterPreferences.id, id));
+    } catch (error) {
+      console.error('Error deleting user attendance filter preference:', error);
+      throw error;
+    }
+  }
+
+  async getDefaultUserAttendanceFilterPreference(userId: number, organizationId: number): Promise<UserAttendanceFilterPreference | undefined> {
+    try {
+      const [preference] = await db
+        .select()
+        .from(userAttendanceFilterPreferences)
+        .where(eq(userAttendanceFilterPreferences.userId, userId))
+        .where(eq(userAttendanceFilterPreferences.organizationId, organizationId))
+        .where(eq(userAttendanceFilterPreferences.isDefault, true));
+      
+      return preference;
+    } catch (error) {
+      console.error('Error fetching default user attendance filter preference:', error);
+      throw error;
+    }
+  }
+
+  async setDefaultUserAttendanceFilterPreference(id: number, userId: number, organizationId: number): Promise<UserAttendanceFilterPreference> {
+    try {
+      // First, remove default status from any current default
+      await db
+        .update(userAttendanceFilterPreferences)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(userAttendanceFilterPreferences.userId, userId))
+        .where(eq(userAttendanceFilterPreferences.organizationId, organizationId))
+        .where(eq(userAttendanceFilterPreferences.isDefault, true));
+      
+      // Then set the new default
+      const [updatedPreference] = await db
+        .update(userAttendanceFilterPreferences)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(userAttendanceFilterPreferences.id, id))
+        .returning();
+      
+      return updatedPreference;
+    } catch (error) {
+      console.error('Error setting default user attendance filter preference:', error);
       throw error;
     }
   }
