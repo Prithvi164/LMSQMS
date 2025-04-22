@@ -4,7 +4,7 @@ import { EnhancedAttendanceBreakdownWidget } from '@/components/dashboard/enhanc
 import { Card } from '@/components/ui/card';
 import { widgetRegistry } from '@/components/dashboard/widget-registry';
 import { WidgetFactory } from '@/components/dashboard/widget-factory';
-import { defaultDashboardConfig } from '@/components/dashboard/dashboard-configuration';
+import { defaultDashboardConfig } from '@/components/dashboard/dashboard-configuration.ts';
 
 // Demo page for the Enhanced Attendance Breakdown widget
 export default function AttendanceBreakdownDemoPage() {

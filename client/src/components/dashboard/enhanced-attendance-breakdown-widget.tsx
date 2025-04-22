@@ -14,7 +14,7 @@ import {
   Check
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WidgetConfig } from './dashboard-configuration';
+import { WidgetConfig } from './dashboard-configuration.ts';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';

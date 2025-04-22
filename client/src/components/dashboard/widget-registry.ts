@@ -1,7 +1,7 @@
 import React from 'react';
-import { WidgetType } from './dashboard-configuration';
+import { WidgetType } from './dashboard-configuration.ts';
 import { EnhancedAttendanceBreakdownWidget } from './enhanced-attendance-breakdown-widget';
-import { AttendanceBreakdownWidget } from '@/components/batch-management/attendance-breakdown';
+import { AttendanceBreakdown } from '@/components/batch-management/attendance-breakdown';
 
 // Placeholder components for future implementation
 const BatchSummaryWidget = () => React.createElement('div', {className: 'p-4'}, 'Batch Summary Widget');
@@ -14,7 +14,7 @@ const EvaluationSummaryWidget = () => React.createElement('div', {className: 'p-
 
 // Registry of widget components mapped by their type
 export const widgetRegistry: Record<WidgetType, React.ComponentType<any>> = {
-  'attendance-breakdown': AttendanceBreakdownWidget,
+  'attendance-breakdown': AttendanceBreakdown,
   'enhanced-attendance-breakdown': EnhancedAttendanceBreakdownWidget,
   'batch-summary': BatchSummaryWidget,
   'trainee-progress': TraineeProgressWidget,

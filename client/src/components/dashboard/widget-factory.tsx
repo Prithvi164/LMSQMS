@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { widgetRegistry } from './widget-registry';
-import { WidgetConfig } from './dashboard-configuration';
+import { WidgetConfig } from './dashboard-configuration.ts';
 import { usePermissions } from '@/hooks/use-permissions';
 
 interface WidgetFactoryProps {
