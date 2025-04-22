@@ -5153,23 +5153,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Admin/owner user (${req.user.id}) - returning all ${allLOBs.length} lines of business`);
         return res.json(allLOBs || []);
       } else {
-        // Get the processes assigned to this user
-        const userProcesses = await storage.getUserProcesses(req.user.id);
-        
-        // Extract the unique line of business IDs from user's assigned processes
-        const userLOBIds = Array.from(new Set(
-          userProcesses
-            .filter(up => up.lineOfBusinessId !== null)
-            .map(up => up.lineOfBusinessId)
-        ));
-        
-        // Filter the LOBs to only include those related to the user's processes
-        const filteredLOBs = allLOBs.filter(lob => 
-          userLOBIds.includes(lob.id)
-        );
-        
-        console.log(`Non-admin user (${req.user.id}) - returning ${filteredLOBs.length} of ${allLOBs.length} total lines of business`);
-        return res.json(filteredLOBs || []);
+        // For non-admin users - just return all lines of business for now
+        // This ensures we display the LOB section correctly without further filtering
+        console.log(`Non-admin user (${req.user.id}) - returning all ${allLOBs.length} lines of business temporarily`);
+        return res.json(allLOBs || []);
       }
     } catch (error: any) {
       console.error("Error fetching LOBs:", error);
