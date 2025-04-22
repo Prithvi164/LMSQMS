@@ -251,38 +251,37 @@ export function AttendanceOverviewWidget({
   };
   
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="text-lg font-medium">{title}</CardTitle>
-        {aggregatedData.attendanceRate && (
-          <div className="text-sm text-muted-foreground">
-            Overall Attendance Rate: {aggregatedData.attendanceRate}%
-          </div>
-        )}
-      </CardHeader>
-      <CardContent>
-        {renderChart()}
-        
-        {/* Summary stats */}
-        <div className="grid grid-cols-4 gap-2 mt-2">
-          <div className="text-center">
-            <div className="text-sm font-medium">Present</div>
-            <div className="text-lg font-bold text-green-600">{aggregatedData.presentCount}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium">Absent</div>
-            <div className="text-lg font-bold text-red-600">{aggregatedData.absentCount}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium">Late</div>
-            <div className="text-lg font-bold text-yellow-600">{aggregatedData.lateCount}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium">Leave</div>
-            <div className="text-lg font-bold text-blue-600">{aggregatedData.leaveCount}</div>
-          </div>
+    <div className={`${className} w-full h-full`}>
+      {aggregatedData.attendanceRate && (
+        <div className="text-sm font-medium text-muted-foreground mb-2">
+          Overall Attendance Rate: <span className="text-primary font-semibold">{aggregatedData.attendanceRate}%</span>
         </div>
-      </CardContent>
-    </Card>
+      )}
+      
+      {/* Main chart container with proper sizing */}
+      <div className="w-full rounded-md">
+        {renderChart()}
+      </div>
+      
+      {/* Summary stats with improved layout */}
+      <div className="grid grid-cols-4 gap-3 mt-4 px-2">
+        <div className="text-center p-2 rounded-md bg-green-50 dark:bg-green-900/20">
+          <div className="text-sm font-medium text-green-800 dark:text-green-300">Present</div>
+          <div className="text-xl font-bold text-green-600 dark:text-green-400">{aggregatedData.presentCount}</div>
+        </div>
+        <div className="text-center p-2 rounded-md bg-red-50 dark:bg-red-900/20">
+          <div className="text-sm font-medium text-red-800 dark:text-red-300">Absent</div>
+          <div className="text-xl font-bold text-red-600 dark:text-red-400">{aggregatedData.absentCount}</div>
+        </div>
+        <div className="text-center p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20">
+          <div className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Late</div>
+          <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{aggregatedData.lateCount}</div>
+        </div>
+        <div className="text-center p-2 rounded-md bg-blue-50 dark:bg-blue-900/20">
+          <div className="text-sm font-medium text-blue-800 dark:text-blue-300">Leave</div>
+          <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{aggregatedData.leaveCount}</div>
+        </div>
+      </div>
+    </div>
   );
 }

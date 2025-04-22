@@ -327,28 +327,40 @@ export function AttendanceTrendsWidget({
   };
   
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="text-lg font-medium">{title}</CardTitle>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Month avg: {trendsData.monthlyAverageRate.toFixed(1)}%
-          </span>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            trendsData.rateChange > 0 
-              ? 'bg-green-50 text-green-600' 
-              : trendsData.rateChange < 0 
-                ? 'bg-red-50 text-red-600' 
-                : 'bg-gray-50 text-gray-500'
-          }`}>
-            {trendsData.rateChange > 0 ? '↑' : trendsData.rateChange < 0 ? '↓' : ''}
-            {Math.abs(trendsData.rateChange).toFixed(1)}%
+    <div className={`${className} w-full h-full`}>
+      {/* Metrics summary with improved styling */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <span className="text-sm font-medium">Monthly Average:</span>
+          <span className="ml-2 text-lg font-bold text-primary">
+            {trendsData.monthlyAverageRate.toFixed(1)}%
           </span>
         </div>
-      </CardHeader>
-      <CardContent>
+        
+        <div className={`flex items-center gap-1 text-sm font-medium px-3 py-1 rounded-full ${
+          trendsData.rateChange > 0 
+            ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+            : trendsData.rateChange < 0 
+              ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+              : 'bg-slate-50 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400'
+        }`}>
+          {trendsData.rateChange > 0 ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          ) : trendsData.rateChange < 0 ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
+            </svg>
+          ) : null}
+          {Math.abs(trendsData.rateChange).toFixed(1)}% {trendsData.rateChange >= 0 ? 'increase' : 'decrease'}
+        </div>
+      </div>
+      
+      {/* Main chart container with proper styling */}
+      <div className="w-full rounded-md">
         {renderChart()}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
