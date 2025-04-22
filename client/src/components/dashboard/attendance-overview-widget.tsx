@@ -252,7 +252,7 @@ export function AttendanceOverviewWidget({
       )}
       
       {/* Main chart container with proper sizing */}
-      <div className="w-full h-[260px] rounded-md">
+      <div className="w-full h-[280px] rounded-md flex items-center justify-center">
         {renderChart()}
       </div>
       
