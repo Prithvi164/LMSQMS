@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { 
@@ -37,7 +37,9 @@ import {
   ArrowDown, 
   ChevronDown, 
   Filter, 
+  GripVertical,
   LayoutDashboard, 
+  Maximize2,
   Plus, 
   Save, 
   Settings, 
@@ -45,6 +47,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WidgetFactory } from "./widget-factory";
+import {
+  ResizablePanel,
+  ResizablePanelGroup,
+  ResizableHandle
+} from "@/components/ui/resizable";
 
 // Types
 type Batch = {
@@ -74,12 +81,13 @@ export type WidgetConfig = {
   id: string;
   type: WidgetType;
   title: string;
-  size: "small" | "medium" | "large";
+  size: "sm" | "md" | "lg" | "full";
   chartType?: "bar" | "pie" | "line";
   position: {
     x: number;
     y: number;
   };
+  defaultSize?: number; // Size percentage for resizable panels
 };
 
 type DashboardConfig = {
@@ -103,17 +111,19 @@ const defaultWidgets: WidgetConfig[] = [
     id: "widget-1",
     type: "attendance-overview",
     title: "Attendance Overview",
-    size: "medium",
+    size: "md",
     chartType: "pie",
-    position: { x: 0, y: 0 }
+    position: { x: 0, y: 0 },
+    defaultSize: 50
   },
   {
     id: "widget-2",
     type: "attendance-trends",
     title: "Attendance Trends",
-    size: "large",
+    size: "lg",
     chartType: "line",
-    position: { x: 0, y: 1 }
+    position: { x: 0, y: 1 },
+    defaultSize: 50
   }
 ];
 
@@ -171,9 +181,10 @@ export function DashboardConfiguration() {
       id: `widget-${Date.now()}`,
       type,
       title: getWidgetTitle(type),
-      size: "medium",
+      size: "md",
       chartType: getDefaultChartType(type),
-      position: { x: 0, y: activeDashboard.widgets.length }
+      position: { x: 0, y: activeDashboard.widgets.length },
+      defaultSize: 50
     };
     
     setDashboardConfigs(prev => {
@@ -386,51 +397,68 @@ export function DashboardConfiguration() {
         </Card>
       )}
       
-      {/* Widget Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* This will be filled with actual widgets */}
-        {activeDashboard.widgets.map((widget) => (
-          <Card key={widget.id} className={`
-            ${widget.size === "large" ? "col-span-full" : 
-              widget.size === "medium" ? "md:col-span-1 lg:col-span-1" : ""}
-          `}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-medium">{widget.title}</CardTitle>
-              {isEditMode && (
-                <div className="flex items-center gap-2">
-                  <Select 
-                    value={widget.chartType} 
-                    onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="Chart Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bar">Bar</SelectItem>
-                      <SelectItem value="pie">Pie</SelectItem>
-                      <SelectItem value="line">Line</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleRemoveWidget(widget.id)}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
+      {/* Resizable Widget Layout */}
+      <div className="mt-6">
+        <ResizablePanelGroup 
+          direction="horizontal" 
+          className="min-h-[500px] rounded-lg border"
+        >
+          {activeDashboard.widgets.map((widget, index) => (
+            <>
+              <ResizablePanel 
+                key={widget.id} 
+                defaultSize={widget.defaultSize || 50}
+                minSize={20}
+              >
+                <Card className="h-full rounded-none border-0">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-lg font-medium flex items-center">
+                      {isEditMode && <GripVertical className="h-4 w-4 mr-2 text-muted-foreground" />}
+                      {widget.title}
+                    </CardTitle>
+                    {isEditMode && (
+                      <div className="flex items-center gap-2">
+                        <Select 
+                          value={widget.chartType} 
+                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                        >
+                          <SelectTrigger className="w-[100px]">
+                            <SelectValue placeholder="Chart Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bar">Bar</SelectItem>
+                            <SelectItem value="pie">Pie</SelectItem>
+                            <SelectItem value="line">Line</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleRemoveWidget(widget.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <WidgetFactory 
+                      config={widget} 
+                      batchIds={selectedBatches} 
+                      className={isEditMode ? "opacity-70 pointer-events-none" : ""}
+                    />
+                  </CardContent>
+                </Card>
+              </ResizablePanel>
+              
+              {/* Add resize handle between panels, but not after the last one */}
+              {index < activeDashboard.widgets.length - 1 && (
+                <ResizableHandle withHandle />
               )}
-            </CardHeader>
-            <CardContent className="p-0">
-              <WidgetFactory 
-                config={widget} 
-                batchIds={selectedBatches} 
-                className={isEditMode ? "opacity-70 pointer-events-none" : ""}
-              />
-            </CardContent>
-          </Card>
-        ))}
+            </>
+          ))}
+        </ResizablePanelGroup>
       </div>
     </div>
   );
