@@ -41,7 +41,8 @@ import { Label } from "@/components/ui/label";
 import { 
   ArrowDown, 
   BarChart2,
-  ChevronDown, 
+  ChevronDown,
+  ChevronRight,
   Filter, 
   GraduationCap,
   GripVertical,
@@ -179,6 +180,9 @@ export function DashboardConfiguration() {
   const [gridMode, setGridMode] = useState<"auto" | "custom">("auto");
   const [widgetMovement, setWidgetMovement] = useState<"edit" | "always">("edit");
   
+  // State for collapsed categories
+  const [collapsedCategories, setCollapsedCategories] = useState<string[]>([]);
+  
   // Get the active dashboard config
   const activeDashboard = dashboardConfigs.find(config => config.id === activeDashboardId) || dashboardConfigs[0];
   
@@ -270,6 +274,17 @@ export function DashboardConfiguration() {
         }
         return config;
       });
+    });
+  };
+  
+  // Toggle category collapse
+  const toggleCategoryCollapse = (category: string) => {
+    setCollapsedCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
+      } else {
+        return [...prev, category];
+      }
     });
   };
   
@@ -443,7 +458,10 @@ export function DashboardConfiguration() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <Label className="text-xs">Grid Mode</Label>
-                    <Select defaultValue="auto">
+                    <Select 
+                      value={gridMode} 
+                      onValueChange={(value) => setGridMode(value as "auto" | "custom")}
+                    >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Grid Mode" />
                       </SelectTrigger>
@@ -455,7 +473,10 @@ export function DashboardConfiguration() {
                   </div>
                   <div>
                     <Label className="text-xs">Widget Movement</Label>
-                    <Select defaultValue="edit">
+                    <Select 
+                      value={widgetMovement}
+                      onValueChange={(value) => setWidgetMovement(value as "edit" | "always")}
+                    >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Allow Movement" />
                       </SelectTrigger>
@@ -482,19 +503,39 @@ export function DashboardConfiguration() {
               {Array.from(new Set(activeDashboard.widgets.map(w => w.category))).map(category => (
                 <div key={category} className="space-y-4">
                   {/* Category Header */}
-                  <div className="flex items-center gap-2 border-b pb-2">
-                    {category === "attendance" && <Users className="h-5 w-5 text-blue-500" />}
-                    {category === "performance" && <BarChart2 className="h-5 w-5 text-amber-500" />}
-                    {category === "training" && <GraduationCap className="h-5 w-5 text-purple-500" />}
-                    {category === "other" && <Layers className="h-5 w-5 text-gray-500" />}
-                    <h2 className="text-xl font-semibold capitalize">{category}</h2>
+                  <div 
+                    className="flex items-center justify-between gap-2 border-b pb-2 cursor-pointer hover:bg-slate-50 pr-2 rounded-sm transition-colors"
+                    onClick={() => toggleCategoryCollapse(category)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {category === "attendance" && <Users className="h-5 w-5 text-blue-500" />}
+                      {category === "performance" && <BarChart2 className="h-5 w-5 text-amber-500" />}
+                      {category === "training" && <GraduationCap className="h-5 w-5 text-purple-500" />}
+                      {category === "other" && <Layers className="h-5 w-5 text-gray-500" />}
+                      <h2 className="text-xl font-semibold capitalize">{category}</h2>
+                      
+                      {/* Widget count */}
+                      <Badge variant="outline" className="ml-2 text-xs px-2 py-0 h-5">
+                        {activeDashboard.widgets.filter(w => w.category === category).length} widgets
+                      </Badge>
+                    </div>
+                    
+                    {/* Collapse/Expand icon */}
+                    <div className="text-muted-foreground">
+                      {collapsedCategories.includes(category) ? (
+                        <ChevronRight className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
                   </div>
 
                   {/* Category Widgets */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                    {activeDashboard.widgets
-                      .filter(w => w.category === category)
-                      .map((widget, index) => (
+                  {!collapsedCategories.includes(category) && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                      {activeDashboard.widgets
+                        .filter(w => w.category === category)
+                        .map((widget, index) => (
                         <div 
                           key={widget.id} 
                           className={`transition-all duration-200 ease-in-out w-full 
@@ -639,7 +680,8 @@ export function DashboardConfiguration() {
                           </Card>
                         </div>
                       ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
