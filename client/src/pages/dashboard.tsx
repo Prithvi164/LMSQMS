@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { DashboardConfiguration } from "@/components/dashboard/dashboard-configuration";
+// Use our temporary dashboard configuration component
+import { DashboardConfiguration } from "@/components/dashboard/temp-dashboard-configuration";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {

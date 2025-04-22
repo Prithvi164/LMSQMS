@@ -200,24 +200,25 @@ export function PhaseCompletionWidget({
       case "pie":
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
               <Pie
                 data={phaseData}
                 cx="50%"
-                cy="50%"
-                labelLine={true}
-                outerRadius={80}
+                cy="45%"
+                labelLine={false}
+                outerRadius={60}
+                innerRadius={30}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
               >
                 {phaseData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend verticalAlign="bottom" height={36} />
             </PieChart>
           </ResponsiveContainer>
         );
