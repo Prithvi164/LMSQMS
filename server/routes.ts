@@ -5737,10 +5737,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
-
-      const processes = await storage.listProcesses(orgId);
-      console.log(`Found ${processes.length} processes`);
-      res.json(processes);
+      
+      // Get all processes from the organization
+      const allProcesses = await storage.listProcesses(orgId);
+      
+      // Check if the user has admin/owner privileges
+      const isAdminOrOwner = req.user.role === 'admin' || req.user.role === 'owner';
+      
+      if (isAdminOrOwner) {
+        // Admin/owner sees all processes
+        console.log(`Admin/owner user (${req.user.id}) - returning all ${allProcesses.length} processes`);
+        res.json(allProcesses);
+      } else {
+        // Get the processes assigned to this user
+        const userProcesses = await storage.getUserProcesses(req.user.id);
+        
+        // Extract just the process IDs from the user's assigned processes
+        const userProcessIds = userProcesses.map(up => up.processId);
+        
+        // Filter the processes to only include those assigned to the user
+        const filteredProcesses = allProcesses.filter(process => 
+          userProcessIds.includes(process.id)
+        );
+        
+        console.log(`Non-admin user (${req.user.id}) - returning ${filteredProcesses.length} of ${allProcesses.length} total processes`);
+        res.json(filteredProcesses);
+      }
     } catch (error: any) {
       console.error("Error fetching processes:", error);
       res.status(500).json({ message: error.message });
