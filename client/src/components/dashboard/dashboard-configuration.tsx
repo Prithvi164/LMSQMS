@@ -178,7 +178,8 @@ export function DashboardConfiguration() {
   
   // Grid configuration state
   const [gridMode, setGridMode] = useState<"auto" | "custom">("auto");
-  const [widgetMovement, setWidgetMovement] = useState<"edit" | "always">("edit");
+  // Widget movement is always restricted to edit mode only
+  const widgetMovement = "edit";
   
   // State for collapsed categories
   const [collapsedCategories, setCollapsedCategories] = useState<string[]>([]);
@@ -473,18 +474,9 @@ export function DashboardConfiguration() {
                   </div>
                   <div>
                     <Label className="text-xs">Widget Movement</Label>
-                    <Select 
-                      value={widgetMovement}
-                      onValueChange={(value) => setWidgetMovement(value as "edit" | "always")}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Allow Movement" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="edit">In Edit Mode Only</SelectItem>
-                        <SelectItem value="always">Always Allowed</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center h-8 text-xs border rounded-md px-3 bg-slate-50">
+                      In Edit Mode Only
+                    </div>
                   </div>
                 </div>
               </div>
