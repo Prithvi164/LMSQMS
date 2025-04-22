@@ -21,6 +21,8 @@ import {
   audioFileBatchAllocations,
   evaluationFeedback,
   quizAssignments,
+  userDashboards,
+  dashboardWidgets,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -65,6 +67,10 @@ import {
   type InsertOrganizationSettings,
   type OrganizationHoliday,
   type InsertOrganizationHoliday,
+  type UserDashboard,
+  type InsertUserDashboard,
+  type DashboardWidget,
+  type InsertDashboardWidget,
   type InsertQuiz,
   quizAttempts,
   type QuizAttempt,
@@ -297,6 +303,20 @@ export interface IStorage {
 
   // Add new method for getting reporting trainers
   getReportingTrainers(managerId: number): Promise<User[]>;
+
+  // Dashboard operations
+  getUserDashboards(userId: number): Promise<schema.UserDashboard[]>;
+  createUserDashboard(dashboard: schema.InsertUserDashboard): Promise<schema.UserDashboard>;
+  getUserDashboard(id: number): Promise<schema.UserDashboard | undefined>;
+  updateUserDashboard(id: number, dashboard: Partial<schema.InsertUserDashboard>): Promise<schema.UserDashboard>;
+  deleteUserDashboard(id: number): Promise<void>;
+  setDefaultDashboard(userId: number, dashboardId: number): Promise<void>;
+  
+  // Dashboard widget operations
+  getDashboardWidgets(dashboardId: number): Promise<schema.DashboardWidget[]>;
+  createDashboardWidget(widget: schema.InsertDashboardWidget): Promise<schema.DashboardWidget>;
+  updateDashboardWidget(id: number, widget: Partial<schema.InsertDashboardWidget>): Promise<schema.DashboardWidget>;
+  deleteDashboardWidget(id: number): Promise<void>;
 
   // Add new methods for batch filtering
   listBatchesForTrainer(trainerId: number): Promise<OrganizationBatch[]>;
