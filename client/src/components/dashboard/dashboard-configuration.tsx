@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { WidgetFactory } from "./widget-factory";
+import { WidgetType } from "./widget-registry";
 
 // Types
 type Batch = {
@@ -64,23 +65,20 @@ type Batch = {
   };
 };
 
-export type WidgetType = 
-  | "attendance-overview"
-  | "attendance-trends"
-  | "performance-distribution"
-  | "phase-completion";
-
-export type WidgetConfig = {
+// Widget configuration type
+export interface WidgetConfig {
   id: string;
   type: WidgetType;
   title: string;
-  size: "small" | "medium" | "large";
+  size: "sm" | "md" | "lg" | "full";
   chartType?: "bar" | "pie" | "line";
-  position: {
+  description?: string;
+  permissions?: string[];
+  position?: {
     x: number;
     y: number;
   };
-};
+}
 
 type DashboardConfig = {
   id: string;
@@ -103,7 +101,7 @@ const defaultWidgets: WidgetConfig[] = [
     id: "widget-1",
     type: "attendance-overview",
     title: "Attendance Overview",
-    size: "medium",
+    size: "md",
     chartType: "pie",
     position: { x: 0, y: 0 }
   },
@@ -111,7 +109,7 @@ const defaultWidgets: WidgetConfig[] = [
     id: "widget-2",
     type: "attendance-trends",
     title: "Attendance Trends",
-    size: "large",
+    size: "lg",
     chartType: "line",
     position: { x: 0, y: 1 }
   }
@@ -171,7 +169,7 @@ export function DashboardConfiguration() {
       id: `widget-${Date.now()}`,
       type,
       title: getWidgetTitle(type),
-      size: "medium",
+      size: "md",
       chartType: getDefaultChartType(type),
       position: { x: 0, y: activeDashboard.widgets.length }
     };
@@ -224,23 +222,39 @@ export function DashboardConfiguration() {
   
   // Helper functions
   const getWidgetTitle = (type: WidgetType): string => {
-    const titles: Record<WidgetType, string> = {
+    const defaultTitles: Record<string, string> = {
       "attendance-overview": "Attendance Overview",
       "attendance-trends": "Attendance Trends",
       "performance-distribution": "Performance Distribution",
-      "phase-completion": "Phase Completion"
+      "phase-completion": "Phase Completion",
+      "attendance-breakdown": "Attendance Breakdown",
+      "enhanced-attendance-breakdown": "Enhanced Attendance Breakdown",
+      "batch-summary": "Batch Summary",
+      "trainee-progress": "Trainee Progress",
+      "recent-activity": "Recent Activity",
+      "quick-actions": "Quick Actions",
+      "announcements": "Announcements",
+      "calendar": "Calendar",
+      "evaluation-summary": "Evaluation Summary"
     };
-    return titles[type];
+    
+    return defaultTitles[type] || `${type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
   };
   
   const getDefaultChartType = (type: WidgetType): "bar" | "pie" | "line" => {
-    const chartTypes: Record<WidgetType, "bar" | "pie" | "line"> = {
+    const defaultChartTypes: Record<string, "bar" | "pie" | "line"> = {
       "attendance-overview": "pie",
       "attendance-trends": "line",
       "performance-distribution": "bar",
-      "phase-completion": "bar"
+      "phase-completion": "bar",
+      "attendance-breakdown": "pie",
+      "enhanced-attendance-breakdown": "bar",
+      "batch-summary": "bar",
+      "trainee-progress": "line",
+      "evaluation-summary": "bar"
     };
-    return chartTypes[type];
+    
+    return defaultChartTypes[type] || "bar";
   };
   
   // Batch filter dialog
@@ -391,8 +405,8 @@ export function DashboardConfiguration() {
         {/* This will be filled with actual widgets */}
         {activeDashboard.widgets.map((widget) => (
           <Card key={widget.id} className={`
-            ${widget.size === "large" ? "col-span-full" : 
-              widget.size === "medium" ? "md:col-span-1 lg:col-span-1" : ""}
+            ${widget.size === "lg" ? "col-span-full" : 
+              widget.size === "md" ? "md:col-span-1 lg:col-span-1" : ""}
           `}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">{widget.title}</CardTitle>

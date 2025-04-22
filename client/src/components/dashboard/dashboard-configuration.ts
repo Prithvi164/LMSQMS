@@ -2,6 +2,10 @@
 export type WidgetType = 
   | 'attendance-breakdown'
   | 'enhanced-attendance-breakdown'
+  | 'attendance-overview'
+  | 'attendance-trends'
+  | 'performance-distribution'
+  | 'phase-completion'
   | 'batch-summary'
   | 'trainee-progress'
   | 'recent-activity'
