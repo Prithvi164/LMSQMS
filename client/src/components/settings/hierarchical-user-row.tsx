@@ -232,12 +232,18 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex flex-col space-y-1 cursor-help">
-                      {getProcessNames(user.id).split(", ").map((process, idx) => (
-                        <Badge key={idx} variant="outline" className="justify-start text-left w-full truncate">
-                          {process}
-                        </Badge>
-                      ))}
+                    <div className="cursor-help">
+                      <div className="font-medium text-sm truncate">
+                        {(() => {
+                          const processNames = getProcessNames(user.id);
+                          const processCount = processNames.split(", ").length;
+                          if (processCount > 3) {
+                            return `${processCount} processes assigned`;
+                          } else {
+                            return processNames;
+                          }
+                        })()}
+                      </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-xs">
