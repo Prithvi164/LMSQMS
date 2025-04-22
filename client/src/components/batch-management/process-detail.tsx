@@ -389,7 +389,7 @@ export function ProcessDetail() {
                           {process.name}
                         </TableCell>
                         <TableCell>
-                          {lineOfBusinesses.find(lob => lob.id === process.lineOfBusinessId)?.name || "-"}
+                          {process.lineOfBusinessName || "-"}
                         </TableCell>
                         <TableCell className="text-center">{process.inductionDays}</TableCell>
                         <TableCell className="text-center">{process.trainingDays}</TableCell>
