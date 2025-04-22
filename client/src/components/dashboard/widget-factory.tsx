@@ -65,6 +65,46 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
   }[widget.size || 'md'];
   
   // Render the widget with its configuration
+  // State for custom/auto mode
+  const [isCustomMode, setIsCustomMode] = useState(!!widget.customDimensions);
+
+  // Load custom dimensions from widget config if available
+  useEffect(() => {
+    if (widget.customDimensions) {
+      setIsCustomMode(true);
+      setChartDimensions({
+        height: widget.customDimensions.height || chartDimensions.height,
+        width: widget.customDimensions.width || chartDimensions.width
+      });
+    }
+  }, [widget.id]);
+
+  // Save preferences to the dashboard preferences API
+  const saveChartPreferences = async (newDimensions: {width: number, height: number}) => {
+    try {
+      const response = await fetch('/api/dashboard/preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: `Widget ${widget.id} Preferences`,
+          config: {
+            ...widget,
+            customDimensions: newDimensions
+          },
+          isDefault: true
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Saved chart dimensions:', newDimensions);
+      }
+    } catch (error) {
+      console.error('Failed to save chart preferences:', error);
+    }
+  };
+
   return (
     <Card className={`overflow-hidden ${sizeClass} ${className}`}>
       <CardHeader className="pb-3">
@@ -82,21 +122,13 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
             minWidth={200}
             maxHeight={800}
             maxWidth={1600}
+            responsive={!isCustomMode}
+            customMode={isCustomMode}
             onResize={(newDimensions) => {
-              console.log('Resizing chart to:', newDimensions);
               setChartDimensions(newDimensions);
-              
-              // Save user preferences via API
-              // This is commented out but would save preferences when implemented
-              /*
-              apiRequest('/api/dashboard/preferences', {
-                method: 'POST', 
-                body: {
-                  widgetId: widget.id,
-                  chartDimensions: newDimensions
-                }
-              });
-              */
+            }}
+            savePreferences={(newDimensions) => {
+              saveChartPreferences(newDimensions);
             }}
             className="w-full relative"
           >
@@ -116,23 +148,8 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
               }} 
             />
           </ResizableChart>
-          
-          {/* Instructional overlay that appears briefly */}
-          <div className="absolute bottom-16 right-4 bg-black/75 text-white text-xs py-1 px-2 rounded pointer-events-none opacity-0 transition-opacity duration-500 hover:opacity-100" 
-            style={{animation: 'fadeInOut 3s ease-in-out'}}>
-            <p>Drag edges or corner to resize</p>
-          </div>
         </div>
       </CardContent>
-      
-      <style jsx>{`
-        @keyframes fadeInOut {
-          0% { opacity: 0; }
-          20% { opacity: 1; }
-          80% { opacity: 1; }
-          100% { opacity: 0; }
-        }
-      `}</style>
     </Card>
   );
 }
