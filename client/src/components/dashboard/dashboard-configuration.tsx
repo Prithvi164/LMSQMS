@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { 
@@ -399,66 +399,123 @@ export function DashboardConfiguration() {
       
       {/* Resizable Widget Layout */}
       <div className="mt-6">
-        <ResizablePanelGroup 
-          direction="horizontal" 
-          className="min-h-[500px] rounded-lg border"
-        >
-          {activeDashboard.widgets.map((widget, index) => (
-            <>
-              <ResizablePanel 
-                key={widget.id} 
-                defaultSize={widget.defaultSize || 50}
-                minSize={20}
-              >
-                <Card className="h-full rounded-none border-0">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-lg font-medium flex items-center">
-                      {isEditMode && <GripVertical className="h-4 w-4 mr-2 text-muted-foreground" />}
-                      {widget.title}
-                    </CardTitle>
-                    {isEditMode && (
-                      <div className="flex items-center gap-2">
-                        <Select 
-                          value={widget.chartType} 
-                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                        >
-                          <SelectTrigger className="w-[100px]">
-                            <SelectValue placeholder="Chart Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bar">Bar</SelectItem>
-                            <SelectItem value="pie">Pie</SelectItem>
-                            <SelectItem value="line">Line</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleRemoveWidget(widget.id)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <WidgetFactory 
-                      config={widget} 
-                      batchIds={selectedBatches} 
-                      className={isEditMode ? "opacity-70 pointer-events-none" : ""}
-                    />
-                  </CardContent>
-                </Card>
-              </ResizablePanel>
-              
-              {/* Add resize handle between panels, but not after the last one */}
-              {index < activeDashboard.widgets.length - 1 && (
-                <ResizableHandle withHandle />
+        {activeDashboard.widgets.length > 0 ? (
+          <ResizablePanelGroup 
+            direction="horizontal"
+            className="min-h-[600px] rounded-lg border"
+            onLayout={(sizes) => {
+              // Save the new sizes when layout changes (during dragging)
+              if (isEditMode) {
+                const updatedWidgets = activeDashboard.widgets.map((widget, i) => ({
+                  ...widget,
+                  defaultSize: sizes[i]
+                }));
+                
+                setDashboardConfigs(prev => 
+                  prev.map(config => 
+                    config.id === activeDashboardId 
+                      ? { ...config, widgets: updatedWidgets } 
+                      : config
+                  )
+                );
+              }
+            }}
+          >
+            {activeDashboard.widgets.map((widget, index) => (
+              <React.Fragment key={widget.id}>
+                <ResizablePanel 
+                  defaultSize={widget.defaultSize || 50}
+                  minSize={20}
+                  collapsible={isEditMode}
+                >
+                  <Card className="h-full rounded-none border-0">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-lg font-medium flex items-center">
+                        {isEditMode && (
+                          <>
+                            <GripVertical className="h-4 w-4 mr-2 text-muted-foreground" />
+                            <Input 
+                              value={widget.title}
+                              onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
+                              className="h-7 px-2 py-1 text-base mr-2 max-w-[150px]"
+                            />
+                          </>
+                        )}
+                        {!isEditMode && widget.title}
+                      </CardTitle>
+                      {isEditMode && (
+                        <div className="flex items-center gap-2">
+                          <Select 
+                            value={widget.chartType} 
+                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                          >
+                            <SelectTrigger className="w-[90px]">
+                              <SelectValue placeholder="Chart Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="bar">Bar</SelectItem>
+                              <SelectItem value="pie">Pie</SelectItem>
+                              <SelectItem value="line">Line</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          <Select 
+                            value={widget.size} 
+                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { size: value as "sm" | "md" | "lg" | "full" })}
+                          >
+                            <SelectTrigger className="w-[90px]">
+                              <SelectValue placeholder="Size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sm">Small</SelectItem>
+                              <SelectItem value="md">Medium</SelectItem>
+                              <SelectItem value="lg">Large</SelectItem>
+                              <SelectItem value="full">Full</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleRemoveWidget(widget.id)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-2">
+                      <WidgetFactory 
+                        config={widget} 
+                        batchIds={selectedBatches} 
+                        className={isEditMode ? "opacity-70 pointer-events-none" : ""}
+                      />
+                    </CardContent>
+                  </Card>
+                </ResizablePanel>
+                
+                {/* Add resize handle between panels, but not after the last one */}
+                {index < activeDashboard.widgets.length - 1 && (
+                  <ResizableHandle withHandle />
+                )}
+              </React.Fragment>
+            ))}
+          </ResizablePanelGroup>
+        ) : (
+          <div className="flex items-center justify-center border rounded-lg p-12 min-h-[300px]">
+            <div className="text-center text-muted-foreground">
+              <LayoutDashboard className="mx-auto h-12 w-12 mb-4" />
+              <h3 className="text-lg font-medium mb-2">No widgets added</h3>
+              <p className="mb-4">Click "Add Widget" to customize your dashboard</p>
+              {!isEditMode && (
+                <Button onClick={() => setIsEditMode(true)} variant="outline" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Customize
+                </Button>
               )}
-            </>
-          ))}
-        </ResizablePanelGroup>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

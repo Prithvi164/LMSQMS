@@ -11,7 +11,21 @@ type WidgetFactoryProps = {
 };
 
 export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProps) {
-  const { type, title, chartType } = config;
+  const { type, title, chartType, size = "md" } = config;
+  
+  // Define height based on size
+  const getChartHeight = () => {
+    switch (size) {
+      case "sm": return "h-[180px]";
+      case "md": return "h-[250px]";
+      case "lg": return "h-[320px]";
+      case "full": return "h-[400px]";
+      default: return "h-[250px]";
+    }
+  };
+
+  const chartHeight = getChartHeight();
+  const combinedClassName = `${className} ${chartHeight}`;
   
   // Return the appropriate widget based on type
   switch (type) {
@@ -21,7 +35,7 @@ export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProp
           title={title} 
           chartType={chartType || "pie"}
           batchIds={batchIds}
-          className={className}
+          className={combinedClassName}
         />
       );
       
@@ -31,7 +45,7 @@ export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProp
           title={title} 
           chartType={chartType || "line"}
           batchIds={batchIds}
-          className={className}
+          className={combinedClassName}
         />
       );
       
@@ -41,7 +55,7 @@ export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProp
           title={title} 
           chartType={chartType || "bar"}
           batchIds={batchIds}
-          className={className}
+          className={combinedClassName}
         />
       );
       
@@ -51,7 +65,7 @@ export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProp
           title={title} 
           chartType={chartType || "bar"}
           batchIds={batchIds}
-          className={className}
+          className={combinedClassName}
         />
       );
       
@@ -59,7 +73,7 @@ export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProp
       return (
         <div className={`p-6 rounded-lg border shadow-sm ${className}`}>
           <h3 className="text-lg font-medium mb-2">Unknown Widget Type</h3>
-          <div className="h-[250px] flex items-center justify-center bg-muted rounded">
+          <div className={`${chartHeight} flex items-center justify-center bg-muted rounded`}>
             <span className="text-muted-foreground">Widget type '{type}' not recognized</span>
           </div>
         </div>
