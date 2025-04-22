@@ -4423,8 +4423,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view locations in your own organization" });
       }
 
-      const locations = await storage.listLocations(orgId);
-      console.log('Locations:', locations);
+      // Use the new user-specific filtering method
+      console.log(`Fetching user-specific locations for user ${req.user.id} in organization ${orgId}`);
+      const locations = await storage.listUserLocations(orgId, req.user.id);
+      console.log(`Found ${locations.length} locations for user ${req.user.id}`);
       res.json(locations);
     } catch (error: any) {
       console.error("Error fetching locations:", error);
@@ -5142,9 +5144,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
-      console.log(`Fetching LOBs for organization ${orgId}`);
-      const lobs = await storage.listLineOfBusinesses(orgId);
-      console.log(`Found ${lobs.length} LOBs:`, lobs);
+      // Use the new user-specific filtering method
+      console.log(`Fetching user-specific LOBs for user ${req.user.id} in organization ${orgId}`);
+      const lobs = await storage.listUserLineOfBusinesses(orgId, req.user.id);
+      console.log(`Found ${lobs.length} LOBs for user ${req.user.id}`);
 
       return res.json(lobs || []);
     } catch (error: any) {
@@ -5738,8 +5741,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
 
-      const processes = await storage.listProcesses(orgId);
-      console.log(`Found ${processes.length} processes`);
+      // Use the new user-specific filtering method
+      const processes = await storage.listUserProcesses(orgId, req.user.id);
+      console.log(`Found ${processes.length} processes for user ${req.user.id}`);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
