@@ -5870,8 +5870,8 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`User ${userId} has role ${user?.role}`);
       
-      // If user is an admin, owner, manager, or trainer, return all processes
-      if (user && ['owner', 'admin', 'manager', 'trainer'].includes(user.role)) {
+      // If user is an admin or owner, return all processes
+      if (user && ['owner', 'admin'].includes(user.role)) {
         console.log(`User ${userId} has role ${user.role} - returning all processes`);
         return this.listProcesses(organizationId);
       }
@@ -5929,8 +5929,8 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`User ${userId} has role ${user?.role}`);
       
-      // If user is an admin, owner, manager, or trainer, return all LOBs
-      if (user && ['owner', 'admin', 'manager', 'trainer'].includes(user.role)) {
+      // If user is an admin or owner, return all LOBs
+      if (user && ['owner', 'admin'].includes(user.role)) {
         console.log(`User ${userId} has role ${user.role} - returning all line of businesses`);
         return this.listLineOfBusinesses(organizationId);
       }
@@ -5976,8 +5976,8 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`User ${userId} has role ${user?.role}`);
       
-      // If user is an admin, owner, manager, or trainer, return all locations
-      if (user && ['owner', 'admin', 'manager', 'trainer'].includes(user.role)) {
+      // If user is an admin or owner, return all locations
+      if (user && ['owner', 'admin'].includes(user.role)) {
         console.log(`User ${userId} has role ${user.role} - returning all locations`);
         return this.listLocations(organizationId);
       }
