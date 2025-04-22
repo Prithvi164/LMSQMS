@@ -12,11 +12,14 @@ interface WidgetFactoryProps {
 
 export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
   const { hasAllPermissions } = usePermissions();
-  const [chartHeight, setChartHeight] = useState<number>(
-    widget.chartOptions?.height || 
-    (widgetConfigurations[widget.type as keyof typeof widgetConfigurations]?.chartOptions?.height) || 
-    300
-  );
+  
+  // Get the initial dimensions from the configuration or defaults
+  const [chartDimensions, setChartDimensions] = useState({
+    height: widget.chartOptions?.height || 
+      (widgetConfigurations[widget.type as keyof typeof widgetConfigurations]?.chartOptions?.height) || 
+      300,
+    width: widget.chartOptions?.width || '100%'
+  });
   
   // Check if user has required permissions to view this widget
   const canViewWidget = 
@@ -72,12 +75,16 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
       </CardHeader>
       <CardContent className="p-0">
         <ResizableChart 
-          defaultHeight={chartHeight}
+          defaultHeight={chartDimensions.height}
+          defaultWidth={chartDimensions.width}
           minHeight={200}
+          minWidth={200}
           maxHeight={800}
-          onHeightChange={(newHeight) => {
-            setChartHeight(newHeight);
+          maxWidth={1600}
+          onResize={(newDimensions) => {
+            setChartDimensions(newDimensions);
             // Here you can add API call to save the user preference if needed
+            // Example: apiRequest('/api/dashboard/preferences', { method: 'POST', body: {..., chartDimensions: newDimensions }})
           }}
           className="w-full"
         >
@@ -89,7 +96,8 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
               // Override with our current settings
               responsive: true,
               maintainAspectRatio: false,
-              height: chartHeight,
+              height: chartDimensions.height,
+              width: typeof chartDimensions.width === 'number' ? chartDimensions.width : undefined,
             }} 
           />
         </ResizableChart>
