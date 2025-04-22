@@ -53,7 +53,38 @@ export function EnhancedAttendanceBreakdownWidget({
   const [saveButtonText, setSaveButtonText] = useState('Save Preferences');
   const [saveButtonIcon, setSaveButtonIcon] = useState(() => <Save className="mr-2 h-4 w-4" />);
   
-  // Type definition for attendance data
+  // Type definitions for attendance data
+  type DailyAttendance = {
+    date: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    totalTrainees: number;
+  };
+  
+  type PhaseAttendance = {
+    phase: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+    totalDays: number;
+    totalRecords: number;
+  };
+  
+  type TraineeAttendance = {
+    traineeId: number;
+    traineeName: string;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+  };
+  
   type BatchAttendanceOverview = {
     totalDays: number;
     completedDays: number;
@@ -62,9 +93,9 @@ export function EnhancedAttendanceBreakdownWidget({
     lateCount: number;
     leaveCount: number;
     attendanceRate: number;
-    dailyAttendance: any[];
-    phaseAttendance: any[];
-    traineeAttendance: any[];
+    dailyAttendance: DailyAttendance[];
+    phaseAttendance: PhaseAttendance[];
+    traineeAttendance: TraineeAttendance[];
   };
     
   // Query for attendance data based on filters
@@ -142,7 +173,7 @@ export function EnhancedAttendanceBreakdownWidget({
   };
   
   // Helper function to render loading skeleton 
-  const renderSkeleton = () => (
+  const renderSkeleton = (): React.ReactNode => (
     <div className="space-y-4 p-4">
       <Skeleton className="h-8 w-40" />
       <div className="space-y-3">

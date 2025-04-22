@@ -29,37 +29,39 @@ const EvaluationSummaryWidget = () => React.createElement('div', {className: 'p-
 const PerformanceDistributionWidget = () => React.createElement('div', {className: 'p-4'}, 'Performance Distribution Widget');
 const PhaseCompletionWidget = () => React.createElement('div', {className: 'p-4'}, 'Phase Completion Widget');
 
-// Create a mock attendance data object
-const mockAttendanceData = {
-  totalDays: 30,
-  completedDays: 15,
-  presentCount: 120,
-  absentCount: 15,
-  lateCount: 8,
-  leaveCount: 7,
-  attendanceRate: 85.2,
-  dailyAttendance: [],
-  phaseAttendance: [],
-  traineeAttendance: []
+// Placeholder for the attendance overview widget
+const AttendanceOverviewWidget = () => {
+  return React.createElement('div', {
+    className: 'p-4 text-center text-muted-foreground'
+  }, 'Please use the Enhanced Attendance Breakdown for attendance data visualization.');
 };
 
-// Wrapper to provide mock data to components requiring attendanceData
-const withMockData = (Component: React.ComponentType<any>) => {
-  return function WrappedComponent(props: any) {
-    // If the component is AttendanceBreakdown, ensure it gets the required attendanceData prop
-    if (Component === AttendanceBreakdown) {
-      return React.createElement(Component, { ...props, attendanceData: mockAttendanceData });
-    }
-    return React.createElement(Component, props);
-  };
+// A wrapper that uses EnhancedAttendanceBreakdownWidget with a daily view
+const AttendanceTrendsWidget = (props: any) => {
+  const newConfig = props.config ? {
+    ...props.config,
+    defaultOptions: { view: 'daily' }
+  } : { defaultOptions: { view: 'daily' } };
+  
+  return React.createElement(EnhancedAttendanceBreakdownWidget, {
+    ...props,
+    config: newConfig
+  });
+};
+
+// Basic breakdown widget placeholder
+const SimpleAttendanceBreakdownWidget = () => {
+  return React.createElement('div', {
+    className: 'p-4 text-center text-muted-foreground'
+  }, 'Please use the Enhanced Attendance Breakdown for better visualization and filtering.');
 };
 
 // Registry of widget components mapped by their type
 export const widgetRegistry: Record<WidgetType, React.ComponentType<any>> = {
-  'attendance-breakdown': withMockData(AttendanceBreakdown),
+  'attendance-breakdown': SimpleAttendanceBreakdownWidget,
   'enhanced-attendance-breakdown': EnhancedAttendanceBreakdownWidget,
-  'attendance-overview': withMockData(AttendanceBreakdown),
-  'attendance-trends': EnhancedAttendanceBreakdownWidget,
+  'attendance-overview': AttendanceOverviewWidget,
+  'attendance-trends': AttendanceTrendsWidget,
   'performance-distribution': PerformanceDistributionWidget,
   'phase-completion': PhaseCompletionWidget,
   'batch-summary': BatchSummaryWidget,
