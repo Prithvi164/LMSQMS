@@ -129,6 +129,27 @@ export function DashboardConfiguration() {
   ]);
   const [activeDashboardId, setActiveDashboardId] = useState<string>("default");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Load saved dashboard preferences when the component mounts
+  // Note: For demo purpose, we're using local configs since the API isn't fully set up yet
+  useEffect(() => {
+    const loadDashboardPreferences = async () => {
+      try {
+        setIsLoading(true);
+        
+        // For demo purposes, just use the default configs since the database table doesn't exist yet
+        // In a real implementation, this would fetch from the API
+        // const response = await fetch('/api/dashboard/preferences');
+      } catch (error) {
+        console.error('Error loading dashboard preferences:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadDashboardPreferences();
+  }, []);
   
   // Get the active dashboard config
   const activeDashboard = dashboardConfigs.find(config => config.id === activeDashboardId) || dashboardConfigs[0];
@@ -158,10 +179,43 @@ export function DashboardConfiguration() {
     }
   };
   
-  const handleSaveConfig = () => {
-    // In a real implementation, this would save to the database
-    alert("Dashboard configuration saved!");
-    setIsEditMode(false);
+  const handleSaveConfig = async () => {
+    try {
+      // Save to the database through API
+      const response = await fetch('/api/dashboard/preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: activeDashboard.name,
+          isDefault: activeDashboard.isDefault || false,
+          config: {
+            widgets: activeDashboard.widgets.map(widget => ({
+              ...widget,
+              // Ensure widgets have all required properties
+              size: widget.size || 'md',
+              chartOptions: widget.chartOptions || {
+                height: 300,
+                width: '100%',
+                responsive: true,
+                maintainAspectRatio: false
+              }
+            }))
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save dashboard configuration');
+      }
+      
+      alert("Dashboard configuration saved successfully!");
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Error saving dashboard configuration:', error);
+      alert('Error saving dashboard configuration. Please try again.');
+    }
   };
   
   const handleAddWidget = (type: WidgetType) => {
@@ -412,19 +466,43 @@ export function DashboardConfiguration() {
               <CardTitle className="text-lg font-medium">{widget.title}</CardTitle>
               {isEditMode && (
                 <div className="flex items-center gap-2">
-                  <Select 
-                    value={widget.chartType} 
-                    onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="Chart Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bar">Bar</SelectItem>
-                      <SelectItem value="pie">Pie</SelectItem>
-                      <SelectItem value="line">Line</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center space-x-2">
+                    <Select 
+                      value={widget.chartType} 
+                      onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue placeholder="Chart Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bar">Bar</SelectItem>
+                        <SelectItem value="pie">Pie</SelectItem>
+                        <SelectItem value="line">Line</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select
+                      value={String(widget.chartOptions?.height || 300)}
+                      onValueChange={(value) => {
+                        const height = parseInt(value);
+                        const chartOptions = {
+                          ...(widget.chartOptions || {}),
+                          height: height
+                        };
+                        handleUpdateWidgetConfig(widget.id, { chartOptions });
+                      }}
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue placeholder="Height" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="200">Small (200px)</SelectItem>
+                        <SelectItem value="300">Medium (300px)</SelectItem>
+                        <SelectItem value="400">Large (400px)</SelectItem>
+                        <SelectItem value="500">X-Large (500px)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
                   <Button 
                     variant="ghost" 

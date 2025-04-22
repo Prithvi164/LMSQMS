@@ -24,6 +24,18 @@ export interface WidgetConfig {
   refreshInterval?: number; // in milliseconds
   permissions?: string[];
   defaultOptions?: Record<string, any>;
+  chartType?: 'bar' | 'pie' | 'line';
+  chartOptions?: {
+    height?: number;
+    width?: string | number;
+    responsive?: boolean;
+    maintainAspectRatio?: boolean;
+    [key: string]: any;
+  };
+  position?: {
+    x: number;
+    y: number;
+  };
 }
 
 // Configuration for an entire dashboard

@@ -62,7 +62,21 @@ export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
         )}
       </CardHeader>
       <CardContent className="p-0">
-        <WidgetComponent config={widget} />
+        <div style={{
+            height: widget.chartOptions?.height || 300,
+            width: widget.chartOptions?.width || '100%',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+          <WidgetComponent 
+            config={widget}
+            chartOptions={{
+              responsive: widget.chartOptions?.responsive !== false,
+              maintainAspectRatio: widget.chartOptions?.maintainAspectRatio !== false,
+              ...widget.chartOptions
+            }} 
+          />
+        </div>
       </CardContent>
     </Card>
   );
