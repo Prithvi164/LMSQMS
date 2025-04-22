@@ -23,6 +23,13 @@ export const questionTypeEnum = pgEnum("question_type", [
   "short_answer",
 ]);
 
+export const breakdownViewTypeEnum = pgEnum("breakdown_view_type", [
+  "overall",
+  "daily",
+  "phase",
+  "trainee",
+]);
+
 export const evaluationFeedbackStatusEnum = pgEnum(
   "evaluation_feedback_status",
   ["pending", "accepted", "rejected"],
