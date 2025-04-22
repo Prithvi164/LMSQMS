@@ -424,8 +424,7 @@ export function DashboardConfiguration() {
             </CardHeader>
             <CardContent className="p-0">
               <WidgetFactory 
-                config={widget} 
-                batchIds={selectedBatches} 
+                widget={widget} 
                 className={isEditMode ? "opacity-70 pointer-events-none" : ""}
               />
             </CardContent>

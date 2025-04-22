@@ -10,15 +10,17 @@ interface WidgetFactoryProps {
 }
 
 export function WidgetFactory({ widget, className }: WidgetFactoryProps) {
-  const { hasPermissions } = usePermissions();
+  const { hasAllPermissions } = usePermissions();
   
   // Check if user has required permissions to view this widget
-  const canViewWidget = !widget.permissions || 
+  const canViewWidget = 
+    !widget || 
+    !widget.permissions || 
     widget.permissions.length === 0 || 
-    hasPermissions(widget.permissions);
+    hasAllPermissions(widget.permissions);
   
-  // If user doesn't have permission, don't render the widget
-  if (!canViewWidget) {
+  // If user doesn't have permission, or widget is undefined, don't render anything
+  if (!canViewWidget || !widget) {
     return null;
   }
   
