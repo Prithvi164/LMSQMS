@@ -538,200 +538,146 @@ export function DashboardConfiguration() {
                                widget.gridHeight === 4 ? "row-span-4" :
                                "row-span-1"}`}
                           style={{
-                            height: widget.gridHeight ? `${widget.gridHeight * 120}px` : "250px"
+                            height: widget.gridHeight ? `${widget.gridHeight * 120 + 40}px` : "290px"
                           }}
                         >
-                          <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
-                            <CardHeader className="flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 border-b">
-                              <CardTitle className="text-base md:text-lg font-medium flex items-center">
+                          {/* Title and controls above the card */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center">
+                              {/* Widget icon and title */}
+                              <span className="flex items-center text-base font-medium">
+                                {widget.type === "attendance-overview" && 
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                  </svg>
+                                }
+                                {widget.type === "attendance-trends" && 
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                  </svg>
+                                }
+                                {widget.type === "performance-distribution" && 
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                  </svg>
+                                }
+                                {widget.type === "phase-completion" && 
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                }
                                 {isEditMode ? (
-                                  <>
-                                    <GripVertical className="h-4 w-4 mr-2 text-muted-foreground cursor-move" />
-                                    <Input 
-                                      value={widget.title}
-                                      onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
-                                      className="h-8 px-2 py-1 text-base mr-2 max-w-[180px] bg-background"
-                                    />
-                                  </>
+                                  <Input 
+                                    value={widget.title}
+                                    onChange={(e) => handleUpdateWidgetConfig(widget.id, { title: e.target.value })}
+                                    className="h-8 px-2 py-1 text-base mr-2 max-w-[180px] bg-background"
+                                  />
                                 ) : (
-                                  <span className="flex items-center">
-                                    {widget.type === "attendance-overview" && 
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                      </svg>
-                                    }
-                                    {widget.type === "attendance-trends" && 
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                                      </svg>
-                                    }
-                                    {widget.type === "performance-distribution" && 
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                                      </svg>
-                                    }
-                                    {widget.type === "phase-completion" && 
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                      </svg>
-                                    }
-                                    {widget.title}
-                                  </span>
+                                  widget.title
                                 )}
-                              </CardTitle>
+                              </span>
+                              
+                              {/* Chart type badge */}
+                              {widget.chartType && (
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {widget.chartType.charAt(0).toUpperCase() + widget.chartType.slice(1)}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Controls - only visible in edit mode */}
+                            {isEditMode && (
                               <div className="flex items-center gap-2">
-                                {isEditMode ? (
-                                  <>
-                                    <div className="flex flex-col items-end gap-2 min-w-[260px]">
-                                      <div className="flex items-center gap-2">
-                                        <Select 
-                                          value={widget.chartType} 
-                                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                                        >
-                                          <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
-                                            <SelectValue placeholder="Chart Type" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="bar">Bar</SelectItem>
-                                            <SelectItem value="pie">Pie</SelectItem>
-                                            <SelectItem value="line">Line</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                        
-                                        <Button 
-                                          variant="destructive" 
-                                          size="icon" 
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (confirm('Are you sure you want to remove this widget?')) {
-                                              handleRemoveWidget(widget.id);
-                                            }
-                                          }}
-                                          className="h-8 w-8"
-                                        >
-                                          <Trash className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                      
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-slate-100 p-2 rounded-md w-full">
-                                        <div className="flex flex-col">
-                                          <span>Width:</span>
-                                          <Select 
-                                            value={String(widget.gridSpan || 1)} 
-                                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridSpan: parseInt(value) })}
-                                          >
-                                            <SelectTrigger className="w-[70px] h-7 text-xs">
-                                              <SelectValue placeholder="Width" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="1">Full width</SelectItem>
-                                              <SelectItem value="2">Half width</SelectItem>
-                                              <SelectItem value="3">One-third</SelectItem>
-                                              <SelectItem value="4">One-fourth</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                        
-                                        <div className="flex flex-col">
-                                          <span>Height:</span>
-                                          <div className="flex items-center gap-1">
-                                            <Button 
-                                              variant="outline" 
-                                              size="icon"
-                                              onClick={() => {
-                                                const currentHeight = widget.gridHeight || 1;
-                                                if (currentHeight > 1) {
-                                                  handleUpdateWidgetConfig(widget.id, { gridHeight: currentHeight - 1 });
-                                                }
-                                              }}
-                                              className="h-6 w-6 rounded-full"
-                                              disabled={(widget.gridHeight || 1) <= 1}
-                                            >
-                                              <Minus className="h-3 w-3" />
-                                            </Button>
-                                            
-                                            <Select 
-                                              value={String(widget.gridHeight || 1)} 
-                                              onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridHeight: parseInt(value) })}
-                                            >
-                                              <SelectTrigger className="w-[50px] h-7 text-xs">
-                                                <SelectValue placeholder="Height" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="1">1</SelectItem>
-                                                <SelectItem value="2">2</SelectItem>
-                                                <SelectItem value="3">3</SelectItem>
-                                                <SelectItem value="4">4</SelectItem>
-                                                <SelectItem value="5">5</SelectItem>
-                                                <SelectItem value="6">6</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                            
-                                            <Button 
-                                              variant="outline" 
-                                              size="icon"
-                                              onClick={() => {
-                                                const currentHeight = widget.gridHeight || 1;
-                                                if (currentHeight < 6) {
-                                                  handleUpdateWidgetConfig(widget.id, { gridHeight: currentHeight + 1 });
-                                                }
-                                              }}
-                                              className="h-6 w-6 rounded-full"
-                                              disabled={(widget.gridHeight || 1) >= 6}
-                                            >
-                                              <Plus className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="flex gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setIsEditMode(true)}
-                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
-                                      title="Edit widget"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleUpdateWidgetConfig(widget.id, { 
-                                        size: widget.size === "full" ? "md" : "full" 
-                                      })}
-                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
-                                      title={widget.size === "full" ? "Collapse widget" : "Expand widget"}
-                                    >
-                                      <Maximize2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (confirm('Are you sure you want to remove this widget?')) {
-                                          handleRemoveWidget(widget.id);
-                                        }
-                                      }}
-                                      className="h-7 w-7 rounded-full opacity-70 hover:opacity-100 hover:text-red-500"
-                                      title="Delete widget"
-                                    >
-                                      <Trash className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                )}
+                                {/* Chart type selector */}
+                                <Select 
+                                  value={widget.chartType} 
+                                  onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                                >
+                                  <SelectTrigger className="w-[90px] h-7 text-xs">
+                                    <SelectValue placeholder="Chart Type" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="bar">Bar</SelectItem>
+                                    <SelectItem value="pie">Pie</SelectItem>
+                                    <SelectItem value="line">Line</SelectItem>
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Width selector */}
+                                <Select 
+                                  value={String(widget.gridSpan || 1)} 
+                                  onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridSpan: parseInt(value) })}
+                                >
+                                  <SelectTrigger className="w-[90px] h-7 text-xs">
+                                    <SelectValue placeholder="Width" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">Full width</SelectItem>
+                                    <SelectItem value="2">Half width</SelectItem>
+                                    <SelectItem value="3">One-third</SelectItem>
+                                    <SelectItem value="4">One-fourth</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                
+                                {/* Height controls */}
+                                <div className="flex items-center">
+                                  <Button 
+                                    variant="outline" 
+                                    size="icon"
+                                    onClick={() => {
+                                      const currentHeight = widget.gridHeight || 1;
+                                      if (currentHeight > 1) {
+                                        handleUpdateWidgetConfig(widget.id, { gridHeight: currentHeight - 1 });
+                                      }
+                                    }}
+                                    className="h-7 w-7 rounded-full"
+                                    disabled={(widget.gridHeight || 1) <= 1}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="mx-2 text-xs text-muted-foreground">{widget.gridHeight || 1}</span>
+                                  <Button 
+                                    variant="outline" 
+                                    size="icon"
+                                    onClick={() => {
+                                      const currentHeight = widget.gridHeight || 1;
+                                      if (currentHeight < 6) {
+                                        handleUpdateWidgetConfig(widget.id, { gridHeight: currentHeight + 1 });
+                                      }
+                                    }}
+                                    className="h-7 w-7 rounded-full"
+                                    disabled={(widget.gridHeight || 1) >= 6}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                
+                                {/* Delete button */}
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to remove this widget?')) {
+                                      handleRemoveWidget(widget.id);
+                                    }
+                                  }}
+                                  className="h-7 w-7 rounded-full opacity-70 hover:opacity-100 hover:text-red-500"
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
                               </div>
-                            </CardHeader>
-                            <CardContent className="p-4 flex-grow h-[calc(100%-60px)]">
+                            )}
+                          </div>
+                          
+                          {/* Chart card (without header) */}
+                          <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
+                            <CardContent className="p-4 h-full">
                               <div 
                                 className="bg-white dark:bg-slate-800 rounded-md p-2 shadow-inner h-full flex flex-col" 
                                 style={{ 
-                                  height: widget.gridHeight ? `${widget.gridHeight * 150}px` : '150px'
+                                  height: '100%'
                                 }}
                               >
                                 <WidgetFactory 
