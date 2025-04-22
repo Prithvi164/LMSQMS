@@ -100,6 +100,8 @@ export type WidgetConfig = {
     y: number;
   };
   defaultSize?: number; // Size percentage for resizable panels
+  gridSpan?: number; // Number of grid cells this widget spans (1-4)
+  gridHeight?: number; // Height of widget in grid units (1-4)
 };
 
 type DashboardConfig = {
@@ -140,7 +142,9 @@ const defaultWidgets: WidgetConfig[] = [
     size: "md",
     chartType: "pie",
     position: { x: 0, y: 0 },
-    defaultSize: 50
+    defaultSize: 50,
+    gridSpan: 1,
+    gridHeight: 1
   },
   {
     id: "widget-2",
@@ -150,7 +154,9 @@ const defaultWidgets: WidgetConfig[] = [
     size: "lg",
     chartType: "line",
     position: { x: 0, y: 1 },
-    defaultSize: 50
+    defaultSize: 50,
+    gridSpan: 2,
+    gridHeight: 1
   }
 ];
 
@@ -168,6 +174,10 @@ export function DashboardConfiguration() {
   ]);
   const [activeDashboardId, setActiveDashboardId] = useState<string>("default");
   const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Grid configuration state
+  const [gridMode, setGridMode] = useState<"auto" | "custom">("auto");
+  const [widgetMovement, setWidgetMovement] = useState<"edit" | "always">("edit");
   
   // Get the active dashboard config
   const activeDashboard = dashboardConfigs.find(config => config.id === activeDashboardId) || dashboardConfigs[0];
@@ -212,7 +222,9 @@ export function DashboardConfiguration() {
       size: "md",
       chartType: getDefaultChartType(type),
       position: { x: 0, y: activeDashboard.widgets.length },
-      defaultSize: 50
+      defaultSize: 50,
+      gridSpan: 1,
+      gridHeight: 1
     };
     
     setDashboardConfigs(prev => {
@@ -392,34 +404,69 @@ export function DashboardConfiguration() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add Widget
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleAddWidget("attendance-overview")}>
-                    Attendance Overview
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAddWidget("attendance-trends")}>
-                    Attendance Trends
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAddWidget("performance-distribution")}>
-                    Performance Distribution
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAddWidget("phase-completion")}>
-                    Phase Completion
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Widget
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleAddWidget("attendance-overview")}>
+                      Attendance Overview
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddWidget("attendance-trends")}>
+                      Attendance Trends
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddWidget("performance-distribution")}>
+                      Performance Distribution
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddWidget("phase-completion")}>
+                      Phase Completion
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                <Button variant="outline" className="gap-2">
+                  <ArrowDown className="h-4 w-4" />
+                  Save as Preset
+                </Button>
+              </div>
               
-              <Button variant="outline" className="gap-2">
-                <ArrowDown className="h-4 w-4" />
-                Save as Preset
-              </Button>
+              <div className="border rounded-md p-3 bg-slate-50">
+                <h3 className="text-sm font-medium mb-2">Layout Configuration</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Configure the grid layout for widgets. Each category section can be customized with 1-4 columns.
+                </p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <Label className="text-xs">Grid Mode</Label>
+                    <Select defaultValue="auto">
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Grid Mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Automatic Grid</SelectItem>
+                        <SelectItem value="custom">Custom Grid Sizes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Widget Movement</Label>
+                    <Select defaultValue="edit">
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Allow Movement" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="edit">In Edit Mode Only</SelectItem>
+                        <SelectItem value="always">Always Allowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -444,13 +491,19 @@ export function DashboardConfiguration() {
                   </div>
 
                   {/* Category Widgets */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                     {activeDashboard.widgets
                       .filter(w => w.category === category)
                       .map((widget, index) => (
                         <div 
                           key={widget.id} 
-                          className={`transition-all duration-200 ease-in-out w-full ${widget.size === "full" ? "md:col-span-2" : ""}`}
+                          className={`transition-all duration-200 ease-in-out w-full 
+                            ${widget.size === "full" ? "md:col-span-4" : 
+                              `md:col-span-${widget.gridSpan || 1}`} 
+                            ${widget.gridHeight ? `row-span-${widget.gridHeight}` : ""}`}
+                          style={{
+                            minHeight: widget.gridHeight ? `${widget.gridHeight * 120}px` : ""
+                          }}
                         >
                           <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md overflow-hidden">
                             <CardHeader className="flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 p-4 border-b">
@@ -494,28 +547,70 @@ export function DashboardConfiguration() {
                               <div className="flex items-center gap-2">
                                 {isEditMode ? (
                                   <>
-                                    <Select 
-                                      value={widget.chartType} 
-                                      onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
-                                    >
-                                      <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
-                                        <SelectValue placeholder="Chart Type" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="bar">Bar</SelectItem>
-                                        <SelectItem value="pie">Pie</SelectItem>
-                                        <SelectItem value="line">Line</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => handleRemoveWidget(widget.id)}
-                                      className="h-8 w-8"
-                                    >
-                                      <Trash className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex flex-col items-end gap-2 min-w-[260px]">
+                                      <div className="flex items-center gap-2">
+                                        <Select 
+                                          value={widget.chartType} 
+                                          onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { chartType: value as "bar" | "pie" | "line" })}
+                                        >
+                                          <SelectTrigger className="w-[100px] h-8 text-sm bg-background">
+                                            <SelectValue placeholder="Chart Type" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="bar">Bar</SelectItem>
+                                            <SelectItem value="pie">Pie</SelectItem>
+                                            <SelectItem value="line">Line</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => handleRemoveWidget(widget.id)}
+                                          className="h-8 w-8"
+                                        >
+                                          <Trash className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-slate-100 p-2 rounded-md w-full">
+                                        <div className="flex flex-col">
+                                          <span>Grid Span:</span>
+                                          <Select 
+                                            value={String(widget.gridSpan || 1)} 
+                                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridSpan: parseInt(value) })}
+                                          >
+                                            <SelectTrigger className="w-[70px] h-7 text-xs">
+                                              <SelectValue placeholder="Columns" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="1">1 Column</SelectItem>
+                                              <SelectItem value="2">2 Columns</SelectItem>
+                                              <SelectItem value="3">3 Columns</SelectItem>
+                                              <SelectItem value="4">4 Columns</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        
+                                        <div className="flex flex-col">
+                                          <span>Height:</span>
+                                          <Select 
+                                            value={String(widget.gridHeight || 1)} 
+                                            onValueChange={(value) => handleUpdateWidgetConfig(widget.id, { gridHeight: parseInt(value) })}
+                                          >
+                                            <SelectTrigger className="w-[70px] h-7 text-xs">
+                                              <SelectValue placeholder="Height" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="1">1 Unit</SelectItem>
+                                              <SelectItem value="2">2 Units</SelectItem>
+                                              <SelectItem value="3">3 Units</SelectItem>
+                                              <SelectItem value="4">4 Units</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </>
                                 ) : (
                                   <Button
