@@ -327,10 +327,6 @@ export function AttendanceBreakdown({
     // or overall data (has 'name', 'value' properties)
     const hasAttendanceBreakdown = data.length > 0 && 'present' in data[0];
     
-    // Set maintainAspectRatio and responsive from chartOptions with defaults
-    const responsive = chartOptions.responsive !== false;
-    const maintainAspectRatio = chartOptions.maintainAspectRatio !== false;
-    
     if (hasAttendanceBreakdown) {
       return (
         <ResponsiveContainer 
@@ -341,7 +337,6 @@ export function AttendanceBreakdown({
             data={data}
             layout="vertical"
             margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-            {...chartOptions}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" />
@@ -370,7 +365,6 @@ export function AttendanceBreakdown({
             data={data}
             layout="vertical"
             margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-            {...chartOptions}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" />
