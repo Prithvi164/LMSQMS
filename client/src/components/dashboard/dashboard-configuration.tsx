@@ -43,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import { 
   ArrowDown, 
   BarChart2,
+  Check,
   ChevronDown,
   ChevronRight,
   Filter, 
@@ -54,6 +55,7 @@ import {
   Minus,
   Pencil,
   Plus,
+  PlusCircle,
   Save, 
   Settings, 
   Trash,
@@ -714,9 +716,60 @@ export function DashboardConfiguration() {
     <div className="space-y-6">
       {/* Dashboard Config Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold">My Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Customize your dashboard to show the information that matters to you</p>
+        </div>
         <div className="flex items-center gap-2">
           <BatchFilterDialog />
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1">
+                <PlusCircle className="h-4 w-4" />
+                Create Dashboard
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Dashboard</DialogTitle>
+                <DialogDescription>
+                  Create a custom dashboard with the widgets and layout you prefer.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-name">Dashboard Name</Label>
+                  <Input 
+                    id="dashboard-name" 
+                    placeholder="My Custom Dashboard" 
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      // Create a new config based on the current active one
+                      const newConfig = {
+                        ...activeDashboard,
+                        id: `new-${Date.now()}`,
+                        name: newName,
+                        isDefault: false
+                      };
+                      setDashboardConfigs(prev => [...prev, newConfig]);
+                      setActiveDashboardId(newConfig.id);
+                      setIsEditMode(true);
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="set-default" />
+                    <Label htmlFor="set-default">Set as default dashboard</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    This dashboard will be displayed by default when you log in.
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -727,14 +780,26 @@ export function DashboardConfiguration() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {dashboardConfigs.map((config) => (
-                <DropdownMenuItem
-                  key={config.id}
-                  onClick={() => setActiveDashboardId(config.id)}
-                >
-                  {config.name} {config.isDefault && "(Default)"}
-                </DropdownMenuItem>
-              ))}
+              <DialogHeader className="px-4 pt-2 pb-0">
+                <DialogTitle className="text-sm font-medium">Your Dashboards</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-60 overflow-y-auto">
+                {dashboardConfigs.map((config) => (
+                  <DropdownMenuItem
+                    key={config.id}
+                    onClick={() => setActiveDashboardId(config.id)}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="flex items-center gap-2">
+                      {config.id === activeDashboardId && <Check className="h-3 w-3 text-primary" />}
+                      {config.name}
+                    </span>
+                    {config.isDefault && (
+                      <Badge variant="outline" className="ml-auto text-xs">Default</Badge>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
           
