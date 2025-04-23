@@ -2621,6 +2621,24 @@ export const evaluationScores = pgTable("evaluation_scores", {
 export const dashboardConfigurations = pgTable("dashboard_configurations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  description: text("description"),
+  layout: jsonb("layout").$type<{
+    sections: {
+      id: string;
+      title: string;
+      widgets: {
+        id: string;
+        title: string;
+        type: string;
+        category: string;
+        chartType?: "bar" | "pie" | "line";
+        size?: string;
+        gridSpan?: number;
+        gridHeight?: number;
+      }[];
+    }[];
+    activeSection?: string;
+  } | null>(),
   userId: integer("user_id").references(() => users.id).notNull(),
   organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
@@ -2633,7 +2651,7 @@ export const dashboardConfigurations = pgTable("dashboard_configurations", {
     size?: string;
     gridSpan?: number;
     gridHeight?: number;
-  }[]>().notNull(),
+  }[]>().default([]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2664,6 +2682,28 @@ export const insertDashboardConfigurationSchema = createInsertSchema(dashboardCo
   })
   .extend({
     name: z.string().min(1, "Dashboard name is required"),
+    description: z.string().optional(),
+    layout: z.object({
+      sections: z.array(
+        z.object({
+          id: z.string().min(1),
+          title: z.string().min(1),
+          widgets: z.array(
+            z.object({
+              id: z.string().min(1),
+              title: z.string().min(1),
+              type: z.string().min(1),
+              category: z.string().min(1),
+              chartType: z.enum(["bar", "pie", "line"]).optional(),
+              size: z.string().optional(),
+              gridSpan: z.number().optional(),
+              gridHeight: z.number().optional(),
+            })
+          )
+        })
+      ),
+      activeSection: z.string().optional()
+    }).nullable().optional(),
     userId: z.number().int().positive("User ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
     isDefault: z.boolean().default(false),
