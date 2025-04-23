@@ -2617,9 +2617,71 @@ export const evaluationScores = pgTable("evaluation_scores", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Dashboard configuration
+export const dashboardConfigurations = pgTable("dashboard_configurations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  widgets: jsonb("widgets").$type<{
+    id: string;
+    title: string;
+    type: string;
+    category: string;
+    chartType?: "bar" | "pie" | "line";
+    size?: string;
+    gridSpan?: number;
+    gridHeight?: number;
+  }[]>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Types
 export type Evaluation = InferSelectModel<typeof evaluations>;
 export type EvaluationScore = InferSelectModel<typeof evaluationScores>;
+export type DashboardConfiguration = InferSelectModel<typeof dashboardConfigurations>;
+
+// Dashboard Configuration relations
+export const dashboardConfigurationsRelations = relations(dashboardConfigurations, ({ one }) => ({
+  user: one(users, {
+    fields: [dashboardConfigurations.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [dashboardConfigurations.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Create insert schema for dashboard configurations
+export const insertDashboardConfigurationSchema = createInsertSchema(dashboardConfigurations)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Dashboard name is required"),
+    userId: z.number().int().positive("User ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+    isDefault: z.boolean().default(false),
+    widgets: z.array(
+      z.object({
+        id: z.string().min(1),
+        title: z.string().min(1),
+        type: z.string().min(1),
+        category: z.string().min(1),
+        chartType: z.enum(["bar", "pie", "line"]).optional(),
+        size: z.string().optional(),
+        gridSpan: z.number().optional(),
+        gridHeight: z.number().optional(),
+      })
+    ).min(0, "Widgets array is required"),
+  });
+
+export type InsertDashboardConfiguration = z.infer<typeof insertDashboardConfigurationSchema>;
 
 // Insert schemas
 export const insertEvaluationSchema = createInsertSchema(evaluations)
