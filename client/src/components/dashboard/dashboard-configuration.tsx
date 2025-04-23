@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Card, 
   CardContent, 
@@ -107,11 +109,39 @@ export type WidgetConfig = {
   gridHeight?: number; // Height of widget in grid units (1-4)
 };
 
+// Interface for database dashboard configuration
+interface ApiDashboardConfig {
+  id: number;
+  name: string;
+  description: string | null;
+  layout: {
+    sections: {
+      id: string;
+      title: string;
+      widgets: WidgetConfig[];
+    }[];
+    activeSection: string;
+  };
+  isDefault: boolean;
+  userId: number;
+  organizationId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Our local format for dashboard configurations
 type DashboardConfig = {
   id: string;
   name: string;
+  description?: string;
   widgets: WidgetConfig[];
   isDefault?: boolean;
+  sections?: {
+    id: string;
+    title: string;
+    widgets: WidgetConfig[];
+  }[];
+  activeSection?: string;
 };
 
 type BatchFilter = {
@@ -163,9 +193,65 @@ const defaultWidgets: WidgetConfig[] = [
   }
 ];
 
+// Converter functions to transform between API and local format
+const convertApiToLocalFormat = (apiConfig: ApiDashboardConfig): DashboardConfig => {
+  const allWidgets: WidgetConfig[] = [];
+  
+  // Combine all widgets from all sections
+  apiConfig.layout.sections.forEach(section => {
+    allWidgets.push(...section.widgets);
+  });
+  
+  return {
+    id: apiConfig.id.toString(),
+    name: apiConfig.name,
+    description: apiConfig.description || undefined,
+    widgets: allWidgets,
+    isDefault: apiConfig.isDefault,
+    sections: apiConfig.layout.sections,
+    activeSection: apiConfig.layout.activeSection
+  };
+};
+
+const convertLocalToApiFormat = (localConfig: DashboardConfig, userId: number, organizationId: number): Omit<ApiDashboardConfig, "id" | "createdAt" | "updatedAt"> => {
+  // Group widgets by category to create sections if they don't exist
+  const widgetsByCategory: Record<string, WidgetConfig[]> = {};
+  
+  localConfig.widgets.forEach(widget => {
+    if (!widgetsByCategory[widget.category]) {
+      widgetsByCategory[widget.category] = [];
+    }
+    widgetsByCategory[widget.category].push(widget);
+  });
+  
+  // Create sections from widgets if not provided
+  const sections = localConfig.sections || Object.entries(widgetsByCategory).map(([category, widgets]) => ({
+    id: `section-${category}`,
+    title: category.charAt(0).toUpperCase() + category.slice(1),
+    widgets
+  }));
+  
+  // Use existing activeSection or default to first section
+  const activeSection = localConfig.activeSection || (sections.length > 0 ? sections[0].id : "");
+  
+  return {
+    name: localConfig.name,
+    description: localConfig.description || null,
+    layout: {
+      sections,
+      activeSection
+    },
+    isDefault: !!localConfig.isDefault,
+    userId,
+    organizationId
+  };
+};
+
 // Dashboard Configuration Component
 export function DashboardConfiguration() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // State for batch filter
   const [selectedBatches, setSelectedBatches] = useState<number[]>([]);
@@ -177,6 +263,101 @@ export function DashboardConfiguration() {
   ]);
   const [activeDashboardId, setActiveDashboardId] = useState<string>("default");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+  
+  // Create a new dashboard config mutation
+  const createConfigMutation = useMutation({
+    mutationFn: (config: Omit<ApiDashboardConfig, "id" | "createdAt" | "updatedAt">) => {
+      return apiRequest("/api/dashboard-configurations", {
+        method: "POST",
+        data: config
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard-configurations'] });
+      toast({
+        title: "Dashboard saved",
+        description: "Your dashboard configuration has been saved successfully."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error saving dashboard",
+        description: error.message || "An error occurred while saving your dashboard.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Update dashboard config mutation
+  const updateConfigMutation = useMutation({
+    mutationFn: ({ id, config }: { id: string, config: Partial<ApiDashboardConfig> }) => {
+      return apiRequest(`/api/dashboard-configurations/${id}`, {
+        method: "PUT",
+        data: config
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard-configurations'] });
+      toast({
+        title: "Dashboard updated",
+        description: "Your dashboard configuration has been updated successfully."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating dashboard",
+        description: error.message || "An error occurred while updating your dashboard.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Delete dashboard config mutation
+  const deleteConfigMutation = useMutation({
+    mutationFn: (id: string) => {
+      return apiRequest(`/api/dashboard-configurations/${id}`, {
+        method: "DELETE",
+        data: {} // Empty data object for DELETE request
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard-configurations'] });
+      toast({
+        title: "Dashboard deleted",
+        description: "Your dashboard configuration has been deleted successfully."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error deleting dashboard",
+        description: error.message || "An error occurred while deleting your dashboard.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Fetch all dashboard configurations
+  const { data: apiConfigs, isLoading: isLoadingConfigs } = useQuery<ApiDashboardConfig[]>({
+    queryKey: ['/api/dashboard-configurations'],
+    enabled: !!user?.id,
+  });
+  
+  // Set dashboard configs when data is loaded
+  useEffect(() => {
+    if (apiConfigs && !isConfigLoaded) {
+      if (apiConfigs.length > 0) {
+        // Convert API configs to local format
+        const configs = apiConfigs.map(convertApiToLocalFormat);
+        setDashboardConfigs(configs);
+        
+        // Find default config or use first one
+        const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+        setActiveDashboardId(defaultConfig.id);
+        setIsConfigLoaded(true);
+      }
+    }
+  }, [apiConfigs, isConfigLoaded]);
   
   // Grid configuration state
   const [gridMode, setGridMode] = useState<"auto" | "custom">("auto");
@@ -218,9 +399,38 @@ export function DashboardConfiguration() {
   };
   
   const handleSaveConfig = () => {
-    // In a real implementation, this would save to the database
-    alert("Dashboard configuration saved!");
-    setIsEditMode(false);
+    if (!user || !user.id || !user.organizationId) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save dashboard configurations.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Get the current configuration
+    const currentConfig = dashboardConfigs.find(config => config.id === activeDashboardId);
+    if (!currentConfig) return;
+    
+    // Convert to API format
+    const apiConfig = convertLocalToApiFormat(currentConfig, user.id, user.organizationId);
+    
+    try {
+      // If the ID is numeric, it's an existing configuration that should be updated
+      if (!isNaN(Number(activeDashboardId))) {
+        updateConfigMutation.mutate({
+          id: activeDashboardId, 
+          config: apiConfig
+        });
+      } else {
+        // Otherwise it's a new configuration
+        createConfigMutation.mutate(apiConfig);
+      }
+      
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Failed to save dashboard configuration:", error);
+    }
   };
   
   const handleAddWidget = (type: WidgetType) => {
