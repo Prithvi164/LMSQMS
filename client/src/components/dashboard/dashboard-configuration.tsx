@@ -226,22 +226,25 @@ const convertApiToLocalFormat = (apiConfig: ApiDashboardConfig): DashboardConfig
   }
   
   // Process layout if available
-  if (apiConfig.layout !== null && apiConfig.layout.sections) {
-    // Add widgets from sections
-    apiConfig.layout.sections.forEach(section => {
-      // Check if section has widgets property
-      if (section && section.widgets) {
-        section.widgets.forEach(widget => {
-          // Check if widget already exists in allWidgets
-          if (!allWidgets.some(w => w.id === widget.id)) {
-            allWidgets.push(widget);
-          }
-        });
-      }
-    });
-    
-    sections = apiConfig.layout.sections;
-    activeSection = apiConfig.layout.activeSection;
+  if (apiConfig.layout !== null && typeof apiConfig.layout === 'object') {
+    // Check if layout has sections property
+    if (Array.isArray(apiConfig.layout.sections)) {
+      // Add widgets from sections
+      apiConfig.layout.sections.forEach(section => {
+        // Check if section has widgets property
+        if (section && Array.isArray(section.widgets)) {
+          section.widgets.forEach(widget => {
+            // Check if widget already exists in allWidgets
+            if (!allWidgets.some(w => w.id === widget.id)) {
+              allWidgets.push(widget);
+            }
+          });
+        }
+      });
+      
+      sections = apiConfig.layout.sections;
+      activeSection = apiConfig.layout.activeSection;
+    }
   }
   
   return {
@@ -417,19 +420,52 @@ export function DashboardConfiguration() {
   // Set dashboard configs when data is loaded
   useEffect(() => {
     if (apiConfigs && !isConfigLoaded) {
+      // Make sure apiConfigs is an array
       const configsArray = Array.isArray(apiConfigs) ? apiConfigs : [];
       if (configsArray.length > 0) {
-        // Convert API configs to local format
-        const configs = configsArray.map(convertApiToLocalFormat);
-        setDashboardConfigs(configs);
-        
-        // Find default config or use first one
-        const defaultConfig = configs.find((c: any) => c.isDefault) || configs[0];
-        setActiveDashboardId(defaultConfig.id);
+        try {
+          // Convert API configs to local format, handle potential errors
+          const configs = configsArray.map(config => {
+            try {
+              return convertApiToLocalFormat(config);
+            } catch (err) {
+              console.error("Error converting API config to local format:", err);
+              // Return a default config if conversion fails
+              return { 
+                id: config.id?.toString() || "default", 
+                name: config.name || "Default Dashboard", 
+                widgets: [...defaultWidgets],
+                isDefault: !!config.isDefault
+              };
+            }
+          });
+          
+          // Filter out any potentially undefined or invalid configs
+          const validConfigs = configs.filter(Boolean);
+          
+          if (validConfigs.length > 0) {
+            setDashboardConfigs(validConfigs);
+            
+            // Find default config or use first one
+            const defaultConfig = validConfigs.find((c: any) => c.isDefault) || validConfigs[0];
+            setActiveDashboardId(defaultConfig.id);
+          } else {
+            // If no valid configs, keep the default
+            console.log("No valid dashboard configurations found, using default");
+          }
+          
+          setIsConfigLoaded(true);
+        } catch (err) {
+          console.error("Error processing dashboard configurations:", err);
+          setIsConfigLoaded(true);
+        }
+      } else {
+        // No configs returned from API, keep using default
         setIsConfigLoaded(true);
       }
     } else if (configError && !isConfigLoaded) {
       // If we have an error and no configs, use default config
+      console.error("Error fetching dashboard configurations:", configError);
       setIsConfigLoaded(true);
     }
   }, [apiConfigs, configError, isConfigLoaded]);
