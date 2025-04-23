@@ -501,6 +501,14 @@ export interface IStorage {
     batchAllocation: AudioFileBatchAllocation;
     allocations: AudioFileAllocation[];
   }>;
+  
+  // Dashboard Configuration operations
+  getDashboardConfiguration(id: number): Promise<schema.DashboardConfiguration | undefined>;
+  getDashboardConfigurationsByUser(userId: number, organizationId: number): Promise<schema.DashboardConfiguration[]>;
+  getDefaultDashboardConfiguration(userId: number, organizationId: number): Promise<schema.DashboardConfiguration | undefined>;
+  createDashboardConfiguration(config: schema.InsertDashboardConfiguration): Promise<schema.DashboardConfiguration>;
+  updateDashboardConfiguration(id: number, config: Partial<schema.InsertDashboardConfiguration>): Promise<schema.DashboardConfiguration>;
+  deleteDashboardConfiguration(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -6033,6 +6041,157 @@ export class DatabaseStorage implements IStorage {
         .where(eq(dashboardWidgets.id, id));
     } catch (error) {
       console.error('Error deleting dashboard widget:', error);
+      throw error;
+    }
+  }
+
+  // Dashboard Configuration operations
+  async getDashboardConfiguration(id: number): Promise<schema.DashboardConfiguration | undefined> {
+    try {
+      const [config] = await db
+        .select()
+        .from(schema.dashboardConfigurations)
+        .where(eq(schema.dashboardConfigurations.id, id));
+      return config;
+    } catch (error) {
+      console.error('Error getting dashboard configuration:', error);
+      throw error;
+    }
+  }
+
+  async getDashboardConfigurationsByUser(userId: number, organizationId: number): Promise<schema.DashboardConfiguration[]> {
+    try {
+      const configs = await db
+        .select()
+        .from(schema.dashboardConfigurations)
+        .where(eq(schema.dashboardConfigurations.userId, userId))
+        .where(eq(schema.dashboardConfigurations.organizationId, organizationId))
+        .orderBy(schema.dashboardConfigurations.isDefault, desc(schema.dashboardConfigurations.updatedAt));
+      return configs;
+    } catch (error) {
+      console.error('Error getting dashboard configurations by user:', error);
+      throw error;
+    }
+  }
+
+  async getDefaultDashboardConfiguration(userId: number, organizationId: number): Promise<schema.DashboardConfiguration | undefined> {
+    try {
+      const [config] = await db
+        .select()
+        .from(schema.dashboardConfigurations)
+        .where(eq(schema.dashboardConfigurations.userId, userId))
+        .where(eq(schema.dashboardConfigurations.organizationId, organizationId))
+        .where(eq(schema.dashboardConfigurations.isDefault, true));
+      return config;
+    } catch (error) {
+      console.error('Error getting default dashboard configuration:', error);
+      throw error;
+    }
+  }
+
+  async createDashboardConfiguration(config: schema.InsertDashboardConfiguration): Promise<schema.DashboardConfiguration> {
+    try {
+      // If this is being set as the default, unset any existing default
+      if (config.isDefault) {
+        await db
+          .update(schema.dashboardConfigurations)
+          .set({ isDefault: false })
+          .where(eq(schema.dashboardConfigurations.userId, config.userId))
+          .where(eq(schema.dashboardConfigurations.organizationId, config.organizationId))
+          .where(eq(schema.dashboardConfigurations.isDefault, true));
+      }
+      
+      const [newConfig] = await db
+        .insert(schema.dashboardConfigurations)
+        .values(config)
+        .returning();
+      
+      return newConfig;
+    } catch (error) {
+      console.error('Error creating dashboard configuration:', error);
+      throw error;
+    }
+  }
+
+  async updateDashboardConfiguration(id: number, config: Partial<schema.InsertDashboardConfiguration>): Promise<schema.DashboardConfiguration> {
+    try {
+      // Get the current config to get userId and organizationId
+      const [currentConfig] = await db
+        .select()
+        .from(schema.dashboardConfigurations)
+        .where(eq(schema.dashboardConfigurations.id, id));
+      
+      if (!currentConfig) {
+        throw new Error('Dashboard configuration not found');
+      }
+      
+      // If this is being set as the default, unset any existing default
+      if (config.isDefault) {
+        await db
+          .update(schema.dashboardConfigurations)
+          .set({ isDefault: false })
+          .where(eq(schema.dashboardConfigurations.userId, currentConfig.userId))
+          .where(eq(schema.dashboardConfigurations.organizationId, currentConfig.organizationId))
+          .where(eq(schema.dashboardConfigurations.isDefault, true))
+          .where(ne(schema.dashboardConfigurations.id, id));
+      }
+      
+      const [updatedConfig] = await db
+        .update(schema.dashboardConfigurations)
+        .set({
+          ...config,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.dashboardConfigurations.id, id))
+        .returning();
+      
+      if (!updatedConfig) {
+        throw new Error('Dashboard configuration not found');
+      }
+      
+      return updatedConfig;
+    } catch (error) {
+      console.error('Error updating dashboard configuration:', error);
+      throw error;
+    }
+  }
+
+  async deleteDashboardConfiguration(id: number): Promise<void> {
+    try {
+      // Get the configuration first to check if it's the default
+      const [config] = await db
+        .select()
+        .from(schema.dashboardConfigurations)
+        .where(eq(schema.dashboardConfigurations.id, id));
+      
+      if (!config) {
+        throw new Error('Dashboard configuration not found');
+      }
+      
+      // Delete the configuration
+      await db
+        .delete(schema.dashboardConfigurations)
+        .where(eq(schema.dashboardConfigurations.id, id));
+      
+      // If this was the default configuration, set another one as default if available
+      if (config.isDefault) {
+        const [nextConfig] = await db
+          .select()
+          .from(schema.dashboardConfigurations)
+          .where(eq(schema.dashboardConfigurations.userId, config.userId))
+          .where(eq(schema.dashboardConfigurations.organizationId, config.organizationId))
+          .orderBy(desc(schema.dashboardConfigurations.updatedAt))
+          .limit(1);
+        
+        if (nextConfig) {
+          await db
+            .update(schema.dashboardConfigurations)
+            .set({ isDefault: true })
+            .where(eq(schema.dashboardConfigurations.id, nextConfig.id));
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting dashboard configuration:', error);
       throw error;
     }
   }
