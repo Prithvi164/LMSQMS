@@ -226,15 +226,18 @@ const convertApiToLocalFormat = (apiConfig: ApiDashboardConfig): DashboardConfig
   }
   
   // Process layout if available
-  if (apiConfig.layout !== null) {
+  if (apiConfig.layout !== null && apiConfig.layout.sections) {
     // Add widgets from sections
     apiConfig.layout.sections.forEach(section => {
-      section.widgets.forEach(widget => {
-        // Check if widget already exists in allWidgets
-        if (!allWidgets.some(w => w.id === widget.id)) {
-          allWidgets.push(widget);
-        }
-      });
+      // Check if section has widgets property
+      if (section && section.widgets) {
+        section.widgets.forEach(widget => {
+          // Check if widget already exists in allWidgets
+          if (!allWidgets.some(w => w.id === widget.id)) {
+            allWidgets.push(widget);
+          }
+        });
+      }
     });
     
     sections = apiConfig.layout.sections;
