@@ -268,10 +268,7 @@ export function DashboardConfiguration() {
   // Create a new dashboard config mutation
   const createConfigMutation = useMutation({
     mutationFn: (config: Omit<ApiDashboardConfig, "id" | "createdAt" | "updatedAt">) => {
-      return apiRequest("/api/dashboard-configurations", {
-        method: "POST",
-        data: config
-      });
+      return apiRequest("POST", "/api/dashboard-configurations", config);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard-configurations'] });
@@ -292,10 +289,7 @@ export function DashboardConfiguration() {
   // Update dashboard config mutation
   const updateConfigMutation = useMutation({
     mutationFn: ({ id, config }: { id: string, config: Partial<ApiDashboardConfig> }) => {
-      return apiRequest(`/api/dashboard-configurations/${id}`, {
-        method: "PUT",
-        data: config
-      });
+      return apiRequest("PUT", `/api/dashboard-configurations/${id}`, config);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard-configurations'] });
@@ -316,10 +310,7 @@ export function DashboardConfiguration() {
   // Delete dashboard config mutation
   const deleteConfigMutation = useMutation({
     mutationFn: (id: string) => {
-      return apiRequest(`/api/dashboard-configurations/${id}`, {
-        method: "DELETE",
-        data: {} // Empty data object for DELETE request
-      });
+      return apiRequest("DELETE", `/api/dashboard-configurations/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard-configurations'] });
