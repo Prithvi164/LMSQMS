@@ -804,10 +804,39 @@ export function DashboardConfiguration() {
           </DropdownMenu>
           
           {isEditMode ? (
-            <Button onClick={handleSaveConfig} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleSaveConfig} className="gap-2">
+                <Save className="h-4 w-4" />
+                Save
+              </Button>
+              {activeDashboard.id !== "default" && (
+                <Button 
+                  variant="destructive" 
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete the dashboard "${activeDashboard.name}"? This action cannot be undone.`)) {
+                      if (activeDashboard.id.startsWith('new-')) {
+                        // Just remove from local state if it's a new dashboard that hasn't been saved
+                        setDashboardConfigs(prev => prev.filter(c => c.id !== activeDashboard.id));
+                        setActiveDashboardId("default");
+                        setIsEditMode(false);
+                      } else {
+                        // Delete from database
+                        deleteConfigMutation.mutate(activeDashboard.id, {
+                          onSuccess: () => {
+                            setActiveDashboardId("default");
+                            setIsEditMode(false);
+                          }
+                        });
+                      }
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <Trash className="h-4 w-4" />
+                  Delete
+                </Button>
+              )}
+            </div>
           ) : (
             <Button variant="outline" onClick={() => setIsEditMode(true)} className="gap-2">
               <Settings className="h-4 w-4" />
