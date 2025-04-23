@@ -121,7 +121,17 @@ interface ApiDashboardConfig {
       widgets: WidgetConfig[];
     }[];
     activeSection: string;
-  };
+  } | null;
+  widgets: {
+    id: string;
+    title: string;
+    type: string;
+    category: string;
+    chartType?: "bar" | "pie" | "line";
+    size?: string;
+    gridSpan?: number;
+    gridHeight?: number;
+  }[];
   isDefault: boolean;
   userId: number;
   organizationId: number;
@@ -195,12 +205,41 @@ const defaultWidgets: WidgetConfig[] = [
 
 // Converter functions to transform between API and local format
 const convertApiToLocalFormat = (apiConfig: ApiDashboardConfig): DashboardConfig => {
-  const allWidgets: WidgetConfig[] = [];
+  let allWidgets: WidgetConfig[] = [];
+  let sections = undefined;
+  let activeSection = undefined;
   
-  // Combine all widgets from all sections
-  apiConfig.layout.sections.forEach(section => {
-    allWidgets.push(...section.widgets);
-  });
+  // Use widgets directly if available or from layout if provided
+  if (apiConfig.widgets && apiConfig.widgets.length > 0) {
+    allWidgets = apiConfig.widgets.map(w => ({
+      id: w.id,
+      type: w.type as WidgetType,
+      title: w.title,
+      category: w.category as WidgetCategory,
+      size: w.size as "sm" | "md" | "lg" | "full" || "md",
+      chartType: w.chartType,
+      position: { x: 0, y: 0 }, // Default position
+      defaultSize: 50,
+      gridSpan: w.gridSpan || 2,
+      gridHeight: w.gridHeight || 1
+    }));
+  }
+  
+  // Process layout if available
+  if (apiConfig.layout !== null) {
+    // Add widgets from sections
+    apiConfig.layout.sections.forEach(section => {
+      section.widgets.forEach(widget => {
+        // Check if widget already exists in allWidgets
+        if (!allWidgets.some(w => w.id === widget.id)) {
+          allWidgets.push(widget);
+        }
+      });
+    });
+    
+    sections = apiConfig.layout.sections;
+    activeSection = apiConfig.layout.activeSection;
+  }
   
   return {
     id: apiConfig.id.toString(),
@@ -208,8 +247,8 @@ const convertApiToLocalFormat = (apiConfig: ApiDashboardConfig): DashboardConfig
     description: apiConfig.description || undefined,
     widgets: allWidgets,
     isDefault: apiConfig.isDefault,
-    sections: apiConfig.layout.sections,
-    activeSection: apiConfig.layout.activeSection
+    sections,
+    activeSection
   };
 };
 
@@ -237,10 +276,10 @@ const convertLocalToApiFormat = (localConfig: DashboardConfig, userId: number, o
   return {
     name: localConfig.name,
     description: localConfig.description || null,
-    layout: {
+    layout: localConfig.sections && localConfig.activeSection ? {
       sections,
       activeSection
-    },
+    } : null,
     widgets: localConfig.widgets.map(w => ({
       id: w.id,
       title: w.title,
