@@ -27,14 +27,18 @@ import {
   EvaluationPillar,
   userDashboards,
   dashboardWidgets,
+  dashboardConfigurations,
   insertUserDashboardSchema,
   insertDashboardWidgetSchema,
+  insertDashboardConfigurationSchema,
   type InsertQuizAssignment,
   type QuizAssignment,
   type InsertUserDashboard,
   type InsertDashboardWidget,
   type UserDashboard,
-  type DashboardWidget
+  type DashboardWidget,
+  type InsertDashboardConfiguration,
+  type DashboardConfiguration
 } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
@@ -9842,6 +9846,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).end();
     } catch (error: any) {
       console.error("Error deleting widget:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Dashboard Configuration Routes
+  
+  // Get all dashboard configurations for a user
+  app.get("/api/dashboard-configurations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const configs = await storage.getDashboardConfigurationsByUser(req.user.id, req.user.organizationId);
+      res.json(configs);
+    } catch (error: any) {
+      console.error("Error getting dashboard configurations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get default dashboard configuration
+  app.get("/api/dashboard-configurations/default", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const config = await storage.getDefaultDashboardConfiguration(req.user.id, req.user.organizationId);
+      
+      if (!config) {
+        return res.status(404).json({ message: "No default dashboard configuration found" });
+      }
+      
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error getting default dashboard configuration:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get a specific dashboard configuration
+  app.get("/api/dashboard-configurations/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const configId = parseInt(req.params.id);
+      const config = await storage.getDashboardConfiguration(configId);
+      
+      if (!config) {
+        return res.status(404).json({ message: "Dashboard configuration not found" });
+      }
+      
+      // Check if user has access to this configuration
+      if (config.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(config);
+    } catch (error: any) {
+      console.error("Error getting dashboard configuration:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create a new dashboard configuration
+  app.post("/api/dashboard-configurations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Validate the request body
+      const validatedData = insertDashboardConfigurationSchema.parse({
+        ...req.body,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      const newConfig = await storage.createDashboardConfiguration(validatedData);
+      res.status(201).json(newConfig);
+    } catch (error: any) {
+      console.error("Error creating dashboard configuration:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Update a dashboard configuration
+  app.put("/api/dashboard-configurations/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const configId = parseInt(req.params.id);
+      
+      // Get the existing configuration to check ownership
+      const existingConfig = await storage.getDashboardConfiguration(configId);
+      
+      if (!existingConfig) {
+        return res.status(404).json({ message: "Dashboard configuration not found" });
+      }
+      
+      // Ensure user owns this configuration
+      if (existingConfig.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Update the configuration
+      const updatedConfig = await storage.updateDashboardConfiguration(configId, {
+        ...req.body,
+        updatedAt: new Date()
+      });
+      
+      res.json(updatedConfig);
+    } catch (error: any) {
+      console.error("Error updating dashboard configuration:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Delete a dashboard configuration
+  app.delete("/api/dashboard-configurations/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const configId = parseInt(req.params.id);
+      
+      // Get the existing configuration to check ownership
+      const existingConfig = await storage.getDashboardConfiguration(configId);
+      
+      if (!existingConfig) {
+        return res.status(404).json({ message: "Dashboard configuration not found" });
+      }
+      
+      // Ensure user owns this configuration
+      if (existingConfig.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Delete the configuration
+      await storage.deleteDashboardConfiguration(configId);
+      
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting dashboard configuration:", error);
       res.status(500).json({ message: error.message });
     }
   });
