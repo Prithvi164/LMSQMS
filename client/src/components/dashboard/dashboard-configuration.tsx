@@ -186,6 +186,9 @@ export function DashboardConfiguration() {
   // State for collapsed categories
   const [collapsedCategories, setCollapsedCategories] = useState<string[]>([]);
   
+  // State for active category (section) 
+  const [activeCategory, setActiveCategory] = useState<WidgetCategory>("attendance");
+  
   // Get the active dashboard config
   const activeDashboard = dashboardConfigs.find(config => config.id === activeDashboardId) || dashboardConfigs[0];
   
@@ -486,41 +489,62 @@ export function DashboardConfiguration() {
       <div className="mt-6">
         {activeDashboard.widgets.length > 0 ? (
           <div className="w-full overflow-hidden">
-            {/* Category sections and widgets */}
-            <div className="space-y-8">
-              {/* Get unique categories */}
+            {/* Horizontal Section Tabs */}
+            <div className="flex border-b mb-6 overflow-x-auto">
               {Array.from(new Set(activeDashboard.widgets.map(w => w.category))).map(category => (
-                <div key={category} className="space-y-4">
-                  {/* Category Header */}
-                  <div 
-                    className="flex items-center justify-between gap-2 border-b pb-2 cursor-pointer hover:bg-slate-50 pr-2 rounded-sm transition-colors"
-                    onClick={() => toggleCategoryCollapse(category)}
-                  >
+                <button
+                  key={category}
+                  className={`px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap
+                    ${activeCategory === category 
+                      ? "border-b-2 border-primary text-primary" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-slate-50"
+                    }`}
+                  onClick={() => setActiveCategory(category as WidgetCategory)}
+                >
+                  {category === "attendance" && <Users className="h-4 w-4 text-blue-500" />}
+                  {category === "performance" && <BarChart2 className="h-4 w-4 text-amber-500" />}
+                  {category === "training" && <GraduationCap className="h-4 w-4 text-purple-500" />}
+                  {category === "other" && <Layers className="h-4 w-4 text-gray-500" />}
+                  <span className="capitalize">{category}</span>
+                  <Badge variant="outline" className="ml-1 text-xs px-2 py-0 h-5">
+                    {activeDashboard.widgets.filter(w => w.category === category).length}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+
+            {/* Show only active category widgets */}
+            {Array.from(new Set(activeDashboard.widgets.map(w => w.category))).map(category => (
+              <div key={category} className={activeCategory === category ? 'block' : 'hidden'}>
+                  {/* Section Title */}
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       {category === "attendance" && <Users className="h-5 w-5 text-blue-500" />}
                       {category === "performance" && <BarChart2 className="h-5 w-5 text-amber-500" />}
                       {category === "training" && <GraduationCap className="h-5 w-5 text-purple-500" />}
                       {category === "other" && <Layers className="h-5 w-5 text-gray-500" />}
-                      <h2 className="text-xl font-semibold capitalize">{category}</h2>
+                      <h2 className="text-xl font-semibold capitalize">{category} Section</h2>
                       
-                      {/* Widget count */}
-                      <Badge variant="outline" className="ml-2 text-xs px-2 py-0 h-5">
-                        {activeDashboard.widgets.filter(w => w.category === category).length} widgets
-                      </Badge>
-                    </div>
-                    
-                    {/* Collapse/Expand icon */}
-                    <div className="text-muted-foreground">
-                      {collapsedCategories.includes(category) ? (
-                        <ChevronRight className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
+                      {isEditMode && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="ml-4"
+                          onClick={() => handleAddWidget(
+                            category === "attendance" ? "attendance-overview" :
+                            category === "performance" ? "performance-distribution" :
+                            category === "training" ? "phase-completion" : "attendance-trends"
+                          )}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Add Widget
+                        </Button>
                       )}
                     </div>
                   </div>
 
                   {/* Category Widgets */}
-                  {!collapsedCategories.includes(category) && (
+                  
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                       {activeDashboard.widgets
                         .filter(w => w.category === category)
@@ -715,10 +739,8 @@ export function DashboardConfiguration() {
                         </div>
                       ))}
                     </div>
-                  )}
                 </div>
               ))}
-            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center border rounded-lg p-12 min-h-[300px] bg-slate-50 dark:bg-slate-800/50">
