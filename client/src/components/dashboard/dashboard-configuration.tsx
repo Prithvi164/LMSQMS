@@ -241,6 +241,16 @@ const convertLocalToApiFormat = (localConfig: DashboardConfig, userId: number, o
       sections,
       activeSection
     },
+    widgets: localConfig.widgets.map(w => ({
+      id: w.id,
+      title: w.title,
+      type: w.type,
+      category: w.category,
+      chartType: w.chartType,
+      size: w.size,
+      gridSpan: w.gridSpan,
+      gridHeight: w.gridHeight
+    })),
     isDefault: !!localConfig.isDefault,
     userId,
     organizationId
