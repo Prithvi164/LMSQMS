@@ -267,7 +267,12 @@ export function DashboardConfiguration() {
   
   // Create a new dashboard config mutation
   const createConfigMutation = useMutation({
-    mutationFn: (config: Omit<ApiDashboardConfig, "id" | "createdAt" | "updatedAt">) => {
+    mutationFn: async (config: Omit<ApiDashboardConfig, "id" | "createdAt" | "updatedAt">) => {
+      // Check authentication first
+      const authCheck = await fetch('/auth');
+      if (!authCheck.ok) {
+        throw new Error("Authentication required. Please log in and try again.");
+      }
       return apiRequest("POST", "/api/dashboard-configurations", config);
     },
     onSuccess: () => {
@@ -278,9 +283,13 @@ export function DashboardConfiguration() {
       });
     },
     onError: (error: any) => {
+      const errorMessage = error.status === 401 
+        ? "You must be logged in to save dashboard configurations."
+        : error.message || "An error occurred while saving your dashboard.";
+        
       toast({
         title: "Error saving dashboard",
-        description: error.message || "An error occurred while saving your dashboard.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -288,7 +297,12 @@ export function DashboardConfiguration() {
   
   // Update dashboard config mutation
   const updateConfigMutation = useMutation({
-    mutationFn: ({ id, config }: { id: string, config: Partial<ApiDashboardConfig> }) => {
+    mutationFn: async ({ id, config }: { id: string, config: Partial<ApiDashboardConfig> }) => {
+      // Check authentication first
+      const authCheck = await fetch('/auth');
+      if (!authCheck.ok) {
+        throw new Error("Authentication required. Please log in and try again.");
+      }
       return apiRequest("PUT", `/api/dashboard-configurations/${id}`, config);
     },
     onSuccess: () => {
@@ -299,9 +313,13 @@ export function DashboardConfiguration() {
       });
     },
     onError: (error: any) => {
+      const errorMessage = error.status === 401 
+        ? "You must be logged in to update dashboard configurations."
+        : error.message || "An error occurred while updating your dashboard.";
+        
       toast({
         title: "Error updating dashboard",
-        description: error.message || "An error occurred while updating your dashboard.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -309,7 +327,12 @@ export function DashboardConfiguration() {
   
   // Delete dashboard config mutation
   const deleteConfigMutation = useMutation({
-    mutationFn: (id: string) => {
+    mutationFn: async (id: string) => {
+      // Check authentication first
+      const authCheck = await fetch('/auth');
+      if (!authCheck.ok) {
+        throw new Error("Authentication required. Please log in and try again.");
+      }
       return apiRequest("DELETE", `/api/dashboard-configurations/${id}`);
     },
     onSuccess: () => {
@@ -320,35 +343,44 @@ export function DashboardConfiguration() {
       });
     },
     onError: (error: any) => {
+      const errorMessage = error.status === 401 
+        ? "You must be logged in to delete dashboard configurations."
+        : error.message || "An error occurred while deleting your dashboard.";
+        
       toast({
         title: "Error deleting dashboard",
-        description: error.message || "An error occurred while deleting your dashboard.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
   });
   
   // Fetch all dashboard configurations
-  const { data: apiConfigs, isLoading: isLoadingConfigs } = useQuery<ApiDashboardConfig[]>({
+  const { data: apiConfigs, isLoading: isLoadingConfigs, error: configError } = useQuery<ApiDashboardConfig[]>({
     queryKey: ['/api/dashboard-configurations'],
     enabled: !!user?.id,
+    retry: 1
   });
   
   // Set dashboard configs when data is loaded
   useEffect(() => {
     if (apiConfigs && !isConfigLoaded) {
-      if (apiConfigs.length > 0) {
+      const configsArray = Array.isArray(apiConfigs) ? apiConfigs : [];
+      if (configsArray.length > 0) {
         // Convert API configs to local format
-        const configs = apiConfigs.map(convertApiToLocalFormat);
+        const configs = configsArray.map(convertApiToLocalFormat);
         setDashboardConfigs(configs);
         
         // Find default config or use first one
-        const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+        const defaultConfig = configs.find((c: any) => c.isDefault) || configs[0];
         setActiveDashboardId(defaultConfig.id);
         setIsConfigLoaded(true);
       }
+    } else if (configError && !isConfigLoaded) {
+      // If we have an error and no configs, use default config
+      setIsConfigLoaded(true);
     }
-  }, [apiConfigs, isConfigLoaded]);
+  }, [apiConfigs, configError, isConfigLoaded]);
   
   // Grid configuration state
   const [gridMode, setGridMode] = useState<"auto" | "custom">("auto");
@@ -389,7 +421,7 @@ export function DashboardConfiguration() {
     }
   };
   
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     if (!user || !user.id || !user.organizationId) {
       toast({
         title: "Error",
@@ -407,6 +439,17 @@ export function DashboardConfiguration() {
     const apiConfig = convertLocalToApiFormat(currentConfig, user.id, user.organizationId);
     
     try {
+      // Check if we need to handle auth first
+      const authResponse = await fetch('/auth');
+      if (!authResponse.ok) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to save your dashboard configuration.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       // If the ID is numeric, it's an existing configuration that should be updated
       if (!isNaN(Number(activeDashboardId))) {
         updateConfigMutation.mutate({
@@ -421,6 +464,11 @@ export function DashboardConfiguration() {
       setIsEditMode(false);
     } catch (error) {
       console.error("Failed to save dashboard configuration:", error);
+      toast({
+        title: "Error saving dashboard",
+        description: "An error occurred while saving your dashboard. Please try again.",
+        variant: "destructive"
+      });
     }
   };
   
