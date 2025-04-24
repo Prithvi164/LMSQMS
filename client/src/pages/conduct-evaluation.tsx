@@ -113,8 +113,35 @@ function ConductEvaluation() {
   const { data: templates } = useQuery({
     queryKey: [
       `/api/organizations/${user?.organizationId}/evaluation-templates`,
+      selectedBatch, // Add selectedBatch to query key to refresh when batch changes
     ],
-    select: (data) => data.filter((t: any) => t.status === "active"),
+    select: (data) => {
+      // Log all templates received from the server
+      console.log("All templates:", data);
+      console.log("Selected batch ID:", selectedBatch);
+      
+      const filteredTemplates = data.filter((t: any) => {
+        // First filter by active status
+        const isActive = t.status === "active";
+        
+        // Then filter by batch ID if one is selected
+        const matchesBatch = selectedBatch 
+          ? t.batchId === selectedBatch 
+          : true; // If no batch selected, show all active templates
+        
+        // Log matching info for debugging
+        if (selectedBatch) {
+          console.log(`Template ${t.id} (${t.name}): Active=${isActive}, BatchID=${t.batchId}, Matches selected batch=${matchesBatch}`);
+        }
+        
+        return isActive && matchesBatch;
+      });
+      
+      // Log the templates that will be shown in the dropdown
+      console.log("Filtered templates for dropdown:", filteredTemplates);
+      
+      return filteredTemplates;
+    },
     enabled: !!user?.organizationId,
   });
 
