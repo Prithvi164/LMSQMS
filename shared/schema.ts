@@ -2576,6 +2576,7 @@ export type InsertEvaluationParameterResult = z.infer<
 export const evaluationTypeEnum = pgEnum("evaluation_type", [
   "audio",
   "standard",
+  "certification", // Added certification type for dedicated certification evaluations
 ]);
 
 // Evaluation-related tables
@@ -2732,7 +2733,7 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
   })
   .extend({
     templateId: z.number().int().positive("Template ID is required"),
-    evaluationType: z.enum(["audio", "standard"]).default("standard"),
+    evaluationType: z.enum(["audio", "standard", "certification"]).default("standard"),
     traineeId: z.number().int().positive("Trainee ID is required").optional(),
     batchId: z.number().int().positive("Batch ID is required").optional(),
     evaluatorId: z.number().int().positive("Evaluator ID is required"),
