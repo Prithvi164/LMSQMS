@@ -14,8 +14,8 @@ export const ZencxLogo: React.FC<ZencxLogoProps> = ({
   return (
     <div className={`relative ${className}`} style={{ width, height }}>
       <img 
-        src="/images/zencx-logo.png" 
-        alt="ZENCX Logo" 
+        src="/images/zencx-logo.png"
+        alt="ZENCX Studio Logo" 
         className="w-full h-full object-contain"
         style={{ 
           filter: 'drop-shadow(0 0 8px rgba(0, 0, 0, 0.2))',

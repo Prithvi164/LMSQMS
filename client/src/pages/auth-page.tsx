@@ -117,22 +117,22 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mt-8">
-              <div className="text-center p-5 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100">
-                <Users className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                <h3 className="font-medium text-gray-700">Team Management</h3>
+            <div className="flex flex-row gap-4 mt-8 justify-center">
+              <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 w-32">
+                <Users className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                <h3 className="font-medium text-sm text-gray-700">Team Management</h3>
               </div>
-              <div className="text-center p-5 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100">
-                <GraduationCap className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                <h3 className="font-medium text-gray-700">Training Paths</h3>
+              <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 w-32">
+                <GraduationCap className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                <h3 className="font-medium text-sm text-gray-700">Training Paths</h3>
               </div>
-              <div className="text-center p-5 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100">
-                <ClipboardCheck className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                <h3 className="font-medium text-gray-700">Quality Monitoring</h3>
+              <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 w-32">
+                <ClipboardCheck className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                <h3 className="font-medium text-sm text-gray-700">Quality Monitoring</h3>
               </div>
-              <div className="text-center p-5 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100">
-                <BarChart2 className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                <h3 className="font-medium text-gray-700">Analytics</h3>
+              <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 w-32">
+                <BarChart2 className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                <h3 className="font-medium text-sm text-gray-700">Analytics</h3>
               </div>
             </div>
           </div>
