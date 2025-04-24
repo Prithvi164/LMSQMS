@@ -137,7 +137,9 @@ export function SidebarNav() {
     )}>
       <div className="flex items-center justify-between mb-8">
         {!isCollapsed && (
-          <h2 className="text-xl font-bold text-sidebar-foreground">{getAppName()}</h2>
+          <div className="flex items-center" style={{ paddingLeft: '16px' }}>
+            <h2 className="text-xl font-bold text-sidebar-foreground">{getAppName()}</h2>
+          </div>
         )}
         <Button 
           variant="ghost" 
