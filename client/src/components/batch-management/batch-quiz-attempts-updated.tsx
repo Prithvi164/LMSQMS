@@ -485,39 +485,14 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                           ) : (
                             <div className="flex justify-end space-x-2">
                               {hasPermission("manage_batches") && (
-                                <>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
-                                  >
-                                    <Award className="h-4 w-4 mr-1" />
-                                    Certify
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => {
-                                      // First set the status to refresher
-                                      setRefresherStatusMutation.mutate(attempt.userId, {
-                                        onSuccess: () => {
-                                          // Then open the schedule dialog
-                                          handleRefresherClick(attempt.userId);
-                                        }
-                                      });
-                                    }}
-                                    disabled={setRefresherStatusMutation.isPending}
-                                  >
-                                    {setRefresherStatusMutation.isPending ? (
-                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                    ) : refreshedTraineeIds.includes(attempt.userId) ? (
-                                      <Check className="h-4 w-4 mr-1 text-green-500" />
-                                    ) : (
-                                      <RefreshCw className="h-4 w-4 mr-1" />
-                                    )}
-                                    Refresher
-                                  </Button>
-                                </>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
+                                >
+                                  <Award className="h-4 w-4 mr-1" />
+                                  Certify
+                                </Button>
                               )}
                             </div>
                           )}
