@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BatchCertificationResults } from "@/components/batch-management/batch-certification-results";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -706,6 +707,7 @@ export function BatchDetailsPage() {
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
           <TabsTrigger value="assessments">Assessment Results</TabsTrigger>
+          <TabsTrigger value="certifications">Certification Results</TabsTrigger>
           <TabsTrigger value="refreshers">Refreshers</TabsTrigger>
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
@@ -823,6 +825,20 @@ export function BatchDetailsPage() {
                   batchId={parseInt(batchId)} 
                   organizationId={user.organizationId} 
                   filter="all" 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="certifications" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              {batchId && user?.organizationId && (
+                <BatchCertificationResults
+                  batchId={parseInt(batchId)}
+                  organizationId={user.organizationId}
+                  filter="all"
                 />
               )}
             </CardContent>
