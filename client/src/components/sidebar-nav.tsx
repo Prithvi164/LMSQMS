@@ -97,7 +97,7 @@ export function SidebarNav() {
   };
 
   // Query organization settings to get feature type
-  const { data: settings } = useQuery<{ featureType?: string }>({
+  const { data: settings, isLoading: isSettingsLoading } = useQuery<{ featureType?: string }>({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
     enabled: !!user?.organizationId
   });
@@ -108,7 +108,10 @@ export function SidebarNav() {
 
   const isTrainee = user?.category === 'trainee';
   const isQualityAnalyst = user?.role === 'quality_analyst';
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isLoading: isPermissionsLoading } = usePermissions();
+  
+  // Loading state that combines all async operations
+  const isNavLoading = isSettingsLoading || isPermissionsLoading || !user;
 
   // Define which features belong to which category with permission checks
   const lmsFeatures = [
@@ -186,88 +189,117 @@ export function SidebarNav() {
       sectionClass
     )}>
       <div className="flex items-center justify-between mb-6">
-        {!isCollapsed ? (
-          <div className="flex items-center justify-start pl-0">
-            <Link href="/">
-              <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-1 my-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                <ZencxLogo width={150} height={55} />
-              </div>
-            </Link>
-          </div>
+        {isNavLoading ? (
+          // Logo loading skeleton
+          <div className={cn(
+            "bg-gray-100 rounded-md animate-pulse",
+            isCollapsed ? "h-12 w-12 mx-auto" : "h-14 w-36"
+          )} />
         ) : (
-          <div className="flex items-center justify-center w-full">
-            <Link href="/">
-              <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} py-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                <ZencxLogo width={48} height={48} />
+          <>
+            {!isCollapsed ? (
+              <div className="flex items-center justify-start pl-0">
+                <Link href="/">
+                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-1 my-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                    <ZencxLogo width={150} height={55} />
+                  </div>
+                </Link>
               </div>
-            </Link>
-          </div>
+            ) : (
+              <div className="flex items-center justify-center w-full">
+                <Link href="/">
+                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} py-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                    <ZencxLogo width={48} height={48} />
+                  </div>
+                </Link>
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ${!isCollapsed ? 'ml-auto' : 'ml-0 absolute top-4 right-3'}`}
+              onClick={toggleSidebar}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          </>
         )}
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ${!isCollapsed ? 'ml-auto' : 'ml-0 absolute top-4 right-3'}`}
-          onClick={toggleSidebar}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
       </div>
 
       <nav className="space-y-2 flex-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.startsWith(item.href) || (item.href === '/' && location === '/');
-
-          // Determine active color based on route for enhanced contextual experience
-          let activeClasses = "bg-sidebar-accent text-sidebar-accent-foreground";
-          if (isActive) {
-            if (item.href.startsWith('/batch-management') || item.href.startsWith('/trainee-management')) {
-              activeClasses = "bg-blue-100/40 text-blue-700";
-            } else if (item.href.startsWith('/quiz-management') || item.href === '/my-quizzes') {
-              activeClasses = "bg-green-100/40 text-green-700";
-            } else if (item.href.startsWith('/evaluation')) {
-              activeClasses = "bg-purple-100/40 text-purple-700";
-            } else if (item.href.startsWith('/audio-') || item.href.startsWith('/azure-')) {
-              activeClasses = "bg-cyan-100/40 text-cyan-700";
-            } else if (item.href === '/') {
-              activeClasses = "bg-orange-100/40 text-orange-700";
+        {isNavLoading ? (
+          // Loading skeleton UI - show placeholders while loading
+          Array(6).fill(0).map((_, i) => (
+            <div key={i} className={cn(
+              "w-full h-10 bg-gray-100 rounded-md animate-pulse mb-2",
+              isCollapsed ? "px-2" : "px-4"
+            )} />
+          ))
+        ) : (
+          // Render all navigation items at once when data is fully loaded
+          navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.startsWith(item.href) || (item.href === '/' && location === '/');
+  
+            // Determine active color based on route for enhanced contextual experience
+            let activeClasses = "bg-sidebar-accent text-sidebar-accent-foreground";
+            if (isActive) {
+              if (item.href.startsWith('/batch-management') || item.href.startsWith('/trainee-management')) {
+                activeClasses = "bg-blue-100/40 text-blue-700";
+              } else if (item.href.startsWith('/quiz-management') || item.href === '/my-quizzes') {
+                activeClasses = "bg-green-100/40 text-green-700";
+              } else if (item.href.startsWith('/evaluation')) {
+                activeClasses = "bg-purple-100/40 text-purple-700";
+              } else if (item.href.startsWith('/audio-') || item.href.startsWith('/azure-')) {
+                activeClasses = "bg-cyan-100/40 text-cyan-700";
+              } else if (item.href === '/') {
+                activeClasses = "bg-orange-100/40 text-orange-700";
+              }
             }
-          }
-
-          return (
-            <Link key={item.href} href={item.href}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start transition-all duration-300",
-                  isActive 
-                    ? activeClasses
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-                  isCollapsed && "px-2 justify-center"
-                )}
-                title={isCollapsed ? item.label : undefined}
-              >
-                <Icon className={cn("h-4 w-4", isCollapsed ? "mr-0" : "mr-3")} />
-                {!isCollapsed && item.label}
-              </Button>
-            </Link>
-          );
-        })}
+  
+            return (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start transition-all duration-300",
+                    isActive 
+                      ? activeClasses
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+                    isCollapsed && "px-2 justify-center"
+                  )}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon className={cn("h-4 w-4", isCollapsed ? "mr-0" : "mr-3")} />
+                  {!isCollapsed && item.label}
+                </Button>
+              </Link>
+            );
+          })
+        )}
       </nav>
 
-      <Button 
-        variant="ghost" 
-        className={cn(
-          "text-sidebar-foreground hover:bg-sidebar-accent/50",
-          isCollapsed ? "px-2 justify-center w-full" : "w-full justify-start"
-        )}
-        onClick={() => logout()}
-        title={isCollapsed ? "Logout" : undefined}
-      >
-        <LogOut className={cn("h-4 w-4", isCollapsed ? "mr-0" : "mr-3")} />
-        {!isCollapsed && "Logout"}
-      </Button>
+      {isNavLoading ? (
+        // Loading skeleton for logout button
+        <div className={cn(
+          "w-full h-10 bg-gray-100 rounded-md animate-pulse mt-2",
+          isCollapsed ? "px-2" : "px-4"
+        )} />
+      ) : (
+        <Button 
+          variant="ghost" 
+          className={cn(
+            "text-sidebar-foreground hover:bg-sidebar-accent/50",
+            isCollapsed ? "px-2 justify-center w-full" : "w-full justify-start"
+          )}
+          onClick={() => logout()}
+          title={isCollapsed ? "Logout" : undefined}
+        >
+          <LogOut className={cn("h-4 w-4", isCollapsed ? "mr-0" : "mr-3")} />
+          {!isCollapsed && "Logout"}
+        </Button>
+      )}
     </div>
   );
 }
