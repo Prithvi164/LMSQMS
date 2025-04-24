@@ -127,15 +127,7 @@ export function SidebarNav() {
 
   // Determine app name based on feature type
   const getAppName = () => {
-    switch (featureType) {
-      case 'LMS': 
-        return 'CloudLMS';
-      case 'QMS': 
-        return 'CloudQMS';
-      case 'BOTH':
-      default:
-        return 'CloudLMS+QMS';
-    }
+    return 'ZenCX Studio';
   };
 
   return (
