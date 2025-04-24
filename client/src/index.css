@@ -47,6 +47,78 @@
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out;
   }
+  
+  /* Logo contextual background utilities */
+  .logo-container {
+    transition: background-color 0.8s ease-in-out, 
+                border-color 0.8s ease-in-out,
+                transform 0.3s ease-in-out,
+                box-shadow 0.4s ease-in-out;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .logo-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Shimmer effect when route changes */
+  .logo-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg, 
+      transparent, 
+      rgba(255, 255, 255, 0.5), 
+      transparent
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  
+  .logo-container.animate-shimmer::after {
+    animation: shimmer 1.2s ease-in-out;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      left: -100%;
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.9;
+    }
+    100% {
+      left: 100%;
+      opacity: 0;
+    }
+  }
+  
+  /* Section-based glow effects */
+  .section-dashboard .logo-container {
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.05);
+  }
+  
+  .section-trainee .logo-container {
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.05);
+  }
+  
+  .section-quiz .logo-container {
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.05);
+  }
+  
+  .section-evaluation .logo-container {
+    box-shadow: 0 2px 8px rgba(168, 85, 247, 0.05);
+  }
+  
+  .section-audio .logo-container {
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.05);
+  }
 
   @keyframes fadeIn {
     from {

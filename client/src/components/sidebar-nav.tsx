@@ -22,12 +22,15 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { ZencxLogo } from '@/components/ui/zencx-logo';
 
 export function SidebarNav() {
   const [location] = useLocation();
   const { logout, user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [logoBackground, setLogoBackground] = useState<string>('bg-orange-50/20');
+  const [logoBorder, setLogoBorder] = useState<string>('border-orange-100/20');
   
   // Load collapsed state from localStorage
   useEffect(() => {
@@ -37,6 +40,55 @@ export function SidebarNav() {
     }
   }, []);
   
+  // Determine section context and logo styling based on current location
+  const [sectionClass, setSectionClass] = useState<string>('section-dashboard');
+  const [shimmerEffect, setShimmerEffect] = useState<boolean>(false);
+  const prevLocationRef = useRef<string>(location);
+  
+  useEffect(() => {
+    // Only apply shimmer effect when location changes (not on initial render)
+    if (prevLocationRef.current !== location && prevLocationRef.current !== '') {
+      console.log(`Location changed from ${prevLocationRef.current} to ${location} - applying shimmer effect`);
+      setShimmerEffect(true);
+      // Remove the effect after animation completes
+      const timer = setTimeout(() => {
+        console.log('Removing shimmer effect after animation');
+        setShimmerEffect(false);
+      }, 1200); // Match animation duration
+      
+      return () => clearTimeout(timer);
+    }
+    
+    prevLocationRef.current = location;
+    
+    // Background adaption based on current route - using transparent backgrounds
+    if (location.startsWith('/batch-management') || location.startsWith('/trainee-management')) {
+      setLogoBackground('bg-transparent');
+      setLogoBorder('border-blue-100/20');
+      setSectionClass('section-trainee');
+    } else if (location.startsWith('/quiz-management') || location.startsWith('/my-quizzes')) {
+      setLogoBackground('bg-transparent');
+      setLogoBorder('border-green-100/20');
+      setSectionClass('section-quiz');
+    } else if (location.startsWith('/evaluation')) {
+      setLogoBackground('bg-transparent');
+      setLogoBorder('border-purple-100/20');
+      setSectionClass('section-evaluation');
+    } else if (location.startsWith('/audio-') || location.startsWith('/azure-')) {
+      setLogoBackground('bg-transparent');
+      setLogoBorder('border-cyan-100/20');
+      setSectionClass('section-audio');
+    } else if (location === '/') {
+      setLogoBackground('bg-transparent');
+      setLogoBorder('border-orange-100/10');
+      setSectionClass('section-dashboard');
+    } else {
+      setLogoBackground('bg-transparent');
+      setLogoBorder('border-gray-100/10');
+      setSectionClass('');
+    }
+  }, [location]);
+  
   // Save collapsed state to localStorage
   const toggleSidebar = () => {
     const newState = !isCollapsed;
@@ -45,7 +97,7 @@ export function SidebarNav() {
   };
 
   // Query organization settings to get feature type
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<{ featureType?: string }>({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
     enabled: !!user?.organizationId
   });
@@ -125,26 +177,36 @@ export function SidebarNav() {
     ] : getNonTraineeItems()),
   ];
 
-  // Determine app name based on feature type
-  const getAppName = () => {
-    return 'ZenCX Studio';
-  };
+  // Removed app name function as we now use the logo
 
   return (
     <div className={cn(
       "h-screen bg-sidebar border-r border-sidebar-border p-4 flex flex-col transition-all duration-300 ease-in-out",
-      isCollapsed ? "w-[70px]" : "w-64"
+      isCollapsed ? "w-[70px]" : "w-64",
+      sectionClass
     )}>
-      <div className="flex items-center justify-between mb-8">
-        {!isCollapsed && (
-          <div className="flex items-center" style={{ paddingLeft: '16px' }}>
-            <h2 className="text-xl font-bold text-sidebar-foreground">{getAppName()}</h2>
+      <div className="flex items-center justify-between mb-6">
+        {!isCollapsed ? (
+          <div className="flex items-center justify-start pl-0">
+            <Link href="/">
+              <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-1 my-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                <ZencxLogo width={150} height={55} />
+              </div>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full">
+            <Link href="/">
+              <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} py-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                <ZencxLogo width={48} height={48} />
+              </div>
+            </Link>
           </div>
         )}
         <Button 
           variant="ghost" 
           size="sm"
-          className="ml-auto text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8"
+          className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ${!isCollapsed ? 'ml-auto' : 'ml-0 absolute top-4 right-3'}`}
           onClick={toggleSidebar}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -155,16 +217,32 @@ export function SidebarNav() {
       <nav className="space-y-2 flex-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location === item.href;
+          const isActive = location.startsWith(item.href) || (item.href === '/' && location === '/');
+
+          // Determine active color based on route for enhanced contextual experience
+          let activeClasses = "bg-sidebar-accent text-sidebar-accent-foreground";
+          if (isActive) {
+            if (item.href.startsWith('/batch-management') || item.href.startsWith('/trainee-management')) {
+              activeClasses = "bg-blue-100/40 text-blue-700";
+            } else if (item.href.startsWith('/quiz-management') || item.href === '/my-quizzes') {
+              activeClasses = "bg-green-100/40 text-green-700";
+            } else if (item.href.startsWith('/evaluation')) {
+              activeClasses = "bg-purple-100/40 text-purple-700";
+            } else if (item.href.startsWith('/audio-') || item.href.startsWith('/azure-')) {
+              activeClasses = "bg-cyan-100/40 text-cyan-700";
+            } else if (item.href === '/') {
+              activeClasses = "bg-orange-100/40 text-orange-700";
+            }
+          }
 
           return (
             <Link key={item.href} href={item.href}>
               <Button
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start",
+                  "w-full justify-start transition-all duration-300",
                   isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                    ? activeClasses
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50",
                   isCollapsed && "px-2 justify-center"
                 )}
