@@ -3586,6 +3586,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get certification evaluations for a specific batch within an organization
+  app.get("/api/organizations/:organizationId/batches/:batchId/certification-evaluations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const status = req.query.status as string | undefined;
+      
+      console.log("Fetching certification evaluations for organization", organizationId, "batch:", batchId, "status filter:", status);
+
+      if (isNaN(batchId) || isNaN(organizationId)) {
+        return res.status(400).json({ message: "Invalid ID parameters" });
+      }
+      
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      // Fetch evaluations with type 'certification' for this batch
+      const evaluations = await storage.getEvaluationsByBatchAndType(batchId, 'certification');
+      console.log(`Retrieved ${evaluations.length} certification evaluations for batch ${batchId}`);
+      
+      // Filter evaluations based on passed/failed status if requested
+      let filteredEvaluations = evaluations;
+      if (status) {
+        if (status === 'passed') {
+          filteredEvaluations = evaluations.filter(evaluation => evaluation.isPassed);
+          console.log(`Filtered to ${filteredEvaluations.length} passed certification evaluations`);
+        } else if (status === 'failed') {
+          filteredEvaluations = evaluations.filter(evaluation => !evaluation.isPassed);
+          console.log(`Filtered to ${filteredEvaluations.length} failed certification evaluations`);
+        }
+      }
+
+      res.json(filteredEvaluations);
+    } catch (error) {
+      console.error("Error fetching batch certification evaluations:", error);
+      res.status(500).json({ message: "Failed to fetch certification evaluations for batch" });
+    }
+  });
+  
   // Update trainee status
   app.patch("/api/organizations/:organizationId/batches/:batchId/trainees/:userBatchProcessId/status", async (req, res) => {
     if (!req.user) {

@@ -33,6 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
 import { BatchQuizAttempts } from "@/components/batch-management/batch-quiz-attempts";
+import { BatchCertificationResults } from "@/components/batch-management/batch-certification-results";
 import { usePermissions } from "@/hooks/use-permissions";
 
 // Type for batch data
@@ -160,6 +161,13 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
   // Fetch quiz attempts for the selected batch
   const { data: quizAttempts = [], isLoading: isLoadingQuizAttempts } = useQuery<QuizAttempt[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/quiz-attempts`],
+    enabled: !!selectedBatch && !!user?.organizationId && selectedTab === "assessments",
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  });
+  
+  // Fetch certification evaluations for the selected batch
+  const { data: certificationResults = [], isLoading: isLoadingCertifications } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/certification-evaluations`],
     enabled: !!selectedBatch && !!user?.organizationId && selectedTab === "assessments",
     staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
@@ -940,6 +948,29 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
               </CardContent>
             </Card>
             
+            {/* Assessment Results */}
+            {selectedBatch && user?.organizationId && (
+              <Tabs defaultValue="assessments" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="assessments">Assessment Results</TabsTrigger>
+                  <TabsTrigger value="certifications">Certification Results</TabsTrigger>
+                </TabsList>
+                <TabsContent value="assessments" className="space-y-4">
+                  <BatchQuizAttempts 
+                    organizationId={user.organizationId} 
+                    batchId={selectedBatch} 
+                    filter="all" 
+                  />
+                </TabsContent>
+                <TabsContent value="certifications" className="space-y-4">
+                  <BatchCertificationResults 
+                    organizationId={user.organizationId} 
+                    batchId={selectedBatch} 
+                    filter="all" 
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
             
             {trainingBatches.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -974,8 +1005,6 @@ function TraineeManagement({ hasFullAccess }: TraineeManagementProps) {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Removed duplicate Assessment Results section */}
                       
                       <div className="border-t p-4 bg-muted/20">
                         <Button variant="outline" className="w-full" onClick={() => {

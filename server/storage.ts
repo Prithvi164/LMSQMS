@@ -405,6 +405,7 @@ export interface IStorage {
   getEvaluation(id: number): Promise<Evaluation | undefined>;
   getEvaluationWithScores(id: number): Promise<Evaluation & { scores: EvaluationScore[] } | undefined>;
   listEvaluations(filters: { organizationId: number, traineeId?: number, evaluatorId?: number, batchId?: number }): Promise<Evaluation[]>;
+  getEvaluationsByBatchAndType(batchId: number, evaluationType: string): Promise<Evaluation[]>;
   
   // Evaluation Feedback operations
   createEvaluationFeedback(feedback: InsertEvaluationFeedback): Promise<EvaluationFeedback>;
@@ -1552,6 +1553,96 @@ export class DatabaseStorage implements IStorage {
       return query as Promise<Evaluation[]>;
     } catch (error) {
       console.error('Error listing evaluations:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationsByBatchAndType(batchId: number, evaluationType: string): Promise<Evaluation[]> {
+    try {
+      console.log(`Fetching evaluations for batch ${batchId} with type ${evaluationType}`);
+      
+      // First fetch the evaluations with basic information
+      const evaluationsData = await db
+        .select({
+          id: evaluations.id,
+          templateId: evaluations.templateId,
+          traineeId: evaluations.traineeId,
+          evaluatorId: evaluations.evaluatorId,
+          finalScore: evaluations.finalScore,
+          evaluationType: evaluations.evaluationType,
+          createdAt: evaluations.createdAt,
+          organizationId: evaluations.organizationId,
+        })
+        .from(evaluations)
+        .where(and(
+          eq(evaluations.batchId, batchId),
+          eq(evaluations.evaluationType, evaluationType)
+        ))
+        .orderBy(desc(evaluations.createdAt)) as Evaluation[];
+      
+      if (evaluationsData.length === 0) {
+        console.log(`No ${evaluationType} evaluations found for batch ${batchId}`);
+        return [];
+      }
+      
+      console.log(`Found ${evaluationsData.length} ${evaluationType} evaluations for batch ${batchId}`);
+      
+      // Fetch related data (templates and trainees) to enrich the evaluation objects
+      const evaluationIds = evaluationsData.map(e => e.id);
+      const templateIds = [...new Set(evaluationsData.map(e => e.templateId))];
+      const traineeIds = [...new Set(evaluationsData.filter(e => e.traineeId).map(e => e.traineeId as number))];
+      
+      // Get templates for these evaluations
+      const templates = await db
+        .select()
+        .from(evaluationTemplates)
+        .where(inArray(evaluationTemplates.id, templateIds));
+      
+      // Get trainees for these evaluations
+      const trainees = traineeIds.length > 0 ? await db
+        .select({
+          id: users.id,
+          fullName: users.fullName,
+        })
+        .from(users)
+        .where(inArray(users.id, traineeIds)) : [];
+      
+      // Determine if each evaluation is passed based on feedback threshold
+      // For certification evaluations, we'll consider them passed if score is >= 70% (can be customized)
+      const passingThreshold = 70.0; // Default passing threshold for certifications
+      
+      // Enrich the evaluations with template, trainee info, and passing status
+      const enrichedEvaluations = evaluationsData.map(evaluation => {
+        // Find related template
+        const template = templates.find(t => t.id === evaluation.templateId);
+        
+        // Find related trainee
+        const trainee = trainees.find(t => t.id === evaluation.traineeId);
+        
+        // Determine if passed (using template threshold if available, otherwise default)
+        const threshold = template?.feedbackThreshold ? parseFloat(template.feedbackThreshold.toString()) : passingThreshold;
+        const isPassed = parseFloat(evaluation.finalScore.toString()) >= threshold;
+        
+        // Return enriched evaluation
+        return {
+          ...evaluation,
+          template: template ? {
+            id: template.id,
+            name: template.name,
+            description: template.description,
+          } : undefined,
+          trainee: trainee ? {
+            fullName: trainee.fullName,
+          } : undefined,
+          isPassed,
+          score: parseFloat(evaluation.finalScore.toString()),
+          evaluatedAt: evaluation.createdAt.toISOString(),
+        };
+      });
+      
+      return enrichedEvaluations;
+    } catch (error) {
+      console.error(`Error fetching ${evaluationType} evaluations for batch ${batchId}:`, error);
       throw error;
     }
   }
