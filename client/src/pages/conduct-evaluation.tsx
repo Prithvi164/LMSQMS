@@ -53,7 +53,7 @@ function ConductEvaluation() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
@@ -451,10 +451,25 @@ function ConductEvaluation() {
           title: "Success",
           description: "Evaluation submitted successfully",
         });
+        
+        // Reset form state
         setScores({});
         setSelectedBatch(null);
         setSelectedTrainee(null);
         setSelectedTemplate(null);
+        
+        // Navigate back to the previous page (assessment section) after a short delay to allow toast to be visible
+        setTimeout(() => {
+          // Check if we came from a specific page
+          const referrer = document.referrer;
+          if (referrer && referrer.includes('trainee-management')) {
+            // Go back to the previous page
+            window.history.back();
+          } else {
+            // Or navigate to a specific path
+            navigate('/trainee-management');
+          }
+        }, 1500); // 1.5 second delay
       }
     },
     onError: (error: Error) => {
