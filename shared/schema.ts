@@ -2682,7 +2682,7 @@ export const insertDashboardConfigurationSchema = createInsertSchema(dashboardCo
   })
   .extend({
     name: z.string().min(1, "Dashboard name is required"),
-    description: z.string().optional(),
+    description: z.string().nullable().optional(),
     layout: z.object({
       sections: z.array(
         z.object({

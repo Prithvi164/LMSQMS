@@ -283,7 +283,7 @@ const convertLocalToApiFormat = (localConfig: DashboardConfig, userId: number, o
   
   return {
     name: localConfig.name,
-    description: localConfig.description || null,
+    description: localConfig.description || "", // Ensure we always send a string, not null
     layout: localConfig.sections && localConfig.activeSection ? {
       sections,
       activeSection
@@ -780,9 +780,9 @@ export function DashboardConfiguration() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DialogHeader className="px-4 pt-2 pb-0">
-                <DialogTitle className="text-sm font-medium">Your Dashboards</DialogTitle>
-              </DialogHeader>
+              <div className="px-4 pt-2 pb-2">
+                <h4 className="text-sm font-medium">Your Dashboards</h4>
+              </div>
               <div className="max-h-60 overflow-y-auto">
                 {dashboardConfigs.map((config) => (
                   <DropdownMenuItem
