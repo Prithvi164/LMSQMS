@@ -155,26 +155,26 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className="hidden lg:flex bg-white items-center justify-center p-8 rounded-lg shadow-sm mx-6 mb-8">
+        <div className="hidden lg:flex bg-white items-center justify-center p-6 rounded-lg shadow-sm mx-6 mb-8">
           <div className="flex flex-col justify-center">
-            <div className="max-w-2xl space-y-8">
+            <div className="max-w-2xl space-y-4">
               {/* Added logo above heading in right panel */}
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-2">
                 {imageLoaded ? (
                   <ZencxLogo 
-                    width={640} 
-                    height={260} 
+                    width={440} 
+                    height={180} 
                   />
                 ) : (
-                  <div className="skeleton-image w-[640px] h-[260px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400">
+                  <div className="skeleton-image w-[440px] h-[180px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400">
                     Loading...
                   </div>
                 )}
               </div>
               
-              <div className="text-center mb-6">
+              <div className="text-center mb-4">
                 {/* Reduced font size for the heading */}
-                <h1 className="text-3xl font-bold mb-4 text-gray-800">
+                <h1 className="text-3xl font-bold mb-2 text-gray-800">
                   Transform Your Contact Center Quality and Training
                 </h1>
               </div>
@@ -200,7 +200,7 @@ export default function AuthPage() {
               </div>
               
               {/* Moved description to a single line at the end */}
-              <p className="text-sm text-gray-600 text-center mt-6">
+              <p className="text-sm text-gray-600 text-center mt-4">
                 ZenCX Studio helps you create personalized training paths, track agent performance, and ensure compliance with ease.
               </p>
             </div>
