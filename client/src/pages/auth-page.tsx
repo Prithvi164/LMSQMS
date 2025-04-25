@@ -163,13 +163,13 @@ export default function AuthPage() {
                 {imageLoaded ? (
                   <div className="border-2 border-orange-500 rounded-md">
                     <ZencxLogo 
-                      width={480} 
-                      height={160} 
+                      width={300} 
+                      height={110} 
                       className="p-0 m-0"
                     />
                   </div>
                 ) : (
-                  <div className="skeleton-image w-[480px] h-[160px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400 border-2 border-orange-500">
+                  <div className="skeleton-image w-[300px] h-[110px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400 border-2 border-orange-500">
                     Loading...
                   </div>
                 )}
