@@ -193,23 +193,23 @@ export function SidebarNav() {
           // Logo loading skeleton
           <div className={cn(
             "bg-gray-100 rounded-md animate-pulse",
-            isCollapsed ? "h-12 w-12 mx-auto" : "h-14 w-36"
+            isCollapsed ? "h-24 w-24 mx-auto" : "h-28 w-72"
           )} />
         ) : (
           <>
             {!isCollapsed ? (
-              <div className="flex items-center justify-start pl-0">
+              <div className="flex items-center justify-start pl-0 mb-8">
                 <Link href="/">
-                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-1 my-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={150} height={55} />
+                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-2 my-2 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                    <ZencxLogo width={300} height={110} />
                   </div>
                 </Link>
               </div>
             ) : (
-              <div className="flex items-center justify-center w-full">
+              <div className="flex items-center justify-center w-full mb-8">
                 <Link href="/">
-                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} py-1 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={48} height={48} />
+                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-2 my-2 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                    <ZencxLogo width={96} height={96} />
                   </div>
                 </Link>
               </div>
