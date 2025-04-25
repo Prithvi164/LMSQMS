@@ -155,7 +155,7 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className="hidden lg:flex bg-white items-center justify-center p-8 rounded-lg shadow-sm mx-6 mb-8">
+        <div className="hidden lg:flex bg-blue-50/40 items-center justify-center p-8 rounded-lg shadow-sm mx-6 mb-8">
           <div className="flex flex-col justify-center">
             <div className="max-w-2xl space-y-8">
               {/* Added logo above heading in right panel */}
@@ -181,19 +181,19 @@ export default function AuthPage() {
 
               {/* 2x2 matrix for feature cards */}
               <div className="grid grid-cols-2 gap-4 justify-center">
-                <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
+                <div className="text-center p-3 rounded-lg bg-white shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
                   <Users className="w-6 h-6 mx-auto mb-1 text-blue-600" />
                   <h3 className="font-medium text-sm text-gray-700">Team Management</h3>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
+                <div className="text-center p-3 rounded-lg bg-white shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
                   <GraduationCap className="w-6 h-6 mx-auto mb-1 text-blue-600" />
                   <h3 className="font-medium text-sm text-gray-700">Training Paths</h3>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
+                <div className="text-center p-3 rounded-lg bg-white shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
                   <ClipboardCheck className="w-6 h-6 mx-auto mb-1 text-blue-600" />
                   <h3 className="font-medium text-sm text-gray-700">Quality Monitoring</h3>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-blue-50/60 shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
+                <div className="text-center p-3 rounded-lg bg-white shadow-sm border border-blue-100 transition-all duration-500 hover:shadow-md hover:-translate-y-1">
                   <BarChart2 className="w-6 h-6 mx-auto mb-1 text-blue-600" />
                   <h3 className="font-medium text-sm text-gray-700">Analytics</h3>
                 </div>
