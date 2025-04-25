@@ -184,7 +184,7 @@ export function SidebarNav() {
 
   return (
     <div className={cn(
-      "h-screen bg-sidebar border-r border-sidebar-border p-4 flex flex-col transition-all duration-300 ease-in-out",
+      "h-screen bg-sidebar border-r border-sidebar-border p-4 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
       isCollapsed ? "w-[70px]" : "w-64",
       sectionClass
     )}>
@@ -193,7 +193,7 @@ export function SidebarNav() {
           // Logo loading skeleton
           <div className={cn(
             "bg-gray-100 rounded-md animate-pulse",
-            isCollapsed ? "h-24 w-24 mx-auto" : "h-28 w-72"
+            isCollapsed ? "h-24 w-24 mx-auto" : "h-28 w-56"
           )} />
         ) : (
           <>
@@ -201,7 +201,7 @@ export function SidebarNav() {
               <div className="flex items-center justify-center w-full">
                 <Link href="/">
                   <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={300} height={110} />
+                    <ZencxLogo width={200} height={80} />
                   </div>
                 </Link>
               </div>
@@ -209,7 +209,7 @@ export function SidebarNav() {
               <div className="flex items-center justify-center w-full">
                 <Link href="/">
                   <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={96} height={96} />
+                    <ZencxLogo width={48} height={48} />
                   </div>
                 </Link>
               </div>
@@ -217,7 +217,7 @@ export function SidebarNav() {
             <Button 
               variant="ghost" 
               size="sm"
-              className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ${!isCollapsed ? 'ml-auto absolute top-1 right-1 z-10' : 'ml-0 absolute top-1 right-1 z-10'}`}
+              className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ml-auto absolute top-1 right-1 z-10`}
               onClick={toggleSidebar}
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
