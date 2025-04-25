@@ -161,7 +161,7 @@ export default function AuthPage() {
               {/* Added logo above heading in right panel with more space */}
               <div className="flex justify-center mb-4 p-0">
                 {imageLoaded ? (
-                  <div className="border-2 border-orange-500 rounded-md">
+                  <div className="rounded-md">
                     <ZencxLogo 
                       width={300} 
                       height={110} 
@@ -169,7 +169,7 @@ export default function AuthPage() {
                     />
                   </div>
                 ) : (
-                  <div className="skeleton-image w-[300px] h-[110px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400 border-2 border-orange-500">
+                  <div className="skeleton-image w-[300px] h-[110px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400">
                     Loading...
                   </div>
                 )}
