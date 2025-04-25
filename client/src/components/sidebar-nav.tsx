@@ -193,7 +193,7 @@ export function SidebarNav() {
           // Logo loading skeleton
           <div className={cn(
             "bg-gray-100 rounded-md animate-pulse",
-            isCollapsed ? "h-24 w-24 mx-auto" : "h-28 w-56"
+            isCollapsed ? "h-14 w-14 mx-auto" : "h-16 w-32"
           )} />
         ) : (
           <>
@@ -201,7 +201,7 @@ export function SidebarNav() {
               <div className="flex items-center justify-center w-full">
                 <Link href="/">
                   <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={200} height={80} />
+                    <ZencxLogo width={100} height={40} />
                   </div>
                 </Link>
               </div>
@@ -209,7 +209,7 @@ export function SidebarNav() {
               <div className="flex items-center justify-center w-full">
                 <Link href="/">
                   <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={48} height={48} />
+                    <ZencxLogo width={40} height={40} />
                   </div>
                 </Link>
               </div>
