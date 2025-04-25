@@ -161,13 +161,15 @@ export default function AuthPage() {
               {/* Added logo above heading in right panel */}
               <div className="flex justify-center mb-0 p-0">
                 {imageLoaded ? (
-                  <ZencxLogo 
-                    width={640} 
-                    height={260} 
-                    className="p-0 m-0"
-                  />
+                  <div className="border-2 border-orange-500 rounded-md">
+                    <ZencxLogo 
+                      width={640} 
+                      height={260} 
+                      className="p-0 m-0"
+                    />
+                  </div>
                 ) : (
-                  <div className="skeleton-image w-[640px] h-[260px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400">
+                  <div className="skeleton-image w-[640px] h-[260px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400 border-2 border-orange-500">
                     Loading...
                   </div>
                 )}
