@@ -198,7 +198,7 @@ export function SidebarNav() {
         ) : (
           <>
             {!isCollapsed ? (
-              <div className="flex items-center justify-start pl-0">
+              <div className="flex items-center justify-center w-full">
                 <Link href="/">
                   <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
                     <ZencxLogo width={300} height={110} />
