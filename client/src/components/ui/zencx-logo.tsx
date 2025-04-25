@@ -12,14 +12,17 @@ export const ZencxLogo: React.FC<ZencxLogoProps> = ({
   height = 60 
 }) => {
   return (
-    <div className={`relative ${className}`} style={{ width, height }}>
+    <div className={`relative ${className}`} style={{ width, height, padding: 0, margin: 0 }}>
       <img 
         src="/images/zencx-logo.png"
         alt="ZENCX Studio Logo" 
         className="w-full h-full object-contain"
         style={{ 
           filter: 'drop-shadow(0 0 8px rgba(0, 0, 0, 0.2))',
-          backgroundColor: 'transparent'
+          backgroundColor: 'transparent',
+          padding: 0,
+          margin: 0,
+          verticalAlign: 'middle'
         }}
       />
     </div>
