@@ -61,9 +61,11 @@ function ConductEvaluation() {
     null,
   );
   const [scores, setScores] = useState<Record<number, any>>({});
-  const [evaluationType, setEvaluationType] = useState<"standard" | "audio" | "certification">(
+  const [evaluationType, setEvaluationType] = useState<"standard" | "audio">(
     "standard",
   );
+  // Track if the evaluation is for certification purpose
+  const [isCertification, setIsCertification] = useState<boolean>(false);
 
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -96,9 +98,21 @@ function ConductEvaluation() {
     }
 
     // Set evaluation type if provided in URL
-    if (typeParam === "standard" || typeParam === "audio" || typeParam === "certification") {
+    if (typeParam === "standard" || typeParam === "audio") {
       console.log(`Setting evaluation type from URL parameter: ${typeParam}`);
       setEvaluationType(typeParam);
+    } else if (typeParam === "certification") {
+      // If certification is specified, use standard type with certification flag
+      console.log(`Setting evaluation type to standard with certification purpose`);
+      setEvaluationType("standard");
+      setIsCertification(true);
+    }
+    
+    // Check if purpose parameter is set to certification
+    const purposeParam = params.get("purpose");
+    if (purposeParam === "certification") {
+      console.log("Setting certification purpose flag");
+      setIsCertification(true);
     }
   }, [user]);
 
@@ -136,12 +150,23 @@ function ConductEvaluation() {
           ? t.batchId === selectedBatch 
           : true; // If no batch selected, show all active templates
         
+        // For certification purpose, filter templates that are certification templates
+        const isCertificationTemplate = t.name?.toLowerCase().includes('certification') || 
+          t.description?.toLowerCase().includes('certification') ||
+          (t.tags && t.tags.includes('certification')) ||
+          (t.metadata && t.metadata.purpose === 'certification');
+        
+        // If certification purpose is set, only include certification templates
+        const matchesPurpose = isCertification 
+          ? isCertificationTemplate
+          : true; // For regular evaluations, show all templates
+
         // Log matching info for debugging
         if (selectedBatch) {
-          console.log(`Template ${t.id} (${t.name}): Active=${isActive}, BatchID=${t.batchId}, Matches selected batch=${matchesBatch}`);
+          console.log(`Template ${t.id} (${t.name}): Active=${isActive}, BatchID=${t.batchId}, Matches selected batch=${matchesBatch}, Certification=${isCertificationTemplate}, Matches purpose=${matchesPurpose}`);
         }
         
-        return isActive && matchesBatch;
+        return isActive && matchesBatch && matchesPurpose;
       });
       
       // Log the templates that will be shown in the dropdown
@@ -400,11 +425,15 @@ function ConductEvaluation() {
         
       console.log(`Submitting ${evaluationType} evaluation to ${endpoint}`);
       
-      // For certification evaluations, we use the same endpoint as standard evaluations
-      // but we need to add the evaluationType field to the payload
-      if (evaluationType === "certification") {
-        evaluation.evaluationType = "certification";
-        console.log("Adding certification evaluationType to payload:", evaluation);
+      // For certification evaluations, we use the same endpoint and type as standard evaluations
+      // but we track whether it's a certification in the UI state
+      if (isCertification) {
+        // Make sure we're using standard type for certification purpose
+        evaluation.evaluationType = "standard"; 
+        // Add metadata to help identify certifications in reports
+        evaluation.purpose = "certification";
+        evaluation.isCertification = true; // Add a flag (this won't be used by DB directly)
+        console.log("Marking standard evaluation as certification purpose:", evaluation);
       }
       
       const response = await fetch(endpoint, {
@@ -456,8 +485,8 @@ function ConductEvaluation() {
         setSelectedAudioFile(null);
         setSelectedTemplate(null);
         setAudioUrl(null);
-      } else if (evaluationType === "certification") {
-        // For certification evaluations
+      } else if (isCertification) {
+        // For certification purpose evaluations
         queryClient.invalidateQueries({
           queryKey: [`/api/organizations/${user?.organizationId}/evaluations`],
         });
@@ -986,7 +1015,9 @@ function ConductEvaluation() {
 
         <TabsContent value="standard" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Conduct Standard Evaluation</h1>
+            <h1 className="text-2xl font-bold">
+              {isCertification ? "Conduct Certification Evaluation" : "Conduct Standard Evaluation"}
+            </h1>
             <div className="flex gap-4">
               {/* Batch Selection */}
               <div className="w-[200px]">
@@ -1065,7 +1096,7 @@ function ConductEvaluation() {
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <ClipboardCheck className="h-5 w-5 text-primary" />
-                      <span>Evaluation Form</span>
+                      <span>{isCertification ? "Certification Form" : "Evaluation Form"}</span>
                     </CardTitle>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="font-normal">

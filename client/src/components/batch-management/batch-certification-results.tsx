@@ -92,6 +92,10 @@ export function BatchCertificationResults({
     ],
     queryFn: async ({ queryKey }) => {
       console.log('Query key for certification evaluations:', queryKey);
+      
+      // Add debug info to help diagnose issue with batch 71
+      console.log(`Fetching certification evaluations for batch ${batchId}, organization ${organizationId}`);
+      
       // Build the URL with proper query parameters
       const url = new URL(queryKey[0] as string, window.location.origin);
       
@@ -101,17 +105,27 @@ export function BatchCertificationResults({
       }
       
       console.log('Fetching certification evaluations with URL:', url.toString());
-      const response = await fetch(url, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch certification evaluations');
+      try {
+        const response = await fetch(url, {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          console.error('Error fetching certification evaluations:', response.status, response.statusText);
+          throw new Error(`Failed to fetch certification evaluations: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Successfully fetched ${data.length} certification evaluation(s)`, data);
+        return data;
+      } catch (error) {
+        console.error('Exception fetching certification evaluations:', error);
+        throw error;
       }
-      
-      return response.json();
     },
     enabled: !!batchId && !!organizationId,
+    retryDelay: 1000, // Retry more quickly
+    retry: 3,         // Retry up to 3 times
   });
 
   // Enable debug logging to see data flow
@@ -125,9 +139,10 @@ export function BatchCertificationResults({
     navigate(`/evaluations/${evaluationId}`);
   };
 
-  // Handle conduct certification click
+  // Handle conduct certification click - use standard evaluation type
   const handleConductCertification = (traineeId: number, traineeName: string) => {
-    navigate(`/conduct-evaluation?batchId=${batchId}&traineeId=${traineeId}&traineeName=${encodeURIComponent(traineeName || '')}&evaluationType=certification`);
+    // Use standard evaluation type for certification
+    navigate(`/conduct-evaluation?batchId=${batchId}&traineeId=${traineeId}&traineeName=${encodeURIComponent(traineeName || '')}&evaluationType=standard&purpose=certification`);
   };
 
   return (
@@ -249,7 +264,7 @@ export function BatchCertificationResults({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate("/conduct-evaluation?evaluationType=certification")}
+                onClick={() => navigate(`/conduct-evaluation?batchId=${batchId}&evaluationType=standard&purpose=certification`)}
               >
                 Conduct Certification
               </Button>
