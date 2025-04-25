@@ -32,6 +32,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -39,7 +41,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle, XCircle, Award, Filter, FileQuestion } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { 
+  Loader2, 
+  CheckCircle, 
+  XCircle, 
+  Award, 
+  Filter, 
+  FileQuestion, 
+  RefreshCw, 
+  Check, 
+  CalendarIcon 
+} from "lucide-react";
 import { format } from "date-fns";
 
 type CertificationResult = {
@@ -79,6 +93,19 @@ export function BatchCertificationResults({
     filter || "all"
   );
   const [, navigate] = useLocation();
+  
+  // For modal states
+  const [refresherDialogOpen, setRefresherDialogOpen] = useState(false);
+  const [refresherNotes, setRefresherNotes] = useState("");
+  const [refresherReason, setRefresherReason] = useState<string>("");
+  const [selectedTraineeId, setSelectedTraineeId] = useState<number | null>(null);
+  const [refresherStartDate, setRefresherStartDate] = useState<Date | undefined>(undefined);
+  const [refresherEndDate, setRefresherEndDate] = useState<Date | undefined>(undefined);
+  // Keep track of which trainees have been set to refresher status
+  const [refreshedTraineeIds, setRefreshedTraineeIds] = useState<number[]>(() => {
+    const savedIds = localStorage.getItem(`refreshed-trainees-cert-${batchId}`);
+    return savedIds ? JSON.parse(savedIds) : [];
+  });
 
   // Fetch certification evaluations for the selected batch
   const {
@@ -139,6 +166,128 @@ export function BatchCertificationResults({
     navigate(`/evaluations/${evaluationId}`);
   };
 
+  // Mutation for scheduling refresher training
+  const scheduleRefresherMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTraineeId || !refresherStartDate || !refresherEndDate) {
+        throw new Error("Missing required information for scheduling refresher");
+      }
+      
+      // Using fetch directly instead of apiRequest to ensure proper handling
+      const response = await fetch(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/refresher`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            notes: refresherNotes,
+            startDate: refresherStartDate.toISOString(),
+            endDate: refresherEndDate.toISOString(),
+            reason: refresherReason
+          }),
+          credentials: 'include'
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to schedule refresher training");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Refresher Scheduled",
+        description: "Refresher training has been scheduled successfully",
+      });
+      setRefresherDialogOpen(false);
+      setRefresherNotes("");
+      setSelectedTraineeId(null);
+      setRefresherStartDate(undefined);
+      setRefresherEndDate(undefined);
+      // Refresh batch events if needed
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/events`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to schedule refresher training",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutation for setting trainee status to refresher immediately
+  const setRefresherStatusMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      console.log('Setting trainee to refresher status:', userId);
+      
+      const response = await fetch(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${userId}/set-refresher`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: refresherReason }),
+          credentials: 'include'
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to set trainee to refresher status");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Status Updated",
+        description: "Trainee status changed to Refresher",
+      });
+      
+      // Add the trainee ID to the list of refreshed trainees
+      setRefreshedTraineeIds(prev => {
+        const newIds = [...prev, variables];
+        // Also store in localStorage for persistence
+        localStorage.setItem(`refreshed-trainees-cert-${batchId}`, JSON.stringify(newIds));
+        return newIds;
+      });
+      
+      // Refresh trainee list to show updated status
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`] 
+      });
+      
+      // Also refresh certification evaluations as some UI elements might depend on status
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/certification-evaluations`] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to set trainee status to refresher",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler for refresher dialog
+  const handleRefresherClick = (traineeId: number) => {
+    // Set default dates: tomorrow for start date and day after tomorrow for end date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+    
+    setSelectedTraineeId(traineeId);
+    setRefresherStartDate(tomorrow);
+    setRefresherEndDate(dayAfterTomorrow);
+    setRefresherDialogOpen(true);
+  };
+
   // Handle conduct certification click - use standard evaluation type
   const handleConductCertification = (traineeId: number, traineeName: string) => {
     // Use standard evaluation type for certification
@@ -146,132 +295,313 @@ export function BatchCertificationResults({
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Final Certification Results</CardTitle>
-        <CardDescription>
-          View certification evaluation results and trainee certification status
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Status Filter:</span>
+    <>
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Final Certification Results</CardTitle>
+          <CardDescription>
+            View certification evaluation results and trainee certification status
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-1.5">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Status Filter:</span>
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                console.log("Changing status filter to:", value);
+                setStatusFilter(value as "all" | "passed" | "failed");
+                // Force refetch with the new filter
+                queryClient.invalidateQueries({ 
+                  queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/certification-evaluations`] 
+                });
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Certifications</SelectItem>
+                <SelectItem value="passed">Passed Only</SelectItem>
+                <SelectItem value="failed">Failed Only</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              console.log("Changing status filter to:", value);
-              setStatusFilter(value as "all" | "passed" | "failed");
-              // Force refetch with the new filter
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/certification-evaluations`] 
-              });
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Certifications</SelectItem>
-              <SelectItem value="passed">Passed Only</SelectItem>
-              <SelectItem value="failed">Failed Only</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : certificationResults && certificationResults.length > 0 ? (
-          <Table>
-            <TableCaption>
-              {statusFilter === "all" 
-                ? "All certification results" 
-                : statusFilter === "passed" 
-                  ? "Certifications with passing scores" 
-                  : "Certifications with failing scores"}
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Trainee</TableHead>
-                <TableHead>Template</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {certificationResults.map((result) => {
-                const passed = result.isPassed || result.finalScore >= 70;
-                return (
-                  <TableRow key={result.id}>
-                    <TableCell className="font-medium">
-                      {result.trainee?.fullName || `Trainee ID: ${result.traineeId}`}
-                    </TableCell>
-                    <TableCell>
-                      {result.template?.name || `Template ID: ${result.templateId}`}
-                    </TableCell>
-                    <TableCell>{result.finalScore}%</TableCell>
-                    <TableCell>
-                      {format(new Date(result.createdAt), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      {passed ? (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                          Passed
-                        </Badge>
-                      ) : (
-                        <Badge 
-                          variant="outline" 
-                          className="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-800"
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1" />
-                          Failed
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(result.id)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        ) : (
-          <div className="text-center py-8 border rounded-lg bg-muted/10">
-            <FileQuestion className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-muted-foreground">No certification results found</p>
-            <p className="text-sm text-muted-foreground/70 mt-1 mb-4">
-              {statusFilter === "all"
-                ? "No trainees have taken certification evaluations yet"
-                : statusFilter === "passed"
-                ? "No trainees have passed certification evaluations"
-                : "No trainees have failed certification evaluations"}
-            </p>
-            {hasPermission("manage_trainee_management") && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/conduct-evaluation?batchId=${batchId}&evaluationType=standard&purpose=certification`)}
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : certificationResults && certificationResults.length > 0 ? (
+            <Table>
+              <TableCaption>
+                {statusFilter === "all" 
+                  ? "All certification results" 
+                  : statusFilter === "passed" 
+                    ? "Certifications with passing scores" 
+                    : "Certifications with failing scores"}
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Trainee</TableHead>
+                  <TableHead>Template</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {certificationResults.map((result) => {
+                  const passed = result.isPassed || result.finalScore >= 70;
+                  return (
+                    <TableRow key={result.id}>
+                      <TableCell className="font-medium">
+                        {result.trainee?.fullName || `Trainee ID: ${result.traineeId}`}
+                      </TableCell>
+                      <TableCell>
+                        {result.template?.name || `Template ID: ${result.templateId}`}
+                      </TableCell>
+                      <TableCell>{result.finalScore}%</TableCell>
+                      <TableCell>
+                        {format(new Date(result.createdAt), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        {passed ? (
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                            Passed
+                          </Badge>
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-800"
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Failed
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {!passed ? (
+                          <div className="flex justify-end space-x-2">
+                            {hasPermission("manage_batches") && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    // First set the status to refresher
+                                    setRefresherStatusMutation.mutate(result.traineeId, {
+                                      onSuccess: () => {
+                                        // Then open the schedule dialog
+                                        handleRefresherClick(result.traineeId);
+                                      }
+                                    });
+                                  }}
+                                  disabled={setRefresherStatusMutation.isPending}
+                                >
+                                  {setRefresherStatusMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  ) : refreshedTraineeIds.includes(result.traineeId) ? (
+                                    <Check className="h-4 w-4 mr-1 text-green-500" />
+                                  ) : (
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                  )}
+                                  Refresher
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleConductCertification(
+                                    result.traineeId, 
+                                    result.trainee?.fullName || `Trainee ID: ${result.traineeId}`
+                                  )}
+                                >
+                                  <Award className="h-4 w-4 mr-1" />
+                                  Certify
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDetails(result.id)}
+                            >
+                              View Details
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetails(result.id)}
+                          >
+                            View Details
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 border rounded-lg bg-muted/10">
+              <FileQuestion className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+              <p className="text-muted-foreground">No certification results found</p>
+              <p className="text-sm text-muted-foreground/70 mt-1 mb-4">
+                {statusFilter === "all"
+                  ? "No trainees have taken certification evaluations yet"
+                  : statusFilter === "passed"
+                  ? "No trainees have passed certification evaluations"
+                  : "No trainees have failed certification evaluations"}
+              </p>
+              {hasPermission("manage_trainee_management") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/conduct-evaluation?batchId=${batchId}&evaluationType=standard&purpose=certification`)}
+                >
+                  Conduct Certification
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Refresher dialog for scheduling */}
+      <Dialog open={refresherDialogOpen} onOpenChange={setRefresherDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Refresher Training</DialogTitle>
+            <DialogDescription>
+              Set a timeframe for the trainee to undergo refresher training.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="reason" className="text-right">
+                Reason
+              </Label>
+              <Select 
+                value={refresherReason} 
+                onValueChange={setRefresherReason}
               >
-                Conduct Certification
-              </Button>
-            )}
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select reason for refresher" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="failed_certification">Failed Certification</SelectItem>
+                  <SelectItem value="performance_issues">Performance Issues</SelectItem>
+                  <SelectItem value="knowledge_gaps">Knowledge Gaps</SelectItem>
+                  <SelectItem value="skill_enhancement">Skill Enhancement</SelectItem>
+                  <SelectItem value="requested_by_trainee">Requested by Trainee</SelectItem>
+                  <SelectItem value="process_updates">Process Updates</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="notes" className="text-right">
+                Notes
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Add details about the refresher training..."
+                className="col-span-3"
+                value={refresherNotes}
+                onChange={(e) => setRefresherNotes(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="startDate" className="text-right">
+                Start Date
+              </Label>
+              <div className="col-span-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {refresherStartDate ? (
+                        format(refresherStartDate, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={refresherStartDate}
+                      onSelect={setRefresherStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="endDate" className="text-right">
+                End Date
+              </Label>
+              <div className="col-span-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {refresherEndDate ? (
+                        format(refresherEndDate, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={refresherEndDate}
+                      onSelect={setRefresherEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setRefresherDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => scheduleRefresherMutation.mutate()}
+              disabled={scheduleRefresherMutation.isPending || !refresherStartDate || !refresherEndDate || !refresherReason}
+            >
+              {scheduleRefresherMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                'Schedule Refresher'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
