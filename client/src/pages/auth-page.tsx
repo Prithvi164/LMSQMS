@@ -155,11 +155,11 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className="hidden lg:flex bg-white items-center justify-center px-6 py-4 rounded-lg shadow-sm mx-6 mb-8">
-          <div className="flex flex-col justify-center">
-            <div className="max-w-2xl space-y-2">
-              {/* Added logo above heading in right panel */}
-              <div className="flex justify-center mb-0 p-0">
+        <div className="hidden lg:flex bg-white items-center justify-center px-6 py-8 rounded-lg shadow-sm mx-6 mb-8">
+          <div className="flex flex-col justify-center w-full">
+            <div className="w-full space-y-6">
+              {/* Added logo above heading in right panel with more space */}
+              <div className="flex justify-center mb-4 p-0">
                 {imageLoaded ? (
                   <div className="border-2 border-orange-500 rounded-md">
                     <ZencxLogo 
@@ -175,7 +175,7 @@ export default function AuthPage() {
                 )}
               </div>
               
-              <div className="text-center mb-2 mt-0">
+              <div className="text-center mb-4 mt-6">
                 {/* Reduced font size for the heading */}
                 <h1 className="text-3xl font-bold mb-0 text-gray-800">
                   Transform Your Contact Center Quality and Training
