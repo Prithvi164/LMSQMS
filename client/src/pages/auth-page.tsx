@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ZencxLogo } from "@/components/ui/zencx-logo";
 import { BarChart2, Users, GraduationCap, ClipboardCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type InsertUser } from "@shared/schema";
 
 export default function AuthPage() {
@@ -153,8 +153,8 @@ export default function AuthPage() {
               {/* Added logo above heading in right panel */}
               <div className="flex justify-center mb-4">
                 <ZencxLogo 
-                  width={220} 
-                  height={90} 
+                  width={320} 
+                  height={130} 
                 />
               </div>
               
