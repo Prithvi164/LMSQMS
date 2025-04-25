@@ -188,7 +188,7 @@ export function SidebarNav() {
       isCollapsed ? "w-[70px]" : "w-64",
       sectionClass
     )}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 relative">
         {isNavLoading ? (
           // Logo loading skeleton
           <div className={cn(
@@ -198,17 +198,17 @@ export function SidebarNav() {
         ) : (
           <>
             {!isCollapsed ? (
-              <div className="flex items-center justify-start pl-0 mb-8">
+              <div className="flex items-center justify-start pl-0">
                 <Link href="/">
-                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-2 my-2 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
                     <ZencxLogo width={300} height={110} />
                   </div>
                 </Link>
               </div>
             ) : (
-              <div className="flex items-center justify-center w-full mb-8">
+              <div className="flex items-center justify-center w-full">
                 <Link href="/">
-                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-2 my-2 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
                     <ZencxLogo width={96} height={96} />
                   </div>
                 </Link>
@@ -217,7 +217,7 @@ export function SidebarNav() {
             <Button 
               variant="ghost" 
               size="sm"
-              className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ${!isCollapsed ? 'ml-auto' : 'ml-0 absolute top-4 right-3'}`}
+              className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ${!isCollapsed ? 'ml-auto absolute top-1 right-1 z-10' : 'ml-0 absolute top-1 right-1 z-10'}`}
               onClick={toggleSidebar}
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
