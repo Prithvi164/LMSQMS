@@ -61,7 +61,7 @@ function ConductEvaluation() {
     null,
   );
   const [scores, setScores] = useState<Record<number, any>>({});
-  const [evaluationType, setEvaluationType] = useState<"standard" | "audio">(
+  const [evaluationType, setEvaluationType] = useState<"standard" | "audio" | "certification">(
     "standard",
   );
 
@@ -81,6 +81,7 @@ function ConductEvaluation() {
     const params = new URLSearchParams(window.location.search);
     const batchId = params.get("batchId");
     const traineeId = params.get("traineeId");
+    const typeParam = params.get("evaluationType");
 
     // Set batch ID if provided in URL
     if (batchId) {
@@ -92,6 +93,12 @@ function ConductEvaluation() {
     if (traineeId) {
       const traineeIdNum = parseInt(traineeId);
       setSelectedTrainee(traineeIdNum);
+    }
+
+    // Set evaluation type if provided in URL
+    if (typeParam === "standard" || typeParam === "audio" || typeParam === "certification") {
+      console.log(`Setting evaluation type from URL parameter: ${typeParam}`);
+      setEvaluationType(typeParam);
     }
   }, [user]);
 
@@ -393,6 +400,13 @@ function ConductEvaluation() {
         
       console.log(`Submitting ${evaluationType} evaluation to ${endpoint}`);
       
+      // For certification evaluations, we use the same endpoint as standard evaluations
+      // but we need to add the evaluationType field to the payload
+      if (evaluationType === "certification") {
+        evaluation.evaluationType = "certification";
+        console.log("Adding certification evaluationType to payload:", evaluation);
+      }
+      
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -442,6 +456,45 @@ function ConductEvaluation() {
         setSelectedAudioFile(null);
         setSelectedTemplate(null);
         setAudioUrl(null);
+      } else if (evaluationType === "certification") {
+        // For certification evaluations
+        queryClient.invalidateQueries({
+          queryKey: [`/api/organizations/${user?.organizationId}/evaluations`],
+        });
+        
+        // Also invalidate certification-specific queries
+        queryClient.invalidateQueries({
+          queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/certification-evaluations`]
+        });
+        
+        // Update trainee records as certification may change their status
+        queryClient.invalidateQueries({
+          queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/trainees`]
+        });
+        
+        toast({
+          title: "Success",
+          description: "Certification evaluation submitted successfully",
+        });
+        
+        // Reset form state
+        setScores({});
+        setSelectedBatch(null);
+        setSelectedTrainee(null);
+        setSelectedTemplate(null);
+        
+        // Navigate back to the previous page after a short delay to allow toast to be visible
+        setTimeout(() => {
+          // Check if we came from a specific page
+          const referrer = document.referrer;
+          if (referrer && referrer.includes('trainee-management')) {
+            // Go back to the previous page
+            window.history.back();
+          } else {
+            // Or navigate to a specific path
+            navigate('/trainee-management');
+          }
+        }, 1500); // 1.5 second delay
       } else {
         // For standard evaluations
         queryClient.invalidateQueries({

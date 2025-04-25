@@ -946,21 +946,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get the template to fetch the feedback threshold
+      // Get the template to fetch the feedback threshold and passing score
       const template = await storage.getEvaluationTemplate(evaluation.templateId);
       if (!template) {
         return res.status(404).json({ message: "Template not found" });
       }
       
+      // Determine if the evaluation is passed (use template's passing score or default to 70)
+      const passingScore = template.passingScore || 70;
+      const isPassed = finalScore >= passingScore;
+      
+      console.log(`Evaluation score: ${finalScore}, Passing score: ${passingScore}, Passed: ${isPassed}`);
+      
       // Create evaluation record
       const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
-        evaluationType: 'standard', // Set type to standard for trainee evaluations
+        // Check if evaluation type is specified, otherwise default to 'standard'
+        evaluationType: evaluation.evaluationType || 'standard',
         traineeId: evaluation.traineeId,
         batchId: evaluation.batchId,
         evaluatorId: req.user.id,
         organizationId: req.user.organizationId,
         finalScore,
+        isPassed,
         status: 'completed',
         feedbackThreshold: template.feedbackThreshold, // Pass the template's feedback threshold
         scores: evaluation.scores.map((score: any) => ({
@@ -1015,11 +1023,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get the template to fetch the feedback threshold
+      // Get the template to fetch the feedback threshold and passing score
       const template = await storage.getEvaluationTemplate(evaluation.templateId);
       if (!template) {
         return res.status(404).json({ message: "Template not found" });
       }
+      
+      // Determine if the evaluation is passed (use template's passing score or default to 70)
+      const passingScore = template.passingScore || 70;
+      const isPassed = finalScore >= passingScore;
+      
+      console.log(`Audio evaluation score: ${finalScore}, Passing score: ${passingScore}, Passed: ${isPassed}`);
       
       // Create evaluation record
       const result = await storage.createEvaluation({
@@ -1030,6 +1044,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         evaluatorId: req.user.id,
         organizationId: req.user.organizationId,
         finalScore,
+        isPassed,
         status: 'completed',
         feedbackThreshold: template.feedbackThreshold, // Pass the template's feedback threshold
         audioFileId: evaluation.audioFileId, // Pass the audio file ID for feedback creation
