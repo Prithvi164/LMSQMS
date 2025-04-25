@@ -21,6 +21,14 @@ export default function AuthPage() {
   const { toast } = useToast();
   const { login, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // Preload the logo image
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/images/zencx-logo.png';
+    img.onload = () => setImageLoaded(true);
+  }, []);
   
   // No animations as requested
   const isAnimating = true;
@@ -152,10 +160,16 @@ export default function AuthPage() {
             <div className="max-w-lg space-y-8">
               {/* Added logo above heading in right panel */}
               <div className="flex justify-center mb-4">
-                <ZencxLogo 
-                  width={320} 
-                  height={130} 
-                />
+                {imageLoaded ? (
+                  <ZencxLogo 
+                    width={320} 
+                    height={130} 
+                  />
+                ) : (
+                  <div className="skeleton-image w-[320px] h-[130px] bg-gray-100 animate-pulse rounded-md flex items-center justify-center text-gray-400">
+                    Loading...
+                  </div>
+                )}
               </div>
               
               <div className="text-center mb-6">
