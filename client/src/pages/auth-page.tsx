@@ -13,7 +13,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ZencxLogo } from "@/components/ui/zencx-logo";
 import { BarChart2, Users, GraduationCap, ClipboardCheck } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { type InsertUser } from "@shared/schema";
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
@@ -46,8 +47,12 @@ export default function AuthPage() {
         // Add slight delay for animation effect
         setTimeout(async () => {
           try {
-            // Check how login function is defined and use accordingly
-            await login({ username: username.toString(), password: password.toString() });
+            // Login expects a LoginData object with username and password
+            const loginData: Pick<InsertUser, "username" | "password"> = {
+              username, 
+              password
+            };
+            await login(loginData);
             navigate("/");
           } catch (error: any) {
             toast({
@@ -149,7 +154,7 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className={`hidden lg:flex bg-white items-center justify-center p-8 rounded-lg shadow-sm mx-6 mb-8 transition-all duration-1000 delay-300 ${showForm ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
+        <div className="hidden lg:flex bg-white items-center justify-center p-8 rounded-lg shadow-sm mx-6 mb-8">
           <div className="flex flex-col justify-center">
             <div className="max-w-lg space-y-8">
               <div className="text-center mb-6">
