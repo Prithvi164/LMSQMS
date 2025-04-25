@@ -156,6 +156,14 @@ export default function AuthPage() {
         <div className="hidden lg:flex bg-white items-center justify-center p-8 rounded-lg shadow-sm mx-6 mb-8">
           <div className="flex flex-col justify-center">
             <div className="max-w-lg space-y-8">
+              {/* Added logo above heading in right panel */}
+              <div className="flex justify-center mb-4">
+                <ZencxLogo 
+                  width={180} 
+                  height={75} 
+                />
+              </div>
+              
               <div className="text-center mb-6">
                 {/* Reduced font size for the heading */}
                 <h1 className="text-3xl font-bold mb-4 text-gray-800">
