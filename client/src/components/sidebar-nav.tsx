@@ -200,7 +200,7 @@ export function SidebarNav() {
             {!isCollapsed ? (
               <div className="flex items-center justify-center w-full">
                 <Link href="/">
-                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-2 border-orange-500 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
                     <ZencxLogo width={300} height={110} />
                   </div>
                 </Link>
@@ -208,7 +208,7 @@ export function SidebarNav() {
             ) : (
               <div className="flex items-center justify-center w-full">
                 <Link href="/">
-                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-0 border-2 border-orange-500 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
                     <ZencxLogo width={96} height={96} />
                   </div>
                 </Link>
