@@ -14,7 +14,7 @@ export const ZencxLogo: React.FC<ZencxLogoProps> = ({
   return (
     <div className={`relative flex items-center justify-center ${className}`} style={{ width, height, padding: 0, margin: 0, overflow: 'hidden' }}>
       <img 
-        src="/images/zencx-logo.png"
+        src="/images/zencx-logo-cropped.png"
         alt="ZENCX Studio Logo" 
         className="w-full h-full object-contain object-center"
         style={{ 
@@ -22,8 +22,7 @@ export const ZencxLogo: React.FC<ZencxLogoProps> = ({
           backgroundColor: 'transparent',
           padding: 0,
           margin: 0,
-          verticalAlign: 'middle',
-          transform: 'scale(2.0)' // Scale up the logo to make it more visible
+          verticalAlign: 'middle'
         }}
       />
     </div>
