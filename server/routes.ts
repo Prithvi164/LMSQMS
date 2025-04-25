@@ -962,9 +962,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isCertification = evaluation.purpose === 'certification';
       console.log(`Evaluation purpose: ${evaluation.purpose}, Is certification: ${isCertification}`);
       
-      // For certification evaluations, we'll use template ID matching instead of metadata
-      // Let's fetch all certification templates to track this evaluation's purpose
-      const templates = await storage.getAllEvaluationTemplates(req.user.organizationId);
+      // For certification evaluations, we'll use template name/description matching instead of metadata
+      // Let's fetch all templates for this organization  
+      const templates = await storage.listEvaluationTemplates(req.user.organizationId);
       
       // Find templates that are for certification purpose
       const certTemplateIds = templates
@@ -3662,7 +3662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Retrieved ${evaluations.length} standard evaluations for batch ${batchId}`);
       
       // Get all available evaluation templates to help with certification detection
-      const templates = await storage.getAllEvaluationTemplates(req.user.organizationId);
+      const templates = await storage.listEvaluationTemplates(req.user.organizationId);
       console.log("All template names:", templates.map(t => `${t.id}: ${t.name}`).join(", "));
       
       // Find templates that are for certification purpose
@@ -3672,10 +3672,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           template.name.toLowerCase().includes('certification') || 
           // Check template description
           (template.description?.toLowerCase().includes('certification')) ||
-          // Check template tags
-          (template.tags && template.tags.includes('certification')) ||
-          // Check template metadata
-          (template.metadata && template.metadata.purpose === 'certification') ||
           // Special case for template ID 32 which was renamed for certification
           template.id === 32)
         .map(template => template.id);
