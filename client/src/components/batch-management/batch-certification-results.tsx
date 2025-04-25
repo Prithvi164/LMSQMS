@@ -336,86 +336,106 @@ export function BatchCertificationResults({
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : certificationResults && certificationResults.length > 0 ? (
-            <Table>
-              <TableCaption>
-                {statusFilter === "all" 
-                  ? "All certification results" 
-                  : statusFilter === "passed" 
-                    ? "Certifications with passing scores" 
-                    : "Certifications with failing scores"}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Trainee</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {certificationResults.map((result) => {
-                  const passed = result.isPassed || result.finalScore >= 70;
-                  return (
-                    <TableRow key={result.id}>
-                      <TableCell className="font-medium">
-                        {result.trainee?.fullName || `Trainee ID: ${result.traineeId}`}
-                      </TableCell>
-                      <TableCell>
-                        {result.template?.name || `Template ID: ${result.templateId}`}
-                      </TableCell>
-                      <TableCell>{result.finalScore}%</TableCell>
-                      <TableCell>
-                        {format(new Date(result.createdAt), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        {passed ? (
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                            Passed
-                          </Badge>
-                        ) : (
-                          <Badge 
-                            variant="outline" 
-                            className="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-800"
-                          >
-                            <XCircle className="h-3.5 w-3.5 mr-1" />
-                            Failed
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {!passed ? (
-                          <div className="flex justify-end space-x-2">
-                            {hasPermission("manage_batches") && (
-                              <>
+            <div className="overflow-hidden rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Trainee</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {certificationResults.map((result) => {
+                    const passed = result.isPassed || result.finalScore >= 70;
+                    const passingScore = 70; // Default passing score
+                    return (
+                      <TableRow key={result.id} className="border-b">
+                        <TableCell className="font-medium">
+                          {result.trainee?.fullName || `Trainee ID: ${result.traineeId}`}
+                        </TableCell>
+                        <TableCell>
+                          {result.template?.name || `Template ID: ${result.templateId}`}
+                        </TableCell>
+                        <TableCell>
+                          {result.finalScore}% <span className="text-xs text-muted-foreground">(Passing: {passingScore}%)</span>
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(result.createdAt), "M/d/yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          {passed ? (
+                            <Badge variant="outline" className="bg-green-500 text-white border-0 rounded-md font-normal">
+                              Passed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-red-500 text-white border-0 rounded-md font-normal">
+                              Failed
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!passed ? (
+                            <div className="flex justify-end space-x-2">
+                              {hasPermission("manage_batches") && (
+                                <>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-8 px-2 text-green-600"
+                                    onClick={() => {
+                                      // First set the status to refresher
+                                      setRefresherStatusMutation.mutate(result.traineeId, {
+                                        onSuccess: () => {
+                                          // Then open the schedule dialog
+                                          handleRefresherClick(result.traineeId);
+                                        }
+                                      });
+                                    }}
+                                    disabled={setRefresherStatusMutation.isPending}
+                                  >
+                                    {setRefresherStatusMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : refreshedTraineeIds.includes(result.traineeId) ? (
+                                      <Check className="h-4 w-4 mr-1 text-green-500" />
+                                    ) : (
+                                      <RefreshCw className="h-4 w-4 mr-1" />
+                                    )}
+                                    Refresher
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    onClick={() => handleConductCertification(
+                                      result.traineeId, 
+                                      result.trainee?.fullName || `Trainee ID: ${result.traineeId}`
+                                    )}
+                                  >
+                                    <Award className="h-4 w-4 mr-1" />
+                                    Certify
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => handleViewDetails(result.id)}
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex justify-end space-x-2">
+                              {hasPermission("manage_batches") && (
                                 <Button 
-                                  variant="outline" 
+                                  variant="ghost" 
                                   size="sm"
-                                  onClick={() => {
-                                    // First set the status to refresher
-                                    setRefresherStatusMutation.mutate(result.traineeId, {
-                                      onSuccess: () => {
-                                        // Then open the schedule dialog
-                                        handleRefresherClick(result.traineeId);
-                                      }
-                                    });
-                                  }}
-                                  disabled={setRefresherStatusMutation.isPending}
-                                >
-                                  {setRefresherStatusMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                  ) : refreshedTraineeIds.includes(result.traineeId) ? (
-                                    <Check className="h-4 w-4 mr-1 text-green-500" />
-                                  ) : (
-                                    <RefreshCw className="h-4 w-4 mr-1" />
-                                  )}
-                                  Refresher
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
+                                  className="h-8 px-2"
                                   onClick={() => handleConductCertification(
                                     result.traineeId, 
                                     result.trainee?.fullName || `Trainee ID: ${result.traineeId}`
@@ -424,31 +444,31 @@ export function BatchCertificationResults({
                                   <Award className="h-4 w-4 mr-1" />
                                   Certify
                                 </Button>
-                              </>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewDetails(result.id)}
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDetails(result.id)}
-                          >
-                            View Details
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => handleViewDetails(result.id)}
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+                <TableCaption className="mt-4 pb-2">
+                  {statusFilter === "all" 
+                    ? "All certification results" 
+                    : statusFilter === "passed" 
+                      ? "Certifications with passing scores" 
+                      : "Certifications with failing scores"}
+                </TableCaption>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8 border rounded-lg bg-muted/10">
               <FileQuestion className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
