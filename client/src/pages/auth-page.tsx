@@ -91,19 +91,19 @@ export default function AuthPage() {
           <div className="flex flex-col justify-center w-full max-w-[400px]">
             <Card className="shadow-md overflow-hidden border border-slate-100">
               <CardHeader className="pb-2 pt-6">
-                {/* Moved logo to content card as requested */}
-                <div className="flex justify-center mb-4">
-                  <ZencxLogo 
-                    width={180} 
-                    height={75} 
-                  />
-                </div>
                 <CardTitle className="text-center">Welcome</CardTitle>
                 <CardDescription className="text-center">
                   Login to your account
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Moved logo inside content card as requested */}
+                <div className="flex justify-center mb-6">
+                  <ZencxLogo 
+                    width={180} 
+                    height={75} 
+                  />
+                </div>
                 <form onSubmit={handleAuth}>
                   <div className="space-y-4">
                     <div>
