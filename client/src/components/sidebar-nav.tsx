@@ -29,8 +29,7 @@ export function SidebarNav() {
   const [location] = useLocation();
   const { logout, user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [logoBackground, setLogoBackground] = useState<string>('bg-orange-50/20');
-  const [logoBorder, setLogoBorder] = useState<string>('border-orange-100/20');
+  const [logoBackground, setLogoBackground] = useState<string>('bg-transparent');
   
   // Load collapsed state from localStorage
   useEffect(() => {
@@ -40,7 +39,7 @@ export function SidebarNav() {
     }
   }, []);
   
-  // Determine section context and logo styling based on current location
+  // Determine section context based on current location
   const [sectionClass, setSectionClass] = useState<string>('section-dashboard');
   const [shimmerEffect, setShimmerEffect] = useState<boolean>(false);
   const prevLocationRef = useRef<string>(location);
@@ -48,11 +47,9 @@ export function SidebarNav() {
   useEffect(() => {
     // Only apply shimmer effect when location changes (not on initial render)
     if (prevLocationRef.current !== location && prevLocationRef.current !== '') {
-      console.log(`Location changed from ${prevLocationRef.current} to ${location} - applying shimmer effect`);
       setShimmerEffect(true);
       // Remove the effect after animation completes
       const timer = setTimeout(() => {
-        console.log('Removing shimmer effect after animation');
         setShimmerEffect(false);
       }, 1200); // Match animation duration
       
@@ -61,30 +58,18 @@ export function SidebarNav() {
     
     prevLocationRef.current = location;
     
-    // Background adaption based on current route - using transparent backgrounds
+    // Set section class based on current route
     if (location.startsWith('/batch-management') || location.startsWith('/trainee-management')) {
-      setLogoBackground('bg-transparent');
-      setLogoBorder('border-blue-100/20');
       setSectionClass('section-trainee');
     } else if (location.startsWith('/quiz-management') || location.startsWith('/my-quizzes')) {
-      setLogoBackground('bg-transparent');
-      setLogoBorder('border-green-100/20');
       setSectionClass('section-quiz');
     } else if (location.startsWith('/evaluation')) {
-      setLogoBackground('bg-transparent');
-      setLogoBorder('border-purple-100/20');
       setSectionClass('section-evaluation');
     } else if (location.startsWith('/audio-') || location.startsWith('/azure-')) {
-      setLogoBackground('bg-transparent');
-      setLogoBorder('border-cyan-100/20');
       setSectionClass('section-audio');
     } else if (location === '/') {
-      setLogoBackground('bg-transparent');
-      setLogoBorder('border-orange-100/10');
       setSectionClass('section-dashboard');
     } else {
-      setLogoBackground('bg-transparent');
-      setLogoBorder('border-gray-100/10');
       setSectionClass('');
     }
   }, [location]);
@@ -107,7 +92,6 @@ export function SidebarNav() {
   console.log('Current user category:', user?.category);
 
   const isTrainee = user?.category === 'trainee';
-  const isQualityAnalyst = user?.role === 'quality_analyst';
   const { hasPermission, isLoading: isPermissionsLoading } = usePermissions();
   
   // Loading state that combines all async operations
@@ -116,11 +100,11 @@ export function SidebarNav() {
   // Define which features belong to which category with permission checks
   const lmsFeatures = [
     { href: '/batch-management', label: 'Batch Management', icon: Users, 
-      permission: 'manage_batches' }, // Using manage_batches as the control permission
+      permission: 'manage_batches' },
     { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck, 
       permission: 'view_trainee_management' },
     { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen, 
-      permission: 'view_quiz' }, // Only show if user has view_quiz permission
+      permission: 'view_quiz' },
   ];
   
   // Define QMS features with permission checks
@@ -180,7 +164,47 @@ export function SidebarNav() {
     ] : getNonTraineeItems()),
   ];
 
-  // Removed app name function as we now use the logo
+  // Render the collapsed sidebar header with logo and toggle button
+  const renderCollapsedHeader = () => (
+    <div className="flex flex-col items-center w-full">
+      <Button 
+        variant="ghost" 
+        size="sm"
+        className="text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 mb-2 self-end"
+        onClick={toggleSidebar}
+        aria-label="Expand sidebar"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+      <Link href="/">
+        <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+          <ZencxLogo width={40} height={40} />
+        </div>
+      </Link>
+    </div>
+  );
+
+  // Render the expanded sidebar header with logo and toggle button
+  const renderExpandedHeader = () => (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-2">
+        <Link href="/" className="flex-1">
+          <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} ${shimmerEffect ? 'animate-shimmer' : ''}`}>
+            <ZencxLogo width={100} height={40} />
+          </div>
+        </Link>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          className="text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ml-2"
+          onClick={toggleSidebar}
+          aria-label="Collapse sidebar"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className={cn(
@@ -188,7 +212,7 @@ export function SidebarNav() {
       isCollapsed ? "w-[70px]" : "w-64",
       sectionClass
     )}>
-      <div className="flex items-center justify-between mb-4 relative">
+      <div className="mb-4">
         {isNavLoading ? (
           // Logo loading skeleton
           <div className={cn(
@@ -196,34 +220,7 @@ export function SidebarNav() {
             isCollapsed ? "h-14 w-14 mx-auto" : "h-16 w-32"
           )} />
         ) : (
-          <>
-            {!isCollapsed ? (
-              <div className="flex items-center justify-center w-full">
-                <Link href="/">
-                  <div className={`flex items-center justify-center overflow-hidden logo-container hover:scale-105 rounded-md ${logoBackground} p-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={100} height={40} />
-                  </div>
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center w-full">
-                <Link href="/">
-                  <div className={`flex items-center justify-center logo-container hover:scale-105 rounded-md ${logoBackground} p-0 ${shimmerEffect ? 'animate-shimmer' : ''}`}>
-                    <ZencxLogo width={40} height={40} />
-                  </div>
-                </Link>
-              </div>
-            )}
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className={`text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8 ml-auto absolute top-1 right-1 z-10`}
-              onClick={toggleSidebar}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
-          </>
+          isCollapsed ? renderCollapsedHeader() : renderExpandedHeader()
         )}
       </div>
 
