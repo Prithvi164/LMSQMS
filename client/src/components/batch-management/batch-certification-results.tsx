@@ -420,14 +420,6 @@ export function BatchCertificationResults({
                                   </Button>
                                 </>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 px-2"
-                                onClick={() => handleViewDetails(result.id)}
-                              >
-                                View Details
-                              </Button>
                             </div>
                           ) : (
                             <div className="flex justify-end space-x-2">
@@ -445,14 +437,6 @@ export function BatchCertificationResults({
                                   Certify
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 px-2"
-                                onClick={() => handleViewDetails(result.id)}
-                              >
-                                View Details
-                              </Button>
                             </div>
                           )}
                         </TableCell>
