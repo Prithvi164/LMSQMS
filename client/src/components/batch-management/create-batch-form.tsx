@@ -1061,19 +1061,52 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         <SelectValue placeholder="Select trainer" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="max-h-[300px]">
-                      <div className="px-2 py-2 sticky top-0 bg-background z-10">
+                    <SelectContent 
+                      className="max-h-[300px]"
+                      onEscapeKeyDown={(e) => {
+                        // Prevent unwanted propagation
+                        e.stopPropagation();
+                      }}
+                      onPointerDownOutside={(e) => {
+                        // Only close if click is outside the dropdown completely
+                        if (e.target && 
+                            !(e.target as HTMLElement).closest('.search-area') && 
+                            !(e.target as HTMLElement).closest('.trainer-items')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <div className="px-2 py-2 sticky top-0 bg-background z-10 search-area">
                         <Input 
                           placeholder="Search trainers..." 
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onChange={(e) => {
+                            try {
+                              // Safely update search term
+                              setSearchTerm(e.target.value);
+                            } catch (error) {
+                              console.error("Error updating search term:", error);
+                            }
+                          }}
+                          onClick={(e) => {
+                            // Prevent event propagation to avoid focus issues
+                            e.stopPropagation();
+                          }}
+                          onKeyDown={(e) => {
+                            // Prevent dropdown from closing on key events in search
+                            e.stopPropagation();
+                          }}
                           className="mb-1"
                         />
                       </div>
-                      <div className="max-h-[250px] overflow-y-auto">
+                      <div className="max-h-[250px] overflow-y-auto trainer-items">
                         {filteredTrainers.length > 0 ? (
                           filteredTrainers.map((trainer) => (
-                            <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                            <SelectItem 
+                              key={trainer.id} 
+                              value={trainer.id.toString()}
+                              className="trainer-item"
+                            >
                               {trainer.fullName}
                             </SelectItem>
                           ))
