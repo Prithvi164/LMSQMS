@@ -1019,7 +1019,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             control={form.control}
             name="trainerId"
             render={({ field }) => {
+              // Reset search term when component re-renders to ensure a fresh dropdown
               const [searchTerm, setSearchTerm] = useState("");
+              
+              // Reset the search term whenever the field value changes or when trainers list updates
+              useEffect(() => {
+                setSearchTerm("");
+              }, [field.value, trainers]);
+              
               const filteredTrainers = trainers.filter(trainer => 
                 trainer.fullName.toLowerCase().includes(searchTerm.toLowerCase())
               );
@@ -1039,6 +1046,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         // Reset the process selection to force the user to select a process from this trainer
                         form.setValue('processId', undefined);
                         
+                        // Reset search term after selection
+                        setSearchTerm("");
+                        
                         // If there's only one process available for this trainer, auto-select it
                         setTimeout(() => {
                           const availableProcesses = processes;
@@ -1051,6 +1061,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                     }}
                     value={field.value?.toString()}
                     disabled={isLoadingTrainers}
+                    // Force dropdown to properly re-render by using a key that changes
+                    key={`trainer-select-${field.value || 'initial'}`}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -1103,6 +1115,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   }}
                   value={field.value?.toString()}
                   disabled={!form.getValues('trainerId') || isLoadingProcesses}
+                  // Force dropdown to properly re-render by using a key that changes
+                  key={`process-select-${form.getValues('trainerId') || 'initial'}-${field.value || 'none'}`}
                 >
                   <FormControl>
                     <SelectTrigger>
