@@ -316,15 +316,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       role: u.role,
       locationId: u.locationId,
       managerId: u.managerId, // Add managerId for debugging
-      selected: selectedLocation
     })));
     
     // Handle special roles (admin and owner) - they can see all trainers
     if (user.role === 'owner' || user.role === 'admin') {
-      return allUsers.filter(u => 
-        u.role === 'trainer' && 
-        (!selectedLocation || u.locationId === selectedLocation)
-      );
+      // FIXED: Always show all trainers regardless of location when selecting a trainer
+      return allUsers.filter(u => u.role === 'trainer');
     }
     
     // For other roles like managers, strictly ensure hierarchical relationships
@@ -371,18 +368,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       managerId: u.managerId
     })));
     
-    // Filter trainers for the selected location - this is important!
-    // This ensures we only see trainers that are assigned to the location we're creating the batch for
-    const locationFilteredTrainers = trainersInHierarchy.filter(u => 
-      !selectedLocation || u.locationId === selectedLocation
-    );
-    
-    console.log('Final trainers after location filter:', locationFilteredTrainers
+    // FIXED: Always show all trainers in hierarchy regardless of location when selecting a trainer
+    console.log('Final trainers list:', trainersInHierarchy
       .map(u => ({ id: u.id, name: u.fullName, location: u.locationId }))
     );
     
-    return locationFilteredTrainers;
-  }, [allUsers, user, selectedLocation]);
+    return trainersInHierarchy;
+  }, [allUsers, user]);
   
   const isLoadingTrainers = isLoadingAllUsers;
 
