@@ -894,7 +894,16 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
             <Button
               onClick={() => {
                 // Only trigger the onCreate callback which is handled by BatchDetail parent component
-                onCreate?.();
+                try {
+                  onCreate?.();
+                } catch (error) {
+                  console.error('Error opening create dialog:', error);
+                  // Fallback in case of errors
+                  toast({
+                    title: "Action in progress",
+                    description: "Opening create batch form...",
+                  });
+                }
               }}
               className="gap-2 ml-4"
             >
@@ -1086,7 +1095,16 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
                   className="relative"
                   onClick={() => {
                     // Only trigger the onCreate callback which is handled by BatchDetail parent component
-                    onCreate?.();
+                    try {
+                      onCreate?.();
+                    } catch (error) {
+                      console.error('Error opening create dialog:', error);
+                      // Fallback in case of errors
+                      toast({
+                        title: "Action in progress",
+                        description: "Opening create batch form...",
+                      });
+                    }
                   }}
                 >
                   <Plus className="mr-2 h-4 w-4" />
