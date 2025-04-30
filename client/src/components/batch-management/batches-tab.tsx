@@ -116,7 +116,7 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  // Removed isCreateDialogOpen state to prevent duplicate dialogs
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
@@ -893,7 +893,7 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
           {canManageBatches && (
             <Button
               onClick={() => {
-                setIsCreateDialogOpen(true);
+                // Only trigger the onCreate callback which is handled by BatchDetail parent component
                 onCreate?.();
               }}
               className="gap-2 ml-4"
@@ -1085,7 +1085,7 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
                   size="sm"
                   className="relative"
                   onClick={() => {
-                    setIsCreateDialogOpen(true);
+                    // Only trigger the onCreate callback which is handled by BatchDetail parent component
                     onCreate?.();
                   }}
                 >
@@ -1097,14 +1097,8 @@ export function BatchesTab({ onCreate }: BatchesTabProps) {
           </div>
         )}
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Create New Batch</DialogTitle>
-            </DialogHeader>
-            <CreateBatchForm />
-          </DialogContent>
-        </Dialog>
+        {/* Create Batch Dialog was removed to prevent duplicate dialogs
+            The dialog is now managed by the BatchDetail parent component */}
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-3xl">
