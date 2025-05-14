@@ -8092,14 +8092,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Apply date filters if provided
       if (startDate) {
-        evaluationsQuery.where(evaluations.createdAt.gte(new Date(startDate)));
+        evaluationsQuery.where(gte(evaluations.createdAt, new Date(startDate)));
       }
       
       if (endDate) {
         // Add one day to include the end date entirely
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        evaluationsQuery.where(evaluations.createdAt.lt(nextDay));
+        evaluationsQuery.where(lte(evaluations.createdAt, nextDay));
       }
       
       // Execute the query
