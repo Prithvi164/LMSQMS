@@ -8133,8 +8133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const key = `${trainee.id}-${date}`;
           const record = attendanceByTraineeAndDate.get(key);
           
-          if (record) {
-            // If attendance record exists for this trainee and date
+          if (record && record.status) {
+            // Only include records where attendance has been marked (status is not null)
             const marker = record.markedById ? markerMap.get(record.markedById) : null;
             
             comprehensiveRecords.push({
@@ -8150,22 +8150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
               updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
             });
-          } else {
-            // If no attendance record for this trainee and date
-            comprehensiveRecords.push({
-              id: null,
-              date: date,
-              traineeId: trainee.id,
-              traineeName: trainee.fullName,
-              employeeId: trainee.employeeId,
-              status: null,
-              phase: null,
-              markedBy: null,
-              batchName: batch.name,
-              createdAt: null,
-              updatedAt: null
-            });
           }
+          // Skip records where attendance hasn't been marked
         }
       }
       
