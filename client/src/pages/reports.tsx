@@ -241,12 +241,41 @@ export default function Reports() {
             return response.json();
           })
           .then(data => {
-            if (data && Array.isArray(data) && data.length > 0) {
-              downloadCSV(data, 'evaluation_results');
-              toast({
-                title: "Data Exported Successfully",
-                description: `${data.length} records have been downloaded as CSV.`,
-              });
+            if (data) {
+              // New format has an object with summary and parameters arrays
+              if (data.summary && data.parameters) {
+                // Download summary data first
+                if (data.summary.length > 0) {
+                  downloadCSV(data.summary, 'evaluation_summary');
+                  toast({
+                    title: "Summary Data Exported",
+                    description: `${data.summary.length} evaluation summary records downloaded.`,
+                  });
+                }
+                
+                // Download detailed parameter data
+                if (data.parameters.length > 0) {
+                  downloadCSV(data.parameters, 'evaluation_parameters');
+                  toast({
+                    title: "Parameter Data Exported",
+                    description: `${data.parameters.length} parameter-level records downloaded.`,
+                  });
+                }
+              } 
+              // Handle the old format for backward compatibility
+              else if (Array.isArray(data) && data.length > 0) {
+                downloadCSV(data, 'evaluation_results');
+                toast({
+                  title: "Data Exported Successfully",
+                  description: `${data.length} records have been downloaded as CSV.`,
+                });
+              } 
+              else {
+                toast({
+                  title: "No Data Found",
+                  description: "There are no evaluation records matching your criteria.",
+                });
+              }
             } else {
               toast({
                 title: "No Data Found",
@@ -576,7 +605,9 @@ export default function Reports() {
                     <DialogHeader>
                       <DialogTitle>Export Evaluation Results</DialogTitle>
                       <DialogDescription>
-                        Select your filters to export detailed evaluation data with parameter-level details.
+                        Select your filters to export evaluation data. Two files will be downloaded:
+                        1. Evaluation summary with overall scores and averages
+                        2. Parameter-wise detail with individual scores for each parameter
                       </DialogDescription>
                     </DialogHeader>
                     

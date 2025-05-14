@@ -8128,12 +8128,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(inArray(evaluationScores.evaluationId, evaluationIds))
           .execute();
           
-        // Create an enriched dataset with parameter info
-        const enrichedData = evaluationResults.map(evaluation => {
+        // Create two types of export data: 
+        // 1. Summary data with high-level evaluation details
+        // 2. Parameter-wise detailed data with individual scores
+
+        // Create summary data (one row per evaluation)
+        const summaryData = evaluationResults.map(evaluation => {
           // Find all parameter scores for this evaluation
           const scores = parameterScores.filter(score => score.evaluationId === evaluation.id);
           
-          // Create a flattened object with evaluation and parameter data
+          // Get average score by pillar for summary
+          const pillarScores = {};
+          scores.forEach(score => {
+            if (!pillarScores[score.pillarName]) {
+              pillarScores[score.pillarName] = {
+                totalScore: 0,
+                count: 0
+              };
+            }
+            pillarScores[score.pillarName].totalScore += parseInt(score.score) || 0;
+            pillarScores[score.pillarName].count += 1;
+          });
+          
+          // Calculate averages and format as object
+          const pillarAverages = {};
+          Object.keys(pillarScores).forEach(pillarName => {
+            const pillar = pillarScores[pillarName];
+            pillarAverages[`${pillarName}_Average`] = pillar.count > 0 
+              ? (pillar.totalScore / pillar.count).toFixed(2) 
+              : 'N/A';
+          });
+          
           return {
             evaluationId: evaluation.id,
             templateName: evaluation.templateName,
@@ -8151,17 +8176,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
             audioFileId: evaluation.audioFileId || 'N/A',
             audioFileName: evaluation.audioFileName || 'N/A',
-            parameterScores: scores.map(score => ({
-              parameterName: score.parameterName,
-              pillarName: score.pillarName,
-              score: score.score,
-              weightage: score.weightage,
-              comment: score.comment || '',
-            }))
+            ...pillarAverages,
+            parameterCount: scores.length
           };
         });
         
-        return res.json(enrichedData);
+        // Create detailed parameter-wise data (multiple rows per evaluation)
+        const parameterData = [];
+        evaluationResults.forEach(evaluation => {
+          const scores = parameterScores.filter(score => score.evaluationId === evaluation.id);
+          
+          // Create a separate row for each parameter score
+          scores.forEach(score => {
+            parameterData.push({
+              evaluationId: evaluation.id,
+              templateName: evaluation.templateName,
+              batchName: evaluation.batchName,
+              processName: evaluation.processName,
+              createdAt: evaluation.createdAt ? formatIST(new Date(evaluation.createdAt)) : '',
+              traineeName: evaluation.traineeName || 'N/A',
+              traineeEmployeeId: evaluation.traineeEmployeeId || 'N/A',
+              evaluatorName: evaluation.evaluatorName || 'N/A',
+              evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
+              finalScore: evaluation.finalScore,
+              status: evaluation.status,
+              
+              // Parameter-specific details
+              pillarName: score.pillarName,
+              parameterName: score.parameterName,
+              parameterScore: score.score,
+              weightage: score.weightage,
+              comment: score.comment || '',
+            });
+          });
+        });
+        
+        // Return both datasets
+        return res.json({
+          summary: summaryData,
+          parameters: parameterData
+        });
       } else {
         // No data found
         return res.json([]);
