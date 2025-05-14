@@ -8021,6 +8021,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Export detailed attendance data for multiple batches or by date range only
+  // Evaluation Export Endpoint
+  app.get("/api/organizations/:orgId/evaluations/export", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only export evaluation data from your own organization" });
+      }
+      
+      // Parse date range if provided
+      let startDate: string | undefined = req.query.startDate as string;
+      let endDate: string | undefined = req.query.endDate as string;
+      
+      // Parse batch IDs if provided (can be a comma-separated list or undefined)
+      const batchIdsParam = req.query.batchIds as string | undefined;
+      const batchIds = batchIdsParam ? batchIdsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
+      
+      // Parse template ID if provided
+      const templateIdParam = req.query.templateId as string | undefined;
+      const templateId = templateIdParam ? parseInt(templateIdParam) : undefined;
+      
+      console.log(`Exporting evaluation data${batchIds.length > 0 ? ' for batches: ' + batchIds.join(', ') : ' for all batches'}${templateId ? ', template: ' + templateId : ''}, startDate: ${startDate}, endDate: ${endDate}`);
+      
+      // Prepare the evaluation query with all tables we need to join
+      const evaluationsQuery = db
+        .select({
+          id: evaluations.id,
+          templateName: evaluationTemplates.name,
+          batchName: organizationBatches.name,
+          processName: processes.name,
+          evaluationType: evaluations.evaluationType,
+          finalScore: evaluations.finalScore,
+          status: evaluations.status,
+          feedbackThreshold: evaluations.feedbackThreshold,
+          createdAt: evaluations.createdAt,
+          updatedAt: evaluations.updatedAt,
+          traineeName: users.fullName,
+          traineeEmployeeId: users.employeeId,
+          evaluatorName: evaluatorUsers.fullName,
+          evaluatorEmployeeId: evaluatorUsers.employeeId,
+          audioFileId: evaluations.audioFileId,
+          audioFileName: audioFiles.filename,
+        })
+        .from(evaluations)
+        .leftJoin(evaluationTemplates, eq(evaluations.templateId, evaluationTemplates.id))
+        .leftJoin(organizationBatches, eq(evaluations.batchId, organizationBatches.id))
+        .leftJoin(processes, eq(organizationBatches.processId, processes.id))
+        .leftJoin(users, eq(evaluations.traineeId, users.id))
+        .leftJoin(users.as("evaluator"), eq(evaluations.evaluatorId, evaluatorUsers.id))
+        .leftJoin(audioFiles, eq(evaluations.audioFileId, audioFiles.id))
+        .where(eq(evaluations.organizationId, orgId));
+      
+      // Apply template filter if provided
+      if (templateId) {
+        evaluationsQuery.where(eq(evaluations.templateId, templateId));
+      }
+      
+      // Apply batch filter if provided
+      if (batchIds.length > 0) {
+        evaluationsQuery.where(inArray(evaluations.batchId, batchIds));
+      }
+      
+      // Apply date filters if provided
+      if (startDate) {
+        evaluationsQuery.where(gte(evaluations.createdAt, new Date(startDate)));
+      }
+      
+      if (endDate) {
+        // Add one day to include the end date entirely
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        evaluationsQuery.where(lt(evaluations.createdAt, nextDay));
+      }
+      
+      // Execute the query
+      const evaluationResults = await evaluationsQuery.execute();
+      
+      // Fetch parameter scores for each evaluation
+      const evaluationIds = evaluationResults.map(e => e.id);
+      
+      // Only proceed if we have evaluations to export
+      if (evaluationIds.length > 0) {
+        // Get parameter scores for these evaluations
+        const parameterScores = await db
+          .select({
+            evaluationId: evaluationScores.evaluationId,
+            parameterId: evaluationScores.parameterId,
+            pillarId: parameters.pillarId,
+            parameterName: parameters.name,
+            pillarName: pillars.name,
+            score: evaluationScores.score,
+            weightage: parameters.weightage,
+            comment: evaluationScores.comment,
+          })
+          .from(evaluationScores)
+          .innerJoin(parameters, eq(evaluationScores.parameterId, parameters.id))
+          .innerJoin(pillars, eq(parameters.pillarId, pillars.id))
+          .where(inArray(evaluationScores.evaluationId, evaluationIds))
+          .execute();
+          
+        // Create an enriched dataset with parameter info
+        const enrichedData = evaluationResults.map(evaluation => {
+          // Find all parameter scores for this evaluation
+          const scores = parameterScores.filter(score => score.evaluationId === evaluation.id);
+          
+          // Create a flattened object with evaluation and parameter data
+          return {
+            evaluationId: evaluation.id,
+            templateName: evaluation.templateName,
+            batchName: evaluation.batchName,
+            processName: evaluation.processName,
+            evaluationType: evaluation.evaluationType,
+            finalScore: evaluation.finalScore,
+            status: evaluation.status,
+            feedbackThreshold: evaluation.feedbackThreshold,
+            createdAt: evaluation.createdAt ? format(new Date(evaluation.createdAt), 'yyyy-MM-dd HH:mm:ss') : '',
+            updatedAt: evaluation.updatedAt ? format(new Date(evaluation.updatedAt), 'yyyy-MM-dd HH:mm:ss') : '',
+            traineeName: evaluation.traineeName || 'N/A',
+            traineeEmployeeId: evaluation.traineeEmployeeId || 'N/A',
+            evaluatorName: evaluation.evaluatorName || 'N/A',
+            evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
+            audioFileId: evaluation.audioFileId || 'N/A',
+            audioFileName: evaluation.audioFileName || 'N/A',
+            parameterScores: scores.map(score => ({
+              parameterName: score.parameterName,
+              pillarName: score.pillarName,
+              score: score.score,
+              weightage: score.weightage,
+              comment: score.comment || '',
+            }))
+          };
+        });
+        
+        return res.json(enrichedData);
+      } else {
+        // No data found
+        return res.json([]);
+      }
+    } catch (error) {
+      console.error("Error exporting evaluation data:", error);
+      return res.status(500).json({ message: "Failed to export evaluation data" });
+    }
+  });
+
   app.get("/api/organizations/:orgId/attendance/export", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
