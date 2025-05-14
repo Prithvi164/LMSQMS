@@ -53,7 +53,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { db } from './db';
 import { join, extname } from 'path';
 import express from 'express';
-import { eq, and, or, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, or, sql, inArray, gte, lte } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
@@ -8116,7 +8116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (endDate) {
-        attendanceQuery = attendanceQuery.where(sql`${attendance.date} <= ${endDate}`);
+        attendanceQuery = attendanceQuery.where(lte(attendance.date, endDate));
       }
       
       // Execute the query
