@@ -225,7 +225,7 @@ export default function Reports() {
         const batchIdsParam = selectedBatchIds.length > 0 ? `batchIds=${selectedBatchIds.join(',')}` : '';
         const startDateParam = startDate ? `startDate=${format(startDate, 'yyyy-MM-dd')}` : '';
         const endDateParam = endDate ? `endDate=${format(endDate, 'yyyy-MM-dd')}` : '';
-        const templateIdParam = selectedEvaluationTemplateId ? `templateId=${selectedEvaluationTemplateId}` : '';
+        const templateIdParam = selectedEvaluationTemplateId && selectedEvaluationTemplateId !== 'all' ? `templateId=${selectedEvaluationTemplateId}` : '';
         
         // Combine the parameters
         const queryParams = [batchIdsParam, startDateParam, endDateParam, templateIdParam]
@@ -407,7 +407,7 @@ export default function Reports() {
                             <SelectValue placeholder="Select a template..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">All Templates</SelectItem>
+                            <SelectItem value="all">All Templates</SelectItem>
                             {evaluationTemplates && evaluationTemplates.map((template: EvaluationTemplate) => (
                               <SelectItem key={template.id} value={template.id.toString()}>
                                 {template.name}
