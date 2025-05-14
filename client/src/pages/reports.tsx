@@ -7,8 +7,10 @@ import {
   Filter,
   Calendar,
   Search,
-  X
+  X,
+  ClipboardCheck
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +34,14 @@ type Batch = {
   id: number;
   name: string;
   status: string;
+  [key: string]: any;
+};
+type EvaluationTemplate = {
+  id: number;
+  name: string;
+  status: string;
+  processId: number;
+  description?: string;
   [key: string]: any;
 };
 
@@ -89,10 +99,17 @@ export default function Reports() {
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [selectedEvaluationTemplateId, setSelectedEvaluationTemplateId] = useState<string>("");
   
   // Fetch batches
   const { data: batches, isLoading: isBatchesLoading } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
+    enabled: !!user?.organizationId
+  });
+  
+  // Fetch evaluation templates
+  const { data: evaluationTemplates, isLoading: isTemplatesLoading } = useQuery<EvaluationTemplate[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId
   });
 
@@ -194,6 +211,55 @@ export default function Reports() {
             toast({
               title: "Export Failed",
               description: "There was a problem exporting the data.",
+              variant: "destructive"
+            });
+          });
+      } else if (selectedDataType === 'evaluation-results') {
+        // Show loading toast
+        toast({
+          title: "Preparing Export",
+          description: "Gathering evaluation results data for download...",
+        });
+        
+        // Construct the API URL with the right parameters
+        const batchIdsParam = selectedBatchIds.length > 0 ? `batchIds=${selectedBatchIds.join(',')}` : '';
+        const startDateParam = startDate ? `startDate=${format(startDate, 'yyyy-MM-dd')}` : '';
+        const endDateParam = endDate ? `endDate=${format(endDate, 'yyyy-MM-dd')}` : '';
+        const templateIdParam = selectedEvaluationTemplateId ? `templateId=${selectedEvaluationTemplateId}` : '';
+        
+        // Combine the parameters
+        const queryParams = [batchIdsParam, startDateParam, endDateParam, templateIdParam]
+          .filter(param => param !== '')
+          .join('&');
+        
+        // Fetch evaluation data from API
+        fetch(`/api/organizations/${user?.organizationId}/evaluations/export?${queryParams}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data && Array.isArray(data) && data.length > 0) {
+              downloadCSV(data, 'evaluation_results');
+              toast({
+                title: "Data Exported Successfully",
+                description: `${data.length} records have been downloaded as CSV.`,
+              });
+            } else {
+              toast({
+                title: "No Data Found",
+                description: "There are no evaluation records matching your criteria.",
+              });
+            }
+            setIsExportDialogOpen(false);
+          })
+          .catch(error => {
+            console.error("Error exporting evaluation data:", error);
+            toast({
+              title: "Export Failed",
+              description: "There was a problem exporting the evaluation data.",
               variant: "destructive"
             });
           });
@@ -330,6 +396,30 @@ export default function Reports() {
                     </DialogHeader>
                     
                     <div className="grid gap-4 py-4">
+                      {/* Template Selection */}
+                      <div className="space-y-2">
+                        <Label htmlFor="template">Evaluation Template (Optional)</Label>
+                        <Select 
+                          value={selectedEvaluationTemplateId} 
+                          onValueChange={setSelectedEvaluationTemplateId}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a template..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">All Templates</SelectItem>
+                            {evaluationTemplates && evaluationTemplates.map((template: EvaluationTemplate) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Select a specific template to filter the evaluations, or leave blank to include all templates.
+                        </p>
+                      </div>
+                      
                       <div className="space-y-2">
                         <Label htmlFor="batch">Select Batches (Optional)</Label>
                         <p className="text-sm text-muted-foreground mb-2">
