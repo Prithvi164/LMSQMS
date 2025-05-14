@@ -302,33 +302,46 @@ export default function Reports() {
                         </div>
                         
                         {selectedBatchIds.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {selectedBatchIds.map(id => {
-                              const batch = batches?.find(b => b.id.toString() === id);
-                              return (
-                                <Badge key={id} variant="secondary" className="py-1 px-2">
-                                  {batch?.name || id}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="ml-1 h-4 w-4 p-0"
-                                    onClick={() => toggleBatchSelection(id)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </Badge>
-                              );
-                            })}
-                            {selectedBatchIds.length > 1 && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => setSelectedBatchIds([])}
-                              >
-                                Clear All
-                              </Button>
-                            )}
+                          <div className="mt-3 mb-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-medium">Selected Batches ({selectedBatchIds.length})</p>
+                              {selectedBatchIds.length > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs h-7 px-2"
+                                  onClick={() => {
+                                    console.log('Clearing all batch selections');
+                                    setSelectedBatchIds([]);
+                                  }}
+                                >
+                                  Clear All
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-secondary/10">
+                              {selectedBatchIds.map(id => {
+                                const batch = batches?.find(b => b.id.toString() === id);
+                                return (
+                                  <Badge key={id} variant="secondary" className="py-1 px-2 gap-1">
+                                    <span>{batch?.name || id}</span>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-4 w-4 p-0 hover:bg-transparent"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('Removing batch from badge:', id);
+                                        toggleBatchSelection(id);
+                                      }}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                         
@@ -338,36 +351,40 @@ export default function Reports() {
                           ) : filteredBatches.length > 0 ? (
                             <div className="space-y-1">
                               {filteredBatches.map(batch => (
-                                <div
+                                <Button
                                   key={batch.id}
-                                  className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground ${
-                                    selectedBatchIds.includes(batch.id.toString()) ? 'bg-indigo-100 border border-indigo-300' : 'border border-transparent'
-                                  }`}
+                                  type="button"
+                                  variant={selectedBatchIds.includes(batch.id.toString()) ? "secondary" : "outline"} 
+                                  className={`w-full justify-start text-left h-auto mb-1 px-3 py-2`}
                                   onClick={() => {
                                     // Add debugging log for batch selection
-                                    console.log('Toggling batch:', batch.id, batch.name);
+                                    console.log('Toggling batch from button:', batch.id, batch.name);
                                     toggleBatchSelection(batch.id.toString());
                                   }}
                                 >
-                                  <Checkbox
-                                    id={`batch-${batch.id}`}
-                                    checked={selectedBatchIds.includes(batch.id.toString())}
-                                    onCheckedChange={() => {
-                                      console.log('Checkbox change for batch:', batch.id);
-                                      toggleBatchSelection(batch.id.toString());
-                                    }}
-                                    className="h-5 w-5"
-                                  />
-                                  <label
-                                    htmlFor={`batch-${batch.id}`}
-                                    className="text-sm font-medium leading-none cursor-pointer flex-1"
-                                  >
-                                    {batch.name}
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                      ({batch.status})
-                                    </span>
-                                  </label>
-                                </div>
+                                  <div className="flex items-center space-x-2 w-full">
+                                    <Checkbox
+                                      checked={selectedBatchIds.includes(batch.id.toString())}
+                                      className="h-4 w-4"
+                                      onCheckedChange={(checked) => {
+                                        console.log('Checkbox direct change for batch:', batch.id, checked);
+                                        if (checked) {
+                                          if (!selectedBatchIds.includes(batch.id.toString())) {
+                                            setSelectedBatchIds(prev => [...prev, batch.id.toString()]);
+                                          }
+                                        } else {
+                                          setSelectedBatchIds(prev => prev.filter(id => id !== batch.id.toString()));
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex-1">
+                                      <span className="font-medium text-sm">{batch.name}</span>
+                                      <span className="text-xs text-muted-foreground ml-1">
+                                        ({batch.status})
+                                      </span>
+                                    </div>
+                                  </div>
+                                </Button>
                               ))}
                             </div>
                           ) : (
