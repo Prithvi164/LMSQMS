@@ -8226,6 +8226,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/organizations/:orgId/trainee-progress/export", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only export trainee progress data from your own organization" });
+      }
+      
+      // Parse date range if provided
+      let startDate: string | undefined = req.query.startDate as string;
+      let endDate: string | undefined = req.query.endDate as string;
+      
+      // Parse batch IDs if provided (can be a comma-separated list or undefined)
+      const batchIdsParam = req.query.batchIds as string | undefined;
+      const batchIds = batchIdsParam ? batchIdsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
+      
+      console.log(`Exporting trainee progress data${batchIds.length > 0 ? ' for batches: ' + batchIds.join(', ') : ' for all batches'}, startDate: ${startDate}, endDate: ${endDate}`);
+      
+      // Create an aliased table for evaluator
+      const evaluator = aliasedTable(users, "evaluator");
+      
+      // Prepare the evaluation query with all tables we need to join
+      const evaluationsQuery = db
+        .select({
+          id: evaluations.id,
+          templateName: evaluationTemplates.name,
+          batchName: organizationBatches.name,
+          processName: organizationProcesses.name,
+          evaluationType: evaluations.evaluationType,
+          finalScore: evaluations.finalScore,
+          status: evaluations.status,
+          feedbackThreshold: evaluations.feedbackThreshold,
+          createdAt: evaluations.createdAt,
+          updatedAt: evaluations.updatedAt,
+          traineeName: users.fullName,
+          traineeEmployeeId: users.employeeId,
+          evaluatorName: evaluator.fullName,
+          evaluatorEmployeeId: evaluator.employeeId,
+          audioFileId: evaluations.audioFileId,
+          audioFileName: audioFiles.filename,
+          audioCallType: sql`audioFiles.call_metrics->>'callType'`
+        })
+        .from(evaluations)
+        .leftJoin(evaluationTemplates, eq(evaluations.templateId, evaluationTemplates.id))
+        .leftJoin(organizationBatches, eq(evaluations.batchId, organizationBatches.id))
+        .leftJoin(organizationProcesses, eq(organizationBatches.processId, organizationProcesses.id))
+        .leftJoin(users, eq(evaluations.traineeId, users.id))
+        .leftJoin(evaluator, eq(evaluations.evaluatorId, evaluator.id))
+        .leftJoin(audioFiles, eq(evaluations.audioFileId, audioFiles.id))
+        .where(eq(evaluations.organizationId, orgId));
+      
+      // Apply batch filter if provided
+      if (batchIds.length > 0) {
+        evaluationsQuery.where(inArray(evaluations.batchId, batchIds));
+      }
+      
+      // Apply date filters if provided
+      if (startDate) {
+        evaluationsQuery.where(gte(evaluations.createdAt, new Date(startDate)));
+      }
+      
+      if (endDate) {
+        // Add one day to include the end date entirely
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        evaluationsQuery.where(lte(evaluations.createdAt, nextDay));
+      }
+      
+      // Execute the query
+      const evaluationResults = await evaluationsQuery.execute();
+      
+      // Format results for export
+      const formattedResults = evaluationResults.map(evaluation => ({
+        evaluationId: evaluation.id,
+        templateName: evaluation.templateName,
+        batchName: evaluation.batchName,
+        processName: evaluation.processName,
+        evaluationType: evaluation.evaluationType,
+        finalScore: evaluation.finalScore,
+        status: evaluation.status,
+        feedbackThreshold: evaluation.feedbackThreshold,
+        createdAt: evaluation.createdAt ? formatIST(new Date(evaluation.createdAt)) : '',
+        updatedAt: evaluation.updatedAt ? formatIST(new Date(evaluation.updatedAt)) : '',
+        traineeName: evaluation.traineeName || 'N/A',
+        traineeEmployeeId: evaluation.traineeEmployeeId || 'N/A',
+        evaluatorName: evaluation.evaluatorName || 'N/A',
+        evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
+        audioFileId: evaluation.audioFileId || 'N/A',
+        audioFileName: evaluation.audioFileName || 'N/A',
+        audioType: evaluation.audioType || 'N/A'
+      }));
+      
+      return res.json(formattedResults);
+    } catch (error) {
+      console.error("Error exporting trainee progress data:", error);
+      return res.status(500).json({ message: "Failed to export trainee progress data" });
+    }
+  });
+
   app.get("/api/organizations/:orgId/attendance/export", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 

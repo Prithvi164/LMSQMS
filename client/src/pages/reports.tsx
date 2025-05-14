@@ -214,6 +214,54 @@ export default function Reports() {
               variant: "destructive"
             });
           });
+      } else if (selectedDataType === 'trainee-progress') {
+        // Show loading toast
+        toast({
+          title: "Preparing Export",
+          description: "Gathering trainee progress data for download...",
+        });
+        
+        // Construct the API URL with the right parameters
+        const batchIdsParam = selectedBatchIds.length > 0 ? `batchIds=${selectedBatchIds.join(',')}` : '';
+        const startDateParam = startDate ? `startDate=${format(startDate, 'yyyy-MM-dd')}` : '';
+        const endDateParam = endDate ? `endDate=${format(endDate, 'yyyy-MM-dd')}` : '';
+        
+        // Combine the parameters
+        const queryParams = [batchIdsParam, startDateParam, endDateParam]
+          .filter(param => param !== '')
+          .join('&');
+        
+        // Fetch trainee progress data from API
+        fetch(`/api/organizations/${user?.organizationId}/trainee-progress/export?${queryParams}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data && Array.isArray(data) && data.length > 0) {
+              downloadCSV(data, 'trainee_progress');
+              toast({
+                title: "Data Exported Successfully",
+                description: `${data.length} trainee progress records have been downloaded as CSV.`,
+              });
+            } else {
+              toast({
+                title: "No Data Found",
+                description: "There are no trainee progress records matching your criteria.",
+              });
+            }
+            setIsExportDialogOpen(false);
+          })
+          .catch(error => {
+            console.error("Error exporting trainee progress data:", error);
+            toast({
+              title: "Export Failed",
+              description: "There was a problem exporting the trainee progress data.",
+              variant: "destructive"
+            });
+          });
       } else if (selectedDataType === 'evaluation-results') {
         // Show loading toast
         toast({
@@ -587,6 +635,212 @@ export default function Reports() {
                       >
                         <FileDown className="h-4 w-4 mr-2" />
                         Export Data
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardFooter>
+            </Card>
+            
+            {/* Trainee Progress Export Card */}
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center text-lg">
+                  <ClipboardCheck className="h-5 w-5 mr-2 text-indigo-600" />
+                  Trainee Progress
+                </CardTitle>
+                <CardDescription>
+                  Export trainee performance and evaluation data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Download comprehensive trainee progress data including evaluation history, scores, and detailed performance metrics.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Dialog open={isExportDialogOpen && selectedDataType === 'trainee-progress'} onOpenChange={(open) => {
+                  setIsExportDialogOpen(open);
+                  if (open) setSelectedDataType('trainee-progress');
+                }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Export Trainee Progress
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Export Trainee Progress</DialogTitle>
+                      <DialogDescription>
+                        Select your filters to export detailed trainee progress and evaluation history data.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      {/* Date Range Selection */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Start Date */}
+                        <div className="space-y-2">
+                          <Label htmlFor="start-date-progress">Start Date (Optional)</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="start-date-progress"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal">
+                                {startDate ? (
+                                  format(startDate, "PPP")
+                                ) : (
+                                  <span>Pick a start date</span>
+                                )}
+                                <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={startDate}
+                                onSelect={setStartDate}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        
+                        {/* End Date */}
+                        <div className="space-y-2">
+                          <Label htmlFor="end-date-progress">End Date (Optional)</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="end-date-progress"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal">
+                                {endDate ? (
+                                  format(endDate, "PPP")
+                                ) : (
+                                  <span>Pick an end date</span>
+                                )}
+                                <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                              <CalendarComponent
+                                mode="single"
+                                selected={endDate}
+                                onSelect={setEndDate}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                      
+                      {/* Batch Selection */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="batch-search-progress">Select Batches (Optional)</Label>
+                          <div className="flex items-center h-9">
+                            <Input 
+                              type="text" 
+                              id="batch-search-progress"
+                              placeholder="Search batches..."
+                              className="h-9 w-[180px]"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            {searchTerm && (
+                              <Button 
+                                variant="ghost" 
+                                className="h-9 px-2 ml-1" 
+                                onClick={() => setSearchTerm("")}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Running Batches */}
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Active/Running Batches</h4>
+                            <ScrollArea className="h-[200px] rounded-md border">
+                              <div className="p-2">
+                                {isBatchesLoading ? (
+                                  <div className="py-2 text-center text-sm text-muted-foreground">
+                                    Loading batches...
+                                  </div>
+                                ) : runningBatches.length === 0 ? (
+                                  <div className="py-2 text-center text-sm text-muted-foreground">
+                                    No running batches found
+                                  </div>
+                                ) : (
+                                  runningBatches.map(batch => (
+                                    <div key={batch.id} className="flex items-center space-x-2 py-1">
+                                      <Checkbox 
+                                        id={`batch-${batch.id}-progress-running`}
+                                        checked={selectedBatchIds.includes(batch.id.toString())}
+                                        onCheckedChange={() => toggleBatchSelection(batch.id.toString())}
+                                      />
+                                      <Label
+                                        htmlFor={`batch-${batch.id}-progress-running`}
+                                        className="text-sm font-normal cursor-pointer text-wrap break-words"
+                                      >
+                                        {batch.name}
+                                      </Label>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                          
+                          {/* Completed Batches */}
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Completed Batches</h4>
+                            <ScrollArea className="h-[200px] rounded-md border">
+                              <div className="p-2">
+                                {isBatchesLoading ? (
+                                  <div className="py-2 text-center text-sm text-muted-foreground">
+                                    Loading batches...
+                                  </div>
+                                ) : completedBatches.length === 0 ? (
+                                  <div className="py-2 text-center text-sm text-muted-foreground">
+                                    No completed batches found
+                                  </div>
+                                ) : (
+                                  completedBatches.map(batch => (
+                                    <div key={batch.id} className="flex items-center space-x-2 py-1">
+                                      <Checkbox 
+                                        id={`batch-${batch.id}-progress-completed`}
+                                        checked={selectedBatchIds.includes(batch.id.toString())}
+                                        onCheckedChange={() => toggleBatchSelection(batch.id.toString())}
+                                      />
+                                      <Label
+                                        htmlFor={`batch-${batch.id}-progress-completed`}
+                                        className="text-sm font-normal cursor-pointer text-wrap break-words"
+                                      >
+                                        {batch.name}
+                                      </Label>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleDownloadRawData}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Data
                       </Button>
                     </DialogFooter>
                   </DialogContent>
