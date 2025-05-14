@@ -8054,7 +8054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: evaluations.id,
           templateName: evaluationTemplates.name,
           batchName: organizationBatches.name,
-          processName: processes.name,
+          processName: organizationProcesses.name,
           evaluationType: evaluations.evaluationType,
           finalScore: evaluations.finalScore,
           status: evaluations.status,
