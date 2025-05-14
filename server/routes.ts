@@ -8023,7 +8023,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Exporting attendance data for batch: ${batchId}, startDate: ${startDate}, endDate: ${endDate}`);
       
-      // Get all attendance records for this batch
+      // First, get all trainees in the batch
+      const batchTrainees = await db
+        .select({
+          id: users.id,
+          fullName: users.fullName,
+          employeeId: users.employeeId
+        })
+        .from(users)
+        .innerJoin(userBatchProcesses, eq(users.id, userBatchProcesses.userId))
+        .where(eq(userBatchProcesses.batchId, batchId));
+      
+      console.log(`Found ${batchTrainees.length} trainees in batch ${batchId}`);
+      
+      if (batchTrainees.length === 0) {
+        return res.json([]);
+      }
+      
+      // Create a map for easy lookup of trainee information
+      const traineeMap = new Map(batchTrainees.map(trainee => [trainee.id, trainee]));
+      
+      // Get batch details
+      const batch = await db.query.organizationBatches.findFirst({
+        where: eq(organizationBatches.id, batchId)
+      });
+      
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      
+      // Get all attendance records for this batch with date filter
       let query = db
         .select({
           id: attendance.id,
@@ -8050,74 +8079,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Execute the query
       const attendanceRecords = await query;
+      console.log(`Found ${attendanceRecords.length} attendance records for batch ${batchId}`);
       
-      if (attendanceRecords.length === 0) {
-        return res.json([]);
+      // Group attendance records by trainee and date
+      const attendanceByTraineeAndDate = new Map();
+      
+      for (const record of attendanceRecords) {
+        const key = `${record.traineeId}-${record.date}`;
+        attendanceByTraineeAndDate.set(key, record);
       }
       
-      // Get all trainees to include their names in the export
-      const traineeIds = [...new Set(attendanceRecords.map(record => record.traineeId))];
+      // Get marker names if there are any attendance records
+      let markerMap = new Map();
       
-      const trainees = await db
-        .select({
-          id: users.id,
-          fullName: users.fullName,
-          employeeId: users.employeeId
-        })
-        .from(users)
-        .where(inArray(users.id, traineeIds));
-      
-      // Create a map for easy lookup of trainee names
-      const traineeMap = new Map(trainees.map(trainee => [trainee.id, trainee]));
-      
-      // Get marker names
-      const markerIds = [...new Set(attendanceRecords.map(record => record.markedById).filter(id => id !== null))] as number[];
-      
-      const markers = await db
-        .select({
-          id: users.id,
-          fullName: users.fullName
-        })
-        .from(users)
-        .where(inArray(users.id, markerIds));
-      
-      // Create a map for easy lookup of marker names
-      const markerMap = new Map(markers.map(marker => [marker.id, marker]));
-      
-      // Get batch details
-      const batch = await db.query.organizationBatches.findFirst({
-        where: eq(organizationBatches.id, batchId)
-      });
-      
-      // Enhance the records with trainee and marker names
-      const enhancedRecords = attendanceRecords.map(record => {
-        const trainee = traineeMap.get(record.traineeId);
-        const marker = record.markedById ? markerMap.get(record.markedById) : null;
+      if (attendanceRecords.length > 0) {
+        const markerIds = [...new Set(attendanceRecords.map(record => record.markedById).filter(id => id !== null))] as number[];
         
-        return {
-          id: record.id,
-          date: record.date,
-          traineeId: record.traineeId,
-          traineeName: trainee ? trainee.fullName : 'Unknown',
-          employeeId: trainee ? trainee.employeeId : 'Unknown',
-          status: record.status,
-          phase: record.phase,
-          markedBy: marker ? marker.fullName : 'System',
-          batchName: batch ? batch.name : 'Unknown',
-          createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
-          updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
-        };
-      });
+        if (markerIds.length > 0) {
+          const markers = await db
+            .select({
+              id: users.id,
+              fullName: users.fullName
+            })
+            .from(users)
+            .where(inArray(users.id, markerIds));
+          
+          markerMap = new Map(markers.map(marker => [marker.id, marker]));
+        }
+      }
+      
+      // Generate date range if start and end dates are provided
+      let allDates: string[] = [];
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+          allDates.push(date.toISOString().split('T')[0]);
+        }
+      } else if (attendanceRecords.length > 0) {
+        // If no date range, use the unique dates from attendance records
+        allDates = [...new Set(attendanceRecords.map(record => record.date))];
+      }
+      
+      // Create comprehensive records for all trainees and dates
+      const comprehensiveRecords = [];
+      
+      // For each trainee
+      for (const trainee of batchTrainees) {
+        // For each date
+        for (const date of allDates) {
+          const key = `${trainee.id}-${date}`;
+          const record = attendanceByTraineeAndDate.get(key);
+          
+          if (record) {
+            // If attendance record exists for this trainee and date
+            const marker = record.markedById ? markerMap.get(record.markedById) : null;
+            
+            comprehensiveRecords.push({
+              id: record.id,
+              date: record.date,
+              traineeId: trainee.id,
+              traineeName: trainee.fullName,
+              employeeId: trainee.employeeId,
+              status: record.status,
+              phase: record.phase,
+              markedBy: marker ? marker.fullName : 'System',
+              batchName: batch.name,
+              createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
+              updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
+            });
+          } else {
+            // If no attendance record for this trainee and date
+            comprehensiveRecords.push({
+              id: null,
+              date: date,
+              traineeId: trainee.id,
+              traineeName: trainee.fullName,
+              employeeId: trainee.employeeId,
+              status: null,
+              phase: null,
+              markedBy: null,
+              batchName: batch.name,
+              createdAt: null,
+              updatedAt: null
+            });
+          }
+        }
+      }
       
       // Sort by date then by trainee name
-      enhancedRecords.sort((a, b) => {
+      comprehensiveRecords.sort((a, b) => {
         if (a.date !== b.date) {
           return a.date.localeCompare(b.date);
         }
         return a.traineeName.localeCompare(b.traineeName);
       });
       
-      res.json(enhancedRecords);
+      res.json(comprehensiveRecords);
     } catch (error) {
       console.error('Error exporting attendance data:', error);
       res.status(500).json({ message: "Failed to export attendance data" });
