@@ -290,11 +290,42 @@ export default function Reports() {
                       Export Attendance Data
                     </Button>
                   </DialogTrigger>
+                </Dialog>
+              </CardFooter>
+            </Card>
+            
+            {/* Evaluation Results Export Card */}
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center text-lg">
+                  <BarChart className="h-5 w-5 mr-2 text-indigo-600" />
+                  Evaluation Results
+                </CardTitle>
+                <CardDescription>
+                  Export detailed evaluation data with parameters
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Download comprehensive evaluation results including parameter details, scores, agent info, and audio references.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Dialog open={isExportDialogOpen && selectedDataType === 'evaluation-results'} onOpenChange={(open) => {
+                  setIsExportDialogOpen(open);
+                  if (open) setSelectedDataType('evaluation-results');
+                }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Export Evaluation Data
+                    </Button>
+                  </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Export Attendance Data</DialogTitle>
+                      <DialogTitle>Export Evaluation Results</DialogTitle>
                       <DialogDescription>
-                        Select your filters to export specific attendance data.
+                        Select your filters to export detailed evaluation data with parameter-level details.
                       </DialogDescription>
                     </DialogHeader>
                     
