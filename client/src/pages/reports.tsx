@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { 
   BarChart, 
   FileDown, 
   Download,
   Filter,
-  Calendar
+  Calendar,
+  Search,
+  X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,15 +15,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
@@ -31,9 +24,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 
 // Types for data export
 type ExportDataType = 'attendance' | 'trainee-progress' | 'evaluation-results' | 'quiz-results' | 'custom';
+type Batch = {
+  id: number;
+  name: string;
+  status: string;
+  [key: string]: any;
+};
 
 // Function to download data as CSV
 const downloadCSV = (data: any[], filename: string) => {
@@ -86,24 +86,42 @@ export default function Reports() {
   const [selectedDataType, setSelectedDataType] = useState<ExportDataType>('attendance');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [batchId, setBatchId] = useState<string>("");
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   
   // Fetch batches
-  const { data: batches, isLoading: isBatchesLoading } = useQuery<any[]>({
+  const { data: batches, isLoading: isBatchesLoading } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId
   });
+
+  // Filtered batches based on search term
+  const filteredBatches = batches
+    ? batches.filter(batch => 
+        batch.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : [];
+  
+  // Function to handle batch selection
+  const toggleBatchSelection = (batchId: string) => {
+    setSelectedBatchIds(prevSelected => {
+      if (prevSelected.includes(batchId)) {
+        return prevSelected.filter(id => id !== batchId);
+      } else {
+        return [...prevSelected, batchId];
+      }
+    });
+  };
 
   // Function to download raw data
   const handleDownloadRawData = () => {
     try {
       if (selectedDataType === 'attendance') {
-        // Validate required parameters
-        if (!batchId) {
+        // Validate dates at minimum
+        if (!startDate && !endDate && selectedBatchIds.length === 0) {
           toast({
             title: "Missing Information",
-            description: "Please select a batch to export attendance data.",
+            description: "Please select at least a date range or one or more batches.",
             variant: "destructive"
           });
           return;
@@ -115,8 +133,18 @@ export default function Reports() {
           description: "Gathering attendance data for download...",
         });
         
+        // Construct the API URL with the right parameters
+        const batchIdsParam = selectedBatchIds.length > 0 ? `batchIds=${selectedBatchIds.join(',')}` : '';
+        const startDateParam = startDate ? `startDate=${format(startDate, 'yyyy-MM-dd')}` : '';
+        const endDateParam = endDate ? `endDate=${format(endDate, 'yyyy-MM-dd')}` : '';
+        
+        // Combine the parameters
+        const queryParams = [batchIdsParam, startDateParam, endDateParam]
+          .filter(param => param !== '')
+          .join('&');
+        
         // Fetch attendance data from API
-        fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/export?startDate=${startDate ? format(startDate, 'yyyy-MM-dd') : ''}&endDate=${endDate ? format(endDate, 'yyyy-MM-dd') : ''}`)
+        fetch(`/api/organizations/${user?.organizationId}/attendance/export?${queryParams}`)
           .then(response => {
             if (!response.ok) {
               throw new Error(`Server responded with status: ${response.status}`);
@@ -249,25 +277,88 @@ export default function Reports() {
                     
                     <div className="grid gap-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="batch">Select Batch</Label>
-                        <Select value={batchId} onValueChange={setBatchId}>
-                          <SelectTrigger id="batch">
-                            <SelectValue placeholder="Select a batch" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {isBatchesLoading ? (
-                              <SelectItem value="loading" disabled>Loading batches...</SelectItem>
-                            ) : batches && batches.length > 0 ? (
-                              batches.map(batch => (
-                                <SelectItem key={batch.id} value={batch.id.toString()}>
-                                  {batch.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="none" disabled>No batches available</SelectItem>
+                        <Label htmlFor="batch">Select Batches (Optional)</Label>
+                        <div className="relative">
+                          <div className="flex items-center border rounded-md pl-3 pr-1 py-2">
+                            <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
+                            <Input
+                              className="border-0 p-0 shadow-none focus-visible:ring-0"
+                              placeholder="Search batches..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        
+                        {selectedBatchIds.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedBatchIds.map(id => {
+                              const batch = batches?.find(b => b.id.toString() === id);
+                              return (
+                                <Badge key={id} variant="secondary" className="py-1 px-2">
+                                  {batch?.name || id}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="ml-1 h-4 w-4 p-0"
+                                    onClick={() => toggleBatchSelection(id)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </Badge>
+                              );
+                            })}
+                            {selectedBatchIds.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => setSelectedBatchIds([])}
+                              >
+                                Clear All
+                              </Button>
                             )}
-                          </SelectContent>
-                        </Select>
+                          </div>
+                        )}
+                        
+                        <ScrollArea className="h-60 border rounded-md p-2">
+                          {isBatchesLoading ? (
+                            <div className="p-2 text-center text-muted-foreground">Loading batches...</div>
+                          ) : filteredBatches.length > 0 ? (
+                            <div className="space-y-1">
+                              {filteredBatches.map(batch => (
+                                <div
+                                  key={batch.id}
+                                  className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground ${
+                                    selectedBatchIds.includes(batch.id.toString()) ? 'bg-accent/50' : ''
+                                  }`}
+                                  onClick={() => toggleBatchSelection(batch.id.toString())}
+                                >
+                                  <Checkbox
+                                    id={`batch-${batch.id}`}
+                                    checked={selectedBatchIds.includes(batch.id.toString())}
+                                    onCheckedChange={() => toggleBatchSelection(batch.id.toString())}
+                                  />
+                                  <label
+                                    htmlFor={`batch-${batch.id}`}
+                                    className="text-sm font-medium leading-none cursor-pointer flex-1"
+                                  >
+                                    {batch.name}
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      ({batch.status})
+                                    </span>
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-2 text-center text-muted-foreground">
+                              {searchTerm
+                                ? "No batches match your search"
+                                : "No batches available"}
+                            </div>
+                          )}
+                        </ScrollArea>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
@@ -321,7 +412,10 @@ export default function Reports() {
                       <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button onClick={handleDownloadRawData} disabled={!batchId}>
+                      <Button 
+                        onClick={handleDownloadRawData} 
+                        disabled={!startDate && !endDate && selectedBatchIds.length === 0}
+                      >
                         <FileDown className="h-4 w-4 mr-2" />
                         Export Data
                       </Button>

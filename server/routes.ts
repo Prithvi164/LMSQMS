@@ -8004,13 +8004,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export detailed attendance data for a specific batch
+  // Export detailed attendance data for a specific batch (legacy endpoint)
   app.get("/api/organizations/:orgId/batches/:batchId/attendance/export", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
+      
+      // Redirect to the new endpoint that supports multiple batches
+      return res.redirect(307, `/api/organizations/${orgId}/attendance/export?batchIds=${batchId}&startDate=${req.query.startDate || ''}&endDate=${req.query.endDate || ''}`);
+    } catch (error) {
+      console.error('Error exporting attendance data:', error);
+      res.status(500).json({ message: "Failed to export attendance data" });
+    }
+  });
+  
+  // Export detailed attendance data for multiple batches or by date range only
+  app.get("/api/organizations/:orgId/attendance/export", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
       
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
@@ -8021,42 +8036,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let startDate: string | undefined = req.query.startDate as string;
       let endDate: string | undefined = req.query.endDate as string;
       
-      console.log(`Exporting attendance data for batch: ${batchId}, startDate: ${startDate}, endDate: ${endDate}`);
+      // Parse batch IDs if provided (can be a comma-separated list or undefined)
+      const batchIdsParam = req.query.batchIds as string | undefined;
+      const batchIds = batchIdsParam ? batchIdsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
       
-      // First, get all trainees in the batch
-      const batchTrainees = await db
+      console.log(`Exporting attendance data${batchIds.length > 0 ? ' for batches: ' + batchIds.join(', ') : ' for all batches'}, startDate: ${startDate}, endDate: ${endDate}`);
+      
+      if (!startDate && !endDate && batchIds.length === 0) {
+        return res.status(400).json({ message: "You must provide at least a date range or batch IDs to export attendance data" });
+      }
+      
+      // Prepare the query for getting trainees
+      let traineesQuery = db
         .select({
           id: users.id,
           fullName: users.fullName,
-          employeeId: users.employeeId
+          employeeId: users.employeeId,
+          batchId: userBatchProcesses.batchId,
         })
         .from(users)
         .innerJoin(userBatchProcesses, eq(users.id, userBatchProcesses.userId))
-        .where(eq(userBatchProcesses.batchId, batchId));
+        .where(eq(users.organizationId, orgId));
       
-      console.log(`Found ${batchTrainees.length} trainees in batch ${batchId}`);
+      // Filter by batch IDs if provided
+      if (batchIds.length > 0) {
+        traineesQuery = traineesQuery.where(inArray(userBatchProcesses.batchId, batchIds));
+      }
+      
+      // Execute the query
+      const batchTrainees = await traineesQuery;
+      
+      console.log(`Found ${batchTrainees.length} trainees in ${batchIds.length > 0 ? batchIds.length : 'all'} batches`);
       
       if (batchTrainees.length === 0) {
         return res.json([]);
       }
       
+      // Get batch details for all involved batches
+      const uniqueBatchIds = [...new Set(batchTrainees.map(trainee => trainee.batchId))];
+      
+      const batches = await db.query.organizationBatches.findMany({
+        where: inArray(organizationBatches.id, uniqueBatchIds),
+      });
+      
+      // Create a map for batch name lookup
+      const batchNameMap = new Map(batches.map(batch => [batch.id, batch.name]));
+      
       // Create a map for easy lookup of trainee information
       const traineeMap = new Map(batchTrainees.map(trainee => [trainee.id, trainee]));
       
-      // Get batch details
-      const batch = await db.query.organizationBatches.findFirst({
-        where: eq(organizationBatches.id, batchId)
-      });
-      
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-      
-      // Get all attendance records for this batch with date filter
-      let query = db
+      // Prepare query for attendance records
+      let attendanceQuery = db
         .select({
           id: attendance.id,
           traineeId: attendance.traineeId,
+          batchId: attendance.batchId,
           date: attendance.date,
           status: attendance.status,
           phase: attendance.phase,
@@ -8065,21 +8099,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: attendance.updatedAt
         })
         .from(attendance)
-        .where(eq(attendance.batchId, batchId))
         .where(eq(attendance.organizationId, orgId));
+      
+      // Filter by batch IDs if provided
+      if (batchIds.length > 0) {
+        attendanceQuery = attendanceQuery.where(inArray(attendance.batchId, batchIds));
+      }
+      
+      // Filter by trainee IDs based on the trainees we found
+      const traineeIds = batchTrainees.map(trainee => trainee.id);
+      attendanceQuery = attendanceQuery.where(inArray(attendance.traineeId, traineeIds));
       
       // Add date filters if provided
       if (startDate) {
-        query = query.where(gte(attendance.date, startDate));
+        attendanceQuery = attendanceQuery.where(gte(attendance.date, startDate));
       }
       
       if (endDate) {
-        query = query.where(sql`${attendance.date} <= ${endDate}`);
+        attendanceQuery = attendanceQuery.where(sql`${attendance.date} <= ${endDate}`);
       }
       
       // Execute the query
-      const attendanceRecords = await query;
-      console.log(`Found ${attendanceRecords.length} attendance records for batch ${batchId}`);
+      const attendanceRecords = await attendanceQuery;
+      console.log(`Found ${attendanceRecords.length} attendance records`);
       
       // Group attendance records by trainee and date
       const attendanceByTraineeAndDate = new Map();
@@ -8123,44 +8165,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allDates = [...new Set(attendanceRecords.map(record => record.date))];
       }
       
-      // Create comprehensive records for all trainees and dates
+      // Create comprehensive records for all trainees and dates where attendance was marked
       const comprehensiveRecords = [];
       
-      // For each trainee
-      for (const trainee of batchTrainees) {
-        // For each date
-        for (const date of allDates) {
-          const key = `${trainee.id}-${date}`;
-          const record = attendanceByTraineeAndDate.get(key);
+      // For each attendance record that has a status
+      for (const record of attendanceRecords) {
+        if (record.status) {
+          const trainee = traineeMap.get(record.traineeId);
+          if (!trainee) continue; // Skip if trainee not found (shouldn't happen given our query)
           
-          if (record && record.status) {
-            // Only include records where attendance has been marked (status is not null)
-            const marker = record.markedById ? markerMap.get(record.markedById) : null;
-            
-            comprehensiveRecords.push({
-              id: record.id,
-              date: record.date,
-              traineeId: trainee.id,
-              traineeName: trainee.fullName,
-              employeeId: trainee.employeeId,
-              status: record.status,
-              phase: record.phase,
-              markedBy: marker ? marker.fullName : 'System',
-              batchName: batch.name,
-              createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
-              updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
-            });
-          }
-          // Skip records where attendance hasn't been marked
+          const marker = record.markedById ? markerMap.get(record.markedById) : null;
+          const batchName = batchNameMap.get(record.batchId) || 'Unknown Batch';
+          
+          comprehensiveRecords.push({
+            id: record.id,
+            date: record.date,
+            traineeId: record.traineeId,
+            traineeName: trainee.fullName,
+            employeeId: trainee.employeeId,
+            status: record.status,
+            phase: record.phase,
+            markedBy: marker ? marker.fullName : 'System',
+            batchName: batchName,
+            batchId: record.batchId,
+            createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
+            updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
+          });
         }
       }
       
-      // Sort by date then by trainee name
+      // Sort by date then by trainee name then by batch name
       comprehensiveRecords.sort((a, b) => {
         if (a.date !== b.date) {
           return a.date.localeCompare(b.date);
         }
-        return a.traineeName.localeCompare(b.traineeName);
+        if (a.traineeName !== b.traineeName) {
+          return a.traineeName.localeCompare(b.traineeName);
+        }
+        return a.batchName.localeCompare(b.batchName);
       });
       
       res.json(comprehensiveRecords);
