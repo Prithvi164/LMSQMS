@@ -98,19 +98,44 @@ export default function Reports() {
   // Function to download raw data
   const handleDownloadRawData = () => {
     try {
-      // Example implementation - in a real app, this would fetch data from the API
-      const mockData: any[] = [];
-      
       if (selectedDataType === 'attendance') {
+        // Validate required parameters
+        if (!batchId) {
+          toast({
+            title: "Missing Information",
+            description: "Please select a batch to export attendance data.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Show loading toast
+        toast({
+          title: "Preparing Export",
+          description: "Gathering attendance data for download...",
+        });
+        
         // Fetch attendance data from API
         fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/export?startDate=${startDate ? format(startDate, 'yyyy-MM-dd') : ''}&endDate=${endDate ? format(endDate, 'yyyy-MM-dd') : ''}`)
-          .then(response => response.json())
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+          })
           .then(data => {
-            downloadCSV(data, 'attendance_data');
-            toast({
-              title: "Data Exported Successfully",
-              description: "Attendance data has been downloaded as CSV.",
-            });
+            if (data && Array.isArray(data) && data.length > 0) {
+              downloadCSV(data, 'attendance_data');
+              toast({
+                title: "Data Exported Successfully",
+                description: `${data.length} records have been downloaded as CSV.`,
+              });
+            } else {
+              toast({
+                title: "No Data Found",
+                description: "There are no attendance records matching your criteria.",
+              });
+            }
             setIsExportDialogOpen(false);
           })
           .catch(error => {
@@ -138,22 +163,22 @@ export default function Reports() {
     }
   };
 
-  // Function to generate a sample data export (for demonstration)
-  const handleGenerateSampleExport = () => {
-    const sampleData = [
-      { name: 'John Doe', attendance: '90%', performance: '85%', quizScore: '78%' },
-      { name: 'Jane Smith', attendance: '95%', performance: '92%', quizScore: '88%' },
-      { name: 'Robert Johnson', attendance: '85%', performance: '80%', quizScore: '75%' },
-      { name: 'Emily Davis', attendance: '92%', performance: '88%', quizScore: '82%' },
-      { name: 'Michael Wilson', attendance: '88%', performance: '85%', quizScore: '79%' },
-    ];
-    
-    downloadCSV(sampleData, 'sample_data');
-    
-    toast({
-      title: "Sample Data Generated",
-      description: "A sample CSV file has been downloaded.",
-    });
+  // We will add more export types here in the future
+  const getExportTypeName = (type: ExportDataType): string => {
+    switch (type) {
+      case 'attendance':
+        return 'Attendance Data';
+      case 'trainee-progress':
+        return 'Trainee Progress';
+      case 'evaluation-results':
+        return 'Evaluation Results';
+      case 'quiz-results':
+        return 'Quiz Results';
+      case 'custom':
+        return 'Custom Report';
+      default:
+        return 'Unknown Data Type';
+    }
   };
   
   return (
