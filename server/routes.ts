@@ -15,12 +15,13 @@ import {
   mockCallScenarios, 
   mockCallAttempts, 
   organizationBatches, 
+  organizationProcesses,
   insertOrganizationSettingsSchema, 
   organizationSettings, 
   insertOrganizationHolidaySchema, 
   organizationHolidays,
-  EvaluationParameter,
-  EvaluationPillar,
+  evaluationParameters,
+  evaluationPillars,
   userDashboards,
   dashboardWidgets,
   dashboardConfigurations,
@@ -30,7 +31,6 @@ import {
   evaluations,
   evaluationScores,
   evaluationTemplates,
-
   audioFiles,
   type InsertQuizAssignment,
   type QuizAssignment,
@@ -8063,8 +8063,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: evaluations.updatedAt,
           traineeName: users.fullName,
           traineeEmployeeId: users.employeeId,
-          evaluatorName: evaluatorUsers.fullName,
-          evaluatorEmployeeId: evaluatorUsers.employeeId,
+          evaluatorName: users.as("evaluator").fullName,
+          evaluatorEmployeeId: users.as("evaluator").employeeId,
           audioFileId: evaluations.audioFileId,
           audioFileName: audioFiles.filename,
         })
@@ -8073,7 +8073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(organizationBatches, eq(evaluations.batchId, organizationBatches.id))
         .leftJoin(organizationProcesses, eq(organizationBatches.processId, organizationProcesses.id))
         .leftJoin(users, eq(evaluations.traineeId, users.id))
-        .leftJoin(users.as("evaluator"), eq(evaluations.evaluatorId, evaluatorUsers.id))
+        .leftJoin(users.as("evaluator"), eq(evaluations.evaluatorId, users.as("evaluator").id))
         .leftJoin(audioFiles, eq(evaluations.audioFileId, audioFiles.id))
         .where(eq(evaluations.organizationId, orgId));
       
@@ -8089,14 +8089,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Apply date filters if provided
       if (startDate) {
-        evaluationsQuery.where(gte(evaluations.createdAt, new Date(startDate)));
+        evaluationsQuery.where(evaluations.createdAt.gte(new Date(startDate)));
       }
       
       if (endDate) {
         // Add one day to include the end date entirely
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        evaluationsQuery.where(lt(evaluations.createdAt, nextDay));
+        evaluationsQuery.where(evaluations.createdAt.lt(nextDay));
       }
       
       // Execute the query
@@ -8112,16 +8112,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .select({
             evaluationId: evaluationScores.evaluationId,
             parameterId: evaluationScores.parameterId,
-            pillarId: parameters.pillarId,
-            parameterName: parameters.name,
-            pillarName: pillars.name,
+            pillarId: evaluationParameters.pillarId,
+            parameterName: evaluationParameters.name,
+            pillarName: evaluationPillars.name,
             score: evaluationScores.score,
-            weightage: parameters.weightage,
+            weightage: evaluationParameters.weightage,
             comment: evaluationScores.comment,
           })
           .from(evaluationScores)
-          .innerJoin(parameters, eq(evaluationScores.parameterId, parameters.id))
-          .innerJoin(pillars, eq(parameters.pillarId, pillars.id))
+          .innerJoin(evaluationParameters, eq(evaluationScores.parameterId, evaluationParameters.id))
+          .innerJoin(evaluationPillars, eq(evaluationParameters.pillarId, evaluationPillars.id))
           .where(inArray(evaluationScores.evaluationId, evaluationIds))
           .execute();
           
@@ -8140,8 +8140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             finalScore: evaluation.finalScore,
             status: evaluation.status,
             feedbackThreshold: evaluation.feedbackThreshold,
-            createdAt: evaluation.createdAt ? format(new Date(evaluation.createdAt), 'yyyy-MM-dd HH:mm:ss') : '',
-            updatedAt: evaluation.updatedAt ? format(new Date(evaluation.updatedAt), 'yyyy-MM-dd HH:mm:ss') : '',
+            createdAt: evaluation.createdAt ? formatIST(new Date(evaluation.createdAt)) : '',
+            updatedAt: evaluation.updatedAt ? formatIST(new Date(evaluation.updatedAt)) : '',
             traineeName: evaluation.traineeName || 'N/A',
             traineeEmployeeId: evaluation.traineeEmployeeId || 'N/A',
             evaluatorName: evaluation.evaluatorName || 'N/A',
