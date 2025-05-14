@@ -305,39 +305,32 @@ export default function Reports() {
                           <div className="mt-3 mb-2">
                             <div className="flex items-center justify-between mb-2">
                               <p className="text-sm font-medium">Selected Batches ({selectedBatchIds.length})</p>
-                              {selectedBatchIds.length > 0 && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-xs h-7 px-2"
-                                  onClick={() => {
-                                    console.log('Clearing all batch selections');
-                                    setSelectedBatchIds([]);
-                                  }}
-                                >
-                                  Clear All
-                                </Button>
-                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7 px-2"
+                                onClick={() => {
+                                  console.log('Clearing all batch selections');
+                                  setSelectedBatchIds([]);
+                                }}
+                              >
+                                Clear All
+                              </Button>
                             </div>
-                            <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-secondary/10">
+                            <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/20">
                               {selectedBatchIds.map(id => {
                                 const batch = batches?.find(b => b.id.toString() === id);
                                 return (
-                                  <Badge key={id} variant="secondary" className="py-1 px-2 gap-1">
+                                  <Badge key={id} variant="outline" className="py-1 px-2 bg-background flex items-center gap-1">
                                     <span>{batch?.name || id}</span>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-4 w-4 p-0 hover:bg-transparent"
+                                    <X
+                                      className="h-3 w-3 cursor-pointer text-muted-foreground hover:text-foreground"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         console.log('Removing batch from badge:', id);
                                         toggleBatchSelection(id);
                                       }}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
+                                    />
                                   </Badge>
                                 );
                               })}
@@ -351,40 +344,39 @@ export default function Reports() {
                           ) : filteredBatches.length > 0 ? (
                             <div className="space-y-1">
                               {filteredBatches.map(batch => (
-                                <Button
+                                <div
                                   key={batch.id}
-                                  type="button"
-                                  variant={selectedBatchIds.includes(batch.id.toString()) ? "secondary" : "outline"} 
-                                  className={`w-full justify-start text-left h-auto mb-1 px-3 py-2`}
+                                  className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer border transition-colors ${
+                                    selectedBatchIds.includes(batch.id.toString()) 
+                                      ? 'bg-primary/10 border-primary/30' 
+                                      : 'hover:bg-accent hover:border-accent/50 border-transparent'
+                                  }`}
                                   onClick={() => {
-                                    // Add debugging log for batch selection
-                                    console.log('Toggling batch from button:', batch.id, batch.name);
+                                    console.log('Toggling batch from row click:', batch.id, batch.name);
                                     toggleBatchSelection(batch.id.toString());
                                   }}
                                 >
-                                  <div className="flex items-center space-x-2 w-full">
-                                    <Checkbox
-                                      checked={selectedBatchIds.includes(batch.id.toString())}
-                                      className="h-4 w-4"
-                                      onCheckedChange={(checked) => {
-                                        console.log('Checkbox direct change for batch:', batch.id, checked);
-                                        if (checked) {
-                                          if (!selectedBatchIds.includes(batch.id.toString())) {
-                                            setSelectedBatchIds(prev => [...prev, batch.id.toString()]);
-                                          }
-                                        } else {
-                                          setSelectedBatchIds(prev => prev.filter(id => id !== batch.id.toString()));
-                                        }
-                                      }}
-                                    />
-                                    <div className="flex-1">
-                                      <span className="font-medium text-sm">{batch.name}</span>
-                                      <span className="text-xs text-muted-foreground ml-1">
-                                        ({batch.status})
-                                      </span>
-                                    </div>
+                                  <Checkbox
+                                    id={`batch-${batch.id}`}
+                                    checked={selectedBatchIds.includes(batch.id.toString())}
+                                    onCheckedChange={() => {
+                                      // Empty function here - the parent div handles the click
+                                    }}
+                                    onClick={(e) => {
+                                      // Stop propagation to prevent double-toggling
+                                      e.stopPropagation();
+                                      console.log('Checkbox clicked for batch:', batch.id);
+                                      toggleBatchSelection(batch.id.toString());
+                                    }}
+                                    className="h-5 w-5"
+                                  />
+                                  <div className="flex-1">
+                                    <span className="font-medium text-sm">{batch.name}</span>
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      ({batch.status})
+                                    </span>
                                   </div>
-                                </Button>
+                                </div>
                               ))}
                             </div>
                           ) : (
