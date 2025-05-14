@@ -387,7 +387,7 @@ export default function Reports() {
                       Export Evaluation Data
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Export Evaluation Results</DialogTitle>
                       <DialogDescription>
