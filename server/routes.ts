@@ -8004,6 +8004,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export detailed attendance data for a specific batch
+  app.get("/api/organizations/:orgId/batches/:batchId/attendance/export", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only export attendance data from your own organization" });
+      }
+      
+      // Parse date range if provided
+      let startDate: string | undefined = req.query.startDate as string;
+      let endDate: string | undefined = req.query.endDate as string;
+      
+      console.log(`Exporting attendance data for batch: ${batchId}, startDate: ${startDate}, endDate: ${endDate}`);
+      
+      // Get all attendance records for this batch
+      let query = db
+        .select({
+          id: attendance.id,
+          traineeId: attendance.traineeId,
+          date: attendance.date,
+          status: attendance.status,
+          phase: attendance.phase,
+          markedById: attendance.markedById,
+          createdAt: attendance.createdAt,
+          updatedAt: attendance.updatedAt
+        })
+        .from(attendance)
+        .where(eq(attendance.batchId, batchId))
+        .where(eq(attendance.organizationId, orgId));
+      
+      // Add date filters if provided
+      if (startDate) {
+        query = query.where(gte(attendance.date, startDate));
+      }
+      
+      if (endDate) {
+        query = query.where(sql`${attendance.date} <= ${endDate}`);
+      }
+      
+      // Execute the query
+      const attendanceRecords = await query;
+      
+      if (attendanceRecords.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all trainees to include their names in the export
+      const traineeIds = [...new Set(attendanceRecords.map(record => record.traineeId))];
+      
+      const trainees = await db
+        .select({
+          id: users.id,
+          fullName: users.fullName,
+          employeeId: users.employeeId
+        })
+        .from(users)
+        .where(inArray(users.id, traineeIds));
+      
+      // Create a map for easy lookup of trainee names
+      const traineeMap = new Map(trainees.map(trainee => [trainee.id, trainee]));
+      
+      // Get marker names
+      const markerIds = [...new Set(attendanceRecords.map(record => record.markedById).filter(id => id !== null))] as number[];
+      
+      const markers = await db
+        .select({
+          id: users.id,
+          fullName: users.fullName
+        })
+        .from(users)
+        .where(inArray(users.id, markerIds));
+      
+      // Create a map for easy lookup of marker names
+      const markerMap = new Map(markers.map(marker => [marker.id, marker]));
+      
+      // Get batch details
+      const batch = await db.query.organizationBatches.findFirst({
+        where: eq(organizationBatches.id, batchId)
+      });
+      
+      // Enhance the records with trainee and marker names
+      const enhancedRecords = attendanceRecords.map(record => {
+        const trainee = traineeMap.get(record.traineeId);
+        const marker = record.markedById ? markerMap.get(record.markedById) : null;
+        
+        return {
+          id: record.id,
+          date: record.date,
+          traineeId: record.traineeId,
+          traineeName: trainee ? trainee.fullName : 'Unknown',
+          employeeId: trainee ? trainee.employeeId : 'Unknown',
+          status: record.status,
+          phase: record.phase,
+          markedBy: marker ? marker.fullName : 'System',
+          batchName: batch ? batch.name : 'Unknown',
+          createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
+          updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
+        };
+      });
+      
+      // Sort by date then by trainee name
+      enhancedRecords.sort((a, b) => {
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date);
+        }
+        return a.traineeName.localeCompare(b.traineeName);
+      });
+      
+      res.json(enhancedRecords);
+    } catch (error) {
+      console.error('Error exporting attendance data:', error);
+      res.status(500).json({ message: "Failed to export attendance data" });
+    }
+  });
+
   // Add question routes
   app.post("/api/questions", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
