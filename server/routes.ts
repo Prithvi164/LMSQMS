@@ -8168,9 +8168,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create comprehensive records for all trainees and dates where attendance was marked
       const comprehensiveRecords = [];
       
-      // For each attendance record that has a status
+      // For each attendance record that has a status and falls within the date range
       for (const record of attendanceRecords) {
+        // Only include records that have a status
         if (record.status) {
+          // Extra date range validation to ensure only records within range are included
+          if (startDate && endDate) {
+            const recordDate = record.date;
+            if (recordDate < startDate || recordDate > endDate) {
+              continue; // Skip records outside the date range
+            }
+          }
+          
           const trainee = traineeMap.get(record.traineeId);
           if (!trainee) continue; // Skip if trainee not found (shouldn't happen given our query)
           
