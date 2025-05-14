@@ -7,7 +7,6 @@ import {
   insertUserSchema, 
   users, 
   userBatchProcesses, 
-  organizationProcesses, 
   userProcesses, 
   quizzes, 
   quizAssignments,
@@ -16,13 +15,10 @@ import {
   mockCallScenarios, 
   mockCallAttempts, 
   organizationBatches, 
-  attendance, 
   insertOrganizationSettingsSchema, 
   organizationSettings, 
   insertOrganizationHolidaySchema, 
   organizationHolidays,
-  evaluationParameters,
-  evaluationPillars,
   EvaluationParameter,
   EvaluationPillar,
   userDashboards,
@@ -31,6 +27,11 @@ import {
   insertUserDashboardSchema,
   insertDashboardWidgetSchema,
   insertDashboardConfigurationSchema,
+  evaluations,
+  evaluationScores,
+  evaluationTemplates,
+
+  audioFiles,
   type InsertQuizAssignment,
   type QuizAssignment,
   type InsertUserDashboard,
@@ -8070,7 +8071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(evaluations)
         .leftJoin(evaluationTemplates, eq(evaluations.templateId, evaluationTemplates.id))
         .leftJoin(organizationBatches, eq(evaluations.batchId, organizationBatches.id))
-        .leftJoin(processes, eq(organizationBatches.processId, processes.id))
+        .leftJoin(organizationProcesses, eq(organizationBatches.processId, organizationProcesses.id))
         .leftJoin(users, eq(evaluations.traineeId, users.id))
         .leftJoin(users.as("evaluator"), eq(evaluations.evaluatorId, evaluatorUsers.id))
         .leftJoin(audioFiles, eq(evaluations.audioFileId, audioFiles.id))
