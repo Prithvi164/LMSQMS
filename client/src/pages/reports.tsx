@@ -96,7 +96,7 @@ export default function Reports() {
     enabled: !!user?.organizationId
   });
 
-  // Separate batches into running and all batches, then apply search filter
+  // Separate batches into running and completed batches, then apply search filter
   const runningBatches = batches
     ? batches.filter(batch => 
         // Consider all batches as running except those with "completed" status
@@ -109,12 +109,15 @@ export default function Reports() {
       })
     : [];
     
-  const allFilteredBatches = batches
-    ? batches.filter(batch => {
+  const completedBatches = batches
+    ? batches.filter(batch => 
+        // Only include batches with completed status
+        batch.status === 'completed' || batch.status === 'Completed'
+      )
+      .filter(batch => {
         if (!searchTerm.trim()) return true;
         const searchLower = searchTerm.toLowerCase();
-        return batch.name.toLowerCase().includes(searchLower) || 
-               (batch.status && batch.status.toLowerCase().includes(searchLower));
+        return batch.name.toLowerCase().includes(searchLower);
       })
     : [];
   
@@ -354,7 +357,7 @@ export default function Reports() {
                           {isBatchesLoading ? (
                             <div className="p-2 text-center text-muted-foreground">Loading batches...</div>
                           ) : (
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                               {/* Running Batches Section */}
                               <div>
                                 <h4 className="font-medium text-sm mb-2 px-1 flex items-center">
@@ -362,7 +365,7 @@ export default function Reports() {
                                   Active/Running Batches
                                 </h4>
                                 {runningBatches.length > 0 ? (
-                                  <div className="space-y-1">
+                                  <div className="space-y-1 max-h-48 overflow-auto pr-1">
                                     {runningBatches.map(batch => (
                                       <div
                                         key={batch.id}
@@ -386,9 +389,9 @@ export default function Reports() {
                                           }}
                                           className="h-5 w-5"
                                         />
-                                        <div className="flex-1">
-                                          <span className="font-medium text-sm">{batch.name}</span>
-                                          <span className="text-xs text-muted-foreground ml-1">
+                                        <div className="flex-1 overflow-hidden">
+                                          <span className="font-medium text-sm truncate block">{batch.name}</span>
+                                          <span className="text-xs text-muted-foreground">
                                             ({batch.status})
                                           </span>
                                         </div>
@@ -404,15 +407,15 @@ export default function Reports() {
                                 )}
                               </div>
                               
-                              {/* All Batches Section */}
+                              {/* Completed Batches Section */}
                               <div>
                                 <h4 className="font-medium text-sm mb-2 px-1 flex items-center">
                                   <div className="w-2 h-2 rounded-full bg-slate-400 mr-2"></div>
-                                  All Batches (Including Completed)
+                                  Completed Batches
                                 </h4>
-                                {allFilteredBatches.length > 0 ? (
-                                  <div className="space-y-1">
-                                    {allFilteredBatches.map(batch => (
+                                {completedBatches.length > 0 ? (
+                                  <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                                    {completedBatches.map(batch => (
                                       <div
                                         key={batch.id}
                                         className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer border transition-colors ${
@@ -421,12 +424,12 @@ export default function Reports() {
                                             : 'hover:bg-accent hover:border-accent/50 border-transparent'
                                         }`}
                                         onClick={() => {
-                                          console.log('Toggling batch from all batches:', batch.id, batch.name);
+                                          console.log('Toggling completed batch:', batch.id, batch.name);
                                           toggleBatchSelection(batch.id.toString());
                                         }}
                                       >
                                         <Checkbox
-                                          id={`batch-all-${batch.id}`}
+                                          id={`batch-completed-${batch.id}`}
                                           checked={selectedBatchIds.includes(batch.id.toString())}
                                           onCheckedChange={() => {}}
                                           onClick={(e) => {
@@ -435,9 +438,9 @@ export default function Reports() {
                                           }}
                                           className="h-5 w-5"
                                         />
-                                        <div className="flex-1">
-                                          <span className="font-medium text-sm">{batch.name}</span>
-                                          <span className="text-xs text-muted-foreground ml-1">
+                                        <div className="flex-1 overflow-hidden">
+                                          <span className="font-medium text-sm truncate block">{batch.name}</span>
+                                          <span className="text-xs text-muted-foreground">
                                             ({batch.status})
                                           </span>
                                         </div>
@@ -447,8 +450,8 @@ export default function Reports() {
                                 ) : (
                                   <div className="p-2 text-sm text-center text-muted-foreground border border-dashed rounded-md">
                                     {searchTerm
-                                      ? "No batches match your search"
-                                      : "No batches available"}
+                                      ? "No completed batches match your search"
+                                      : "No completed batches available"}
                                   </div>
                                 )}
                               </div>
