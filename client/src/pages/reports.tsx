@@ -98,8 +98,12 @@ export default function Reports() {
 
   // Filtered batches based on search term
   const filteredBatches = batches
-    ? batches.filter(batch => 
-        batch.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? batches.filter(batch => {
+        if (!searchTerm.trim()) return true; // Show all batches when search is empty
+        const searchLower = searchTerm.toLowerCase();
+        return batch.name.toLowerCase().includes(searchLower) || 
+               (batch.status && batch.status.toLowerCase().includes(searchLower));
+      })
     : [];
   
   // Function to handle batch selection
@@ -137,6 +141,10 @@ export default function Reports() {
         const batchIdsParam = selectedBatchIds.length > 0 ? `batchIds=${selectedBatchIds.join(',')}` : '';
         const startDateParam = startDate ? `startDate=${format(startDate, 'yyyy-MM-dd')}` : '';
         const endDateParam = endDate ? `endDate=${format(endDate, 'yyyy-MM-dd')}` : '';
+        
+        // Debug log to see what parameters are being sent
+        console.log('Selected batch IDs:', selectedBatchIds);
+        console.log('Batch IDs param:', batchIdsParam);
         
         // Combine the parameters
         const queryParams = [batchIdsParam, startDateParam, endDateParam]
@@ -278,6 +286,9 @@ export default function Reports() {
                     <div className="grid gap-4 py-4">
                       <div className="space-y-2">
                         <Label htmlFor="batch">Select Batches (Optional)</Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Click on any batch below to select it for filtering. You can select multiple batches.
+                        </p>
                         <div className="relative">
                           <div className="flex items-center border rounded-md pl-3 pr-1 py-2">
                             <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
@@ -330,14 +341,22 @@ export default function Reports() {
                                 <div
                                   key={batch.id}
                                   className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground ${
-                                    selectedBatchIds.includes(batch.id.toString()) ? 'bg-accent/50' : ''
+                                    selectedBatchIds.includes(batch.id.toString()) ? 'bg-indigo-100 border border-indigo-300' : 'border border-transparent'
                                   }`}
-                                  onClick={() => toggleBatchSelection(batch.id.toString())}
+                                  onClick={() => {
+                                    // Add debugging log for batch selection
+                                    console.log('Toggling batch:', batch.id, batch.name);
+                                    toggleBatchSelection(batch.id.toString());
+                                  }}
                                 >
                                   <Checkbox
                                     id={`batch-${batch.id}`}
                                     checked={selectedBatchIds.includes(batch.id.toString())}
-                                    onCheckedChange={() => toggleBatchSelection(batch.id.toString())}
+                                    onCheckedChange={() => {
+                                      console.log('Checkbox change for batch:', batch.id);
+                                      toggleBatchSelection(batch.id.toString());
+                                    }}
+                                    className="h-5 w-5"
                                   />
                                   <label
                                     htmlFor={`batch-${batch.id}`}
