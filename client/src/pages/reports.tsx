@@ -356,6 +356,191 @@ export default function Reports() {
                       Export Attendance Data
                     </Button>
                   </DialogTrigger>
+                  <DialogContent className="max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Export Attendance Data</DialogTitle>
+                      <DialogDescription>
+                        Select your filters to export daily attendance records for trainees.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      {/* Date Range Selection */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Start Date */}
+                        <div className="space-y-2">
+                          <Label htmlFor="start-date">Start Date (Optional)</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="start-date"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal">
+                                {startDate ? (
+                                  format(startDate, "PPP")
+                                ) : (
+                                  <span>Pick a start date</span>
+                                )}
+                                <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={startDate}
+                                onSelect={setStartDate}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        
+                        {/* End Date */}
+                        <div className="space-y-2">
+                          <Label htmlFor="end-date">End Date (Optional)</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="end-date"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal">
+                                {endDate ? (
+                                  format(endDate, "PPP")
+                                ) : (
+                                  <span>Pick an end date</span>
+                                )}
+                                <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                              <CalendarComponent
+                                mode="single"
+                                selected={endDate}
+                                onSelect={setEndDate}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                      
+                      {/* Batch Selection */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="batch-search">Select Batches (Optional)</Label>
+                          <div className="flex items-center h-9">
+                            <Input 
+                              type="text" 
+                              id="batch-search"
+                              placeholder="Search batches..."
+                              className="h-9 w-[180px]"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            {searchTerm && (
+                              <Button 
+                                variant="ghost" 
+                                className="h-9 px-2 ml-1" 
+                                onClick={() => setSearchTerm("")}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Running/Active Batches */}
+                          <div className="border rounded-lg p-3">
+                            <h4 className="font-medium text-sm mb-2">Active/Running Batches</h4>
+                            <ScrollArea className="h-[200px]">
+                              <div className="space-y-2">
+                                {runningBatches.length > 0 ? runningBatches.map(batch => (
+                                  <div key={batch.id} className="flex items-start space-x-2">
+                                    <Checkbox 
+                                      id={`batch-${batch.id}`} 
+                                      checked={selectedBatchIds.includes(String(batch.id))}
+                                      onCheckedChange={() => toggleBatchSelection(String(batch.id))}
+                                    />
+                                    <Label 
+                                      htmlFor={`batch-${batch.id}`}
+                                      className="text-sm font-normal cursor-pointer"
+                                    >
+                                      {batch.name}
+                                    </Label>
+                                  </div>
+                                )) : (
+                                  <p className="text-sm text-muted-foreground italic">No active batches found</p>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                          
+                          {/* Completed Batches */}
+                          <div className="border rounded-lg p-3">
+                            <h4 className="font-medium text-sm mb-2">Completed Batches</h4>
+                            <ScrollArea className="h-[200px]">
+                              <div className="space-y-2">
+                                {completedBatches.length > 0 ? completedBatches.map(batch => (
+                                  <div key={batch.id} className="flex items-start space-x-2">
+                                    <Checkbox 
+                                      id={`batch-${batch.id}`} 
+                                      checked={selectedBatchIds.includes(String(batch.id))}
+                                      onCheckedChange={() => toggleBatchSelection(String(batch.id))}
+                                    />
+                                    <Label 
+                                      htmlFor={`batch-${batch.id}`}
+                                      className="text-sm font-normal cursor-pointer"
+                                    >
+                                      {batch.name}
+                                    </Label>
+                                  </div>
+                                )) : (
+                                  <p className="text-sm text-muted-foreground italic">No completed batches found</p>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        </div>
+                        
+                        {selectedBatchIds.length > 0 && (
+                          <div className="mt-2">
+                            <Label className="text-sm mb-1 block">Selected Batches</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedBatchIds.map(id => {
+                                const batch = batches?.find(b => String(b.id) === id);
+                                return batch ? (
+                                  <Badge 
+                                    key={id}
+                                    variant="secondary"
+                                    className="flex items-center gap-1 px-3 py-1"
+                                  >
+                                    {batch.name}
+                                    <button 
+                                      className="ml-1 rounded-full hover:bg-gray-200 p-0.5"
+                                      onClick={() => toggleBatchSelection(id)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                ) : null;
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button 
+                        onClick={handleDownloadRawData} 
+                        disabled={!startDate && !endDate && selectedBatchIds.length === 0}
+                      >
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Export Data
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
                 </Dialog>
               </CardFooter>
             </Card>
