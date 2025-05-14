@@ -674,36 +674,6 @@ export default function Reports() {
                 </Button>
               </CardFooter>
             </Card>
-            
-            {/* Evaluation Results Export Card */}
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg">
-                  <Filter className="h-5 w-5 mr-2 text-purple-600" />
-                  Evaluation Results
-                </CardTitle>
-                <CardDescription>
-                  Export detailed evaluation scores
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Download raw evaluation scores, feedback, and assessment data.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full"
-                  onClick={() => {
-                    toast({
-                      title: "Feature Coming Soon",
-                      description: "Evaluation results export will be available soon.",
-                    });
-                  }}>
-                  <FileDown className="h-4 w-4 mr-2" />
-                  Export Evaluation Data
-                </Button>
-              </CardFooter>
-            </Card>
           </div>
           
           <div className="mt-8">
