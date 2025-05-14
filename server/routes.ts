@@ -8269,7 +8269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           evaluatorEmployeeId: evaluator.employeeId,
           audioFileId: evaluations.audioFileId,
           audioFileName: audioFiles.filename,
-          audioCallType: sql`audioFiles.call_metrics->>'callType'`
+          audioCallType: sql`${audioFiles.callMetrics}->>'callType'`
         })
         .from(evaluations)
         .leftJoin(evaluationTemplates, eq(evaluations.templateId, evaluationTemplates.id))
@@ -8318,7 +8318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
         audioFileId: evaluation.audioFileId || 'N/A',
         audioFileName: evaluation.audioFileName || 'N/A',
-        audioType: evaluation.audioType || 'N/A'
+        audioType: evaluation.audioCallType || 'N/A'
       }));
       
       return res.json(formattedResults);
