@@ -8017,28 +8017,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only export attendance data from your own organization" });
       }
       
-      // Parse all filter parameters
+      // Parse date range if provided
       let startDate: string | undefined = req.query.startDate as string;
       let endDate: string | undefined = req.query.endDate as string;
-      const showOnlyMarked = req.query.showOnlyMarked !== 'false'; // Default to true if not provided
-      const includeTraineeDetails = req.query.includeTraineeDetails !== 'false'; // Default to true if not provided
-      
-      // Parse phase filters (if any)
-      const phases: string[] = Array.isArray(req.query.phases) 
-        ? req.query.phases as string[] 
-        : req.query.phases 
-          ? [req.query.phases as string] 
-          : [];
-      
-      // Parse status filters (if any)
-      const statuses: string[] = Array.isArray(req.query.statuses) 
-        ? req.query.statuses as string[] 
-        : req.query.statuses 
-          ? [req.query.statuses as string] 
-          : [];
       
       console.log(`Exporting attendance data for batch: ${batchId}, startDate: ${startDate}, endDate: ${endDate}`);
-      console.log(`Filters - showOnlyMarked: ${showOnlyMarked}, includeTraineeDetails: ${includeTraineeDetails}, phases: ${phases.join(',')}, statuses: ${statuses.join(',')}`);
       
       // First, get all trainees in the batch
       const batchTrainees = await db
@@ -8069,7 +8052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Batch not found" });
       }
       
-      // Get all attendance records for this batch with filters
+      // Get all attendance records for this batch with date filter
       let query = db
         .select({
           id: attendance.id,
@@ -8092,32 +8075,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (endDate) {
         query = query.where(sql`${attendance.date} <= ${endDate}`);
-      }
-      
-      // Add phase filters if any are selected
-      if (phases.length > 0) {
-        // Cast phases to the correct enum type for attendance.phase
-        // Filtering for valid phase values only
-        const validPhases = phases.filter(p => 
-          ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed'].includes(p)
-        ) as any[];
-        
-        if (validPhases.length > 0) {
-          query = query.where(inArray(attendance.phase, validPhases));
-        }
-      }
-      
-      // Add status filters if any are selected
-      if (statuses.length > 0) {
-        // Cast statuses to the correct enum type for attendance.status
-        // Filtering for valid status values only
-        const validStatuses = statuses.filter(s => 
-          ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'weekly_off'].includes(s)
-        ) as any[];
-        
-        if (validStatuses.length > 0) {
-          query = query.where(inArray(attendance.status, validStatuses));
-        }
       }
       
       // Execute the query
@@ -8176,43 +8133,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const key = `${trainee.id}-${date}`;
           const record = attendanceByTraineeAndDate.get(key);
           
-          // Check if we should include this record based on the showOnlyMarked filter
-          if ((record && (showOnlyMarked ? record.status : true))) {
-            const marker = record?.markedById ? markerMap.get(record.markedById) : null;
+          if (record && record.status) {
+            // Only include records where attendance has been marked (status is not null)
+            const marker = record.markedById ? markerMap.get(record.markedById) : null;
             
-            // Create record with base fields
-            const recordToAdd: any = {
-              id: record?.id || null,
-              date: record?.date || date,
+            comprehensiveRecords.push({
+              id: record.id,
+              date: record.date,
               traineeId: trainee.id,
               traineeName: trainee.fullName,
               employeeId: trainee.employeeId,
-              status: record?.status || null,
-              phase: record?.phase || null,
-              markedBy: marker ? marker.fullName : (record?.markedById ? 'Unknown' : null),
-              batchName: batch.name
-            };
-            
-            // Add creation and update timestamps if record exists
-            if (record) {
-              recordToAdd.createdAt = record.createdAt ? new Date(record.createdAt).toISOString() : null;
-              recordToAdd.updatedAt = record.updatedAt ? new Date(record.updatedAt).toISOString() : null;
-            } else {
-              recordToAdd.createdAt = null;
-              recordToAdd.updatedAt = null;
-            }
-            
-            // Add trainee details if requested
-            if (includeTraineeDetails) {
-              // This would typically query for additional trainee data from users table
-              // For now, we'll just add what we have
-              recordToAdd.traineeEmail = null; // You could add email and other details here
-              recordToAdd.traineePhone = null;
-              recordToAdd.traineeRole = null;
-            }
-            
-            comprehensiveRecords.push(recordToAdd);
+              status: record.status,
+              phase: record.phase,
+              markedBy: marker ? marker.fullName : 'System',
+              batchName: batch.name,
+              createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : null,
+              updatedAt: record.updatedAt ? new Date(record.updatedAt).toISOString() : null
+            });
           }
+          // Skip records where attendance hasn't been marked
         }
       }
       

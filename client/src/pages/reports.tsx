@@ -89,12 +89,6 @@ export default function Reports() {
   const [batchId, setBatchId] = useState<string>("");
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   
-  // Additional attendance filter options
-  const [showOnlyMarked, setShowOnlyMarked] = useState(true);
-  const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [includeTraineeDetails, setIncludeTraineeDetails] = useState(true);
-  
   // Fetch batches
   const { data: batches, isLoading: isBatchesLoading } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
@@ -121,27 +115,8 @@ export default function Reports() {
           description: "Gathering attendance data for download...",
         });
         
-        // Build URL with all filter parameters
-        const baseUrl = `/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/export`;
-        
-        // Create URL parameters
-        const params = new URLSearchParams();
-        if (startDate) params.append('startDate', format(startDate, 'yyyy-MM-dd'));
-        if (endDate) params.append('endDate', format(endDate, 'yyyy-MM-dd'));
-        params.append('showOnlyMarked', showOnlyMarked.toString());
-        
-        if (selectedPhases.length > 0) {
-          selectedPhases.forEach(phase => params.append('phases', phase));
-        }
-        
-        if (selectedStatuses.length > 0) {
-          selectedStatuses.forEach(status => params.append('statuses', status));
-        }
-        
-        params.append('includeTraineeDetails', includeTraineeDetails.toString());
-        
         // Fetch attendance data from API
-        fetch(`${baseUrl}?${params.toString()}`)
+        fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/attendance/export?startDate=${startDate ? format(startDate, 'yyyy-MM-dd') : ''}&endDate=${endDate ? format(endDate, 'yyyy-MM-dd') : ''}`)
           .then(response => {
             if (!response.ok) {
               throw new Error(`Server responded with status: ${response.status}`);
@@ -338,82 +313,6 @@ export default function Reports() {
                               />
                             </PopoverContent>
                           </Popover>
-                        </div>
-                      </div>
-                      
-                      <Separator className="my-2" />
-                      
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-medium">Advanced Filters</h3>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="show-only-marked" 
-                            checked={showOnlyMarked}
-                            onCheckedChange={(checked) => setShowOnlyMarked(checked as boolean)}
-                          />
-                          <Label htmlFor="show-only-marked" className="cursor-pointer">
-                            Only include records where attendance is marked
-                          </Label>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="include-trainee-details" 
-                            checked={includeTraineeDetails}
-                            onCheckedChange={(checked) => setIncludeTraineeDetails(checked as boolean)}
-                          />
-                          <Label htmlFor="include-trainee-details" className="cursor-pointer">
-                            Include trainee contact details
-                          </Label>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Filter by Phase</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {['training', 'certification', 'induction', 'ojt', 'ojt_certification'].map(phase => (
-                              <div key={phase} className="flex items-center space-x-2">
-                                <Checkbox 
-                                  id={`phase-${phase}`} 
-                                  checked={selectedPhases.includes(phase)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedPhases([...selectedPhases, phase]);
-                                    } else {
-                                      setSelectedPhases(selectedPhases.filter(p => p !== phase));
-                                    }
-                                  }}
-                                />
-                                <Label htmlFor={`phase-${phase}`} className="cursor-pointer capitalize">
-                                  {phase.replace('_', ' ')}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Filter by Status</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {['present', 'absent', 'late', 'leave'].map(status => (
-                              <div key={status} className="flex items-center space-x-2">
-                                <Checkbox 
-                                  id={`status-${status}`} 
-                                  checked={selectedStatuses.includes(status)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedStatuses([...selectedStatuses, status]);
-                                    } else {
-                                      setSelectedStatuses(selectedStatuses.filter(s => s !== status));
-                                    }
-                                  }}
-                                />
-                                <Label htmlFor={`status-${status}`} className="cursor-pointer capitalize">
-                                  {status}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
                         </div>
                       </div>
                     </div>
