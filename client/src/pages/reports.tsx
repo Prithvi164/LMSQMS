@@ -96,10 +96,19 @@ export default function Reports() {
     enabled: !!user?.organizationId
   });
 
-  // Filtered batches based on search term
-  const filteredBatches = batches
+  // Separate batches into running and all batches, then apply search filter
+  const runningBatches = batches
+    ? batches.filter(batch => batch.status === 'active' || batch.status === 'Active')
+      .filter(batch => {
+        if (!searchTerm.trim()) return true;
+        const searchLower = searchTerm.toLowerCase();
+        return batch.name.toLowerCase().includes(searchLower);
+      })
+    : [];
+    
+  const allFilteredBatches = batches
     ? batches.filter(batch => {
-        if (!searchTerm.trim()) return true; // Show all batches when search is empty
+        if (!searchTerm.trim()) return true;
         const searchLower = searchTerm.toLowerCase();
         return batch.name.toLowerCase().includes(searchLower) || 
                (batch.status && batch.status.toLowerCase().includes(searchLower));
@@ -341,49 +350,105 @@ export default function Reports() {
                         <ScrollArea className="h-60 border rounded-md p-2">
                           {isBatchesLoading ? (
                             <div className="p-2 text-center text-muted-foreground">Loading batches...</div>
-                          ) : filteredBatches.length > 0 ? (
-                            <div className="space-y-1">
-                              {filteredBatches.map(batch => (
-                                <div
-                                  key={batch.id}
-                                  className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer border transition-colors ${
-                                    selectedBatchIds.includes(batch.id.toString()) 
-                                      ? 'bg-primary/10 border-primary/30' 
-                                      : 'hover:bg-accent hover:border-accent/50 border-transparent'
-                                  }`}
-                                  onClick={() => {
-                                    console.log('Toggling batch from row click:', batch.id, batch.name);
-                                    toggleBatchSelection(batch.id.toString());
-                                  }}
-                                >
-                                  <Checkbox
-                                    id={`batch-${batch.id}`}
-                                    checked={selectedBatchIds.includes(batch.id.toString())}
-                                    onCheckedChange={() => {
-                                      // Empty function here - the parent div handles the click
-                                    }}
-                                    onClick={(e) => {
-                                      // Stop propagation to prevent double-toggling
-                                      e.stopPropagation();
-                                      console.log('Checkbox clicked for batch:', batch.id);
-                                      toggleBatchSelection(batch.id.toString());
-                                    }}
-                                    className="h-5 w-5"
-                                  />
-                                  <div className="flex-1">
-                                    <span className="font-medium text-sm">{batch.name}</span>
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                      ({batch.status})
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
                           ) : (
-                            <div className="p-2 text-center text-muted-foreground">
-                              {searchTerm
-                                ? "No batches match your search"
-                                : "No batches available"}
+                            <div className="space-y-4">
+                              {/* Running Batches Section */}
+                              <div>
+                                <h4 className="font-medium text-sm mb-2 px-1 flex items-center">
+                                  <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                  Running Batches
+                                </h4>
+                                {runningBatches.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {runningBatches.map(batch => (
+                                      <div
+                                        key={batch.id}
+                                        className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer border transition-colors ${
+                                          selectedBatchIds.includes(batch.id.toString()) 
+                                            ? 'bg-primary/10 border-primary/30' 
+                                            : 'hover:bg-accent hover:border-accent/50 border-transparent'
+                                        }`}
+                                        onClick={() => {
+                                          console.log('Toggling running batch:', batch.id, batch.name);
+                                          toggleBatchSelection(batch.id.toString());
+                                        }}
+                                      >
+                                        <Checkbox
+                                          id={`batch-${batch.id}`}
+                                          checked={selectedBatchIds.includes(batch.id.toString())}
+                                          onCheckedChange={() => {}}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleBatchSelection(batch.id.toString());
+                                          }}
+                                          className="h-5 w-5"
+                                        />
+                                        <div className="flex-1">
+                                          <span className="font-medium text-sm">{batch.name}</span>
+                                          <span className="text-xs text-muted-foreground ml-1">
+                                            ({batch.status})
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="p-2 text-sm text-center text-muted-foreground border border-dashed rounded-md">
+                                    {searchTerm
+                                      ? "No running batches match your search"
+                                      : "No running batches available"}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* All Batches Section */}
+                              <div>
+                                <h4 className="font-medium text-sm mb-2 px-1 flex items-center">
+                                  <div className="w-2 h-2 rounded-full bg-slate-400 mr-2"></div>
+                                  All Batches
+                                </h4>
+                                {allFilteredBatches.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {allFilteredBatches.map(batch => (
+                                      <div
+                                        key={batch.id}
+                                        className={`flex items-center space-x-2 p-2 rounded-md cursor-pointer border transition-colors ${
+                                          selectedBatchIds.includes(batch.id.toString()) 
+                                            ? 'bg-primary/10 border-primary/30' 
+                                            : 'hover:bg-accent hover:border-accent/50 border-transparent'
+                                        }`}
+                                        onClick={() => {
+                                          console.log('Toggling batch from all batches:', batch.id, batch.name);
+                                          toggleBatchSelection(batch.id.toString());
+                                        }}
+                                      >
+                                        <Checkbox
+                                          id={`batch-all-${batch.id}`}
+                                          checked={selectedBatchIds.includes(batch.id.toString())}
+                                          onCheckedChange={() => {}}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleBatchSelection(batch.id.toString());
+                                          }}
+                                          className="h-5 w-5"
+                                        />
+                                        <div className="flex-1">
+                                          <span className="font-medium text-sm">{batch.name}</span>
+                                          <span className="text-xs text-muted-foreground ml-1">
+                                            ({batch.status})
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="p-2 text-sm text-center text-muted-foreground border border-dashed rounded-md">
+                                    {searchTerm
+                                      ? "No batches match your search"
+                                      : "No batches available"}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </ScrollArea>
