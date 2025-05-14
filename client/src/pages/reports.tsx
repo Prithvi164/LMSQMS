@@ -98,7 +98,10 @@ export default function Reports() {
 
   // Separate batches into running and all batches, then apply search filter
   const runningBatches = batches
-    ? batches.filter(batch => batch.status === 'active' || batch.status === 'Active')
+    ? batches.filter(batch => 
+        // Consider all batches as running except those with "completed" status
+        batch.status !== 'completed' && batch.status !== 'Completed'
+      )
       .filter(batch => {
         if (!searchTerm.trim()) return true;
         const searchLower = searchTerm.toLowerCase();
@@ -356,7 +359,7 @@ export default function Reports() {
                               <div>
                                 <h4 className="font-medium text-sm mb-2 px-1 flex items-center">
                                   <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                  Running Batches
+                                  Active/Running Batches
                                 </h4>
                                 {runningBatches.length > 0 ? (
                                   <div className="space-y-1">
@@ -405,7 +408,7 @@ export default function Reports() {
                               <div>
                                 <h4 className="font-medium text-sm mb-2 px-1 flex items-center">
                                   <div className="w-2 h-2 rounded-full bg-slate-400 mr-2"></div>
-                                  All Batches
+                                  All Batches (Including Completed)
                                 </h4>
                                 {allFilteredBatches.length > 0 ? (
                                   <div className="space-y-1">
