@@ -54,7 +54,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { db } from './db';
 import { join, extname } from 'path';
 import express from 'express';
-import { eq, and, or, sql, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, or, sql, inArray, gte, lte, aliasedTable } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
@@ -8048,6 +8048,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Exporting evaluation data${batchIds.length > 0 ? ' for batches: ' + batchIds.join(', ') : ' for all batches'}${templateId ? ', template: ' + templateId : ''}, startDate: ${startDate}, endDate: ${endDate}`);
       
+      // Create an aliased table for evaluator
+      const evaluator = aliasedTable(users, "evaluator");
+
       // Prepare the evaluation query with all tables we need to join
       const evaluationsQuery = db
         .select({
@@ -8063,8 +8066,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: evaluations.updatedAt,
           traineeName: users.fullName,
           traineeEmployeeId: users.employeeId,
-          evaluatorName: users.as("evaluator").fullName,
-          evaluatorEmployeeId: users.as("evaluator").employeeId,
+          evaluatorName: evaluator.fullName,
+          evaluatorEmployeeId: evaluator.employeeId,
           audioFileId: evaluations.audioFileId,
           audioFileName: audioFiles.filename,
         })
@@ -8073,7 +8076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(organizationBatches, eq(evaluations.batchId, organizationBatches.id))
         .leftJoin(organizationProcesses, eq(organizationBatches.processId, organizationProcesses.id))
         .leftJoin(users, eq(evaluations.traineeId, users.id))
-        .leftJoin(users.as("evaluator"), eq(evaluations.evaluatorId, users.as("evaluator").id))
+        .leftJoin(evaluator, eq(evaluations.evaluatorId, evaluator.id))
         .leftJoin(audioFiles, eq(evaluations.audioFileId, audioFiles.id))
         .where(eq(evaluations.organizationId, orgId));
       
