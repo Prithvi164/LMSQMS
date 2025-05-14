@@ -244,23 +244,43 @@ export default function Reports() {
             if (data) {
               // New format has an object with summary and parameters arrays
               if (data.summary && data.parameters) {
+                console.log("Export API response:", data);
+                
+                // Track if we actually downloaded anything
+                let exportedSummary = false;
+                let exportedParameters = false;
+                
                 // Download summary data first
                 if (data.summary.length > 0) {
                   downloadCSV(data.summary, 'evaluation_summary');
+                  console.log(`Downloaded ${data.summary.length} summary records`);
+                  exportedSummary = true;
                   toast({
                     title: "Summary Data Exported",
                     description: `${data.summary.length} evaluation summary records downloaded.`,
                   });
                 }
                 
-                // Download detailed parameter data
-                if (data.parameters.length > 0) {
-                  downloadCSV(data.parameters, 'evaluation_parameters');
-                  toast({
-                    title: "Parameter Data Exported",
-                    description: `${data.parameters.length} parameter-level records downloaded.`,
-                  });
-                }
+                // Small delay to ensure files don't conflict
+                setTimeout(() => {
+                  // Download detailed parameter data
+                  if (data.parameters.length > 0) {
+                    downloadCSV(data.parameters, 'evaluation_parameters');
+                    console.log(`Downloaded ${data.parameters.length} parameter records`);
+                    exportedParameters = true;
+                    toast({
+                      title: "Parameter Data Exported",
+                      description: `${data.parameters.length} parameter-level records downloaded.`,
+                    });
+                  }
+                  
+                  // Log if anything was missing
+                  if (!exportedSummary || !exportedParameters) {
+                    console.warn("Some data was missing in the export response:", 
+                      !exportedSummary ? "No summary data" : "Summary data present", 
+                      !exportedParameters ? "No parameter data" : "Parameter data present");
+                  }
+                }, 500);
               } 
               // Handle the old format for backward compatibility
               else if (Array.isArray(data) && data.length > 0) {
