@@ -17,7 +17,9 @@ import {
   ChevronRight,
   Menu,
   MessageSquare,
-  FileAudio
+  FileAudio,
+  BarChart,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -67,6 +69,8 @@ export function SidebarNav() {
       setSectionClass('section-evaluation');
     } else if (location.startsWith('/audio-') || location.startsWith('/azure-')) {
       setSectionClass('section-audio');
+    } else if (location.startsWith('/reports')) {
+      setSectionClass('section-reports');
     } else if (location === '/') {
       setSectionClass('section-dashboard');
     } else {
@@ -121,6 +125,8 @@ export function SidebarNav() {
       permission: 'view_allocation' },
     { href: '/azure-storage-management', label: 'Manage Storage', icon: FileAudio,
       permission: 'view_allocation' },
+    { href: '/reports', label: 'Reports', icon: BarChart,
+      permission: 'view_reports' },
   ];
 
   // Define the type for navigation items
@@ -250,6 +256,8 @@ export function SidebarNav() {
                 activeClasses = "bg-purple-100/40 text-purple-700";
               } else if (item.href.startsWith('/audio-') || item.href.startsWith('/azure-')) {
                 activeClasses = "bg-cyan-100/40 text-cyan-700";
+              } else if (item.href.startsWith('/reports')) {
+                activeClasses = "bg-indigo-100/40 text-indigo-700";
               } else if (item.href === '/') {
                 activeClasses = "bg-orange-100/40 text-orange-700";
               }
