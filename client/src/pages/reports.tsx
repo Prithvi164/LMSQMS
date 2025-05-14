@@ -395,15 +395,14 @@ export default function Reports() {
           <div className="mt-8">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
-                <CardDescription>Generate sample reports or access recent exports</CardDescription>
+                <CardTitle className="text-lg">Available Reports</CardTitle>
+                <CardDescription>Export data from the system for analysis</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
-                  <Button variant="secondary" onClick={handleGenerateSampleExport}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Generate Sample Export
-                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Choose a report type from the cards above to export data. More report types coming soon.
+                  </p>
                 </div>
               </CardContent>
             </Card>
