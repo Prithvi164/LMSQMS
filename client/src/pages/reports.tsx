@@ -29,7 +29,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 
 // Types for data export
-type ExportDataType = 'attendance' | 'trainee-progress' | 'evaluation-results' | 'quiz-results' | 'custom';
+type ExportDataType = 'attendance' | 'evaluation-results' | 'quiz-results' | 'custom';
 type Batch = {
   id: number;
   name: string;
@@ -401,8 +401,7 @@ export default function Reports() {
     switch (type) {
       case 'attendance':
         return 'Attendance Data';
-      case 'trainee-progress':
-        return 'Trainee Progress';
+      /* Trainee Progress case removed */
       case 'evaluation-results':
         return 'Evaluation Results';
       case 'quiz-results':
