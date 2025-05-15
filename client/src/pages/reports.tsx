@@ -64,7 +64,11 @@ const downloadCSV = (data: any[], filename: string) => {
 
 // Helper function to convert data to CSV format
 const convertToCSV = (data: any[]): string => {
-  if (data.length === 0) return '';
+  // Handle empty data arrays
+  if (data.length === 0) {
+    // For evaluation parameters, provide default headers for an empty sheet
+    return 'evaluationId,templateName,batchName,processName,traineeName,evaluatorName,finalScore,pillarName,parameterName,parameterScore,questionText,yesNoQuestion,answerValue,comment';
+  }
   
   // Extract headers
   const headers = Object.keys(data[0]);
@@ -292,7 +296,14 @@ export default function Reports() {
             if (data) {
               // New format has an object with summary and parameters arrays
               if (data.summary && data.parameters) {
-                console.log("Export API response:", data);
+                console.log("Export API response summary length:", data.summary.length);
+                console.log("Export API response parameters length:", data.parameters.length);
+                console.log("Export API response structure:", JSON.stringify({
+                  summaryCount: data.summary.length,
+                  parametersCount: data.parameters.length,
+                  summaryExample: data.summary.length > 0 ? data.summary[0] : null,
+                  parametersExample: data.parameters.length > 0 ? data.parameters[0] : null
+                }, null, 2));
                 
                 // Track if we actually downloaded anything
                 let exportedSummary = false;
@@ -311,14 +322,22 @@ export default function Reports() {
                 
                 // Small delay to ensure files don't conflict
                 setTimeout(() => {
-                  // Download detailed parameter data
+                  // Always attempt to download parameter data even if empty
+                  // This ensures we always get a parameter sheet
+                  downloadCSV(data.parameters, 'evaluation_parameters');
+                  console.log(`Downloaded ${data.parameters.length} parameter records`);
+                  exportedParameters = data.parameters.length > 0;
+                  
+                  // Notify user based on whether we had real data
                   if (data.parameters.length > 0) {
-                    downloadCSV(data.parameters, 'evaluation_parameters');
-                    console.log(`Downloaded ${data.parameters.length} parameter records`);
-                    exportedParameters = true;
                     toast({
                       title: "Parameter Data Exported",
                       description: `${data.parameters.length} parameter-level records downloaded.`,
+                    });
+                  } else {
+                    toast({
+                      title: "Parameter Data Exported",
+                      description: "A parameter sheet was created, but no parameter data was found for the selected criteria.",
                     });
                   }
                   
@@ -642,32 +661,7 @@ export default function Reports() {
               </CardFooter>
             </Card>
             
-            {/* Trainee Progress Export Card */}
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg">
-                  <ClipboardCheck className="h-5 w-5 mr-2 text-indigo-600" />
-                  Trainee Progress
-                </CardTitle>
-                <CardDescription>
-                  Export trainee performance and evaluation data
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Download comprehensive trainee progress data including evaluation history, scores, and detailed performance metrics.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Dialog open={isExportDialogOpen && selectedDataType === 'trainee-progress'} onOpenChange={(open) => {
-                  setIsExportDialogOpen(open);
-                  if (open) setSelectedDataType('trainee-progress');
-                }}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full">
-                      <FileDown className="h-4 w-4 mr-2" />
-                      Export Trainee Progress
-                    </Button>
+            {/* Evaluation Results Export Card */}
                   </DialogTrigger>
                   <DialogContent className="max-h-[80vh] overflow-y-auto">
                     <DialogHeader>

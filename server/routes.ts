@@ -8070,6 +8070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           evaluatorEmployeeId: evaluator.employeeId,
           audioFileId: evaluations.audioFileId,
           audioFileName: audioFiles.filename,
+          audioCallType: sql`${audioFiles.callMetrics}->>'callType'`,
         })
         .from(evaluations)
         .leftJoin(evaluationTemplates, eq(evaluations.templateId, evaluationTemplates.id))
@@ -8119,14 +8120,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             parameterName: evaluationParameters.name,
             pillarName: evaluationPillars.name,
             score: evaluationScores.score,
+            rating: evaluationScores.score, // The actual rating value (yes/no/na or numeric)
             weightage: evaluationParameters.weightage,
             comment: evaluationScores.comment,
+            parameter: evaluationParameters, // Include the full parameter object for access to question details
           })
           .from(evaluationScores)
           .innerJoin(evaluationParameters, eq(evaluationScores.parameterId, evaluationParameters.id))
           .innerJoin(evaluationPillars, eq(evaluationParameters.pillarId, evaluationPillars.id))
-          .where(inArray(evaluationScores.evaluationId, evaluationIds))
-          .execute();
+          .where(inArray(evaluationScores.evaluationId, evaluationIds));
           
         // Create two types of export data: 
         // 1. Summary data with high-level evaluation details
@@ -8176,6 +8178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
             audioFileId: evaluation.audioFileId || 'N/A',
             audioFileName: evaluation.audioFileName || 'N/A',
+            audioType: evaluation.audioCallType || 'N/A',
             ...pillarAverages,
             parameterCount: scores.length
           };
@@ -8183,33 +8186,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Create detailed parameter-wise data (multiple rows per evaluation)
         const parameterData = [];
-        evaluationResults.forEach(evaluation => {
-          const scores = parameterScores.filter(score => score.evaluationId === evaluation.id);
-          
-          // Create a separate row for each parameter score
-          scores.forEach(score => {
-            parameterData.push({
-              evaluationId: evaluation.id,
-              templateName: evaluation.templateName,
-              batchName: evaluation.batchName,
-              processName: evaluation.processName,
-              createdAt: evaluation.createdAt ? formatIST(new Date(evaluation.createdAt)) : '',
-              traineeName: evaluation.traineeName || 'N/A',
-              traineeEmployeeId: evaluation.traineeEmployeeId || 'N/A',
-              evaluatorName: evaluation.evaluatorName || 'N/A',
-              evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
-              finalScore: evaluation.finalScore,
-              status: evaluation.status,
+        let parametersProcessed = 0;
+        
+        // Debug info about score data
+        console.log(`Processing ${evaluationResults.length} evaluations with ${parameterScores.length} total parameter scores`);
+        
+        // If there are no parameter scores, create at least one dummy row to ensure the sheet is generated
+        if (parameterScores.length === 0 && evaluationResults.length > 0) {
+          // Create a dummy parameter row to ensure sheet gets generated
+          const dummyEval = evaluationResults[0];
+          parameterData.push({
+            evaluationId: dummyEval.id,
+            templateName: dummyEval.templateName,
+            batchName: dummyEval.batchName,
+            processName: dummyEval.processName,
+            createdAt: dummyEval.createdAt ? formatIST(new Date(dummyEval.createdAt)) : '',
+            traineeName: dummyEval.traineeName || 'N/A',
+            traineeEmployeeId: dummyEval.traineeEmployeeId || 'N/A',
+            evaluatorName: dummyEval.evaluatorName || 'N/A',
+            evaluatorEmployeeId: dummyEval.evaluatorEmployeeId || 'N/A',
+            finalScore: dummyEval.finalScore,
+            status: dummyEval.status,
+            audioType: dummyEval.audioCallType || 'N/A',
+            pillarName: 'No Data',
+            parameterName: 'No Parameter Data Available',
+            parameterScore: 'N/A',
+            weightage: 'N/A',
+            comment: '',
+            questionText: 'No parameter data found',
+            yesNoQuestion: 'N/A',
+            answerValue: '',
+          });
+          console.log("Created dummy parameter row because no real parameter data was found");
+        } else {
+          // Process real parameter data
+          evaluationResults.forEach(evaluation => {
+            const scores = parameterScores.filter(score => score.evaluationId === evaluation.id);
+            
+            console.log(`Evaluation ID ${evaluation.id} has ${scores.length} parameter scores`);
+            
+            // Create a separate row for each parameter score
+            scores.forEach(score => {
+              // Validate score data to ensure required fields exist
+              const parameterEntry = {
+                evaluationId: evaluation.id,
+                templateName: evaluation.templateName || 'Unknown Template',
+                batchName: evaluation.batchName || 'Unknown Batch',
+                processName: evaluation.processName || 'Unknown Process',
+                createdAt: evaluation.createdAt ? formatIST(new Date(evaluation.createdAt)) : '',
+                traineeName: evaluation.traineeName || 'N/A',
+                traineeEmployeeId: evaluation.traineeEmployeeId || 'N/A',
+                evaluatorName: evaluation.evaluatorName || 'N/A',
+                evaluatorEmployeeId: evaluation.evaluatorEmployeeId || 'N/A',
+                finalScore: evaluation.finalScore || 0,
+                status: evaluation.status || 'Unknown',
+                audioType: evaluation.audioCallType || 'N/A',
+                
+                // Parameter-specific details
+                pillarName: score.pillarName || 'Unknown Pillar',
+                parameterName: score.parameterName || 'Unknown Parameter',
+                parameterScore: score.score || 0,
+                weightage: score.weightage || 0,
+                comment: score.comment || '',
+                questionText: score.parameter?.name || score.parameterName || 'Unknown Question',
+                yesNoQuestion: score.parameter?.ratingType === 'yes_no_na' ? 'Yes' : 'No',
+                answerValue: score.rating || '',
+              };
               
-              // Parameter-specific details
-              pillarName: score.pillarName,
-              parameterName: score.parameterName,
-              parameterScore: score.score,
-              weightage: score.weightage,
-              comment: score.comment || '',
+              parameterData.push(parameterEntry);
+              parametersProcessed++;
             });
           });
-        });
+          
+          console.log(`Processed ${parametersProcessed} parameter entries successfully`);
+        }
+        
+        console.log(`Returning ${summaryData.length} summary records and ${parameterData.length} parameter records`);
+        
+        // Debug parameter data structure
+        if (parameterData.length > 0) {
+          console.log("First parameter record:", JSON.stringify(parameterData[0], null, 2));
+        }
         
         // Return both datasets
         return res.json({
