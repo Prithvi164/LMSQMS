@@ -850,61 +850,6 @@ export default function Reports() {
               </CardFooter>
             </Card>
           </div>
-          
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Available Reports</CardTitle>
-                <CardDescription>Export data from the system for analysis</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 border rounded-lg p-4 flex items-center">
-                      <BarChart className="h-6 w-6 mr-4 text-indigo-600" />
-                      <div>
-                        <h3 className="font-medium">Attendance Breakdown</h3>
-                        <p className="text-sm text-muted-foreground">View attendance statistics and trends</p>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="ml-auto"
-                        onClick={() => {
-                          toast({
-                            title: "Feature Coming Soon",
-                            description: "This report will be available soon.",
-                          });
-                        }}
-                      >
-                        View Report
-                      </Button>
-                    </div>
-                    <div className="flex-1 border rounded-lg p-4 flex items-center">
-                      <FileDown className="h-6 w-6 mr-4 text-indigo-600" />
-                      <div>
-                        <h3 className="font-medium">Custom Reports</h3>
-                        <p className="text-sm text-muted-foreground">Build and generate custom reports</p>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="ml-auto"
-                        onClick={() => {
-                          toast({
-                            title: "Feature Coming Soon",
-                            description: "Custom reporting will be available soon.",
-                          });
-                        }}
-                      >
-                        Create Report
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
         
         {/* Reports Dashboard Tab */}
