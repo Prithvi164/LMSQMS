@@ -592,8 +592,8 @@ export default function EvaluationTemplatesPage() {
                         <CardTitle>{template.name}</CardTitle>
                         <CardDescription title={template.description}>
                           {template.description ? (
-                            template.description.length > 100 ? 
-                            `${template.description.substring(0, 100)}...` : 
+                            template.description.length > 50 ? 
+                            `${template.description.substring(0, 50)}...` : 
                             template.description
                           ) : ''}
                         </CardDescription>
