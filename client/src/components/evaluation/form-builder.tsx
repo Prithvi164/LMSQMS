@@ -417,7 +417,12 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Form Builder</h1>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">Form Builder</h1>
+          {template?.name && (
+            <p className="text-muted-foreground">Template: {template.name}</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
