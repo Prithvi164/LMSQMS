@@ -352,14 +352,14 @@ export default function EvaluationTemplatesPage() {
           <DialogTrigger asChild>
             <Button>Create New Template</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0">
+            <DialogHeader className="p-6 pb-2">
               <DialogTitle>Create New Evaluation Template</DialogTitle>
               <DialogDescription>
                 Create a template for evaluating trainee performance.
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="h-[calc(90vh-8rem)]">
+            <ScrollArea className="px-6 pb-6">
               <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
