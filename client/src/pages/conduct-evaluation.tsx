@@ -129,8 +129,6 @@ function ConductEvaluation() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedScores, setEditedScores] = useState<Record<number, any>>({});
   const [completedEvalType, setCompletedEvalType] = useState<"all" | "standard" | "audio">("all");
-  const [evaluationDetails, setEvaluationDetails] = useState<any>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
   const [feedbackTabType, setFeedbackTabType] = useState<"standard" | "audio">("standard");
   const [evaluationFilters, setEvaluationFilters] = useState({
     templateId: "",
@@ -141,10 +139,9 @@ function ConductEvaluation() {
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
-  // States for evaluation feedback
+  // State for evaluation details view
   const [evaluationDetails, setEvaluationDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [feedbackTabType, setFeedbackTabType] = useState<"standard" | "audio">("standard");
   
   // Function to fetch evaluation details with feedback
   const fetchEvaluationDetails = async (evaluationId: number) => {
@@ -203,9 +200,18 @@ function ConductEvaluation() {
     enabled: !!user && evaluationType === "completed",
   });
   
-  // Query to fetch all evaluations
+  // Query to fetch all evaluations for the View Completed tab
   const { data: evaluations = [], isLoading: loadingEvaluations } = useQuery({
-    queryKey: ['/api/evaluations'],
+    queryKey: ['/api/evaluations', 'all'],
+    queryFn: async () => {
+      return fetch('/api/evaluations?includeAll=true')
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch evaluations');
+          }
+          return res.json();
+        });
+    },
     enabled: !!user && evaluationType === "completed",
   });
   
