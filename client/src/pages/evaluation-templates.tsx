@@ -352,7 +352,7 @@ export default function EvaluationTemplatesPage() {
           <DialogTrigger asChild>
             <Button>Create New Template</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+          <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Create New Evaluation Template</DialogTitle>
               <DialogDescription>
@@ -572,7 +572,7 @@ export default function EvaluationTemplatesPage() {
         </TabsList>
 
         <TabsContent value="templates">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
             {isLoading ? (
               <p>Loading templates...</p>
             ) : templates.length === 0 ? (
@@ -730,7 +730,7 @@ export default function EvaluationTemplatesPage() {
                       {template.status}
                     </Badge>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
                     {/* Process Name Row */}
                     <div className="flex items-center gap-2 border-b pb-2">
                       <div className="flex-1">
