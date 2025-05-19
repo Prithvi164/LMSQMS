@@ -357,9 +357,8 @@ export default function EvaluationTemplatesPage() {
               className="max-w-md"
             />
           </div>
-          <Dialog
-        <Dialog 
-          open={isCreateDialogOpen} 
+          <Dialog 
+            open={isCreateDialogOpen} 
           onOpenChange={(open) => {
             setIsCreateDialogOpen(open);
             if (!open) {
