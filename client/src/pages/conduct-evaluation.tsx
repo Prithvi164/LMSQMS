@@ -2343,7 +2343,7 @@ function ConductEvaluation() {
                       </TableBody>
                     </Table>
                     
-                    {evaluations.filter((e: any) => e.evaluationType === "standard").length === 0 && (
+                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "standard").length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         No standard evaluations found
                       </div>
@@ -2435,7 +2435,7 @@ function ConductEvaluation() {
                       </TableBody>
                     </Table>
                     
-                    {evaluations.filter((e: any) => e.evaluationType === "audio").length === 0 && (
+                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "audio").length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         No audio evaluations found
                       </div>
@@ -2756,7 +2756,7 @@ function ConductEvaluation() {
                       </TableBody>
                     </Table>
                     
-                    {evaluations.filter((e: any) => e.evaluationType === "standard").length === 0 && (
+                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "standard").length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         No standard evaluations found
                       </div>
@@ -2848,7 +2848,7 @@ function ConductEvaluation() {
                       </TableBody>
                     </Table>
                     
-                    {evaluations.filter((e: any) => e.evaluationType === "audio").length === 0 && (
+                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "audio").length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         No audio evaluations found
                       </div>
