@@ -285,6 +285,7 @@ function ConductEvaluation() {
     enabled: !!user && evaluationType === "completed",
     retry: 2,
     staleTime: 1000 * 60, // 1 minute
+    refetchOnWindowFocus: false,
     // Add proper error handling
     onError: (error: any) => {
       console.error("Error loading evaluations:", error);
