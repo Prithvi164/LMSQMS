@@ -152,6 +152,22 @@ function ConductEvaluation() {
     }
   };
 
+  // Query to fetch evaluation feedback data
+  const { data: feedbackList = [], isLoading: loadingFeedback } = useQuery({
+    queryKey: ['/api/evaluation-feedback', 'all'],
+    queryFn: async () => {
+      return fetch('/api/evaluation-feedback?all=true')
+        .then(res => res.json());
+    },
+    enabled: !!user && evaluationType === "completed",
+  });
+  
+  // Query to fetch all evaluations
+  const { data: evaluations = [], isLoading: loadingEvaluations } = useQuery({
+    queryKey: ['/api/evaluations'],
+    enabled: !!user && evaluationType === "completed",
+  });
+  
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
