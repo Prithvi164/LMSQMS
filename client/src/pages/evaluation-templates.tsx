@@ -58,6 +58,12 @@ import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
 import { Trash2, Copy, Archive, Check, Edit, Percent } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 // Form schema for creating a template
@@ -602,8 +608,10 @@ export default function EvaluationTemplatesPage() {
                         {template.status === "draft" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Tooltip content="Finalize Template">
-                                <Button
+                              <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
                                   variant="outline"
                                   size="icon"
                                   onClick={(e) => {
@@ -612,7 +620,12 @@ export default function EvaluationTemplatesPage() {
                                 >
                                   <Check className="h-4 w-4" />
                                 </Button>
-                              </Tooltip>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Finalize Template</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -638,8 +651,10 @@ export default function EvaluationTemplatesPage() {
                         {template.status === "active" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Tooltip content="Archive Template">
-                                <Button
+                              <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
                                   variant="outline"
                                   size="icon"
                                   onClick={(e) => {
@@ -648,7 +663,12 @@ export default function EvaluationTemplatesPage() {
                                 >
                                   <Archive className="h-4 w-4" />
                                 </Button>
-                              </Tooltip>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Archive Template</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -671,33 +691,47 @@ export default function EvaluationTemplatesPage() {
                             </AlertDialogContent>
                           </AlertDialog>
                         )}
-                        <Tooltip content="Duplicate Template">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTemplateToDuplicate(template.id);
-                              setDuplicateDialogOpen(true);
-                            }}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </Tooltip>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Tooltip content="Delete Template">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setTemplateToDelete(template.id);
+                                  setTemplateToDuplicate(template.id);
+                                  setDuplicateDialogOpen(true);
                                 }}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Copy className="h-4 w-4" />
                               </Button>
-                            </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Duplicate Template</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTemplateToDelete(template.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Delete Template</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
