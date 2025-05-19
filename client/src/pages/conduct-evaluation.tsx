@@ -25,6 +25,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/utils";
 import {
   Play,
@@ -320,6 +323,42 @@ function ConductEvaluation() {
     };
   };
   
+  // State for viewing evaluation details
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
+  const [evaluationDetailsData, setEvaluationDetailsData] = useState<any | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  
+  // Function to fetch evaluation details
+  const fetchEvaluationDetails = async (evaluationId: number) => {
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(`/api/evaluations/${evaluationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch evaluation details');
+      }
+      const data = await response.json();
+      console.log("Evaluation details:", data);
+      setEvaluationDetailsData(data);
+      setDetailsDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching evaluation details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load evaluation details. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+  
+  // Handle view details click
+  const handleViewDetails = (evaluationId: number) => {
+    setSelectedEvaluationId(evaluationId);
+    fetchEvaluationDetails(evaluationId);
+  };
+
   // Process evaluations data to ensure we have a valid array
   const evaluations = useMemo(() => {
     // Log the response to diagnose the issue
@@ -330,13 +369,13 @@ function ConductEvaluation() {
       // Handle potential data structure differences
       if (Array.isArray(evaluationsResponse)) {
         if (evaluationsResponse.length > 0) {
-          return evaluationsResponse;
+          return evaluationsResponse.map(transformEvaluationData);
         }
       }
       
       if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
         if (evaluationsResponse.evaluations.length > 0) {
-          return evaluationsResponse.evaluations;
+          return evaluationsResponse.evaluations.map(transformEvaluationData);
         }
       }
       
@@ -346,14 +385,9 @@ function ConductEvaluation() {
         // This happens sometimes with certain API formats
         const values = Object.values(evaluationsResponse);
         if (values.length > 0 && typeof values[0] === 'object') {
-          return values;
+          return values.map(transformEvaluationData);
         }
       }
-    }
-    
-    // For development/testing, provide sample data
-    if (process.env.NODE_ENV === 'development') {
-      return dummyEvaluations;
     }
     
     // In production, return empty array if we couldn't extract data
@@ -363,7 +397,7 @@ function ConductEvaluation() {
   // Query for selected evaluation details
   const {
     data: evaluationDetails,
-    isLoading: loadingDetails,
+    isLoading: isLoadingDetails,
     error: detailsError,
   } = useQuery({
     queryKey: ["/api/evaluations", selectedEvaluation],
@@ -2566,7 +2600,139 @@ function ConductEvaluation() {
         </TabsContent>
       </Tabs>
 
-      {/* Removed duplicate evaluation form section that was causing UI duplication */}
+      {/* Evaluation Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Evaluation Details</DialogTitle>
+            <DialogDescription>
+              Detailed breakdown of the evaluation scores and feedback
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner className="h-8 w-8 animate-spin" />
+            </div>
+          ) : evaluationDetailsData ? (
+            <div className="py-4">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Evaluation #{evaluationDetailsData.evaluation?.id}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Date: {evaluationDetailsData.evaluation?.createdAt ? formatDate(evaluationDetailsData.evaluation.createdAt) : "Unknown"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Type: {evaluationDetailsData.evaluation?.evaluationType || "Unknown"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <h4 className="text-sm font-medium">Final Score</h4>
+                  <p className="text-2xl font-bold">{evaluationDetailsData.evaluation?.finalScore?.toFixed(1) || 0}%</p>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+              
+              <ScrollArea className="h-[400px] pr-4">
+                {evaluationDetailsData.groupedScores?.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No detailed scores available</p>
+                ) : (
+                  <Accordion type="multiple" className="w-full">
+                    {evaluationDetailsData.groupedScores?.map((group: any, groupIndex: number) => (
+                      <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex justify-between items-center w-full pr-4">
+                            <span className="font-medium">
+                              {group.pillar?.name || `Section ${groupIndex + 1}`}
+                            </span>
+                            {group.pillar && (
+                              <span className="text-sm px-2">
+                                Weight: {group.pillar.weight}%
+                              </span>
+                            )}
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 pl-2">
+                            {group.scores.map((score: any) => (
+                              <div key={score.id} className="bg-muted p-3 rounded-md">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                    {score.parameter?.description && (
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        {score.parameter.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={
+                                        score.score === 'Excellent' || score.score === 'Yes' || score.score === '1' || parseInt(score.score) >= 4 
+                                          ? 'bg-green-50 text-green-700 border-green-200' 
+                                          : score.score === 'Poor' || score.score === 'No' || score.score === '0' || parseInt(score.score) <= 1
+                                            ? 'bg-red-50 text-red-700 border-red-200'
+                                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                      }
+                                    >
+                                      {score.score}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                
+                                {score.comment && (
+                                  <div className="mt-2">
+                                    <h5 className="text-sm font-medium mb-1">Comment:</h5>
+                                    <p className="text-sm p-2 bg-background rounded border text-muted-foreground">
+                                      {score.comment}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {score.noReason && (
+                                  <div className="mt-2">
+                                    <h5 className="text-sm font-medium mb-1">Reason:</h5>
+                                    <p className="text-sm p-2 bg-background rounded border text-muted-foreground">
+                                      {score.noReason}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                )}
+              </ScrollArea>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p>No evaluation details available</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => {
+                  if (selectedEvaluationId) {
+                    fetchEvaluationDetails(selectedEvaluationId);
+                  }
+                }}
+              >
+                Try Again
+              </Button>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* View Evaluation Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
