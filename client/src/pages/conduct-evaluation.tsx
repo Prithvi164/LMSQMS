@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -320,7 +320,7 @@ function ConductEvaluation() {
   ];
   
   // Process evaluations data to ensure we have a valid array
-  const evaluations = React.useMemo(() => {
+  const evaluations = useMemo(() => {
     // Log the response to diagnose the issue
     console.log("Evaluations API response:", evaluationsResponse);
     
