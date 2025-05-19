@@ -2381,7 +2381,7 @@ function ConductEvaluation() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filterEvaluations().map((evaluation: any) => (
+                      {evaluations && evaluations.map((evaluation: any) => (
                         <TableRow key={evaluation.id}>
                           <TableCell className="font-medium">#{evaluation.id}</TableCell>
                           <TableCell>
@@ -2414,10 +2414,16 @@ function ConductEvaluation() {
                           <TableCell>{evaluation.finalScore?.toFixed(1)}%</TableCell>
                           <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
                           <TableCell>
-                            {renderStatusBadge(
-                              evaluation.status, 
-                              evaluation.finalScore, 
-                              evaluation.template?.passingScore
+                            {evaluation.status === "pending" ? (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>
+                            ) : evaluation.status === "completed" ? (
+                              evaluation.isPassed ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Passed</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>
+                              )
+                            ) : (
+                              <Badge variant="outline">{evaluation.status}</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -2425,14 +2431,42 @@ function ConductEvaluation() {
                               <Button 
                                 variant="ghost" 
                                 size="icon"
-                                onClick={() => handleViewEvaluation(evaluation.id)}
+                                onClick={() => {
+                                  setSelectedEvaluation(evaluation.id);
+                                  setIsViewDialogOpen(true);
+                                  
+                                  // Fetch evaluation details
+                                  queryClient.fetchQuery({
+                                    queryKey: ["/api/evaluations", evaluation.id],
+                                  });
+                                }}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button 
                                 variant="ghost" 
                                 size="icon"
-                                onClick={() => handleEditEvaluation(evaluation.id)}
+                                onClick={() => {
+                                  setSelectedEvaluation(evaluation.id);
+                                  
+                                  // Fetch evaluation details first
+                                  queryClient.fetchQuery({
+                                    queryKey: ["/api/evaluations", evaluation.id],
+                                  }).then((details: any) => {
+                                    // Initialize edited scores based on existing ones
+                                    const initialScores: Record<number, any> = {};
+                                    details.evaluation.scores.forEach((score: any) => {
+                                      initialScores[score.parameterId] = {
+                                        score: score.score,
+                                        comment: score.comment || "",
+                                        noReason: score.noReason || "",
+                                      };
+                                    });
+                                    
+                                    setEditedScores(initialScores);
+                                    setIsEditDialogOpen(true);
+                                  });
+                                }}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
