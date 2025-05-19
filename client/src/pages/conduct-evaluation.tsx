@@ -2794,7 +2794,24 @@ function ConductEvaluation() {
           <DialogFooter className="border-t pt-4 mt-4">
             <div className="flex-1 text-left">
               <span className="font-medium">
-                Final Score: {calculateEditedScore().toFixed(1)}%
+                Final Score: {evaluationDetails && Object.keys(editedScores).length > 0 ? 
+                  (() => {
+                    const parameters = evaluationDetails.evaluation.template.parameters;
+                    const scoreEntries = Object.entries(editedScores);
+                    
+                    let totalScore = 0;
+                    let totalWeight = 0;
+                    
+                    scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                      const parameter = parameters.find((p: any) => p.id === parseInt(parameterId));
+                      if (parameter) {
+                        totalScore += scoreData.score * parameter.weight;
+                        totalWeight += parameter.weight;
+                      }
+                    });
+                    
+                    return totalWeight > 0 ? (totalScore / totalWeight).toFixed(1) : "0.0";
+                  })() : "0.0"}%
               </span>
             </div>
             <Button
@@ -2804,7 +2821,44 @@ function ConductEvaluation() {
               Cancel
             </Button>
             <Button 
-              onClick={handleSubmitEdit}
+              onClick={() => {
+                if (!evaluationDetails) return;
+                
+                const scores = Object.entries(editedScores).map(([parameterId, scoreData]: [string, any]) => ({
+                  parameterId: parseInt(parameterId),
+                  score: scoreData.score,
+                  comment: scoreData.comment,
+                  noReason: scoreData.noReason,
+                }));
+                
+                // Calculate final score
+                const parameters = evaluationDetails.evaluation.template.parameters;
+                const scoreEntries = Object.entries(editedScores);
+                
+                let totalScore = 0;
+                let totalWeight = 0;
+                
+                scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                  const parameter = parameters.find((p: any) => p.id === parseInt(parameterId));
+                  if (parameter) {
+                    totalScore += scoreData.score * parameter.weight;
+                    totalWeight += parameter.weight;
+                  }
+                });
+                
+                const finalScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) / 100 : 0;
+                
+                // Determine if passed based on template's passing score
+                const passingScore = evaluationDetails.evaluation.template.passingScore || 70;
+                const isPassed = finalScore >= passingScore;
+                
+                updateEvaluationMutation.mutate({
+                  id: selectedEvaluation,
+                  scores,
+                  finalScore,
+                  isPassed,
+                });
+              }}
               disabled={updateEvaluationMutation.isPending}
             >
               {updateEvaluationMutation.isPending ? (
