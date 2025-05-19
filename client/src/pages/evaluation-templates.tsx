@@ -590,7 +590,7 @@ export default function EvaluationTemplatesPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle>{template.name}</CardTitle>
-                        <CardDescription title={template.description}>
+                        <CardDescription title={template.description} className="whitespace-nowrap overflow-hidden text-ellipsis">
                           {template.description ? (
                             template.description.length > 50 ? 
                             `${template.description.substring(0, 50)}...` : 
