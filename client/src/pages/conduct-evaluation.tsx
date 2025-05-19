@@ -426,8 +426,8 @@ function ConductEvaluation() {
     isLoading: isLoadingDetails,
     error: detailsError,
   } = useQuery({
-    queryKey: ["/api/evaluations", selectedEvaluation],
-    enabled: !!selectedEvaluation && (isViewDialogOpen || isEditDialogOpen),
+    queryKey: ["/api/evaluations", selectedEvaluationId],
+    enabled: !!selectedEvaluationId && (isViewDialogOpen || isEditDialogOpen),
   });
   
   // Mutation for updating an evaluation
