@@ -2451,6 +2451,341 @@ function ConductEvaluation() {
 
       {/* Removed duplicate evaluation form section that was causing UI duplication */}
       
+      {/* View Evaluation Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Evaluation Details</DialogTitle>
+            <DialogDescription>
+              {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                ? "Audio evaluation details" 
+                : "Standard evaluation details"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex justify-center items-center py-10">
+              <Spinner className="h-6 w-6" />
+              <span className="ml-2">Loading details...</span>
+            </div>
+          ) : !evaluationDetails ? (
+            <div className="text-center py-6">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p>Failed to load evaluation details</p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Type:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.evaluationType === "audio" ? "Audio" : "Standard"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Template:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.template?.name || "Unknown"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Date:</span>
+                        <span className="text-sm font-medium">
+                          {formatDate(evaluationDetails.evaluation.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Status:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.status === "completed" ? "Completed" : "Pending"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Final Score:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.finalScore.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Result:</span>
+                        <span className={`text-sm font-medium ${evaluationDetails.evaluation.isPassed ? "text-green-600" : "text-red-600"}`}>
+                          {evaluationDetails.evaluation.isPassed ? "Passed" : "Failed"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                      {evaluationDetails.evaluation.evaluationType === "audio" 
+                        ? "Audio Information" 
+                        : "Trainee Information"}
+                    </h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      {evaluationDetails.evaluation.evaluationType === "audio" ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Audio ID:</span>
+                            <span className="text-sm font-medium">#{evaluationDetails.evaluation.audioFileId}</span>
+                          </div>
+                          {evaluationDetails.evaluation.audioFile && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-sm">File Name:</span>
+                                <span className="text-sm font-medium">
+                                  {evaluationDetails.evaluation.audioFile.fileName || "Not available"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm">Duration:</span>
+                                <span className="text-sm font-medium">
+                                  {evaluationDetails.evaluation.audioFile.duration 
+                                    ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
+                                    : "Unknown"}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Trainee:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails.evaluation.trainee?.fullName || "Unknown"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Employee ID:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails.evaluation.trainee?.employeeId || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Batch:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails.evaluation.batch?.name || "N/A"}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-sm">Evaluator:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.evaluator?.fullName || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
+                  
+                  <Accordion type="multiple" className="w-full">
+                    {evaluationDetails.evaluation.template?.parameters.map((parameter: any) => {
+                      const score = evaluationDetails.evaluation.scores.find(
+                        (s: any) => s.parameterId === parameter.id
+                      );
+                      
+                      return (
+                        <AccordionItem key={parameter.id} value={parameter.id.toString()}>
+                          <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
+                            <div className="flex justify-between w-full mr-4 items-center">
+                              <span>{parameter.name}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={score?.score >= 3 ? "outline" : "destructive"} className="font-normal">
+                                  {score?.score || 0}/{parameter.maxScore}
+                                </Badge>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm text-muted-foreground">{parameter.description}</p>
+                              </div>
+                              
+                              {score?.comment && (
+                                <div>
+                                  <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                  <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                    {score.comment}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {score?.noReason && (
+                                <div>
+                                  <h5 className="text-xs font-medium mb-1">No Reason:</h5>
+                                  <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                    {score.noReason}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+            <Button onClick={() => {
+              setIsViewDialogOpen(false);
+              handleEditEvaluation(selectedEvaluation!);
+            }}>
+              Edit Evaluation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Evaluation Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Evaluation</DialogTitle>
+            <DialogDescription>
+              Update scores and comments for this evaluation
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex justify-center items-center py-10">
+              <Spinner className="h-6 w-6" />
+              <span className="ml-2">Loading details...</span>
+            </div>
+          ) : !evaluationDetails ? (
+            <div className="text-center py-6">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p>Failed to load evaluation details</p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
+                  
+                  <div className="space-y-6">
+                    {evaluationDetails.evaluation.template?.parameters.map((parameter: any) => {
+                      const currentScore = editedScores[parameter.id] || { score: 0, comment: "", noReason: "" };
+                      
+                      return (
+                        <Card key={parameter.id} className="border-primary/10">
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between">
+                              <CardTitle className="text-base">{parameter.name}</CardTitle>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Weight: {parameter.weight}
+                                </span>
+                              </div>
+                            </div>
+                            <CardDescription>{parameter.description}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label className="mb-1.5 block text-sm">Score (0-{parameter.maxScore})</Label>
+                              <Select
+                                value={currentScore.score.toString()}
+                                onValueChange={(value) =>
+                                  handleScoreChange(parameter.id, "score", parseInt(value))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: parameter.maxScore + 1 }, (_, i) => (
+                                    <SelectItem key={i} value={i.toString()}>
+                                      {i}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label className="mb-1.5 block text-sm">Comment</Label>
+                              <Textarea
+                                value={currentScore.comment}
+                                onChange={(e) =>
+                                  handleScoreChange(parameter.id, "comment", e.target.value)
+                                }
+                                placeholder="Add a comment (optional)"
+                                className="min-h-[80px]"
+                              />
+                            </div>
+                            
+                            {currentScore.score === 0 && (
+                              <div>
+                                <Label className="mb-1.5 block text-sm">
+                                  No Reason (Required for zero score)
+                                </Label>
+                                <Textarea
+                                  value={currentScore.noReason}
+                                  onChange={(e) =>
+                                    handleScoreChange(parameter.id, "noReason", e.target.value)
+                                  }
+                                  placeholder="Explain why this score is zero"
+                                  className="min-h-[80px]"
+                                />
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          
+          <DialogFooter className="border-t pt-4 mt-4">
+            <div className="flex-1 text-left">
+              <span className="font-medium">
+                Final Score: {calculateEditedScore().toFixed(1)}%
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitEdit}
+              disabled={updateEvaluationMutation.isPending}
+            >
+              {updateEvaluationMutation.isPending ? (
+                <>
+                  <Spinner className="h-4 w-4 mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
         <AlertDialogContent>
