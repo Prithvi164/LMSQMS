@@ -1061,6 +1061,40 @@ function ConductEvaluation() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Evaluation Submission</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to submit an evaluation with a final score of <strong>{calculateScore()}%</strong>.
+              <div className="mt-4 p-3 border rounded bg-muted/30">
+                <h4 className="font-medium mb-2">Evaluation Summary:</h4>
+                <ul className="space-y-1 text-sm">
+                  <li><span className="font-medium">Template:</span> {selectedTemplateDetails?.name}</li>
+                  <li><span className="font-medium">Trainee:</span> {trainees?.find((t: any) => t.id === selectedTrainee)?.fullName}</li>
+                  <li><span className="font-medium">Parameters Rated:</span> {Object.keys(scores).length} / {selectedTemplateDetails?.pillars?.reduce((acc: number, pillar: any) => acc + pillar.parameters.length, 0)}</li>
+                </ul>
+              </div>
+              <p className="mt-4">Are you sure you want to submit this evaluation?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAndSubmit} className="bg-primary">
+              {submitEvaluationMutation.isPending ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Submitting...
+                </>
+              ) : (
+                "Confirm Submission"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       <Tabs
         defaultValue="standard"
         onValueChange={(value) =>
@@ -1369,11 +1403,7 @@ function ConductEvaluation() {
                     disabled={submitEvaluationMutation.isPending}
                     className="gap-2"
                   >
-                    {submitEvaluationMutation.isPending ? (
-                      <Spinner size="sm" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
+                    <Check className="h-4 w-4" />
                     Submit Evaluation
                   </Button>
                 </CardFooter>
