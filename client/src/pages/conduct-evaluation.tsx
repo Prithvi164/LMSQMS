@@ -48,6 +48,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function ConductEvaluation() {
   const { user } = useAuth();
@@ -622,6 +632,33 @@ function ConductEvaluation() {
     return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) : 0;
   };
 
+  // Check if all parameters have been rated
+  const validateAllParametersRated = () => {
+    if (!selectedTemplateDetails) return false;
+    
+    const missingParameters: string[] = [];
+    
+    // Check each parameter in each pillar
+    selectedTemplateDetails.pillars.forEach((pillar: any) => {
+      pillar.parameters.forEach((param: any) => {
+        const parameterId = param.id;
+        // Check if this parameter has a score/rating
+        if (!scores[parameterId] || !scores[parameterId].rating) {
+          missingParameters.push(param.name || `Parameter #${parameterId}`);
+        }
+      });
+    });
+    
+    return {
+      isValid: missingParameters.length === 0,
+      missingParameters
+    };
+  };
+
+  // Confirmation state for dialog
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingEvaluation, setPendingEvaluation] = useState<any>(null);
+
   const handleSubmit = () => {
     if (!selectedBatch || !selectedTrainee || !selectedTemplate) {
       toast({
@@ -632,6 +669,18 @@ function ConductEvaluation() {
       return;
     }
 
+    // Validate all parameters are rated
+    const validation = validateAllParametersRated();
+    if (!validation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete Evaluation",
+        description: `Please select Yes, No, or NA for all parameters. Missing: ${validation.missingParameters.slice(0, 3).join(", ")}${validation.missingParameters.length > 3 ? ` and ${validation.missingParameters.length - 3} more...` : ""}`,
+      });
+      return;
+    }
+
+    // Create evaluation object
     const evaluation = {
       templateId: selectedTemplate,
       traineeId: selectedTrainee,
@@ -644,7 +693,17 @@ function ConductEvaluation() {
       finalScore: calculateScore(),
     };
 
-    submitEvaluationMutation.mutate(evaluation);
+    // Store evaluation and show confirmation dialog
+    setPendingEvaluation(evaluation);
+    setShowConfirmation(true);
+  };
+
+  // Function to submit after confirmation
+  const confirmAndSubmit = () => {
+    if (pendingEvaluation) {
+      submitEvaluationMutation.mutate(pendingEvaluation);
+      setShowConfirmation(false);
+    }
   };
 
   // Reset dependent fields when batch changes
