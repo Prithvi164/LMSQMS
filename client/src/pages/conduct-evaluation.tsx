@@ -391,33 +391,36 @@ function ConductEvaluation() {
     // Log the response to diagnose the issue
     console.log("Evaluations API response:", evaluationsResponse);
     
-    // First try to use the real API data
-    if (evaluationsResponse) {
-      // Handle potential data structure differences
-      if (Array.isArray(evaluationsResponse)) {
-        if (evaluationsResponse.length > 0) {
-          return evaluationsResponse.map(transformEvaluationData);
+    try {
+      // First try to use the real API data
+      if (evaluationsResponse) {
+        // Handle potential data structure differences
+        if (Array.isArray(evaluationsResponse)) {
+          if (evaluationsResponse.length > 0) {
+            return evaluationsResponse.map(transformEvaluationData);
+          }
+        }
+        
+        if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
+          if (evaluationsResponse.evaluations.length > 0) {
+            return evaluationsResponse.evaluations.map(transformEvaluationData);
+          }
+        }
+        
+        // Try to process the response differently if it has a different structure
+        if (typeof evaluationsResponse === 'object') {
+          // If it's an object with numerical keys (like { '1': {...}, '2': {...} })
+          const values = Object.values(evaluationsResponse);
+          if (values.length > 0 && typeof values[0] === 'object') {
+            return values.map(transformEvaluationData);
+          }
         }
       }
-      
-      if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
-        if (evaluationsResponse.evaluations.length > 0) {
-          return evaluationsResponse.evaluations.map(transformEvaluationData);
-        }
-      }
-      
-      // Try to process the response differently if it has a different structure
-      if (typeof evaluationsResponse === 'object') {
-        // If it's an object with numerical keys (like { '1': {...}, '2': {...} })
-        // This happens sometimes with certain API formats
-        const values = Object.values(evaluationsResponse);
-        if (values.length > 0 && typeof values[0] === 'object') {
-          return values.map(transformEvaluationData);
-        }
-      }
+    } catch (error) {
+      console.error("Error processing evaluations data:", error);
     }
     
-    // In production, return empty array if we couldn't extract data
+    // Return empty array if we couldn't extract data
     return [];
   }, [evaluationsResponse]);
   
