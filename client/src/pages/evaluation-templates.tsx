@@ -726,24 +726,16 @@ export default function EvaluationTemplatesPage() {
                         {template.status === "active" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  <Archive className="h-4 w-4" />
-                                </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Archive Template</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                title="Archive Template"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -767,47 +759,31 @@ export default function EvaluationTemplatesPage() {
                             </AlertDialogContent>
                           </AlertDialog>
                         )}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTemplateToDuplicate(template.id);
+                            setDuplicateDialogOpen(true);
+                          }}
+                          title="Duplicate Template"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setTemplateToDuplicate(template.id);
-                                  setDuplicateDialogOpen(true);
+                                  setTemplateToDelete(template.id);
                                 }}
+                                title="Delete Template"
                               >
-                                <Copy className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Duplicate Template</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setTemplateToDelete(template.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Delete Template</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
