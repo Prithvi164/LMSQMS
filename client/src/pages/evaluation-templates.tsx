@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -56,7 +56,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
-import { Trash2, Copy, Archive, Check, Edit, Percent } from "lucide-react";
+import { Trash2, Copy, Archive, Check, Edit, Percent, Search, Filter } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Tooltip,
@@ -64,6 +64,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import React from "react";
 
 
 // Form schema for creating a template
@@ -88,6 +89,10 @@ export default function EvaluationTemplatesPage() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
   const [filteredBatches, setFilteredBatches] = useState<any[]>([]);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">("all");
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -341,6 +346,30 @@ export default function EvaluationTemplatesPage() {
     });
   };
 
+  // Filter and sort templates
+  const filteredAndSortedTemplates = useMemo(() => {
+    // First filter by status if a filter is selected
+    let filtered = [...(templates as any[] || [])];
+    
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(template => template.status === statusFilter);
+    }
+    
+    // Then filter by search query if there is one
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(template => 
+        template.name.toLowerCase().includes(query) || 
+        (template.description && template.description.toLowerCase().includes(query))
+      );
+    }
+    
+    // Sort by creation date/id (newer first)
+    filtered.sort((a, b) => b.id - a.id);
+    
+    return filtered;
+  }, [templates, statusFilter, searchQuery]);
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -578,13 +607,57 @@ export default function EvaluationTemplatesPage() {
         </TabsList>
 
         <TabsContent value="templates">
+          {/* Search and filter controls */}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search templates..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant={statusFilter === "all" ? "default" : "outline"} 
+                onClick={() => setStatusFilter("all")}
+                className="flex-1 md:flex-none"
+              >
+                All
+              </Button>
+              <Button 
+                variant={statusFilter === "draft" ? "default" : "outline"} 
+                onClick={() => setStatusFilter("draft")}
+                className="flex-1 md:flex-none"
+              >
+                Draft
+              </Button>
+              <Button 
+                variant={statusFilter === "active" ? "default" : "outline"} 
+                onClick={() => setStatusFilter("active")}
+                className="flex-1 md:flex-none"
+              >
+                Active
+              </Button>
+              <Button 
+                variant={statusFilter === "archived" ? "default" : "outline"} 
+                onClick={() => setStatusFilter("archived")}
+                className="flex-1 md:flex-none"
+              >
+                Archived
+              </Button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
             {isLoading ? (
               <p>Loading templates...</p>
-            ) : templates.length === 0 ? (
-              <p>No templates available. Create your first template to get started.</p>
+            ) : filteredAndSortedTemplates.length === 0 ? (
+              <p>No templates available{searchQuery || statusFilter !== "all" ? " matching your filters" : ""}. {!searchQuery && statusFilter === "all" && "Create your first template to get started."}</p>
             ) : (
-              templates.map((template: any) => (
+              filteredAndSortedTemplates.map((template: any) => (
                 <Card
                   key={template.id}
                   className={`cursor-pointer transition-all ${
