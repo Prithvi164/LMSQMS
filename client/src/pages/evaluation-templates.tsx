@@ -690,24 +690,16 @@ export default function EvaluationTemplatesPage() {
                         {template.status === "draft" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Finalize Template</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                title="Finalize Template"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
