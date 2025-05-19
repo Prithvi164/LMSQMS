@@ -351,14 +351,15 @@ export default function EvaluationTemplatesPage() {
           <DialogTrigger asChild>
             <Button>Create New Template</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Create New Evaluation Template</DialogTitle>
               <DialogDescription>
                 Create a template for evaluating trainee performance.
               </DialogDescription>
             </DialogHeader>
-            <Form {...form}>
+            <ScrollArea className="h-[calc(90vh-8rem)]">
+              <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
@@ -519,6 +520,7 @@ export default function EvaluationTemplatesPage() {
                 </Button>
               </form>
             </Form>
+            </ScrollArea>
           </DialogContent>
         </Dialog>
       </div>
