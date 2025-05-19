@@ -2353,7 +2353,7 @@ function ConductEvaluation() {
                     <p className="text-muted-foreground">Please try again later</p>
                   </CardContent>
                 </Card>
-              ) : filterEvaluations().length === 0 ? (
+              ) : (!evaluations || evaluations.length === 0) ? (
                 <Card>
                   <CardContent className="py-10 text-center">
                     <ClipboardCheck className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
