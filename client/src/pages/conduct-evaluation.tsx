@@ -329,32 +329,61 @@ function ConductEvaluation() {
   // Function to fetch evaluation details
   const fetchEvaluationDetails = async (evaluationId: number) => {
     setLoadingDetails(true);
+    setEvaluationDetailsData(null);
+    
     try {
-      const response = await fetch(`/api/evaluations/${evaluationId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch evaluation details');
+      const response = await queryClient.fetchQuery({
+        queryKey: ["/api/evaluations", evaluationId],
+      });
+      
+      console.log("Evaluation details:", response);
+      
+      // Process the evaluation details to group scores by pillar
+      if (response && response.evaluation && response.evaluation.scores) {
+        const groupedScores: any[] = [];
+        const scoresByPillar: Record<number, any[]> = {};
+        
+        // Group scores by pillar ID
+        response.evaluation.scores.forEach((score: any) => {
+          const pillarId = score.parameter?.pillarId;
+          if (!scoresByPillar[pillarId]) {
+            scoresByPillar[pillarId] = [];
+          }
+          scoresByPillar[pillarId].push(score);
+        });
+        
+        // Create the grouped structure
+        Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
+          const pillar = response.evaluation.template?.pillars?.find(
+            (p: any) => p.id === parseInt(pillarId)
+          );
+          
+          groupedScores.push({
+            pillar: pillar || { id: parseInt(pillarId), name: `Section ${pillarId}` },
+            scores: scores
+          });
+        });
+        
+        setEvaluationDetailsData({
+          evaluation: response.evaluation,
+          groupedScores
+        });
+      } else {
+        setEvaluationDetailsData({ evaluation: response.evaluation, groupedScores: [] });
       }
-      const data = await response.json();
-      console.log("Evaluation details:", data);
-      setEvaluationDetailsData(data);
-      setDetailsDialogOpen(true);
     } catch (error) {
-      console.error('Error fetching evaluation details:', error);
+      console.error("Error fetching evaluation details:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load evaluation details. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load evaluation details",
+        variant: "destructive",
       });
     } finally {
       setLoadingDetails(false);
     }
   };
   
-  // Handle view details click
-  const handleViewDetails = (evaluationId: number) => {
-    setSelectedEvaluationId(evaluationId);
-    fetchEvaluationDetails(evaluationId);
-  };
+  // We're using direct onClick handlers in the button, so this function is not needed
 
   // Process evaluations data to ensure we have a valid array
   const evaluations = useMemo(() => {
@@ -825,62 +854,7 @@ function ConductEvaluation() {
     }));
   };
   
-  // Function to fetch evaluation details for the View Details dialog
-  const fetchEvaluationDetails = async (evaluationId: number) => {
-    setLoadingDetails(true);
-    setEvaluationDetailsData(null);
-    
-    try {
-      const response = await queryClient.fetchQuery({
-        queryKey: ["/api/evaluations", evaluationId],
-      });
-      
-      console.log("Evaluation details:", response);
-      
-      // Process the evaluation details to group scores by pillar
-      if (response && response.evaluation && response.evaluation.scores) {
-        const groupedScores: any[] = [];
-        const scoresByPillar: Record<number, any[]> = {};
-        
-        // Group scores by pillar ID
-        response.evaluation.scores.forEach((score: any) => {
-          const pillarId = score.parameter?.pillarId;
-          if (!scoresByPillar[pillarId]) {
-            scoresByPillar[pillarId] = [];
-          }
-          scoresByPillar[pillarId].push(score);
-        });
-        
-        // Create the grouped structure
-        Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
-          const pillar = response.evaluation.template?.pillars?.find(
-            (p: any) => p.id === parseInt(pillarId)
-          );
-          
-          groupedScores.push({
-            pillar: pillar || { id: parseInt(pillarId), name: `Section ${pillarId}` },
-            scores: scores
-          });
-        });
-        
-        setEvaluationDetailsData({
-          evaluation: response.evaluation,
-          groupedScores
-        });
-      } else {
-        setEvaluationDetailsData({ evaluation: response.evaluation, groupedScores: [] });
-      }
-    } catch (error) {
-      console.error("Error fetching evaluation details:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load evaluation details",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingDetails(false);
-    }
-  };
+  // Function is already declared above, removing duplicate
 
   const calculateScore = () => {
     if (!selectedTemplateDetails) return 0;
