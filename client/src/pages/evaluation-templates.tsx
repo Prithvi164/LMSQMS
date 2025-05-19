@@ -590,7 +590,13 @@ export default function EvaluationTemplatesPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle>{template.name}</CardTitle>
-                        <CardDescription>{template.description}</CardDescription>
+                        <CardDescription title={template.description}>
+                          {template.description ? (
+                            template.description.length > 100 ? 
+                            `${template.description.substring(0, 100)}...` : 
+                            template.description
+                          ) : ''}
+                        </CardDescription>
                       </div>
                       <div className="flex gap-2">
                         {template.status === "draft" && (
