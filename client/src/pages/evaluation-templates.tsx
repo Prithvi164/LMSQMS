@@ -84,6 +84,7 @@ export default function EvaluationTemplatesPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
   const [templateToDuplicate, setTemplateToDuplicate] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
@@ -343,8 +344,20 @@ export default function EvaluationTemplatesPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Evaluation Templates</h1>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Evaluation Templates</h1>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+          <Dialog
         <Dialog 
           open={isCreateDialogOpen} 
           onOpenChange={(open) => {
@@ -584,7 +597,12 @@ export default function EvaluationTemplatesPage() {
             ) : templates.length === 0 ? (
               <p>No templates available. Create your first template to get started.</p>
             ) : (
-              templates.map((template: any) => (
+              templates
+                .filter((template: any) => 
+                  template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  template.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((template: any) => (
                 <Card
                   key={template.id}
                   className={`cursor-pointer transition-all ${
