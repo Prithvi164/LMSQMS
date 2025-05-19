@@ -988,6 +988,7 @@ export default function EvaluationTemplatesPage() {
                                   <SelectContent>
                                     <SelectItem value="none">No Batch</SelectItem>
                                     {getBatchesForProcess(selectedProcessId || template.processId).map((batch: any) => (
+```python
                                       <SelectItem
                                         key={`batch-option-${batch.id}`}
                                         value={batch.id.toString()}
@@ -1078,3 +1079,5 @@ export default function EvaluationTemplatesPage() {
     </div>
   );
 }
+
+export default EvaluationTemplatesPage;
