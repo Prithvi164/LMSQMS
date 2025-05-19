@@ -292,32 +292,33 @@ function ConductEvaluation() {
     }
   });
   
-  // Create a dummy array of evaluations for testing
-  const dummyEvaluations = [
-    {
-      id: 1,
-      templateId: 1,
-      traineeId: 1,
-      batchId: 1,
-      createdAt: new Date().toISOString(),
-      finalScore: 85,
-      isPassed: true,
-      evaluationType: "standard",
-      template: { id: 1, name: "Standard Evaluation" },
-      trainee: { id: 1, fullName: "John Doe" },
-    },
-    {
-      id: 2,
-      templateId: 2,
-      audioFileId: 1,
-      createdAt: new Date().toISOString(),
-      finalScore: 75,
-      isPassed: true,
-      evaluationType: "audio",
-      template: { id: 2, name: "Audio Evaluation" },
-      audioFile: { id: 1, name: "Sample Audio" },
-    }
-  ];
+  // Creating a function to transform evaluation data into the format we need
+  const transformEvaluationData = (evaluation: any) => {
+    // Calculate if evaluation passed based on final_score and feedback_threshold
+    const isPassed = evaluation.final_score >= (evaluation.feedback_threshold || 0);
+    
+    return {
+      id: evaluation.id,
+      templateId: evaluation.template_id, 
+      traineeId: evaluation.trainee_id,
+      batchId: evaluation.batch_id,
+      createdAt: evaluation.created_at,
+      finalScore: evaluation.final_score,
+      evaluationType: evaluation.evaluation_type,
+      isPassed: isPassed,
+      audioFileId: evaluation.audio_file_id,
+      // Include related entities if they exist in the evaluation object
+      template: evaluation.template_name ? 
+        { id: evaluation.template_id, name: evaluation.template_name } : 
+        undefined,
+      trainee: evaluation.trainee_name ?
+        { id: evaluation.trainee_id, fullName: evaluation.trainee_name } :
+        undefined,
+      audioFile: evaluation.filename ? 
+        { id: evaluation.audio_file_id, name: evaluation.filename } :
+        undefined,
+    };
+  };
   
   // Process evaluations data to ensure we have a valid array
   const evaluations = useMemo(() => {
