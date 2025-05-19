@@ -642,9 +642,21 @@ function ConductEvaluation() {
     selectedTemplateDetails.pillars.forEach((pillar: any) => {
       pillar.parameters.forEach((param: any) => {
         const parameterId = param.id;
-        // Check if this parameter has a score/rating
-        if (!scores[parameterId] || !scores[parameterId].rating) {
-          missingParameters.push(param.name || `Parameter #${parameterId}`);
+        
+        // For Yes/No/NA type parameters
+        if (param.ratingType === 'yes_no_na') {
+          // Check if this parameter has a rating (yes, no, or na)
+          if (!scores[parameterId] || !scores[parameterId].rating || 
+              !['yes', 'no', 'na'].includes(scores[parameterId].rating)) {
+            missingParameters.push(param.name || `Parameter #${parameterId}`);
+          }
+        } 
+        // For other rating types (numerical, etc.)
+        else {
+          // Check if this parameter has a score
+          if (!scores[parameterId] || !scores[parameterId].score) {
+            missingParameters.push(param.name || `Parameter #${parameterId}`);
+          }
         }
       });
     });
@@ -1400,7 +1412,6 @@ function ConductEvaluation() {
                 <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 py-3">
                   <Button
                     onClick={handleSubmit}
-                    disabled={submitEvaluationMutation.isPending}
                     className="gap-2"
                   >
                     <Check className="h-4 w-4" />
