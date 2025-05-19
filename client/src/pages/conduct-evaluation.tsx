@@ -275,9 +275,12 @@ function ConductEvaluation() {
     data: evaluationsResponse,
     isLoading: loadingEvaluations,
     error: evaluationsError,
+    refetch: refetchEvaluations
   } = useQuery({
     queryKey: ["/api/evaluations"],
     enabled: !!user && evaluationType === "completed",
+    retry: 2,
+    staleTime: 1000 * 60, // 1 minute
     // Add proper error handling
     onError: (error: any) => {
       console.error("Error loading evaluations:", error);
@@ -291,12 +294,28 @@ function ConductEvaluation() {
   
   // Process evaluations data to ensure we have a valid array
   const evaluations = React.useMemo(() => {
+    // Log the response to diagnose the issue
+    console.log("Evaluations API response:", evaluationsResponse);
+    
     if (!evaluationsResponse) return [];
+    
     // Handle potential data structure differences
     if (Array.isArray(evaluationsResponse)) return evaluationsResponse;
+    
     if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
       return evaluationsResponse.evaluations;
     }
+    
+    // Try to process the response differently if it has a different structure
+    if (typeof evaluationsResponse === 'object') {
+      // If it's an object with numerical keys (like { '1': {...}, '2': {...} })
+      // This happens sometimes with certain API formats
+      const values = Object.values(evaluationsResponse);
+      if (values.length > 0 && typeof values[0] === 'object') {
+        return values;
+      }
+    }
+    
     // If we can't understand the structure, log it and return empty array
     console.warn("Unexpected evaluations data structure:", evaluationsResponse);
     return [];
@@ -2372,7 +2391,10 @@ function ConductEvaluation() {
                   <CardContent className="py-10 text-center">
                     <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">Failed to load evaluations</h3>
-                    <p className="text-muted-foreground">Please try again later</p>
+                    <p className="text-muted-foreground mb-4">There was an error loading your evaluations</p>
+                    <Button onClick={() => refetchEvaluations()}>
+                      Try Again
+                    </Button>
                   </CardContent>
                 </Card>
               ) : (!evaluations || evaluations.length === 0) ? (
