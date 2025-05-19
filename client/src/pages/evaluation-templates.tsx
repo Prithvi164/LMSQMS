@@ -592,11 +592,11 @@ export default function EvaluationTemplatesPage() {
                         <CardTitle>{template.name}</CardTitle>
                         <CardDescription title={template.description} className="whitespace-nowrap overflow-hidden text-ellipsis">
                           {template.description ? (
-                            template.description.length > 50 ? 
-                            `${template.description.substring(0, 50)}...` : 
+                            template.description.length > 30 ? 
+                            `${template.description.substring(0, 30)}...` : 
                             template.description
                           ) : ''}
-                        </CardDescription>
+                          </CardDescription>
                       </div>
                       <div className="flex gap-2">
                         {template.status === "draft" && (
