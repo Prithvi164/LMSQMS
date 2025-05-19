@@ -58,6 +58,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function ConductEvaluation() {
   const { user } = useAuth();
@@ -1045,7 +1055,19 @@ function ConductEvaluation() {
       return;
     }
 
-    console.log("Submitting audio evaluation");
+    // Validate all parameters are rated
+    const validation = validateAllParametersRated();
+    if (!validation || !validation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete Evaluation",
+        description: `Please select Yes, No, or NA for all parameters. Missing: ${validation?.missingParameters?.slice(0, 3).join(", ")}${validation?.missingParameters?.length > 3 ? ` and ${validation.missingParameters.length - 3} more...` : ""}`,
+      });
+      return;
+    }
+    
+    // Calculate final score
+    const finalScore = calculateScore();
     
     const evaluation = {
       templateId: selectedTemplate,
@@ -1055,13 +1077,12 @@ function ConductEvaluation() {
         parameterId: parseInt(parameterId),
         ...value,
       })),
-      finalScore: calculateScore(),
+      finalScore: finalScore,
     };
 
-    // Log the evaluation data for debugging
-    console.log("Audio evaluation data:", evaluation);
-
-    submitEvaluationMutation.mutate(evaluation);
+    // Store evaluation and show confirmation dialog
+    setPendingEvaluation(evaluation);
+    setShowConfirmation(true);
   };
 
   // Format time display for audio player
