@@ -2294,12 +2294,12 @@ function ConductEvaluation() {
                       </TableHeader>
                       <TableBody>
                         {evaluations
-                          .filter((eval: any) => 
-                            eval.evaluationType === "standard" &&
+                          .filter((evaluation: any) => 
+                            evaluation.evaluationType === "standard" &&
                             (searchQuery 
-                              ? eval.trainee?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                eval.id.toString().includes(searchQuery) ||
-                                eval.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
+                              ? evaluation.trainee?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                evaluation.id.toString().includes(searchQuery) ||
+                                evaluation.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
                               : true)
                           )
                           .map((evaluation: any) => (
@@ -2382,11 +2382,11 @@ function ConductEvaluation() {
                       </TableHeader>
                       <TableBody>
                         {evaluations
-                          .filter((eval: any) => 
-                            eval.evaluationType === "audio" &&
+                          .filter((evaluation: any) => 
+                            evaluation.evaluationType === "audio" &&
                             (searchQuery 
-                              ? eval.id.toString().includes(searchQuery) ||
-                                eval.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
+                              ? evaluation.id.toString().includes(searchQuery) ||
+                                evaluation.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
                               : true)
                           )
                           .map((evaluation: any) => (
