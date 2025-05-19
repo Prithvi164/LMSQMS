@@ -113,11 +113,14 @@ function ConductEvaluation() {
   
   // States for completed evaluations view
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEvaluation, setSelectedEvaluation] = useState<number | null>(null);
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedScores, setEditedScores] = useState<Record<number, any>>({});
   const [completedEvalType, setCompletedEvalType] = useState<"all" | "standard" | "audio">("all");
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [evaluationDetailsData, setEvaluationDetailsData] = useState<any>(null);
   const [evaluationFilters, setEvaluationFilters] = useState({
     templateId: "",
     traineeId: "",
@@ -824,6 +827,63 @@ function ConductEvaluation() {
         noReason: reason,
       },
     }));
+  };
+  
+  // Function to fetch evaluation details for the View Details dialog
+  const fetchEvaluationDetails = async (evaluationId: number) => {
+    setLoadingDetails(true);
+    setEvaluationDetailsData(null);
+    
+    try {
+      const response = await queryClient.fetchQuery({
+        queryKey: ["/api/evaluations", evaluationId],
+      });
+      
+      console.log("Evaluation details:", response);
+      
+      // Process the evaluation details to group scores by pillar
+      if (response && response.evaluation && response.evaluation.scores) {
+        const groupedScores: any[] = [];
+        const scoresByPillar: Record<number, any[]> = {};
+        
+        // Group scores by pillar ID
+        response.evaluation.scores.forEach((score: any) => {
+          const pillarId = score.parameter?.pillarId;
+          if (!scoresByPillar[pillarId]) {
+            scoresByPillar[pillarId] = [];
+          }
+          scoresByPillar[pillarId].push(score);
+        });
+        
+        // Create the grouped structure
+        Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
+          const pillar = response.evaluation.template?.pillars?.find(
+            (p: any) => p.id === parseInt(pillarId)
+          );
+          
+          groupedScores.push({
+            pillar: pillar || { id: parseInt(pillarId), name: `Section ${pillarId}` },
+            scores: scores
+          });
+        });
+        
+        setEvaluationDetailsData({
+          evaluation: response.evaluation,
+          groupedScores
+        });
+      } else {
+        setEvaluationDetailsData({ evaluation: response.evaluation, groupedScores: [] });
+      }
+    } catch (error) {
+      console.error("Error fetching evaluation details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load evaluation details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   const calculateScore = () => {
@@ -2547,13 +2607,11 @@ function ConductEvaluation() {
                                 variant="ghost" 
                                 size="icon"
                                 onClick={() => {
-                                  setSelectedEvaluation(evaluation.id);
-                                  setIsViewDialogOpen(true);
+                                  setSelectedEvaluationId(evaluation.id);
+                                  setDetailsDialogOpen(true);
                                   
                                   // Fetch evaluation details
-                                  queryClient.fetchQuery({
-                                    queryKey: ["/api/evaluations", evaluation.id],
-                                  });
+                                  fetchEvaluationDetails(evaluation.id);
                                 }}
                               >
                                 <Eye className="h-4 w-4" />
@@ -2562,7 +2620,7 @@ function ConductEvaluation() {
                                 variant="ghost" 
                                 size="icon"
                                 onClick={() => {
-                                  setSelectedEvaluation(evaluation.id);
+                                  setSelectedEvaluationId(evaluation.id);
                                   
                                   // Fetch evaluation details first
                                   queryClient.fetchQuery({
