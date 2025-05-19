@@ -16,11 +16,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,7 +100,7 @@ export default function EvaluationTemplatesPage() {
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
-  
+
   // Helper function to filter batches by process ID
   const filterBatchesByProcess = (processId: number | null) => {
     if (processId) {
@@ -117,18 +118,18 @@ export default function EvaluationTemplatesPage() {
     const filtered = filterBatchesByProcess(selectedProcessId);
     setFilteredBatches(filtered);
   }, [selectedProcessId, batches]);
-  
+
   // Handle process selection and filter batches
   const handleProcessChange = (processId: number) => {
     console.log(`Process changed to: ${processId}`);
     setSelectedProcessId(processId);
-    
+
     // Reset batch selection in create form when process changes
     if (form) {
       form.setValue("batchId", null);
     }
   };
-  
+
   // Function to get batches for a specific process (used in edit form)
   const getBatchesForProcess = (processId: number) => {
     return batches.filter((batch: any) => batch.processId === processId);
@@ -482,7 +483,7 @@ export default function EvaluationTemplatesPage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="feedbackThreshold"
@@ -762,37 +763,37 @@ export default function EvaluationTemplatesPage() {
                             id={`template-edit-form-${template.id}`}
                             onSubmit={(e) => {
                               e.preventDefault();
-                              
+
                               // Get the Select components' values directly
                               const name = (document.getElementById(`name-${template.id}`) as HTMLInputElement)?.value;
                               const description = (document.getElementById(`description-${template.id}`) as HTMLTextAreaElement)?.value || "";
-                              
+
                               // Get process value from the form
                               const processSelects = document.querySelectorAll(`#template-edit-form-${template.id} [name="processId"]`);
                               const processId = processSelects.length > 0 ? 
                                 Number((processSelects[0] as HTMLSelectElement).value) : template.processId;
-                              
+
                               // Get batch value from the hidden input which we keep in sync with the Select component
                               const hiddenBatchIdInput = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`) as HTMLInputElement;
                               const batchIdStr = hiddenBatchIdInput?.value || (template.batchId ? template.batchId.toString() : "none");
-                              
+
                               console.log(`Retrieved batch ID from hidden input: ${batchIdStr}`);
-                              
+
                               const threshold = (document.getElementById(`threshold-${template.id}`) as HTMLInputElement)?.value;
-                              
+
                               console.log(`Submitting edit form for template ${template.id}:`, {
                                 name, description, 
                                 processId,
                                 batchId: batchIdStr === "none" || batchIdStr === "" ? null : Number(batchIdStr),
                                 feedbackThreshold: threshold === "" ? null : Number(threshold)
                               });
-                              
+
                               // Prepare the data to send
                               let batchId = null;
                               if (batchIdStr !== "none" && batchIdStr !== "") {
                                 batchId = Number(batchIdStr);
                               }
-                              
+
                               fetch(`/api/evaluation-templates/${template.id}`, {
                                 method: "PATCH",
                                 headers: { "Content-Type": "application/json" },
@@ -839,7 +840,7 @@ export default function EvaluationTemplatesPage() {
                                   required
                                 />
                               </div>
-                              
+
                               <div className="grid gap-2">
                                 <Label htmlFor={`description-${template.id}`}>Description</Label>
                                 <Textarea
@@ -850,7 +851,7 @@ export default function EvaluationTemplatesPage() {
                                   rows={3}
                                 />
                               </div>
-                              
+
                               <div className="grid gap-2">
                                 <Label htmlFor={`process-${template.id}`}>Process</Label>
                                 <Select 
@@ -861,14 +862,14 @@ export default function EvaluationTemplatesPage() {
                                     const processId = parseInt(value);
                                     console.log(`Edit form: Process changed to ${processId} for template ${template.id}`);
                                     setSelectedProcessId(processId);
-                                    
+
                                     // Reset batch selection when process changes and auto-update the hidden input
                                     // First, set the Select component to show "No Batch"
                                     const batchSelects = document.querySelectorAll(`#template-edit-form-${template.id} [name="batchId"]`);
                                     if (batchSelects.length > 0) {
                                       (batchSelects[0] as HTMLSelectElement).value = "none";
                                     }
-                                    
+
                                     // Also update the hidden input field directly to ensure it gets submitted correctly
                                     const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`);
                                     if (batchIdField) {
@@ -891,7 +892,7 @@ export default function EvaluationTemplatesPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              
+
                               <div className="grid gap-2">
                                 <Label htmlFor={`batch-${template.id}`}>Batch (Optional)</Label>
                                 <Select 
@@ -900,14 +901,14 @@ export default function EvaluationTemplatesPage() {
                                   defaultValue={template.batchId ? template.batchId.toString() : "none"}
                                   onValueChange={(value) => {
                                     console.log(`Batch selection changed to ${value} for template ${template.id}`);
-                                    
+
                                     // This is critical - immediately update the hidden input field that will be used during form submission
                                     const batchIdField = document.querySelector(`#template-edit-form-${template.id} input[name="hiddenBatchId"]`);
                                     if (batchIdField) {
                                       (batchIdField as HTMLInputElement).value = value;
                                       console.log(`Updated hidden batch ID field to ${value}`);
                                     }
-                                    
+
                                     // Force update the Select UI component as well
                                     const selectElement = document.querySelector(`#template-edit-form-${template.id} [name="batchId"]`);
                                     if (selectElement) {
@@ -935,7 +936,7 @@ export default function EvaluationTemplatesPage() {
                                   Associate this template with a specific batch.
                                 </p>
                               </div>
-                              
+
                               <div className="grid gap-2">
                                 <Label htmlFor={`threshold-${template.id}`}>Feedback Threshold</Label>
                                 <Input
@@ -951,7 +952,7 @@ export default function EvaluationTemplatesPage() {
                                   When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
                                 </p>
                               </div>
-                              
+
                               {/* Hidden input for batch ID to ensure it gets sent correctly */}
                               <input 
                                 type="hidden" 
@@ -967,7 +968,7 @@ export default function EvaluationTemplatesPage() {
                       </Dialog>
                       )}
                     </div>
-                    
+
                     {/* Batch Name Row (if available) */}
                     {template.batchId && (
                       <div className="flex items-center justify-between border-b pb-2 mb-2">
@@ -979,7 +980,7 @@ export default function EvaluationTemplatesPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Feedback Threshold Row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
