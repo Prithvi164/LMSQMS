@@ -272,13 +272,35 @@ function ConductEvaluation() {
   
   // Query to load completed evaluations
   const {
-    data: evaluations = [],
+    data: evaluationsResponse,
     isLoading: loadingEvaluations,
     error: evaluationsError,
   } = useQuery({
     queryKey: ["/api/evaluations"],
     enabled: !!user && evaluationType === "completed",
+    // Add proper error handling
+    onError: (error: any) => {
+      console.error("Error loading evaluations:", error);
+      toast({
+        title: "Error loading evaluations",
+        description: error.message || "Failed to load evaluations. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
+  
+  // Process evaluations data to ensure we have a valid array
+  const evaluations = React.useMemo(() => {
+    if (!evaluationsResponse) return [];
+    // Handle potential data structure differences
+    if (Array.isArray(evaluationsResponse)) return evaluationsResponse;
+    if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
+      return evaluationsResponse.evaluations;
+    }
+    // If we can't understand the structure, log it and return empty array
+    console.warn("Unexpected evaluations data structure:", evaluationsResponse);
+    return [];
+  }, [evaluationsResponse]);
   
   // Query for selected evaluation details
   const {
