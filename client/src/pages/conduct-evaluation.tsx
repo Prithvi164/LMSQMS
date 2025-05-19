@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { formatDate } from "@/lib/utils";
 import {
   Play,
   Pause,
@@ -268,6 +269,64 @@ function ConductEvaluation() {
 
   // Log the assigned audio files to help with debugging
   console.log("Assigned audio files:", assignedAudioFiles);
+  
+  // Query to load completed evaluations
+  const {
+    data: evaluations = [],
+    isLoading: loadingEvaluations,
+    error: evaluationsError,
+  } = useQuery({
+    queryKey: ["/api/evaluations"],
+    enabled: !!user && evaluationType === "completed",
+  });
+  
+  // Query for selected evaluation details
+  const {
+    data: evaluationDetails,
+    isLoading: loadingDetails,
+    error: detailsError,
+  } = useQuery({
+    queryKey: ["/api/evaluations", selectedEvaluation],
+    enabled: !!selectedEvaluation && (isViewDialogOpen || isEditDialogOpen),
+  });
+  
+  // Mutation for updating an evaluation
+  const updateEvaluationMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await fetch(`/api/evaluations/${data.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update evaluation");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/evaluations"] });
+      
+      toast({
+        title: "Evaluation updated",
+        description: "The evaluation has been updated successfully.",
+      });
+      
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating evaluation",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Get audio file details when selected
   // Fetch audio file details
@@ -1172,12 +1231,13 @@ function ConductEvaluation() {
       <Tabs
         defaultValue="standard"
         onValueChange={(value) =>
-          setEvaluationType(value as "standard" | "audio")
+          setEvaluationType(value as "standard" | "audio" | "completed")
         }
       >
         <TabsList className="mb-4">
           <TabsTrigger value="standard">Standard Evaluation</TabsTrigger>
           <TabsTrigger value="audio">Audio Evaluation</TabsTrigger>
+          <TabsTrigger value="completed">Completed Evaluations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="standard" className="space-y-6">
@@ -2149,6 +2209,243 @@ function ConductEvaluation() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        {/* Completed Evaluations Tab Content */}
+        <TabsContent value="completed" className="space-y-6">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ClipboardCheck className="h-6 w-6 text-primary" />
+              <span>Completed Evaluations</span>
+            </h1>
+            
+            <div className="flex items-center gap-2">
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search evaluations..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-1">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Filter Options</h4>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="template-filter">Template</Label>
+                      <Select
+                        value={evaluationFilters.templateId}
+                        onValueChange={(value) =>
+                          setEvaluationFilters((prev) => ({ ...prev, templateId: value }))
+                        }
+                      >
+                        <SelectTrigger id="template-filter">
+                          <SelectValue placeholder="Select template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Templates</SelectItem>
+                          {templates?.map((template: any) => (
+                            <SelectItem key={template.id} value={template.id.toString()}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="batch-filter">Batch</Label>
+                      <Select
+                        value={evaluationFilters.batchId}
+                        onValueChange={(value) =>
+                          setEvaluationFilters((prev) => ({ ...prev, batchId: value }))
+                        }
+                      >
+                        <SelectTrigger id="batch-filter">
+                          <SelectValue placeholder="Select batch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Batches</SelectItem>
+                          {batches?.map((batch: any) => (
+                            <SelectItem key={batch.id} value={batch.id.toString()}>
+                              {batch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="status-filter">Status</Label>
+                      <Select
+                        value={evaluationFilters.status}
+                        onValueChange={(value) =>
+                          setEvaluationFilters((prev) => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger id="status-filter">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="pt-2 flex justify-between">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setEvaluationFilters({
+                            templateId: "",
+                            traineeId: "",
+                            batchId: "",
+                            status: "all",
+                            dateRange: "all",
+                          });
+                          setSearchQuery("");
+                          setCompletedEvalType("all");
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                      <Button size="sm" onClick={() => setIsFilterOpen(false)}>
+                        Apply Filters
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          
+          <Tabs defaultValue="all" value={completedEvalType} onValueChange={(value) => setCompletedEvalType(value as "all" | "standard" | "audio")}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="all">All Evaluations</TabsTrigger>
+              <TabsTrigger value="standard">Standard Evaluations</TabsTrigger>
+              <TabsTrigger value="audio">Audio Evaluations</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value={completedEvalType}>
+              {loadingEvaluations ? (
+                <div className="flex justify-center items-center py-10">
+                  <Spinner className="h-6 w-6" />
+                  <span className="ml-2">Loading evaluations...</span>
+                </div>
+              ) : evaluationsError ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Failed to load evaluations</h3>
+                    <p className="text-muted-foreground">Please try again later</p>
+                  </CardContent>
+                </Card>
+              ) : filterEvaluations().length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <ClipboardCheck className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No evaluations found</h3>
+                    <p className="text-muted-foreground">
+                      {searchQuery || Object.values(evaluationFilters).some(v => v && v !== "all")
+                        ? "Try adjusting your filters or search query"
+                        : "No completed evaluations are available"}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Template</TableHead>
+                        <TableHead>Trainee/Audio</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filterEvaluations().map((evaluation: any) => (
+                        <TableRow key={evaluation.id}>
+                          <TableCell className="font-medium">#{evaluation.id}</TableCell>
+                          <TableCell>
+                            {evaluation.evaluationType === "audio" ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                <FileAudio className="h-3 w-3 mr-1" />
+                                Audio
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                <ClipboardCheck className="h-3 w-3 mr-1" />
+                                Standard
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{evaluation.templateName || evaluation.template?.name || "Unknown"}</TableCell>
+                          <TableCell>
+                            {evaluation.evaluationType === "audio" ? (
+                              <span className="flex items-center">
+                                <FileAudio className="h-3 w-3 mr-1" />
+                                Audio #{evaluation.audioFileId}
+                              </span>
+                            ) : (
+                              <span className="flex items-center">
+                                <User className="h-3 w-3 mr-1" />
+                                {evaluation.trainee?.fullName || "Unknown"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>{evaluation.finalScore?.toFixed(1)}%</TableCell>
+                          <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
+                          <TableCell>
+                            {renderStatusBadge(
+                              evaluation.status, 
+                              evaluation.finalScore, 
+                              evaluation.template?.passingScore
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleViewEvaluation(evaluation.id)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleEditEvaluation(evaluation.id)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 
