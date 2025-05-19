@@ -2116,8 +2116,10 @@ function ConductEvaluation() {
                   {selectedTemplateDetails && (
                     <p><strong>Template:</strong> {selectedTemplateDetails.name}</p>
                   )}
-                  {selectedTraineeName && (
-                    <p><strong>Trainee:</strong> {selectedTraineeName}</p>
+                  {selectedTrainee && traineeOptions && (
+                    <p><strong>Trainee:</strong> {
+                      traineeOptions.find(t => t.value === selectedTrainee.toString())?.label || 'Selected Trainee'
+                    }</p>
                   )}
                   {selectedAudioFileDetails && (
                     <p><strong>Audio File:</strong> {selectedAudioFileDetails.name}</p>
