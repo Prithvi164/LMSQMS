@@ -721,6 +721,7 @@ export default function EvaluationTemplatesPage() {
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => {
+                                    console.log(`AlertDialog - Finalizing template ${template.id}`);
                                     finalizeTemplateMutation.mutate(template.id);
                                   }}
                                 >
@@ -764,6 +765,7 @@ export default function EvaluationTemplatesPage() {
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => {
+                                    console.log(`AlertDialog - Archiving template ${template.id}`);
                                     archiveTemplateMutation.mutate(template.id);
                                   }}
                                 >
@@ -830,7 +832,9 @@ export default function EvaluationTemplatesPage() {
                               <AlertDialogAction
                                 onClick={() => {
                                   if (templateToDelete) {
+                                    console.log(`AlertDialog - Deleting template ${templateToDelete}`);
                                     deleteTemplateMutation.mutate(templateToDelete);
+                                    setTemplateToDelete(null);
                                   }
                                 }}
                               >
