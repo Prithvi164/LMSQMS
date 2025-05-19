@@ -124,6 +124,33 @@ function ConductEvaluation() {
     dateRange: "all",
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // States for evaluation feedback
+  const [evaluationDetails, setEvaluationDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [feedbackTabType, setFeedbackTabType] = useState<"standard" | "audio">("standard");
+  
+  // Function to fetch evaluation details with feedback
+  const fetchEvaluationDetails = async (evaluationId: number) => {
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(`/api/evaluations/${evaluationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch evaluation details');
+      }
+      const data = await response.json();
+      setEvaluationDetails(data);
+    } catch (error) {
+      console.error('Error fetching evaluation details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load evaluation details. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -1172,12 +1199,13 @@ function ConductEvaluation() {
       <Tabs
         defaultValue="standard"
         onValueChange={(value) =>
-          setEvaluationType(value as "standard" | "audio")
+          setEvaluationType(value as "standard" | "audio" | "completed")
         }
       >
         <TabsList className="mb-4">
           <TabsTrigger value="standard">Standard Evaluation</TabsTrigger>
           <TabsTrigger value="audio">Audio Evaluation</TabsTrigger>
+          <TabsTrigger value="completed">View Completed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="standard" className="space-y-6">
