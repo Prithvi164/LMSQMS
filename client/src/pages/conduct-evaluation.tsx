@@ -645,9 +645,9 @@ function ConductEvaluation() {
         
         // For Yes/No/NA type parameters
         if (param.ratingType === 'yes_no_na') {
-          // Check if this parameter has a rating (yes, no, or na)
-          if (!scores[parameterId] || !scores[parameterId].rating || 
-              !['yes', 'no', 'na'].includes(scores[parameterId].rating)) {
+          // Check if this parameter has a score (yes, no, or na)
+          if (!scores[parameterId] || !scores[parameterId].score || 
+              !['yes', 'no', 'na'].includes(scores[parameterId].score)) {
             missingParameters.push(param.name || `Parameter #${parameterId}`);
           }
         } 
@@ -660,6 +660,9 @@ function ConductEvaluation() {
         }
       });
     });
+    
+    console.log('Missing parameters:', missingParameters);
+    console.log('Current scores:', scores);
     
     return {
       isValid: missingParameters.length === 0,
