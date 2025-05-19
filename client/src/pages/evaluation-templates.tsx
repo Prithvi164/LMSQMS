@@ -189,13 +189,16 @@ export default function EvaluationTemplatesPage() {
 
   const deleteTemplateMutation = useMutation({
     mutationFn: async (templateId: number) => {
+      console.log(`Attempting to delete template ID: ${templateId}`);
       const response = await fetch(`/api/evaluation-templates/${templateId}`, {
         method: "DELETE",
       });
       if (!response.ok) {
         const error = await response.json();
+        console.error(`Error deleting template ${templateId}:`, error);
         throw new Error(error.message || "Failed to delete template");
       }
+      return true; // Return something to indicate success
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -255,11 +258,15 @@ export default function EvaluationTemplatesPage() {
 
   const finalizeTemplateMutation = useMutation({
     mutationFn: async (templateId: number) => {
+      console.log(`Attempting to finalize template ID: ${templateId}`);
       const response = await fetch(`/api/evaluation-templates/${templateId}/finalize`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
       });
       if (!response.ok) {
         const error = await response.json();
+        console.error(`Error finalizing template ${templateId}:`, error);
         throw new Error(error.message || "Failed to finalize template");
       }
       return response.json();
@@ -284,13 +291,15 @@ export default function EvaluationTemplatesPage() {
 
   const archiveTemplateMutation = useMutation({
     mutationFn: async (templateId: number) => {
-      const response = await fetch(`/api/evaluation-templates/${templateId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "archived" }),
+      console.log(`Attempting to archive template ID: ${templateId}`);
+      // Create a direct archive endpoint to avoid conflicts with the general update endpoint
+      const response = await fetch(`/api/evaluation-templates/${templateId}/archive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
       });
       if (!response.ok) {
         const error = await response.json();
+        console.error(`Error archiving template ${templateId}:`, error);
         throw new Error(error.message || "Failed to archive template");
       }
       return response.json();

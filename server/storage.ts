@@ -1305,53 +1305,28 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Starting deletion process for template ID: ${id}`);
       
+      // First, check if the template exists
+      const template = await db.query.evaluationTemplates.findFirst({
+        where: eq(evaluationTemplates.id, id)
+      });
+      
+      if (!template) {
+        console.error(`Template ID: ${id} not found`);
+        throw new Error(`Template with ID ${id} not found`);
+      }
+      
+      // Check if the template has evaluations before trying to delete
+      const evaluationCount = await db.select({ count: count() })
+        .from(evaluations)
+        .where(eq(evaluations.templateId, id));
+        
+      if (evaluationCount[0]?.count && evaluationCount[0].count > 0) {
+        console.log(`Template ID: ${id} has ${evaluationCount[0].count} evaluations. Consider archiving instead of deleting.`);
+        throw new Error(`This template has ${evaluationCount[0].count} evaluations and cannot be deleted. Please archive it instead.`);
+      }
+      
       await db.transaction(async (tx) => {
-        // Check if there are any evaluations using this template
-        const evaluationsUsingTemplate = await tx
-          .select({ count: count() })
-          .from(evaluations)
-          .where(eq(evaluations.templateId, id));
-          
-        if (evaluationsUsingTemplate[0]?.count && evaluationsUsingTemplate[0].count > 0) {
-          console.log(`Found ${evaluationsUsingTemplate[0].count} evaluations using this template. Deleting these first.`);
-          
-          // Get evaluation IDs
-          const evaluationIds = await tx
-            .select({ id: evaluations.id })
-            .from(evaluations)
-            .where(eq(evaluations.templateId, id));
-            
-          // Delete evaluation parameter results associated with these evaluations
-          for (const evaluation of evaluationIds) {
-            // Get evaluation results using this evaluation
-            const evalResults = await tx
-              .select({ id: evaluationResults.id })
-              .from(evaluationResults)
-              .where(eq(evaluationResults.templateId, id));
-              
-            // Delete parameter results for each evaluation result
-            for (const result of evalResults) {
-              await tx
-                .delete(evaluationParameterResults)
-                .where(eq(evaluationParameterResults.evaluationResultId, result.id));
-            }
-            
-            // Delete evaluation results
-            await tx
-              .delete(evaluationResults)
-              .where(eq(evaluationResults.templateId, id));
-              
-            // Delete any feedback for this evaluation
-            await tx
-              .delete(evaluationFeedback)
-              .where(eq(evaluationFeedback.evaluationId, evaluation.id));
-          }
-          
-          // Delete the evaluations
-          await tx
-            .delete(evaluations)
-            .where(eq(evaluations.templateId, id));
-        }
+        console.log(`Starting transaction to delete template ID: ${id}`);
         
         // First get all pillars for this template
         const pillars = await tx
@@ -1373,27 +1348,47 @@ export class DatabaseStorage implements IStorage {
           
           // Delete sub-reasons for each parameter
           for (const parameter of parameters) {
-            await tx
-              .delete(evaluationSubReasons)
-              .where(eq(evaluationSubReasons.parameterId, parameter.id));
+            try {
+              await tx
+                .delete(evaluationSubReasons)
+                .where(eq(evaluationSubReasons.parameterId, parameter.id));
+            } catch (error) {
+              console.error(`Error deleting sub-reasons for parameter ${parameter.id}:`, error);
+              // Continue with the rest of the deletion
+            }
           }
           
           // Delete parameters
-          await tx
-            .delete(evaluationParameters)
-            .where(eq(evaluationParameters.pillarId, pillar.id));
+          try {
+            await tx
+              .delete(evaluationParameters)
+              .where(eq(evaluationParameters.pillarId, pillar.id));
+          } catch (error) {
+            console.error(`Error deleting parameters for pillar ${pillar.id}:`, error);
+            throw new Error(`Failed to delete template components. The template may be in use.`);
+          }
         }
 
         // Delete all pillars
-        await tx
-          .delete(evaluationPillars)
-          .where(eq(evaluationPillars.templateId, id));
+        try {
+          await tx
+            .delete(evaluationPillars)
+            .where(eq(evaluationPillars.templateId, id));
+        } catch (error) {
+          console.error(`Error deleting pillars for template ${id}:`, error);
+          throw new Error(`Failed to delete template pillars. The template may be in use.`);
+        }
 
         // Finally delete the template
         console.log(`Deleting template ID: ${id}`);
-        await tx 
-          .delete(evaluationTemplates)
-          .where(eq(evaluationTemplates.id, id));
+        try {
+          await tx 
+            .delete(evaluationTemplates)
+            .where(eq(evaluationTemplates.id, id));
+        } catch (error) {
+          console.error(`Error deleting template ${id}:`, error);
+          throw new Error(`Failed to delete the template. Try archiving it instead.`);
+        }
           
         console.log(`Template ID: ${id} successfully deleted`);
       });

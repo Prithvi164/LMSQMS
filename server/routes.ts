@@ -799,16 +799,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (template.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Forbidden" });
       }
+      
+      // Make sure the template is in draft status
+      if (template.status !== 'draft') {
+        return res.status(400).json({ 
+          message: "Only templates in 'draft' status can be finalized" 
+        });
+      }
 
+      console.log(`Finalizing template ID: ${templateId} - changing status from draft to active`);
+      
       // Update template status to active
       const updatedTemplate = await storage.updateEvaluationTemplate(templateId, {
         status: 'active'
       });
 
+      console.log(`Template ID: ${templateId} successfully finalized with status: ${updatedTemplate.status}`);
       res.json(updatedTemplate);
     } catch (error: any) {
       console.error("Error finalizing template:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message || "Failed to finalize template" });
+    }
+  });
+  
+  // Add archive endpoint for evaluation templates
+  app.post("/api/evaluation-templates/:templateId/archive", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      if (!templateId) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      const template = await storage.getEvaluationTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Make sure the template is in active status
+      if (template.status !== 'active') {
+        return res.status(400).json({ 
+          message: "Only templates in 'active' status can be archived" 
+        });
+      }
+
+      console.log(`Archiving template ID: ${templateId} - changing status from active to archived`);
+      
+      // Update template status to archived
+      const updatedTemplate = await storage.updateEvaluationTemplate(templateId, {
+        status: 'archived'
+      });
+
+      console.log(`Template ID: ${templateId} successfully archived with status: ${updatedTemplate.status}`);
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      console.error("Error archiving template:", error);
+      res.status(500).json({ message: error.message || "Failed to archive template" });
     }
   });
 
@@ -844,10 +897,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hiddenBatchId: hiddenBatchId
       });
       
-      // Don't allow any updates for active templates
-      if (template.status === 'active') {
+      // Special handling for status changes
+      // Check if this is a status change request (archive or activate)
+      const isStatusChangeRequest = status !== undefined && status !== template.status;
+      const isArchiveRequest = status === 'archived' && template.status === 'active';
+      const isActivateRequest = status === 'active' && template.status === 'draft';
+      
+      console.log(`Template status change request: current=${template.status}, requested=${status}, isStatusChange=${isStatusChangeRequest}`);
+      
+      // Special rules for active templates - only allow archiving
+      if (template.status === 'active' && !isArchiveRequest && isStatusChangeRequest) {
         return res.status(400).json({ 
-          message: "Active templates cannot be modified." 
+          message: "Active templates can only be archived, not changed to other statuses."
+        });
+      }
+      
+      // Special rules for archived templates - cannot be modified
+      if (template.status === 'archived') {
+        return res.status(400).json({ 
+          message: "Archived templates cannot be modified." 
         });
       }
       
@@ -907,13 +975,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Prepare updates
       const updates: Partial<InsertEvaluationTemplate> = {};
-      if (status !== undefined) updates.status = status;
+      if (status !== undefined) {
+        updates.status = status;
+        console.log(`Updating template ${templateId} status from ${template.status} to ${status}`);
+        
+        // Add extra handling for status transitions
+        if (status === 'archived' && template.status === 'active') {
+          console.log(`Archiving active template ${templateId}`);
+        } else if (status === 'active' && template.status === 'draft') {
+          console.log(`Activating draft template ${templateId}`);
+        }
+      }
+      
       if (feedbackThreshold !== undefined) updates.feedbackThreshold = feedbackThreshold === null ? null : parseFloat(feedbackThreshold);
       if (name !== undefined) updates.name = name;
       if (description !== undefined) updates.description = description;
       if (processId !== undefined) updates.processId = processId;
+      
       // Add batchId to the updates object
       updates.batchId = finalBatchId;
+      
+      console.log(`Final updates for template ${templateId}:`, updates);
 
       const updatedTemplate = await storage.updateEvaluationTemplate(templateId, updates);
       res.json(updatedTemplate);
@@ -1380,11 +1462,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      await storage.deleteEvaluationTemplate(templateId);
-      res.status(204).send();
+      console.log(`Starting deletion of template ID: ${templateId} by user ${req.user.id}`);
+      
+      // Check template status before deletion
+      if (template.status === 'archived') {
+        return res.status(400).json({ 
+          message: "Archived templates cannot be deleted for data integrity purposes. This maintains historical records."
+        });
+      }
+      
+      if (template.status === 'active') {
+        return res.status(400).json({ 
+          message: "Active templates cannot be deleted directly. Please archive the template first."
+        });
+      }
+      
+      // Add additional logging and error handling
+      try {
+        await storage.deleteEvaluationTemplate(templateId);
+        console.log(`Successfully deleted template ID: ${templateId}`);
+        res.status(204).send();
+      } catch (deleteError: any) {
+        console.error(`Detailed error deleting template ${templateId}:`, deleteError);
+        // Check for foreign key constraint errors
+        if (deleteError.message && deleteError.message.includes('foreign key constraint')) {
+          return res.status(400).json({ 
+            message: "Cannot delete this template because it is being used by other records. Try archiving it instead."
+          });
+        }
+        // Check for evaluation-related errors
+        if (deleteError.message && deleteError.message.includes('evaluations')) {
+          return res.status(400).json({ 
+            message: "This template has associated evaluations and cannot be deleted. Please archive it instead."
+          });
+        }
+        throw deleteError;
+      }
     } catch (error: any) {
       console.error("Error deleting evaluation template:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message || "An error occurred while deleting the template" });
     }
   });
 
