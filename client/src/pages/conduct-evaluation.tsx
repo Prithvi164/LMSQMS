@@ -58,16 +58,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 function ConductEvaluation() {
   const { user } = useAuth();
@@ -2112,6 +2102,43 @@ function ConductEvaluation() {
       </Tabs>
 
       {/* Removed duplicate evaluation form section that was causing UI duplication */}
+      
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Evaluation Submission</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-3 mt-2">
+                <p>Please review the evaluation details before final submission:</p>
+                <div className="bg-muted p-3 rounded-md">
+                  <p><strong>Final Score:</strong> {pendingEvaluation?.finalScore || calculateScore()}%</p>
+                  {selectedTemplateDetails && (
+                    <p><strong>Template:</strong> {selectedTemplateDetails.name}</p>
+                  )}
+                  {selectedTraineeName && (
+                    <p><strong>Trainee:</strong> {selectedTraineeName}</p>
+                  )}
+                  {selectedAudioFileDetails && (
+                    <p><strong>Audio File:</strong> {selectedAudioFileDetails.name}</p>
+                  )}
+                </div>
+                <p>Are you sure you want to submit this evaluation?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAndSubmit}>
+              {submitEvaluationMutation.isPending ? (
+                <div className="flex items-center">
+                  <Spinner className="mr-2 h-4 w-4" /> Submitting...
+                </div>
+              ) : "Submit Evaluation"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
