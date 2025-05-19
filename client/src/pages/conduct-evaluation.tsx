@@ -324,11 +324,7 @@ function ConductEvaluation() {
     };
   };
   
-  // State for viewing evaluation details
-  const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
-  const [evaluationDetailsData, setEvaluationDetailsData] = useState<any | null>(null);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  // State variables for evaluation details are already declared above
   
   // Function to fetch evaluation details
   const fetchEvaluationDetails = async (evaluationId: number) => {
