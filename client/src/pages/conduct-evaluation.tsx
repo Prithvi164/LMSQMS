@@ -39,7 +39,39 @@ import {
   ClipboardCheck,
   ClipboardList,
   Check,
+  Search,
+  Filter,
+  Edit,
+  Eye,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  User,
+  Users,
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { 
@@ -71,11 +103,27 @@ function ConductEvaluation() {
     null,
   );
   const [scores, setScores] = useState<Record<number, any>>({});
-  const [evaluationType, setEvaluationType] = useState<"standard" | "audio">(
+  const [evaluationType, setEvaluationType] = useState<"standard" | "audio" | "completed">(
     "standard",
   );
   // Track if the evaluation is for certification purpose
   const [isCertification, setIsCertification] = useState<boolean>(false);
+  
+  // States for completed evaluations view
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEvaluation, setSelectedEvaluation] = useState<number | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedScores, setEditedScores] = useState<Record<number, any>>({});
+  const [completedEvalType, setCompletedEvalType] = useState<"all" | "standard" | "audio">("all");
+  const [evaluationFilters, setEvaluationFilters] = useState({
+    templateId: "",
+    traineeId: "",
+    batchId: "",
+    status: "all",
+    dateRange: "all",
+  });
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
