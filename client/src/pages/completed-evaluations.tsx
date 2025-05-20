@@ -639,7 +639,11 @@ function CompletedEvaluations() {
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails?.evaluation?.finalScore).toFixed(1) : "0"}%
+                          {(evaluationDetails?.evaluation?.finalScore !== null && evaluationDetails?.evaluation?.finalScore !== undefined) 
+                            ? `${Number(evaluationDetails?.evaluation?.finalScore).toFixed(1)}%`
+                            : (evaluationDetails?.evaluation?.final_score !== null && evaluationDetails?.evaluation?.final_score !== undefined)
+                              ? `${Number(evaluationDetails?.evaluation?.final_score).toFixed(1)}%`
+                              : "0.0%"}
                         </span>
                       </div>
                       <div className="flex justify-between">
