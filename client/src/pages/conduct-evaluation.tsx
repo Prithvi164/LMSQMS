@@ -2865,25 +2865,25 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Date:</span>
                         <span className="text-sm font-medium">
-                          {formatDate(evaluationDetails.evaluation.createdAt)}
+                          {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails.evaluation.createdAt) : "N/A"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Status:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails.evaluation.status === "completed" ? "Completed" : "Pending"}
+                          {evaluationDetails?.evaluation?.status === "completed" ? "Completed" : "Pending"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails.evaluation.finalScore.toFixed(1)}%
+                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails.evaluation.finalScore).toFixed(1) : "0"}%
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Result:</span>
-                        <span className={`text-sm font-medium ${evaluationDetails.evaluation.isPassed ? "text-green-600" : "text-red-600"}`}>
-                          {evaluationDetails.evaluation.isPassed ? "Passed" : "Failed"}
+                        <span className={`text-sm font-medium ${evaluationDetails?.evaluation?.isPassed ? "text-green-600" : "text-red-600"}`}>
+                          {evaluationDetails?.evaluation?.isPassed ? "Passed" : "Failed"}
                         </span>
                       </div>
                     </div>
