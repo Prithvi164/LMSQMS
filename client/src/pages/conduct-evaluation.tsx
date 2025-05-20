@@ -392,11 +392,17 @@ function ConductEvaluation() {
             (p: any) => p.id === score.parameterId
           );
           
+          console.log("Debug - Parameter for score:", score.parameterId, parameter);
+          
           // Make sure parameter has all the needed fields
           const enhancedParameter = parameter ? {
             ...parameter,
             // Ensure 'name' field is set for display in the GroupedEvaluationScores component
-            name: parameter.name || parameter.question || `Parameter ${score.parameterId}`
+            name: parameter.name || parameter.question || `Parameter ${score.parameterId}`,
+            // Ensure we have a description
+            description: parameter.description || null,
+            // Ensure we have a weight property for display
+            weight: parameter.weight || parameter.weightage || 0
           } : {
             id: score.parameterId || 0,
             name: `Parameter ${score.parameterId}`,
