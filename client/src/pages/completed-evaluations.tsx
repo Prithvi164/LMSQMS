@@ -3,7 +3,14 @@ import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { GroupedEvaluationScores } from "@/components/evaluation/grouped-evaluation-scores";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from "@/components/ui/accordion";
 
 import {
   Card,
@@ -737,180 +744,90 @@ function CompletedEvaluations() {
                   <p className="text-sm text-muted-foreground">
                     Type: {evaluationDetails?.evaluation?.evaluationType || "Unknown"}
                   </p>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Template:</span>
-                        <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.template?.name || "Unknown"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Date:</span>
-                        <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails?.evaluation?.createdAt) : "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Status:</span>
-                        <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.status === "completed" ? "Completed" : "Pending"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Final Score:</span>
-                        <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails?.evaluation?.finalScore).toFixed(1) : "0"}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Result:</span>
-                        <span className={`text-sm font-medium ${evaluationDetails?.evaluation?.isPassed ? "text-green-600" : "text-red-600"}`}>
-                          {evaluationDetails?.evaluation?.isPassed ? "Passed" : "Failed"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                      {evaluationDetails?.evaluation?.evaluationType === "audio" 
-                        ? "Audio Information" 
-                        : "Trainee Information"}
-                    </h3>
-                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Audio ID:</span>
-                            <span className="text-sm font-medium">#{evaluationDetails?.evaluation?.audioFileId || "N/A"}</span>
-                          </div>
-                          {evaluationDetails?.evaluation?.audioFile && (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm">File Name:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails?.evaluation?.audioFile?.fileName || "Not available"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Duration:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails?.evaluation?.audioFile?.duration 
-                                    ? `${Math.floor(evaluationDetails?.evaluation?.audioFile?.duration / 60)}:${(evaluationDetails?.evaluation?.audioFile?.duration % 60).toString().padStart(2, '0')}` 
-                                    : "Unknown"}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Trainee:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails?.evaluation?.trainee?.fullName || "Unknown"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Employee ID:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails?.evaluation?.trainee?.employeeId || "N/A"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Batch:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails?.evaluation?.batch?.name || "N/A"}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-sm">Evaluator:</span>
-                        <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.evaluator?.fullName || "Unknown"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-                
-                {/* Use the grouped evaluation scores component for consistent display with evaluation feedback */}
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
-                  
-                  <GroupedEvaluationScores evaluationDetails={evaluationDetails} />
-                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter) => {
-                      const score = evaluationDetails?.evaluation?.scores?.find(
-                        (s) => s.parameterId === parameter?.id
-                      );
-                      
-                      return (
-                        <AccordionItem key={parameter?.id} value={parameter?.id?.toString()}>
-                          <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
-                            <div className="flex justify-between w-full mr-4 items-center">
-                              <span>{parameter?.name || "Unnamed Parameter"}</span>
-                              <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant={
-                                    (score?.score >= 4) ? "success" :
-                                    (score?.score <= 1) ? "destructive" : "outline"
-                                  } 
-                                  className="font-normal"
-                                >
-                                  {score?.score || 0}/{parameter?.maxScore || 5}
-                                </Badge>
-                              </div>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3">
-                            <div className="space-y-3">
-                              <div>
-                                <p className="text-sm text-muted-foreground">{parameter?.description || "No description available"}</p>
-                              </div>
-                              
-                              <div className="bg-muted/20 p-2 rounded-md">
-                                <h5 className="text-xs font-medium mb-1">Weight:</h5>
-                                <p className="text-sm">
-                                  {parameter?.weight || 1} ({parameter?.weight ? `${parameter.weight * 20}%` : "20%"} of score)
-                                </p>
-                              </div>
-                              
-                              {score?.comment ? (
-                                <div>
-                                  <h5 className="text-xs font-medium mb-1">Comment:</h5>
-                                  <p className="text-sm border-l-2 border-primary pl-2 py-1">
-                                    {score.comment}
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="text-xs text-muted-foreground italic">
-                                  No comments provided
-                                </div>
-                              )}
-                              
-                              {score?.noReason ? (
-                                <div>
-                                  <h5 className="text-xs font-medium mb-1 text-red-500">Reason for Zero Score:</h5>
-                                  <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
-                                    {score.noReason}
-                                  </p>
-                                </div>
-                              ) : (
-                                score?.score === 0 && (
-                                  <div className="text-xs text-red-500 italic">
-                                    Zero score without reason provided
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
+                <div className="text-right">
+                  <h4 className="text-sm font-medium">Final Score</h4>
+                  <p className="text-2xl font-bold">{evaluationDetails?.evaluation?.finalScore || 0}%</p>
                 </div>
               </div>
-            </ScrollArea>
+
+              <Separator className="my-4" />
+              
+              <ScrollArea className="h-[400px] pr-4">
+                {!evaluationDetails?.groupedScores || evaluationDetails.groupedScores.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No detailed scores available</p>
+                ) : (
+                  <Accordion type="multiple" className="w-full">
+                    {evaluationDetails.groupedScores.map((group, groupIndex) => (
+                      <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex justify-between items-center w-full pr-4">
+                            <span className="font-medium">
+                              {group.pillar?.name || `Section ${groupIndex + 1}`}
+                            </span>
+                            {group.pillar && (
+                              <span className="text-sm px-2">
+                                Weight: {group.pillar.weight}%
+                              </span>
+                            )}
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 pl-2">
+                            {group.scores.map((score) => (
+                              <div key={score.id} className="bg-muted p-3 rounded-md">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium">{score.parameter?.question || score.parameter?.name || 'Parameter'}</h4>
+                                    {score.parameter?.description && (
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        {score.parameter.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {score.parameter && (
+                                      <span className="text-xs bg-muted-foreground/20 px-2 py-1 rounded">
+                                        Weight: {score.parameter.weight}%
+                                      </span>
+                                    )}
+                                    <span className="text-sm font-semibold">
+                                      Score: {score.score}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {score.comment && (
+                                  <div className="mt-2">
+                                    <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                    <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                      {score.comment}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {score.noReason && (
+                                  <div className="mt-2">
+                                    <h5 className="text-xs font-medium mb-1">No Reason:</h5>
+                                    <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                      {score.noReason}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                )}
+              </ScrollArea>
+            </div>
+          ) : (
+            <p className="text-center py-4 text-muted-foreground">
+              Failed to load evaluation details
+            </p>
           )}
           
           <DialogFooter>
