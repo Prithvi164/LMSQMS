@@ -102,12 +102,24 @@ function EvaluationFeedbackPage() {
   const fetchEvaluationDetails = async (evaluationId: number) => {
     setLoadingDetails(true);
     try {
-      const response = await fetch(`/api/evaluations/${evaluationId}`);
+      // Request with includeTemplate=true and includeParameters=true to get all needed data
+      const response = await fetch(`/api/evaluations/${evaluationId}?includeTemplate=true&includeParameters=true`);
       if (!response.ok) {
         throw new Error('Failed to fetch evaluation details');
       }
+      
       const data = await response.json();
-      setEvaluationDetails(data);
+      console.log("Evaluation details:", data);
+      
+      // Process the data to properly format parameters and pillars
+      if (data.evaluation && data.evaluation.scores) {
+        // Pre-process the evaluation data to enhance parameter display
+        const processedData = processEvaluationData(data);
+        setEvaluationDetails(processedData);
+      } else {
+        setEvaluationDetails(data);
+      }
+      
       setDetailsDialogOpen(true);
     } catch (error) {
       console.error('Error fetching evaluation details:', error);
@@ -119,6 +131,72 @@ function EvaluationFeedbackPage() {
     } finally {
       setLoadingDetails(false);
     }
+  };
+  
+  // Helper function to process evaluation data and enhance parameter details
+  const processEvaluationData = (data: any): EvaluationDetail => {
+    // If data is already in the expected format, return as is
+    if (data.groupedScores) {
+      return data;
+    }
+    
+    // Group scores by pillar for better display
+    const scoresByPillar: Record<string, any[]> = {};
+    const groupedScores: GroupedScore[] = [];
+    
+    // First pass: Group scores by pillar ID
+    data.evaluation.scores.forEach((score: any) => {
+      // Find the parameter to get its pillarId and question
+      const parameter = data.evaluation.template?.parameters?.find(
+        (p: any) => p.id === score.parameterId
+      );
+      
+      // Make sure parameter has all the needed fields, including question
+      const enhancedParameter = parameter ? {
+        ...parameter,
+        // Make sure question is set - use name as a fallback if question isn't available
+        question: parameter.question || parameter.name
+      } : null;
+      
+      const pillarId = enhancedParameter?.pillarId || "unknown";
+      
+      if (!scoresByPillar[pillarId]) {
+        scoresByPillar[pillarId] = [];
+      }
+      
+      scoresByPillar[pillarId].push({
+        ...score,
+        parameter: enhancedParameter // Add enhanced parameter info to the score object
+      });
+    });
+    
+    // Second pass: Create grouped structure with pillar information
+    Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
+      // Find the pillar information
+      const pillar = data.evaluation.template?.pillars?.find(
+        (p: any) => p.id.toString() === pillarId
+      );
+      
+      // Ensure pillar has a proper name to display
+      const enhancedPillar = pillar ? {
+        ...pillar,
+        // Make sure name is set - use a fallback if name isn't available
+        name: pillar.name || `Section ${pillarId}`
+      } : { 
+        id: parseInt(pillarId) || 0, 
+        name: `Section ${pillarId}` 
+      };
+      
+      groupedScores.push({
+        pillar: enhancedPillar,
+        scores: scores
+      });
+    });
+    
+    return {
+      evaluation: data.evaluation,
+      groupedScores
+    };
   };
   
   // Handle view details click
@@ -445,7 +523,7 @@ function EvaluationFeedbackPage() {
                               <div key={score.id} className="bg-muted p-3 rounded-md">
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
-                                    <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                    <h4 className="font-medium">{score.parameter?.question || score.parameter?.name || 'Parameter'}</h4>
                                     {score.parameter?.description && (
                                       <p className="text-sm text-muted-foreground mt-1">
                                         {score.parameter.description}
