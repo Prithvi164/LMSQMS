@@ -28,6 +28,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/utils";
 import { ParameterScoresDisplay } from "@/components/evaluation/parameter-scores-display";
+import { GroupedEvaluationScores } from "@/components/evaluation/grouped-evaluation-scores";
 import {
   Play,
   Pause,
