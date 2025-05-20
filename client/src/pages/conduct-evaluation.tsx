@@ -2940,7 +2940,7 @@ function ConductEvaluation() {
                         <AccordionTrigger className="hover:no-underline">
                           <div className="flex justify-between items-center w-full pr-4">
                             <span className="font-medium">
-                              {group.pillar?.name || `Section ${groupIndex + 1}`}
+                              {group.pillar?.name || `Pillar ${groupIndex + 1}`}
                             </span>
                             {group.pillar && (
                               <span className="text-sm px-2">
@@ -2956,7 +2956,12 @@ function ConductEvaluation() {
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <h4 className="font-medium">
-                                      {score.parameterName || score.parameterQuestion || score.parameter?.question || score.question || score.parameter?.name || `Parameter ${score.parameterId || ''}`}
+                                      {/* Use question for primary display, with fallbacks */}
+                                      {score.parameter?.question || 
+                                        score.parameterName || 
+                                        score.parameter?.name || 
+                                        score.question || 
+                                        (score.parameterId ? `Question ${score.parameterId}` : 'Unknown Parameter')}
                                     </h4>
                                     {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
