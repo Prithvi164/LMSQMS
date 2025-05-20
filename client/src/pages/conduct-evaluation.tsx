@@ -90,6 +90,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import EvaluationDetailsDialog from "@/components/evaluation/evaluation-details-dialog";
 
 function ConductEvaluation() {
   const { user } = useAuth();
@@ -124,6 +125,10 @@ function ConductEvaluation() {
     dateRange: "all",
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // States for evaluation details dialog
+  const [evaluationDetails, setEvaluationDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -132,6 +137,54 @@ function ConductEvaluation() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.7);
+
+  // Function to fetch a recent evaluation ID
+  const fetchRecentEvaluationId = async () => {
+    try {
+      // Fetch the most recent evaluation from the API
+      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations?limit=1`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch recent evaluations');
+      }
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return data[0].id;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching recent evaluation:', error);
+      return null;
+    }
+  };
+
+  // Function to fetch evaluation details
+  const fetchEvaluationDetails = async (evaluationId: number) => {
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(`/api/evaluations/${evaluationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch evaluation details');
+      }
+      const data = await response.json();
+      setEvaluationDetails(data);
+      setIsViewDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching evaluation details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load evaluation details. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Handle viewing evaluation details
+  const handleViewEvaluation = (evaluationId: number) => {
+    setSelectedEvaluation(evaluationId);
+    fetchEvaluationDetails(evaluationId);
+  };
 
   // Parse URL parameters
   useEffect(() => {
@@ -1169,6 +1222,14 @@ function ConductEvaluation() {
         </AlertDialogContent>
       </AlertDialog>
       
+      {/* Evaluation Details Dialog */}
+      <EvaluationDetailsDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        evaluationDetails={evaluationDetails}
+        loading={loadingDetails}
+      />
+      
       <Tabs
         defaultValue="standard"
         onValueChange={(value) =>
@@ -1179,6 +1240,39 @@ function ConductEvaluation() {
           <TabsTrigger value="standard">Standard Evaluation</TabsTrigger>
           <TabsTrigger value="audio">Audio Evaluation</TabsTrigger>
         </TabsList>
+        
+        {/* Evaluation Details View Button */}
+        <div className="mt-4 mb-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={async () => {
+              // First check if there's a selected evaluation
+              if (selectedEvaluation) {
+                handleViewEvaluation(selectedEvaluation);
+              } else {
+                // If no evaluation is selected, find a recent one
+                const recentEvaluationId = await fetchRecentEvaluationId();
+                
+                if (recentEvaluationId) {
+                  handleViewEvaluation(recentEvaluationId);
+                  toast({
+                    description: "Showing the most recent evaluation details.",
+                  });
+                } else {
+                  toast({
+                    description: "No evaluations found. Complete an evaluation first.",
+                    variant: "destructive"
+                  });
+                }
+              }
+            }}
+            className="flex items-center gap-1.5"
+          >
+            <Eye className="h-4 w-4" />
+            View Evaluation Details
+          </Button>
+        </div>
 
         <TabsContent value="standard" className="space-y-6">
           <div className="flex justify-between items-center">
