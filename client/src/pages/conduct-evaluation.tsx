@@ -530,9 +530,62 @@ function ConductEvaluation() {
     onSuccess: (data) => {
       console.log("Evaluation details loaded:", data);
       
-      // Store the evaluation data for easier debugging and access
+      // Store the evaluation data in the correct format
       if (data?.evaluation) {
-        setEvaluationDetailsData(data.evaluation);
+        // Create groupedScores structure from evaluation scores
+        if (data.evaluation.scores && data.evaluation.scores.length > 0) {
+          console.log("Processing scores for grouping, found", data.evaluation.scores.length, "scores");
+          const groupedScores: any[] = [];
+          const scoresByPillar: Record<string, any[]> = {};
+          
+          // Group scores by pillar ID
+          data.evaluation.scores.forEach((score: any) => {
+            const pillarId = score.parameter?.pillarId;
+            const key = pillarId ? pillarId.toString() : 'unassigned';
+            
+            if (!scoresByPillar[key]) {
+              scoresByPillar[key] = [];
+            }
+            scoresByPillar[key].push(score);
+          });
+          
+          // Create the grouped structure
+          Object.entries(scoresByPillar).forEach(([pillarIdStr, scores]) => {
+            // Skip the 'unassigned' key if it's empty
+            if (pillarIdStr === 'unassigned' && scores.length === 0) {
+              return;
+            }
+            
+            if (pillarIdStr !== 'unassigned') {
+              const pillarId = parseInt(pillarIdStr);
+              const pillar = data.evaluation.template?.pillars?.find(
+                (p: any) => p.id === pillarId
+              );
+              
+              groupedScores.push({
+                pillar: pillar || { id: pillarId, name: `Section ${pillarId}` },
+                scores: scores
+              });
+            } else {
+              // Add unassigned scores as a separate group
+              groupedScores.push({
+                pillar: null,
+                scores: scores
+              });
+            }
+          });
+          
+          setEvaluationDetailsData({
+            evaluation: data.evaluation,
+            groupedScores
+          });
+        } else {
+          // If no scores found, set empty groupedScores
+          setEvaluationDetailsData({
+            evaluation: data.evaluation,
+            groupedScores: []
+          });
+        }
       }
       
       // Log details about the template structure
