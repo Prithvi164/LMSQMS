@@ -400,44 +400,44 @@ function ConductEvaluation() {
         // Handle potential data structure differences
         if (Array.isArray(evaluationsResponse)) {
           console.log("Processing array of evaluations, length:", evaluationsResponse.length);
-          return evaluationsResponse.map(eval => {
-            console.log("Processing evaluation item:", eval);
+          return evaluationsResponse.map(item => {
+            console.log("Processing evaluation item:", item);
             return {
-              id: eval.id,
-              evaluationType: eval.evaluation_type || "standard",
-              templateId: eval.template_id,
-              templateName: eval.template_name,
-              traineeId: eval.trainee_id,
-              trainee: eval.trainee_name ? { 
-                fullName: eval.trainee_name,
-                id: eval.trainee_id
+              id: item.id,
+              evaluationType: item.evaluation_type || "standard",
+              templateId: item.template_id,
+              templateName: item.template_name,
+              traineeId: item.trainee_id,
+              trainee: item.trainee_name ? { 
+                fullName: item.trainee_name,
+                id: item.trainee_id
               } : undefined,
-              audioFileId: eval.audio_file_id,
-              finalScore: eval.final_score || 0,
-              createdAt: eval.created_at,
-              status: eval.status || "completed",
-              isPassed: (eval.final_score || 0) >= (eval.feedback_threshold || 0)
+              audioFileId: item.audio_file_id,
+              finalScore: item.final_score || 0,
+              createdAt: item.created_at,
+              status: item.status || "completed",
+              isPassed: (item.final_score || 0) >= (item.feedback_threshold || 0)
             };
           });
         }
         
         if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
           console.log("Processing evaluations from object with 'evaluations' property");
-          return evaluationsResponse.evaluations.map(eval => ({
-            id: eval.id,
-            evaluationType: eval.evaluation_type || "standard",
-            templateId: eval.template_id,
-            templateName: eval.template_name,
-            traineeId: eval.trainee_id,
-            trainee: eval.trainee_name ? { 
-              fullName: eval.trainee_name,
-              id: eval.trainee_id
+          return evaluationsResponse.evaluations.map(item => ({
+            id: item.id,
+            evaluationType: item.evaluation_type || "standard",
+            templateId: item.template_id,
+            templateName: item.template_name,
+            traineeId: item.trainee_id,
+            trainee: item.trainee_name ? { 
+              fullName: item.trainee_name,
+              id: item.trainee_id
             } : undefined,
-            audioFileId: eval.audio_file_id,
-            finalScore: eval.final_score || 0,
-            createdAt: eval.created_at,
-            status: eval.status || "completed",
-            isPassed: (eval.final_score || 0) >= (eval.feedback_threshold || 0)
+            audioFileId: item.audio_file_id,
+            finalScore: item.final_score || 0,
+            createdAt: item.created_at,
+            status: item.status || "completed",
+            isPassed: (item.final_score || 0) >= (item.feedback_threshold || 0)
           }));
         }
         
