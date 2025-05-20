@@ -3151,15 +3151,36 @@ function ConductEvaluation() {
               setIsViewDialogOpen(false);
               // Open edit dialog and initialize the edit state
               if (evaluationDetails?.evaluation) {
-                // Pre-populate edited scores with existing scores
+                // Pre-populate edited scores with existing scores from ALL sources
                 const initialScores: Record<string, any> = {};
-                evaluationDetails.evaluation.scores.forEach((score: any) => {
-                  initialScores[score.parameterId] = {
-                    score: score.score,
-                    comment: score.comment || '',
-                    noReason: score.noReason || '',
-                  };
-                });
+                
+                // First try to get scores directly from the evaluation object
+                if (evaluationDetails.evaluation.scores && evaluationDetails.evaluation.scores.length > 0) {
+                  evaluationDetails.evaluation.scores.forEach((score: any) => {
+                    initialScores[score.parameterId] = {
+                      score: score.score,
+                      comment: score.comment || '',
+                      noReason: score.noReason || '',
+                    };
+                  });
+                }
+                // Also check the groupedScores which might have better data
+                else if (evaluationDetails.groupedScores && evaluationDetails.groupedScores.length > 0) {
+                  // Extract scores from grouped structure
+                  evaluationDetails.groupedScores.forEach((group: any) => {
+                    if (group.scores && group.scores.length > 0) {
+                      group.scores.forEach((score: any) => {
+                        initialScores[score.parameterId] = {
+                          score: score.score,
+                          comment: score.comment || '',
+                          noReason: score.noReason || '',
+                        };
+                      });
+                    }
+                  });
+                }
+                
+                console.log("Initial scores for editing:", initialScores);
                 setEditedScores(initialScores);
                 setSelectedEvaluationId(evaluationDetails.evaluation.id);
                 setIsEditDialogOpen(true);
