@@ -263,50 +263,86 @@ function CompletedEvaluations() {
     }
   };
   
-  // Handle opening edit dialog
+  // Handle opening edit dialog with direct state setting
   const handleEditEvaluation = async (evalId) => {
     try {
       setSelectedEvaluation(evalId);
       setLoadingDetails(true);
       
-      // Fetch evaluation with template and parameters
-      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true`);
+      // Fetch evaluation with template and parameters - use expanded API call to ensure we get all needed data
+      console.log("Fetching evaluation details for editing:", evalId);
+      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true&includePillars=true`);
       if (!response.ok) {
         throw new Error('Failed to load evaluation details for editing');
       }
       
-      const details = await response.json();
+      let details = await response.json();
       console.log("Edit evaluation details:", details);
+
+      // Ensure evaluation object exists to prevent errors
+      if (!details.evaluation) {
+        details.evaluation = {};
+      }
       
-      // Debug info for better diagnostics
+      // If parameters aren't available in the template, try fetching them directly
       if (!details?.evaluation?.template?.parameters?.length) {
-        console.warn("No parameters found in template:", details?.evaluation?.templateId);
-      }
-      if (!details?.evaluation?.scores?.length) {
-        console.warn("No scores found for evaluation:", evalId);
-      }
-      
-      // Update the cache with the detailed data
-      queryClient.setQueryData(["/api/evaluations", evalId], details);
-      
-      // Initialize edited scores based on existing ones
-      const initialScores = {};
-      if (details?.evaluation?.scores?.length > 0) {
-        details.evaluation.scores.forEach((score) => {
-          if (score && score.parameterId) {
-            initialScores[score.parameterId] = {
-              score: score.score || 0,
-              comment: score.comment || "",
-              noReason: score.noReason || "",
-            };
+        try {
+          console.log("Parameters not found in template, fetching template details directly");
+          // Safely access templateId
+          const templateId = details?.evaluation?.templateId;
+          if (templateId) {
+            const templateResponse = await fetch(`/api/evaluation-templates/${templateId}?includeParameters=true`);
+            if (templateResponse.ok) {
+              const templateDetails = await templateResponse.json();
+              console.log("Template details:", templateDetails);
+              
+              // Make sure template object exists
+              if (!details.evaluation.template) {
+                details.evaluation.template = {};
+              }
+              
+              // Merge the template parameters into the evaluation details
+              if (templateDetails?.template?.parameters?.length) {
+                details.evaluation.template = {
+                  ...details.evaluation.template,
+                  parameters: templateDetails.template.parameters,
+                  name: templateDetails.template.name || "Unnamed Template",
+                  description: templateDetails.template.description || ""
+                };
+              }
+            }
           }
-        });
-      } else if (details?.evaluation?.template?.parameters?.length > 0) {
-        // If no scores, initialize with zeros based on parameters
+        } catch (templateError) {
+          console.error("Error fetching template details:", templateError);
+        }
+      }
+
+      // Ensure required objects and arrays exist to prevent errors
+      if (!details.evaluation.template) {
+        details.evaluation.template = {
+          name: "Unknown Template",
+          description: "No description available",
+          parameters: []
+        };
+      }
+      
+      if (!details.evaluation.template.parameters) {
+        details.evaluation.template.parameters = [];
+      }
+      
+      if (!details.evaluation.scores) {
+        details.evaluation.scores = [];
+      }
+      
+      // Initialize edited scores first with defaults for all parameters
+      const initialScores = {};
+      
+      // First, create entries for all parameters with default values
+      if (details.evaluation.template.parameters.length > 0) {
         details.evaluation.template.parameters.forEach((parameter) => {
           if (parameter && parameter.id) {
             initialScores[parameter.id] = {
-              score: 0,
+              score: 0, // Default to "No"
               comment: "",
               noReason: "",
             };
@@ -314,8 +350,27 @@ function CompletedEvaluations() {
         });
       }
       
+      // Then update with actual scores where available
+      if (details.evaluation.scores.length > 0) {
+        details.evaluation.scores.forEach((score) => {
+          if (score && score.parameterId) {
+            initialScores[score.parameterId] = {
+              score: typeof score.score === 'number' ? score.score : 0,
+              comment: score.comment || "",
+              noReason: score.noReason || "",
+            };
+          }
+        });
+      }
+      
       console.log("Initialized scores:", initialScores);
+      
+      // Update the cache with the detailed data
+      queryClient.setQueryData(["/api/evaluations", evalId], details);
+      
+      // Important: Set both states before opening dialog
       setEditedScores(initialScores);
+      setEvaluationDetails(details);
       setIsEditDialogOpen(true);
     } catch (error) {
       console.error("Error fetching evaluation details:", error);
@@ -907,54 +962,71 @@ function CompletedEvaluations() {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
                   
-                  {/* Debug info for troubleshooting */}
-                  <div className="bg-muted/30 p-3 rounded-md mb-4">
-                    <h3 className="text-sm font-semibold mb-2">Evaluation Summary</h3>
-                    <div className="text-xs space-y-1">
-                      <p>Template: {evaluationDetails?.evaluation?.template?.name || 'Unknown template'}</p>
-                      <p>Parameters: {evaluationDetails?.evaluation?.template?.parameters?.length || 0} parameters</p>
-                      <p>Scores: {evaluationDetails?.evaluation?.scores?.length || 0} scores</p>
-                    </div>
+                  {/* Template information */}
+                  <div className="mb-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">
+                          {evaluationDetails?.evaluation?.template?.name || 'Unknown template'}
+                        </CardTitle>
+                        <CardDescription>
+                          {evaluationDetails?.evaluation?.template?.description || 'No description available'}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
                   </div>
                   
                   <div className="space-y-6">
-                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter) => {
-                      const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
-                      
-                      return (
-                        <Card key={parameter.id} className="border-primary/10">
-                          <CardHeader className="pb-2">
-                            <div className="flex justify-between">
-                              <CardTitle className="text-base">{parameter?.name || "Unnamed Parameter"}</CardTitle>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">
-                                  Weight: {parameter?.weight || 1}
-                                </span>
+                    {Array.isArray(evaluationDetails?.evaluation?.template?.parameters) && evaluationDetails.evaluation.template.parameters.length > 0 ? (
+                      evaluationDetails.evaluation.template.parameters.map((parameter) => {
+                        const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
+                        
+                        return (
+                          <Card key={parameter.id} className="border-primary/10">
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between">
+                                <CardTitle className="text-base">{parameter?.name || "Unnamed Parameter"}</CardTitle>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    Weight: {parameter?.weight || 1}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                            <CardDescription>{parameter?.description || ""}</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div>
-                              <Label className="mb-1.5 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
-                              <Select
-                                value={(currentScore?.score || 0).toString()}
-                                onValueChange={(value) =>
-                                  handleScoreChange(parameter?.id, "score", parseInt(value))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
-                                    <SelectItem key={i} value={i.toString()}>
-                                      {i}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                              <CardDescription>{parameter?.description || ""}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div>
+                                <Label className="mb-1.5 block text-sm">Parameter Score</Label>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={currentScore?.score === 1 ? "default" : "outline"}
+                                    className={currentScore?.score === 1 ? "bg-green-600 hover:bg-green-700" : ""}
+                                    onClick={() => handleScoreChange(parameter?.id, "score", 1)}
+                                  >
+                                    Yes
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={currentScore?.score === 0 ? "default" : "outline"}
+                                    className={currentScore?.score === 0 ? "bg-red-600 hover:bg-red-700" : ""}
+                                    onClick={() => handleScoreChange(parameter?.id, "score", 0)}
+                                  >
+                                    No
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={currentScore?.score === 2 ? "default" : "outline"}
+                                    className={currentScore?.score === 2 ? "bg-gray-500 hover:bg-gray-600" : ""}
+                                    onClick={() => handleScoreChange(parameter?.id, "score", 2)}
+                                  >
+                                    N/A
+                                  </Button>
+                                </div>
+                              </div>
                             
                             <div>
                               <Label className="mb-1.5 block text-sm">Comment</Label>
