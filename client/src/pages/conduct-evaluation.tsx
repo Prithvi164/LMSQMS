@@ -386,12 +386,19 @@ function ConductEvaluation() {
         
         // Group scores by pillar ID
         data.evaluation.scores.forEach((score: any) => {
-          // Find the parameter to get its pillarId
+          // Find the parameter to get its pillarId and question
           const parameter = data.evaluation.template?.parameters?.find(
             (p: any) => p.id === score.parameterId
           );
           
-          const pillarId = parameter?.pillarId || "unknown";
+          // Make sure parameter has all the needed fields, including question
+          const enhancedParameter = parameter ? {
+            ...parameter,
+            // Make sure question is set - use name as a fallback if question isn't available
+            question: parameter.question || parameter.name
+          } : null;
+          
+          const pillarId = enhancedParameter?.pillarId || "unknown";
           
           if (!scoresByPillar[pillarId]) {
             scoresByPillar[pillarId] = [];
@@ -399,7 +406,7 @@ function ConductEvaluation() {
           
           scoresByPillar[pillarId].push({
             ...score,
-            parameter // Add parameter info to the score object
+            parameter: enhancedParameter // Add enhanced parameter info to the score object
           });
         });
         
