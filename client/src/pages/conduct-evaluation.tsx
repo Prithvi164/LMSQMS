@@ -2778,7 +2778,11 @@ function ConductEvaluation() {
                 </div>
                 <div className="text-right">
                   <h4 className="text-sm font-medium">Final Score</h4>
-                  <p className="text-2xl font-bold">{evaluationDetailsData.evaluation?.finalScore?.toFixed(1) || 0}%</p>
+                  <p className="text-2xl font-bold">
+                    {typeof evaluationDetailsData.evaluation?.finalScore === 'number' 
+                      ? `${evaluationDetailsData.evaluation.finalScore.toFixed(1)}%` 
+                      : '0%'}
+                  </p>
                 </div>
               </div>
 
