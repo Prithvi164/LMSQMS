@@ -351,44 +351,75 @@ function ConductEvaluation() {
     setEvaluationDetailsData(null);
     
     try {
-      const response = await queryClient.fetchQuery({
-        queryKey: ["/api/evaluations", evaluationId],
-      });
+      // Make a direct fetch request with the includeTemplate=true parameter
+      const response = await fetch(`/api/evaluations/${evaluationId}?includeTemplate=true&includeParameters=true`);
       
-      console.log("Evaluation details:", response);
+      if (!response.ok) {
+        throw new Error("Failed to fetch evaluation details");
+      }
+      
+      const data = await response.json();
+      console.log("Evaluation details:", data);
+      
+      // Initialize editedScores with existing scores
+      const initialScores: Record<string, any> = {};
+      
+      if (data && data.evaluation && data.evaluation.scores) {
+        data.evaluation.scores.forEach((score: any) => {
+          if (score.parameterId) {
+            initialScores[score.parameterId] = {
+              score: score.score || 0,
+              comment: score.comment || "",
+              noReason: score.noReason || ""
+            };
+          }
+        });
+        
+        setEditedScores(initialScores);
+      }
       
       // Process the evaluation details to group scores by pillar
-      if (response && response.evaluation && response.evaluation.scores) {
+      if (data && data.evaluation && data.evaluation.scores) {
         const groupedScores: any[] = [];
-        const scoresByPillar: Record<number, any[]> = {};
+        const scoresByPillar: Record<string, any[]> = {};
         
         // Group scores by pillar ID
-        response.evaluation.scores.forEach((score: any) => {
-          const pillarId = score.parameter?.pillarId;
+        data.evaluation.scores.forEach((score: any) => {
+          // Find the parameter to get its pillarId
+          const parameter = data.evaluation.template?.parameters?.find(
+            (p: any) => p.id === score.parameterId
+          );
+          
+          const pillarId = parameter?.pillarId || "unknown";
+          
           if (!scoresByPillar[pillarId]) {
             scoresByPillar[pillarId] = [];
           }
-          scoresByPillar[pillarId].push(score);
+          
+          scoresByPillar[pillarId].push({
+            ...score,
+            parameter // Add parameter info to the score object
+          });
         });
         
         // Create the grouped structure
         Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
-          const pillar = response.evaluation.template?.pillars?.find(
-            (p: any) => p.id === parseInt(pillarId)
+          const pillar = data.evaluation.template?.pillars?.find(
+            (p: any) => p.id.toString() === pillarId
           );
           
           groupedScores.push({
-            pillar: pillar || { id: parseInt(pillarId), name: `Section ${pillarId}` },
+            pillar: pillar || { id: pillarId, name: `Section ${pillarId}` },
             scores: scores
           });
         });
         
         setEvaluationDetailsData({
-          evaluation: response.evaluation,
+          evaluation: data.evaluation,
           groupedScores
         });
       } else {
-        setEvaluationDetailsData({ evaluation: response.evaluation, groupedScores: [] });
+        setEvaluationDetailsData({ evaluation: data.evaluation, groupedScores: [] });
       }
     } catch (error) {
       console.error("Error fetching evaluation details:", error);
@@ -3198,13 +3229,34 @@ function ConductEvaluation() {
                 <h3 className="font-medium mb-2">Edit Parameter Scores</h3>
                 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  {/* Debug information to help identify data issues */}
+                  {!evaluationDetails?.evaluation?.template?.parameters?.length && (
+                    <div className="bg-muted p-4 rounded-md">
+                      <h3 className="font-medium mb-2">Debug Info</h3>
+                      <p>Parameters count: {evaluationDetails?.evaluation?.template?.parameters?.length || 0}</p>
+                      <p>Scores count: {evaluationDetails?.evaluation?.scores?.length || 0}</p>
+                    </div>
+                  )}
+                  
+                  {/* Display parameters with their scores */}
                   {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
                     const paramId = parameter?.id?.toString();
-                    const currentScore = editedScores[paramId] || { score: 0, comment: "", noReason: "" };
+                    
+                    // Find the existing score for this parameter
+                    const existingScore = evaluationDetails?.evaluation?.scores?.find(
+                      (s: any) => s.parameterId?.toString() === paramId
+                    );
+                    
+                    // Use existing score data or create default values
+                    const currentScore = editedScores[paramId] || { 
+                      score: existingScore?.score || 0, 
+                      comment: existingScore?.comment || "", 
+                      noReason: existingScore?.noReason || "" 
+                    };
                     
                     return (
                       <Card key={paramId} className="border shadow-sm">
-                        <CardHeader className="py-3">
+                        <CardHeader className="py-3 bg-muted/30">
                           <div className="flex justify-between">
                             <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
                             <Badge variant="outline">
@@ -3213,7 +3265,7 @@ function ConductEvaluation() {
                           </div>
                           <CardDescription>{parameter?.description || ""}</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-3 pt-0">
+                        <CardContent className="space-y-3 pt-3">
                           <div>
                             <Label className="mb-1 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
                             <Select

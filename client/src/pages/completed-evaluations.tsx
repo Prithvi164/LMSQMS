@@ -131,6 +131,15 @@ function CompletedEvaluations() {
     error: detailsError,
   } = useQuery({
     queryKey: ["/api/evaluations", selectedEvaluation],
+    queryFn: async () => {
+      const response = await fetch(`/api/evaluations/${selectedEvaluation}?includeTemplate=true&includeParameters=true`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch evaluation details");
+      }
+      const data = await response.json();
+      console.log("Retrieved evaluation details:", data);
+      return data;
+    },
     enabled: !!selectedEvaluation,
   });
   
@@ -216,32 +225,108 @@ function CompletedEvaluations() {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   
   // Handle opening view dialog
-  const handleViewEvaluation = (evalId) => {
-    setSelectedEvaluation(evalId);
-    setIsViewDialogOpen(true);
+  const handleViewEvaluation = async (evalId) => {
+    try {
+      setSelectedEvaluation(evalId);
+      setLoadingDetails(true);
+      
+      // Fetch evaluation with template and parameters
+      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true`);
+      if (!response.ok) {
+        throw new Error('Failed to load evaluation details');
+      }
+      
+      const details = await response.json();
+      console.log("View evaluation details:", details);
+      
+      // Debug info for better diagnostics
+      if (!details?.evaluation?.template?.parameters?.length) {
+        console.warn("No parameters found in template:", details?.evaluation?.templateId);
+      }
+      if (!details?.evaluation?.scores?.length) {
+        console.warn("No scores found for evaluation:", evalId);
+      }
+      
+      // Update the cache with the detailed data
+      queryClient.setQueryData(["/api/evaluations", evalId], details);
+      
+      setIsViewDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching evaluation details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load evaluation details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
   };
   
   // Handle opening edit dialog
-  const handleEditEvaluation = (evalId) => {
-    setSelectedEvaluation(evalId);
-    
-    // Load details first
-    queryClient.fetchQuery({
-      queryKey: ["/api/evaluations", evalId],
-    }).then((details) => {
+  const handleEditEvaluation = async (evalId) => {
+    try {
+      setSelectedEvaluation(evalId);
+      setLoadingDetails(true);
+      
+      // Fetch evaluation with template and parameters
+      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true`);
+      if (!response.ok) {
+        throw new Error('Failed to load evaluation details for editing');
+      }
+      
+      const details = await response.json();
+      console.log("Edit evaluation details:", details);
+      
+      // Debug info for better diagnostics
+      if (!details?.evaluation?.template?.parameters?.length) {
+        console.warn("No parameters found in template:", details?.evaluation?.templateId);
+      }
+      if (!details?.evaluation?.scores?.length) {
+        console.warn("No scores found for evaluation:", evalId);
+      }
+      
+      // Update the cache with the detailed data
+      queryClient.setQueryData(["/api/evaluations", evalId], details);
+      
       // Initialize edited scores based on existing ones
       const initialScores = {};
-      details?.evaluation?.scores?.forEach((score) => {
-        initialScores[score.parameterId] = {
-          score: score.score,
-          comment: score.comment || "",
-          noReason: score.noReason || "",
-        };
-      });
+      if (details?.evaluation?.scores?.length > 0) {
+        details.evaluation.scores.forEach((score) => {
+          if (score && score.parameterId) {
+            initialScores[score.parameterId] = {
+              score: score.score || 0,
+              comment: score.comment || "",
+              noReason: score.noReason || "",
+            };
+          }
+        });
+      } else if (details?.evaluation?.template?.parameters?.length > 0) {
+        // If no scores, initialize with zeros based on parameters
+        details.evaluation.template.parameters.forEach((parameter) => {
+          if (parameter && parameter.id) {
+            initialScores[parameter.id] = {
+              score: 0,
+              comment: "",
+              noReason: "",
+            };
+          }
+        });
+      }
       
+      console.log("Initialized scores:", initialScores);
       setEditedScores(initialScores);
       setIsEditDialogOpen(true);
-    });
+    } catch (error) {
+      console.error("Error fetching evaluation details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load evaluation details for editing",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDetails(false);
+    };
   };
   
   // Handle score changes in edit form
@@ -714,9 +799,15 @@ function CompletedEvaluations() {
                         <AccordionItem key={parameter?.id} value={parameter?.id?.toString()}>
                           <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
                             <div className="flex justify-between w-full mr-4 items-center">
-                              <span>{parameter?.name}</span>
+                              <span>{parameter?.name || "Unnamed Parameter"}</span>
                               <div className="flex items-center gap-2">
-                                <Badge variant={score?.score >= 3 ? "outline" : "destructive"} className="font-normal">
+                                <Badge 
+                                  variant={
+                                    (score?.score >= 4) ? "success" :
+                                    (score?.score <= 1) ? "destructive" : "outline"
+                                  } 
+                                  className="font-normal"
+                                >
                                   {score?.score || 0}/{parameter?.maxScore || 5}
                                 </Badge>
                               </div>
@@ -725,25 +816,42 @@ function CompletedEvaluations() {
                           <AccordionContent className="px-4 pb-3">
                             <div className="space-y-3">
                               <div>
-                                <p className="text-sm text-muted-foreground">{parameter?.description}</p>
+                                <p className="text-sm text-muted-foreground">{parameter?.description || "No description available"}</p>
                               </div>
                               
-                              {score?.comment && (
+                              <div className="bg-muted/20 p-2 rounded-md">
+                                <h5 className="text-xs font-medium mb-1">Weight:</h5>
+                                <p className="text-sm">
+                                  {parameter?.weight || 1} ({parameter?.weight ? `${parameter.weight * 20}%` : "20%"} of score)
+                                </p>
+                              </div>
+                              
+                              {score?.comment ? (
                                 <div>
                                   <h5 className="text-xs font-medium mb-1">Comment:</h5>
                                   <p className="text-sm border-l-2 border-primary pl-2 py-1">
-                                    {score?.comment}
+                                    {score.comment}
                                   </p>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-muted-foreground italic">
+                                  No comments provided
                                 </div>
                               )}
                               
-                              {score?.noReason && (
+                              {score?.noReason ? (
                                 <div>
-                                  <h5 className="text-xs font-medium mb-1">No Reason:</h5>
+                                  <h5 className="text-xs font-medium mb-1 text-red-500">Reason for Zero Score:</h5>
                                   <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
-                                    {score?.noReason}
+                                    {score.noReason}
                                   </p>
                                 </div>
+                              ) : (
+                                score?.score === 0 && (
+                                  <div className="text-xs text-red-500 italic">
+                                    Zero score without reason provided
+                                  </div>
+                                )
                               )}
                             </div>
                           </AccordionContent>
@@ -799,37 +907,47 @@ function CompletedEvaluations() {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
                   
+                  {/* Debug info for troubleshooting */}
+                  <div className="bg-muted/30 p-3 rounded-md mb-4">
+                    <h3 className="text-sm font-semibold mb-2">Evaluation Summary</h3>
+                    <div className="text-xs space-y-1">
+                      <p>Template: {evaluationDetails?.evaluation?.template?.name || 'Unknown template'}</p>
+                      <p>Parameters: {evaluationDetails?.evaluation?.template?.parameters?.length || 0} parameters</p>
+                      <p>Scores: {evaluationDetails?.evaluation?.scores?.length || 0} scores</p>
+                    </div>
+                  </div>
+                  
                   <div className="space-y-6">
-                    {evaluationDetails.evaluation.template?.parameters.map((parameter) => {
-                      const currentScore = editedScores[parameter.id] || { score: 0, comment: "", noReason: "" };
+                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter) => {
+                      const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
                       
                       return (
                         <Card key={parameter.id} className="border-primary/10">
                           <CardHeader className="pb-2">
                             <div className="flex justify-between">
-                              <CardTitle className="text-base">{parameter.name}</CardTitle>
+                              <CardTitle className="text-base">{parameter?.name || "Unnamed Parameter"}</CardTitle>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-muted-foreground">
-                                  Weight: {parameter.weight}
+                                  Weight: {parameter?.weight || 1}
                                 </span>
                               </div>
                             </div>
-                            <CardDescription>{parameter.description}</CardDescription>
+                            <CardDescription>{parameter?.description || ""}</CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-4">
                             <div>
-                              <Label className="mb-1.5 block text-sm">Score (0-{parameter.maxScore})</Label>
+                              <Label className="mb-1.5 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
                               <Select
-                                value={currentScore.score.toString()}
+                                value={(currentScore?.score || 0).toString()}
                                 onValueChange={(value) =>
-                                  handleScoreChange(parameter.id, "score", parseInt(value))
+                                  handleScoreChange(parameter?.id, "score", parseInt(value))
                                 }
                               >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: parameter.maxScore + 1 }, (_, i) => (
+                                  {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
                                     <SelectItem key={i} value={i.toString()}>
                                       {i}
                                     </SelectItem>
@@ -841,24 +959,24 @@ function CompletedEvaluations() {
                             <div>
                               <Label className="mb-1.5 block text-sm">Comment</Label>
                               <Textarea
-                                value={currentScore.comment}
+                                value={currentScore?.comment || ""}
                                 onChange={(e) =>
-                                  handleScoreChange(parameter.id, "comment", e.target.value)
+                                  handleScoreChange(parameter?.id, "comment", e.target.value)
                                 }
                                 placeholder="Add a comment (optional)"
                                 className="min-h-[80px]"
                               />
                             </div>
                             
-                            {currentScore.score === 0 && (
+                            {(parseInt(currentScore?.score) === 0) && (
                               <div>
                                 <Label className="mb-1.5 block text-sm">
                                   No Reason (Required for zero score)
                                 </Label>
                                 <Textarea
-                                  value={currentScore.noReason}
+                                  value={currentScore?.noReason || ""}
                                   onChange={(e) =>
-                                    handleScoreChange(parameter.id, "noReason", e.target.value)
+                                    handleScoreChange(parameter?.id, "noReason", e.target.value)
                                   }
                                   placeholder="Explain why this score is zero"
                                   className="min-h-[80px]"
