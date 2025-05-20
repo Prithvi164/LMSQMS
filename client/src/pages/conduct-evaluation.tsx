@@ -354,13 +354,53 @@ function ConductEvaluation() {
     
     try {
       // Make a direct fetch request with the includeTemplate=true parameter
-      const response = await fetch(`/api/evaluations/${evaluationId}?includeTemplate=true&includeParameters=true`);
+      // Also include parameters=true to get the full parameter details with names
+      const response = await fetch(`/api/evaluations/${evaluationId}?includeTemplate=true&includeParameters=true&includeNames=true`);
       
       if (!response.ok) {
         throw new Error("Failed to fetch evaluation details");
       }
       
       const data = await response.json();
+      
+      // Let's manually enrich the parameter data with names from the database
+      if (data && data.evaluation && data.evaluation.scores) {
+        // Get all parameter IDs
+        const parameterIds = data.evaluation.scores.map((score: any) => score.parameterId);
+        
+        try {
+          // Fetch parameter names directly from the server
+          const nameResponse = await fetch(`/api/evaluation-parameters?ids=${parameterIds.join(',')}`);
+          
+          if (nameResponse.ok) {
+            const parameterDetails = await nameResponse.json();
+            console.log("Parameter details from server:", parameterDetails);
+            
+            // If we got parameter details, enrich the data
+            if (parameterDetails && Array.isArray(parameterDetails)) {
+              // Create a map for quick lookup
+              const parameterMap = parameterDetails.reduce((map: any, param: any) => {
+                map[param.id] = param;
+                return map;
+              }, {});
+              
+              // Add parameter names to the scores
+              data.evaluation.scores = data.evaluation.scores.map((score: any) => {
+                if (parameterMap[score.parameterId]) {
+                  return {
+                    ...score,
+                    parameterName: parameterMap[score.parameterId].name,
+                    parameterDescription: parameterMap[score.parameterId].description
+                  };
+                }
+                return score;
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching parameter names:", err);
+        }
+      }
       console.log("Evaluation details:", data);
       
       // Initialize editedScores with existing scores
@@ -395,19 +435,21 @@ function ConductEvaluation() {
           );
           
           console.log("Debug - Parameter for score:", score.parameterId, parameter);
+          console.log("Debug - Score with potential parameterName:", score);
           
           // Make sure parameter has all the needed fields
           const enhancedParameter = parameter ? {
             ...parameter,
             // Ensure 'name' field is set for display in the GroupedEvaluationScores component
-            name: parameter.name || parameter.question || `Parameter ${score.parameterId}`,
+            // First check if we enriched the score with parameterName in our fetch
+            name: score.parameterName || parameter.name || parameter.question || `Parameter ${score.parameterId}`,
             // Ensure we have a description
-            description: parameter.description || null,
+            description: score.parameterDescription || parameter.description || null,
             // Ensure we have a weight property for display
             weight: parameter.weight || parameter.weightage || 0
           } : {
             id: score.parameterId || 0,
-            name: `Parameter ${score.parameterId}`,
+            name: score.parameterName || `Parameter ${score.parameterId}`,
             weight: 0,
             pillarId: 0
           };
