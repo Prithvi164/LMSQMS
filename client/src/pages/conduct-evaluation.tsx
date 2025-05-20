@@ -362,32 +362,51 @@ function ConductEvaluation() {
             queryKey: [`/api/organizations/${organizationId}/evaluation-templates/${data.evaluation.templateId}`],
           });
           
-          if (templateData && templateData.parameters && Array.isArray(templateData.parameters)) {
-            console.log("Retrieved template parameters:", templateData.parameters.length);
-            console.log("Sample template parameters:", templateData.parameters.slice(0, 3));
-            
-            // Create a map of parameter IDs to their details
+          console.log("Template data:", templateData);
+          
+          if (templateData) {
+            // Create maps for pillars and parameters
+            const pillarMap = {};
             const parameterMap = {};
-            templateData.parameters.forEach(param => {
-              if (param.id) {
-                parameterMap[param.id] = param;
-                console.log(`Parameter ${param.id} mapped:`, param);
-              }
-            });
             
-            // Add parameter details to each score
+            // Map pillars by ID for easy lookup
+            if (templateData.pillars && Array.isArray(templateData.pillars)) {
+              templateData.pillars.forEach(pillar => {
+                if (pillar.id) {
+                  pillarMap[pillar.id] = pillar;
+                }
+              });
+            }
+            
+            // Map parameters by ID for easy lookup
+            if (templateData.parameters && Array.isArray(templateData.parameters)) {
+              console.log("Retrieved template parameters:", templateData.parameters.length);
+              templateData.parameters.forEach(param => {
+                if (param.id) {
+                  parameterMap[param.id] = param;
+                  console.log(`Parameter ${param.id}:`, param.name || param.question || 'No name found');
+                }
+              });
+            }
+            
+            // Add parameter and pillar details to each score
             if (data.evaluation.scores && Array.isArray(data.evaluation.scores)) {
               data.evaluation.scores = data.evaluation.scores.map(score => {
+                const enhancedScore = { ...score };
+                
                 if (score.parameterId && parameterMap[score.parameterId]) {
-                  // Clone the score to avoid modifying cached data
-                  return {
-                    ...score,
-                    parameter: parameterMap[score.parameterId],
-                    parameterName: parameterMap[score.parameterId].name || parameterMap[score.parameterId].question,
-                    parameterQuestion: parameterMap[score.parameterId].question
-                  };
+                  const parameter = parameterMap[score.parameterId];
+                  enhancedScore.parameter = parameter;
+                  enhancedScore.parameterName = parameter.question || parameter.name;
+                  enhancedScore.pillarId = parameter.pillarId;
+                  
+                  // Add pillar info if available
+                  if (parameter.pillarId && pillarMap[parameter.pillarId]) {
+                    enhancedScore.pillar = pillarMap[parameter.pillarId];
+                  }
                 }
-                return score;
+                
+                return enhancedScore;
               });
             }
           }
