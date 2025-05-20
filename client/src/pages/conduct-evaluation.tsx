@@ -3163,7 +3163,9 @@ function ConductEvaluation() {
           <DialogHeader>
             <DialogTitle>Edit Evaluation</DialogTitle>
             <DialogDescription>
-              Update scores and comments for this evaluation
+              {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                ? "Audio evaluation details"
+                : "Standard evaluation details"}
             </DialogDescription>
           </DialogHeader>
           
@@ -3180,77 +3182,179 @@ function ConductEvaluation() {
           ) : (
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Type:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio" : "Standard"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Template:</span>
+                        <span className="text-sm font-medium">{evaluationDetails?.evaluation?.template?.name || "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Date:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.createdAt 
+                            ? new Date(evaluationDetails.evaluation.createdAt).toLocaleString() 
+                            : "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio Information" : "Trainee Information"}
+                    </h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Audio ID:</span>
+                            <span className="text-sm font-medium">
+                              #{evaluationDetails?.evaluation?.audioFile?.id || "Unknown"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Language:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.audioFile?.language || "Unknown"}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Trainee:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.trainee?.fullName || "Unknown"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Employee ID:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.trainee?.employeeId || "N/A"}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-sm">Evaluator:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.evaluator?.fullName || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-medium">Parameters</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-xl font-semibold">
+                          {evaluationDetails && Object.keys(editedScores).length > 0 ? 
+                            (() => {
+                              const parameters = evaluationDetails?.evaluation?.template?.parameters || [];
+                              const scoreEntries = Object.entries(editedScores || {});
+                              
+                              let totalScore = 0;
+                              let totalWeight = 0;
+                              
+                              scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                                const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
+                                if (parameter) {
+                                  totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
+                                  totalWeight += (parameter?.weight || 1);
+                                }
+                              });
+                              
+                              return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) + "%" : "0.00%";
+                            })() : "0.00%"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Final Score</div>
+                      </div>
+                    </div>
+                  </div>
                   
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
                       const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
                       const scoreValue = currentScore?.score || 0;
+                      const scoreText = parameter?.options ? 
+                        (parameter.options[scoreValue] || scoreValue.toString()) : 
+                        scoreValue.toString();
                       
                       return (
-                        <Card key={parameter?.id} className="border-primary/10">
-                          <CardHeader className="pb-2 bg-primary/5">
-                            <div className="flex justify-between">
-                              <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
+                        <div key={parameter?.id} className="border rounded-md overflow-hidden">
+                          {/* Parameter header */}
+                          <div className="bg-muted/20 p-4 border-b">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium">{parameter?.name || "Parameter"}</h4>
+                                <p className="text-sm text-muted-foreground">{parameter?.description || ""}</p>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <Badge 
                                   variant="outline" 
                                   className={
-                                    scoreValue >= 4 ? 'bg-green-50 text-green-700 border-green-200' : 
-                                    scoreValue <= 1 ? 'bg-red-50 text-red-700 border-red-200' :
+                                    scoreValue >= 4 || scoreText === "yes" ? 'bg-green-50 text-green-700 border-green-200' : 
+                                    scoreValue <= 1 || scoreText === "no" ? 'bg-red-50 text-red-700 border-red-200' :
                                     'bg-yellow-50 text-yellow-700 border-yellow-200'
                                   }
                                 >
-                                  Score: {scoreValue}
+                                  Score: {scoreText}
                                 </Badge>
                                 <span className="text-sm text-muted-foreground">
                                   Weight: {parameter?.weight || 0}%
                                 </span>
                               </div>
                             </div>
-                            <CardDescription>{parameter?.description || ""}</CardDescription>
-                          </CardHeader>
-                          
-                          {/* Current score summary */}
-                          <div className="px-6 py-3 bg-muted/20 border-b border-primary/10">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h4 className="text-sm font-medium">Current Evaluation</h4>
-                                {currentScore?.comment && (
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    <span className="font-medium">Comment:</span> {currentScore.comment}
-                                  </p>
-                                )}
-                                {currentScore?.noReason && scoreValue === 0 && (
-                                  <p className="text-sm text-red-600 mt-1">
-                                    <span className="font-medium">Reason for Zero:</span> {currentScore.noReason}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
                           </div>
                           
-                          <CardContent className="space-y-4 pt-4">
+                          {/* Editing controls */}
+                          <div className="p-4 space-y-4">
                             <div>
-                              <Label className="mb-1.5 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
-                              <Select
-                                value={(currentScore?.score || 0).toString()}
-                                onValueChange={(value) =>
-                                  handleScoreChange(parameter?.id, "score", parseInt(value))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
-                                    <SelectItem key={i} value={i.toString()}>
-                                      {i}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <Label className="mb-1.5 block text-sm">Score</Label>
+                              {parameter?.scoreType === "yesno" ? (
+                                <Select
+                                  value={scoreValue === 1 ? "yes" : "no"}
+                                  onValueChange={(value) =>
+                                    handleScoreChange(parameter?.id, "score", value === "yes" ? 1 : 0)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="yes">Yes</SelectItem>
+                                    <SelectItem value="no">No</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Select
+                                  value={(currentScore?.score || 0).toString()}
+                                  onValueChange={(value) =>
+                                    handleScoreChange(parameter?.id, "score", parseInt(value))
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
+                                      <SelectItem key={i} value={i.toString()}>
+                                        {i}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
                             </div>
                             
                             <div>
@@ -3265,23 +3369,23 @@ function ConductEvaluation() {
                               />
                             </div>
                             
-                            {currentScore?.score === 0 && (
+                            {(currentScore?.score === 0 || scoreText === "no") && (
                               <div>
                                 <Label className="mb-1.5 block text-sm">
-                                  No Reason (Required for zero score)
+                                  Reason (Required for zero/no score)
                                 </Label>
                                 <Textarea
                                   value={currentScore?.noReason || ""}
                                   onChange={(e) =>
                                     handleScoreChange(parameter?.id, "noReason", e.target.value)
                                   }
-                                  placeholder="Explain why this score is zero"
+                                  placeholder="Explain why this score is zero/no"
                                   className="min-h-[80px]"
                                 />
                               </div>
                             )}
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
