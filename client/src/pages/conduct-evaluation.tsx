@@ -2815,7 +2815,7 @@ function ConductEvaluation() {
                               <div key={score.id} className="bg-muted p-3 rounded-md">
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
-                                    <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                    <h4 className="font-medium">{score.parameter?.question || score.parameter?.name || 'Parameter'}</h4>
                                     {score.parameter?.description && (
                                       <p className="text-sm text-muted-foreground mt-1">
                                         {score.parameter.description}
