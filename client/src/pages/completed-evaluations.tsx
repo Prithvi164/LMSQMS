@@ -174,18 +174,18 @@ function CompletedEvaluations() {
   
   // Filter evaluations based on current filters and search query
   const filteredEvaluations = evaluations
-    .filter((eval) => {
+    .filter((evaluation) => {
       // Filter by evaluation type
-      if (evaluationType !== "all" && eval.evaluationType !== evaluationType) {
+      if (evaluationType !== "all" && evaluation.evaluationType !== evaluationType) {
         return false;
       }
       
       // Filter by search query
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
-        const matchesName = eval.trainee?.fullName?.toLowerCase().includes(searchLower);
-        const matchesTemplate = eval.templateName?.toLowerCase().includes(searchLower);
-        const matchesId = eval.id.toString().includes(searchLower);
+        const matchesName = evaluation.trainee?.fullName?.toLowerCase().includes(searchLower);
+        const matchesTemplate = evaluation.templateName?.toLowerCase().includes(searchLower);
+        const matchesId = evaluation.id.toString().includes(searchLower);
         
         if (!matchesName && !matchesTemplate && !matchesId) {
           return false;
@@ -193,19 +193,19 @@ function CompletedEvaluations() {
       }
       
       // Apply other filters
-      if (evaluationFilters.templateId && eval.templateId !== parseInt(evaluationFilters.templateId)) {
+      if (evaluationFilters.templateId && evaluation.templateId !== parseInt(evaluationFilters.templateId)) {
         return false;
       }
       
-      if (evaluationFilters.traineeId && eval.traineeId !== parseInt(evaluationFilters.traineeId)) {
+      if (evaluationFilters.traineeId && evaluation.traineeId !== parseInt(evaluationFilters.traineeId)) {
         return false;
       }
       
-      if (evaluationFilters.batchId && eval.batchId !== parseInt(evaluationFilters.batchId)) {
+      if (evaluationFilters.batchId && evaluation.batchId !== parseInt(evaluationFilters.batchId)) {
         return false;
       }
       
-      if (evaluationFilters.status !== "all" && eval.status !== evaluationFilters.status) {
+      if (evaluationFilters.status !== "all" && evaluation.status !== evaluationFilters.status) {
         return false;
       }
       
@@ -306,7 +306,15 @@ function CompletedEvaluations() {
     if (status === "pending") {
       return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
     } else if (status === "completed") {
-      const passed = score >= (passingScore || 70);
+      // Make sure to correctly get the score value, regardless of property name
+      const finalScore = typeof score === 'number' ? score : 
+                         (typeof score === 'string' ? parseFloat(score) : 0);
+      
+      // Default passing score is 70 if none provided
+      const passingThreshold = typeof passingScore === 'number' ? passingScore : 70;
+      
+      const passed = finalScore >= passingThreshold;
+      
       return passed 
         ? <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Passed</Badge>
         : <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>;
@@ -533,7 +541,13 @@ function CompletedEvaluations() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{evaluation?.finalScore?.toFixed(1) || "0.0"}%</TableCell>
+                      <TableCell>
+                        {(evaluation?.finalScore !== null && evaluation?.finalScore !== undefined) 
+                          ? `${evaluation.finalScore.toFixed(1)}%` 
+                          : (evaluation?.final_score !== null && evaluation?.final_score !== undefined)
+                            ? `${evaluation.final_score.toFixed(1)}%`
+                            : "0.0%"}
+                      </TableCell>
                       <TableCell>{formatDate(evaluation?.createdAt)}</TableCell>
                       <TableCell>
                         {renderStatusBadge(
