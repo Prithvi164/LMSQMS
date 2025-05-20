@@ -2942,7 +2942,11 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails?.evaluation?.finalScore).toFixed(1) : "0"}%
+                          {typeof evaluationDetails?.evaluation?.finalScore === 'number' 
+                            ? `${evaluationDetails.evaluation.finalScore.toFixed(1)}%` 
+                            : evaluationDetails?.evaluation?.finalScore 
+                              ? `${Number(evaluationDetails.evaluation.finalScore).toFixed(1)}%` 
+                              : "0%"}
                         </span>
                       </div>
                       <div className="flex justify-between">
