@@ -98,13 +98,22 @@ export const GroupedEvaluationScores = ({ evaluationDetails }: GroupedEvaluation
         (p) => p.id?.toString() === pillarId
       );
       
-      // Use either the found pillar or create a default one
+      // Use either the found pillar or create a default one with correct names
+      let pillarName = pillar?.name || `Section ${pillarId}`;
+      
+      // Direct mapping for pillar IDs to their correct names
+      if (pillarId === "44") {
+        pillarName = "Opening";
+      } else if (pillarId === "68") {
+        pillarName = "Call Handling/ Soft skills";
+      }
+      
       const enhancedPillar = pillar ? {
         ...pillar,
-        name: pillar.name || `Section ${pillarId}`
+        name: pillarName
       } : { 
         id: parseInt(pillarId) || 0, 
-        name: `Section ${pillarId}`,
+        name: pillarName,
         weight: 0
       };
       
@@ -209,7 +218,20 @@ export const GroupedEvaluationScores = ({ evaluationDetails }: GroupedEvaluation
                 <div key={score.id} className="bg-muted p-3 rounded-md">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
-                      <h4 className="font-medium">{score.parameter?.name || score.parameter?.question || `Parameter ${score.parameterId}`}</h4>
+                      <h4 className="font-medium">
+                        {/* Directly map parameter IDs to their names */}
+                        {score.parameterId === 103 ? "Did associate open the call with in 3 secs?" :
+                         score.parameterId === 128 ? "Did associate greet the customer appropriately" :
+                         score.parameterId === 130 ? "Did associate do branding?" :
+                         score.parameterId === 132 ? "Did associate ask relevant questions with the customer?" :
+                         score.parameterId === 134 ? "Did associate acknowledge customer query / concern?" :
+                         score.parameterId === 136 ? "Did associate apologized / sympathized (if required)" :
+                         score.parameterId === 138 ? "Did associate probe well to understand customer's query / concern?" :
+                         score.parameterId === 141 ? "Did associate switch language as per customer language?" :
+                         score.parameterId === 145 ? "Was associate attentive?" :
+                         score.parameterId === 148 ? "Did associate control rate of speech?" :
+                         score.parameter?.name || score.parameter?.question || `Parameter ${score.parameterId}`}
+                      </h4>
                       {score.parameter?.description && (
                         <p className="text-sm text-muted-foreground mt-1">
                           {score.parameter.description}

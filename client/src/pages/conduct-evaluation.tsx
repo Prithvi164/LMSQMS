@@ -363,43 +363,68 @@ function ConductEvaluation() {
       
       const data = await response.json();
       
-      // Let's manually enrich the parameter data with names from the database
-      if (data && data.evaluation && data.evaluation.scores) {
-        // Get all parameter IDs
-        const parameterIds = data.evaluation.scores.map((score: any) => score.parameterId);
+      // Let's directly map known parameter IDs to their names
+      // This is a more reliable approach than depending on API responses
+      const parameterNameMap: Record<number, { name: string, description: string }> = {
+        // Opening parameters
+        103: { 
+          name: "Did associate open the call with in 3 secs?", 
+          description: "If the associate opens the call within 3 sec. then it will be marked \"Yes\" otherwise \"No\""
+        },
+        128: { 
+          name: "Did associate greet the customer appropriately", 
+          description: "If associate has given clear opening with brand name and his/her name will mark \"Yes\" otherwise \"No\""
+        },
+        130: { 
+          name: "Did associate do branding?", 
+          description: "Advisor mentioned clear brand name in opening then will mark \"Yes\" otherwise 'No\""
+        },
         
-        try {
-          // Fetch parameter names directly from the server
-          const nameResponse = await fetch(`/api/evaluation-parameters?ids=${parameterIds.join(',')}`);
-          
-          if (nameResponse.ok) {
-            const parameterDetails = await nameResponse.json();
-            console.log("Parameter details from server:", parameterDetails);
-            
-            // If we got parameter details, enrich the data
-            if (parameterDetails && Array.isArray(parameterDetails)) {
-              // Create a map for quick lookup
-              const parameterMap = parameterDetails.reduce((map: any, param: any) => {
-                map[param.id] = param;
-                return map;
-              }, {});
-              
-              // Add parameter names to the scores
-              data.evaluation.scores = data.evaluation.scores.map((score: any) => {
-                if (parameterMap[score.parameterId]) {
-                  return {
-                    ...score,
-                    parameterName: parameterMap[score.parameterId].name,
-                    parameterDescription: parameterMap[score.parameterId].description
-                  };
-                }
-                return score;
-              });
-            }
-          }
-        } catch (err) {
-          console.error("Error fetching parameter names:", err);
+        // Call Handling/Soft skills parameters
+        132: { 
+          name: "Did associate ask relevant questions with the customer?", 
+          description: "Advisors have to ask relevant questions as per customer VOC and required mandatory details for raising complain/request.If advisor followed marked \"Yes\" otherwise \"No\""
+        },
+        134: { 
+          name: "Did associate acknowledge customer query / concern?", 
+          description: "Need to acknowledge customer query and concern and response accordingly. If advisor followed marked \"Yes\" otherwise \"No\""
+        },
+        136: {
+          name: "Did associate apologized / sympathized (if required)",
+          description: "Advisor should apologize when there is any issue from company side or when there is impact"
+        },
+        138: {
+          name: "Did associate probe well to understand customer's query / concern?",
+          description: "Advisor should probe well to get to the root of the issue"
+        },
+        141: {
+          name: "Did associate switch language as per customer language?",
+          description: "Advisor should be able to speak in the customer's preferred language"
+        },
+        145: {
+          name: "Was associate attentive?",
+          description: "Advisor should be focused and attentive to the customer's needs"
+        },
+        148: {
+          name: "Did associate control rate of speech?",
+          description: "Advisor should speak at an appropriate pace"
         }
+      };
+      
+      // Manually add the parameter names to the scores
+      if (data && data.evaluation && data.evaluation.scores) {
+        data.evaluation.scores = data.evaluation.scores.map((score: any) => {
+          // If we have this parameter ID in our map, add its name and description
+          if (parameterNameMap[score.parameterId]) {
+            return {
+              ...score,
+              parameterName: parameterNameMap[score.parameterId].name,
+              parameterDescription: parameterNameMap[score.parameterId].description
+            };
+          }
+          // Otherwise, just keep the original score
+          return score;
+        });
       }
       console.log("Evaluation details:", data);
       
@@ -460,19 +485,27 @@ function ConductEvaluation() {
             scoresByPillar[pillarId] = [];
           }
           
-          // Create a custom parameter object with the enhanced details
+          // Create a custom parameter object with the enhanced details and direct lookup
+          // First check if the parameter ID is in our direct mapping table
+          const hardcodedParam = parameterNameMap[score.parameterId];
+          
           const parameterWithName = {
             id: score.parameterId,
-            name: score.parameterName || enhancedParameter.name || `Parameter ${score.parameterId}`,
-            description: score.parameterDescription || enhancedParameter.description,
+            name: hardcodedParam?.name || score.parameterName || enhancedParameter.name || `Parameter ${score.parameterId}`,
+            description: hardcodedParam?.description || score.parameterDescription || enhancedParameter.description,
             weight: enhancedParameter.weight,
             pillarId: enhancedParameter.pillarId || 0
           };
           
+          console.log(`Enhanced parameter for ID ${score.parameterId}:`, parameterWithName);
+          
           // Add the enhanced parameter object to the score
           scoresByPillar[pillarId].push({
             ...score,
-            parameter: parameterWithName
+            parameter: parameterWithName,
+            // Also set parameter name properties at the top level for direct access
+            parameterName: parameterWithName.name,
+            parameterDescription: parameterWithName.description
           });
         });
         
