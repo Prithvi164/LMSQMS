@@ -3281,24 +3281,38 @@ function ConductEvaluation() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold mb-2">Parameters</h3>
                   
-                  {/* Debug: Display the parameter data structure */}
+                  {/* Debug: Display the evaluation data structure */}
                   <div className="bg-black/5 p-3 rounded text-xs mb-4 whitespace-pre-wrap">
-                    <strong>Template Parameters Available:</strong> {evaluationDetails?.evaluation?.template?.parameters?.length || 0}
+                    <div><strong>Available Scores:</strong> {evaluationDetails?.evaluation?.scores?.length || 0}</div>
+                    <div className="mt-1"><strong>Template ID:</strong> {evaluationDetails?.evaluation?.template?.id || 'None'}</div>
                   </div>
                   
-                  {/* Display parameters directly, similar to evaluation feedback view */}
-                  {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
-                    // Get current score or initialize with defaults
-                    const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
-                    const scoreValue = currentScore?.score || 0;
-                    const isYesNo = parameter?.scoreType === "yesno";
+                  {/* Display scores with their parameters */}
+                  {evaluationDetails?.evaluation?.scores?.map((score: any) => {
+                    // Get parameter from the score
+                    const parameter = score.parameter;
+                    if (!parameter) return null;
+                    
+                    // Get current score or initialize with defaults from existing score
+                    const currentScore = editedScores[parameter.id] || { 
+                      score: score.score || 0, 
+                      comment: score.comment || "", 
+                      noReason: score.noReason || "" 
+                    };
+                    const scoreValue = currentScore.score || 0;
+                    const isYesNo = parameter.scoreType === "yesno";
                     
                     return (
                       <div key={parameter.id} className="bg-muted/20 rounded-md p-4 border">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h4 className="font-medium mb-1">Parameter: {parameter.name || "Unnamed"}</h4>
-                            <p className="text-sm text-muted-foreground">Question: {parameter.question || parameter.description || "No question text available"}</p>
+                            <h4 className="font-medium mb-1">
+                              Parameter: {parameter.name || "Unnamed"}
+                              {score.pillar && <span className="ml-2 text-sm text-muted-foreground">({score.pillar.name})</span>}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              Question: {parameter.question || parameter.description || "No question text available"}
+                            </p>
                           </div>
                           
                           <div className="flex flex-col items-end">
@@ -3311,7 +3325,7 @@ function ConductEvaluation() {
                               <Select
                                 value={scoreValue === 1 ? "yes" : "no"}
                                 onValueChange={(value) =>
-                                  handleScoreChange(parameter?.id, "score", value === "yes" ? 1 : 0)
+                                  handleScoreChange(parameter.id, "score", value === "yes" ? 1 : 0)
                                 }
                               >
                                 <SelectTrigger className="w-32">
@@ -3326,14 +3340,14 @@ function ConductEvaluation() {
                               <Select
                                 value={scoreValue.toString()}
                                 onValueChange={(value) =>
-                                  handleScoreChange(parameter?.id, "score", parseInt(value))
+                                  handleScoreChange(parameter.id, "score", parseInt(value))
                                 }
                               >
                                 <SelectTrigger className="w-32">
                                   <SelectValue placeholder="Score" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
+                                  {Array.from({ length: (parameter.maxScore || 5) + 1 }, (_, i) => (
                                     <SelectItem key={i} value={i.toString()}>
                                       {i}
                                     </SelectItem>
@@ -3348,9 +3362,9 @@ function ConductEvaluation() {
                         <div className="mt-3">
                           <Label className="text-sm">Comment</Label>
                           <Textarea
-                            value={currentScore?.comment || ""}
+                            value={currentScore.comment || ""}
                             onChange={(e) =>
-                              handleScoreChange(parameter?.id, "comment", e.target.value)
+                              handleScoreChange(parameter.id, "comment", e.target.value)
                             }
                             placeholder="Add a comment (optional)"
                             className="min-h-[60px] mt-1"
@@ -3364,9 +3378,9 @@ function ConductEvaluation() {
                               Reason (Required for {isYesNo ? "no" : "zero"} score)
                             </Label>
                             <Textarea
-                              value={currentScore?.noReason || ""}
+                              value={currentScore.noReason || ""}
                               onChange={(e) =>
-                                handleScoreChange(parameter?.id, "noReason", e.target.value)
+                                handleScoreChange(parameter.id, "noReason", e.target.value)
                               }
                               placeholder={`Explain why this score is ${isYesNo ? "no" : "zero"}`}
                               className="min-h-[60px] mt-1"
