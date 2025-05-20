@@ -359,6 +359,17 @@ function ConductEvaluation() {
         
         // Group scores by pillar ID
         data.evaluation.scores.forEach((score: any) => {
+          // Make sure the parameter data is properly included
+          if (score.parameterId && !score.parameter) {
+            // If parameter isn't included, try to find it from the template
+            const parameter = data.evaluation.template?.parameters?.find(
+              (p: any) => p.id === score.parameterId
+            );
+            if (parameter) {
+              score.parameter = parameter;
+            }
+          }
+          
           const pillarId = score.parameter?.pillarId;
           const key = pillarId ? pillarId.toString() : 'unassigned';
           
@@ -2871,7 +2882,7 @@ function ConductEvaluation() {
                               <div key={score.id} className="bg-muted p-3 rounded-md">
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
-                                    <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                    <h4 className="font-medium">{score.parameter?.name || `Parameter ${score.parameterId || ''}`}</h4>
                                     {score.parameter?.description && (
                                       <p className="text-sm text-muted-foreground mt-1">
                                         {score.parameter.description}
@@ -2882,14 +2893,35 @@ function ConductEvaluation() {
                                     <Badge 
                                       variant="outline" 
                                       className={
-                                        score.score === 'Excellent' || score.score === 'Yes' || score.score === '1' || parseInt(score.score) >= 4 
+                                        score.score === 'Excellent' || 
+                                        score.score === 'Yes' || 
+                                        score.value === 'yes' ||
+                                        score.value === true ||
+                                        score.value === 'true' ||
+                                        score.score === '1' || 
+                                        (score.score && !isNaN(parseInt(score.score)) && parseInt(score.score) >= 4)
                                           ? 'bg-green-50 text-green-700 border-green-200' 
-                                          : score.score === 'Poor' || score.score === 'No' || score.score === '0' || parseInt(score.score) <= 1
-                                            ? 'bg-red-50 text-red-700 border-red-200'
-                                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                          : score.score === 'Poor' || 
+                                            score.score === 'No' || 
+                                            score.value === 'no' ||
+                                            score.value === false ||
+                                            score.value === 'false' ||
+                                            score.score === '0' || 
+                                            (score.score && !isNaN(parseInt(score.score)) && parseInt(score.score) <= 1)
+                                              ? 'bg-red-50 text-red-700 border-red-200'
+                                              : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                                       }
                                     >
-                                      {score.score}
+                                      {score.score || 
+                                        (typeof score.value === 'boolean' 
+                                          ? (score.value ? 'Yes' : 'No')
+                                          : (score.value === 'true' 
+                                              ? 'Yes' 
+                                              : (score.value === 'false' 
+                                                  ? 'No' 
+                                                  : score.value)
+                                            )
+                                        ) || 'N/A'}
                                     </Badge>
                                   </div>
                                 </div>
