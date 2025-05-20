@@ -452,21 +452,21 @@ function ConductEvaluation() {
           if (values.length > 0) {
             console.log("First value type:", typeof values[0], "Sample:", values[0]);
             if (typeof values[0] === 'object') {
-              return values.map(eval => ({
-                id: eval.id,
-                evaluationType: eval.evaluation_type || "standard",
-                templateId: eval.template_id,
-                templateName: eval.template_name,
-                traineeId: eval.trainee_id,
-                trainee: eval.trainee_name ? { 
-                  fullName: eval.trainee_name,
-                  id: eval.trainee_id
+              return values.map(item => ({
+                id: item.id,
+                evaluationType: item.evaluation_type || "standard",
+                templateId: item.template_id,
+                templateName: item.template_name,
+                traineeId: item.trainee_id,
+                trainee: item.trainee_name ? { 
+                  fullName: item.trainee_name,
+                  id: item.trainee_id
                 } : undefined,
-                audioFileId: eval.audio_file_id,
-                finalScore: eval.final_score || 0,
-                createdAt: eval.created_at,
-                status: eval.status || "completed",
-                isPassed: (eval.final_score || 0) >= (eval.feedback_threshold || 0)
+                audioFileId: item.audio_file_id,
+                finalScore: item.final_score || 0,
+                createdAt: item.created_at,
+                status: item.status || "completed",
+                isPassed: (item.final_score || 0) >= (item.feedback_threshold || 0)
               }));
             }
           }
