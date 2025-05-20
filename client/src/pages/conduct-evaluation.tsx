@@ -2957,12 +2957,10 @@ function ConductEvaluation() {
                                   <div className="flex-1">
                                     <h4 className="font-medium">
                                       {/* Display the actual parameter question from template data */}
-                                      {score.question || 
+                                      {score.parameter?.name || 
                                        score.parameter?.question || 
-                                       score.parameter?.name || 
                                        score.parameterName || 
-                                       score.name || 
-                                       'Parameter'}
+                                       (score.parameterId ? `Parameter ${score.parameterId}` : 'Parameter')}
                                     </h4>
                                     {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
