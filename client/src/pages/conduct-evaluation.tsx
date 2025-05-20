@@ -3043,10 +3043,9 @@ function ConductEvaluation() {
                   </div>
                 </div>
                 
-                {/* Use the shared component for parameter scores display */}
-                <ParameterScoresDisplay 
-                  groupedScores={evaluationDetails?.groupedScores || []} 
-                  maxHeight="400px"
+                {/* Use the same component as the evaluation-feedback page */}
+                <GroupedEvaluationScores
+                  evaluationDetails={evaluationDetails}
                 />
                 
               </div>
