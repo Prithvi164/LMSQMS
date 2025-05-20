@@ -124,6 +124,21 @@ function ConductEvaluation() {
   const [completedEvalType, setCompletedEvalType] = useState<"all" | "standard" | "audio">("all");
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [evaluationDetailsData, setEvaluationDetailsData] = useState<any>(null);
+  
+  // Function to handle parameter-wise score editing in edit dialog
+  const handleEditParameterScore = (parameterId: string, field: string, value: any) => {
+    setEditedScores((prev) => {
+      const updatedScores = { ...prev };
+      if (!updatedScores[parameterId]) {
+        updatedScores[parameterId] = { score: 0, comment: "", noReason: "" };
+      }
+      updatedScores[parameterId] = {
+        ...updatedScores[parameterId],
+        [field]: value
+      };
+      return updatedScores;
+    });
+  };
   const [evaluationFilters, setEvaluationFilters] = useState({
     templateId: "",
     traineeId: "",
@@ -3159,7 +3174,7 @@ function ConductEvaluation() {
       
       {/* Edit Evaluation Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Edit Evaluation</DialogTitle>
             <DialogDescription>
@@ -3178,85 +3193,76 @@ function ConductEvaluation() {
               <p>Failed to load evaluation details</p>
             </div>
           ) : (
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
-                  
-                  <div className="space-y-6">
-                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
-                      const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
-                      
-                      return (
-                        <Card key={parameter?.id} className="border-primary/10">
-                          <CardHeader className="pb-2">
-                            <div className="flex justify-between">
-                              <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">
-                                  Weight: {parameter?.weight || 0}
-                                </span>
-                              </div>
-                            </div>
-                            <CardDescription>{parameter?.description || ""}</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
+            <div className="py-4">
+              <div className="mb-4">
+                <h3 className="font-medium mb-2">Edit Parameter Scores</h3>
+                
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
+                    const paramId = parameter?.id?.toString();
+                    const currentScore = editedScores[paramId] || { score: 0, comment: "", noReason: "" };
+                    
+                    return (
+                      <Card key={paramId} className="border shadow-sm">
+                        <CardHeader className="py-3">
+                          <div className="flex justify-between">
+                            <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
+                            <Badge variant="outline">
+                              Weight: {parameter?.weight || 1}
+                            </Badge>
+                          </div>
+                          <CardDescription>{parameter?.description || ""}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 pt-0">
+                          <div>
+                            <Label className="mb-1 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
+                            <Select
+                              value={(currentScore?.score || 0).toString()}
+                              onValueChange={(value) => handleEditParameterScore(paramId, "score", parseInt(value))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
+                                  <SelectItem key={i} value={i.toString()}>
+                                    {i}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div>
+                            <Label className="mb-1 block text-sm">Comment</Label>
+                            <Textarea
+                              value={currentScore?.comment || ""}
+                              onChange={(e) => handleEditParameterScore(paramId, "comment", e.target.value)}
+                              placeholder="Add a comment (optional)"
+                              className="min-h-[60px]"
+                            />
+                          </div>
+                          
+                          {(currentScore?.score === 0 || currentScore?.score === "0") && (
                             <div>
-                              <Label className="mb-1.5 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
-                              <Select
-                                value={(currentScore?.score || 0).toString()}
-                                onValueChange={(value) =>
-                                  handleScoreChange(parameter?.id, "score", parseInt(value))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
-                                    <SelectItem key={i} value={i.toString()}>
-                                      {i}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            <div>
-                              <Label className="mb-1.5 block text-sm">Comment</Label>
+                              <Label className="mb-1 block text-sm">
+                                No Reason (Required for zero score)
+                              </Label>
                               <Textarea
-                                value={currentScore?.comment || ""}
-                                onChange={(e) =>
-                                  handleScoreChange(parameter?.id, "comment", e.target.value)
-                                }
-                                placeholder="Add a comment (optional)"
-                                className="min-h-[80px]"
+                                value={currentScore?.noReason || ""}
+                                onChange={(e) => handleEditParameterScore(paramId, "noReason", e.target.value)}
+                                placeholder="Explain why this score is zero"
+                                className="min-h-[60px]"
                               />
                             </div>
-                            
-                            {currentScore?.score === 0 && (
-                              <div>
-                                <Label className="mb-1.5 block text-sm">
-                                  No Reason (Required for zero score)
-                                </Label>
-                                <Textarea
-                                  value={currentScore?.noReason || ""}
-                                  onChange={(e) =>
-                                    handleScoreChange(parameter?.id, "noReason", e.target.value)
-                                  }
-                                  placeholder="Explain why this score is zero"
-                                  className="min-h-[80px]"
-                                />
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           )}
           
           <DialogFooter className="border-t pt-4 mt-4">
@@ -3294,7 +3300,7 @@ function ConductEvaluation() {
                 
                 const scores = Object.entries(editedScores || {}).map(([parameterId, scoreData]: [string, any]) => ({
                   parameterId: parseInt(parameterId),
-                  score: scoreData?.score || 0,
+                  score: parseInt(scoreData?.score) || 0,
                   comment: scoreData?.comment || "",
                   noReason: scoreData?.noReason || "",
                 }));
@@ -3309,12 +3315,14 @@ function ConductEvaluation() {
                 scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
                   const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
                   if (parameter) {
-                    totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
+                    const scoreValue = typeof scoreData?.score === 'string' ? 
+                      parseInt(scoreData.score) : (scoreData?.score || 0);
+                    totalScore += scoreValue * (parameter?.weight || 1);
                     totalWeight += (parameter?.weight || 1);
                   }
                 });
                 
-                const finalScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) / 100 : 0;
+                const finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
                 
                 // Determine if passed based on template's passing score
                 const passingScore = evaluationDetails?.evaluation?.template?.passingScore || 70;
@@ -3325,6 +3333,24 @@ function ConductEvaluation() {
                   scores,
                   finalScore,
                   isPassed,
+                }, {
+                  onSuccess: () => {
+                    toast({
+                      title: "Evaluation updated",
+                      description: "The evaluation has been successfully updated",
+                      variant: "default"
+                    });
+                    setIsEditDialogOpen(false);
+                    // Refetch evaluations after successful update
+                    queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+                  },
+                  onError: () => {
+                    toast({
+                      title: "Error updating evaluation",
+                      description: "There was a problem updating the evaluation. Please try again.",
+                      variant: "destructive"
+                    });
+                  }
                 });
               }}
               disabled={updateEvaluationMutation.isPending}
