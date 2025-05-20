@@ -1310,6 +1310,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get detailed evaluation by ID
+  // Add endpoint to get all evaluations for the current user's organization
+  app.get("/api/evaluations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Get the current user's organization ID
+      const organizationId = req.user.organizationId;
+      
+      // Create a query to get all evaluations with related information
+      const evaluationsQuery = db
+        .select({
+          id: evaluations.id,
+          template_id: evaluations.templateId,
+          template_name: evaluationTemplates.name,
+          trainee_id: evaluations.traineeId,
+          trainee_name: users.fullName,
+          audio_file_id: evaluations.audioFileId,
+          final_score: evaluations.finalScore,
+          evaluation_type: evaluations.evaluationType,
+          status: evaluations.status,
+          feedback_threshold: evaluations.feedbackThreshold,
+          created_at: evaluations.createdAt,
+          batch_id: evaluations.batchId
+        })
+        .from(evaluations)
+        .leftJoin(evaluationTemplates, eq(evaluations.templateId, evaluationTemplates.id))
+        .leftJoin(users, eq(evaluations.traineeId, users.id))
+        .where(eq(evaluations.organizationId, organizationId))
+        .orderBy(sql`${evaluations.createdAt} DESC`);
+      
+      // Execute the query
+      const evaluationsData = await evaluationsQuery.execute();
+      
+      // Return the evaluations data
+      res.json(evaluationsData);
+    } catch (error: any) {
+      console.error("Error fetching evaluations:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch evaluations" });
+    }
+  });
+
   app.get("/api/evaluations/:id", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
