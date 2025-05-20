@@ -3252,135 +3252,356 @@ function ConductEvaluation() {
                   </div>
                 </div>
                 
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-medium">Parameters</h3>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <div className="text-xl font-semibold">
-                          {evaluationDetails && Object.keys(editedScores).length > 0 ? 
-                            (() => {
-                              const parameters = evaluationDetails?.evaluation?.template?.parameters || [];
-                              const scoreEntries = Object.entries(editedScores || {});
-                              
-                              let totalScore = 0;
-                              let totalWeight = 0;
-                              
-                              scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
-                                const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
-                                if (parameter) {
-                                  totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
-                                  totalWeight += (parameter?.weight || 1);
-                                }
-                              });
-                              
-                              return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) + "%" : "0.00%";
-                            })() : "0.00%"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Final Score</div>
-                      </div>
-                    </div>
+                {/* Final Score Display */}
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">Final Score</h3>
+                  <div className="text-2xl font-bold">
+                    {evaluationDetails && Object.keys(editedScores).length > 0 ? 
+                      (() => {
+                        const parameters = evaluationDetails?.evaluation?.template?.parameters || [];
+                        const scoreEntries = Object.entries(editedScores || {});
+                        
+                        let totalScore = 0;
+                        let totalWeight = 0;
+                        
+                        scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                          const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
+                          if (parameter) {
+                            totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
+                            totalWeight += (parameter?.weight || 1);
+                          }
+                        });
+                        
+                        return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) + "%" : "0.00%";
+                      })() : "0.00%"}
                   </div>
-                  
+                </div>
+                
+                {/* Parameters - Grouped by Pillar */}
+                {evaluationDetails?.evaluation?.template?.pillars && 
+                 evaluationDetails.evaluation.template.pillars.length > 0 ? (
+                  <div className="space-y-8">
+                    {evaluationDetails.evaluation.template.pillars.map((pillar: any) => {
+                      const pillarParameters = evaluationDetails.evaluation.template.parameters.filter(
+                        (p: any) => p.pillarId === pillar.id
+                      );
+                      
+                      if (pillarParameters.length === 0) return null;
+                      
+                      return (
+                        <div key={pillar.id} className="border-0">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold mb-2">{pillar.name}</h3>
+                            <Badge variant="outline" className="bg-muted/50">
+                              Weight: {pillar.weight}%
+                            </Badge>
+                          </div>
+                          
+                          {pillar.description && (
+                            <p className="text-sm text-muted-foreground mb-4">{pillar.description}</p>
+                          )}
+                          
+                          <div className="space-y-3">
+                            {pillarParameters.map((parameter: any) => {
+                              const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
+                              const scoreValue = currentScore?.score || 0;
+                              const isYesNo = parameter?.scoreType === "yesno";
+                              const scoreText = isYesNo ? 
+                                (scoreValue === 1 ? "yes" : "no") : 
+                                scoreValue.toString();
+                              
+                              return (
+                                <div key={parameter.id} className="bg-muted/20 rounded-md p-4 border">
+                                  <div className="grid grid-cols-1 md:grid-cols-[1fr_150px] gap-4">
+                                    <div>
+                                      <p className="font-medium mb-1">{parameter.name}</p>
+                                      {parameter.description && (
+                                        <p className="text-sm text-muted-foreground mb-2">{parameter.description}</p>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex flex-col items-end justify-start space-y-2">
+                                      <Badge variant="outline" className="px-3 py-1">
+                                        Weight: {parameter.weight}%
+                                      </Badge>
+                                      
+                                      <div className="w-full">
+                                        {isYesNo ? (
+                                          <Select
+                                            value={scoreValue === 1 ? "yes" : "no"}
+                                            onValueChange={(value) =>
+                                              handleScoreChange(parameter?.id, "score", value === "yes" ? 1 : 0)
+                                            }
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="yes">Yes</SelectItem>
+                                              <SelectItem value="no">No</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          <Select
+                                            value={(scoreValue).toString()}
+                                            onValueChange={(value) =>
+                                              handleScoreChange(parameter?.id, "score", parseInt(value))
+                                            }
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
+                                                <SelectItem key={i} value={i.toString()}>
+                                                  {i}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Comment and No Reason fields */}
+                                  <div className="mt-3 space-y-3">
+                                    <div>
+                                      <Label className="text-sm">Comment</Label>
+                                      <Textarea
+                                        value={currentScore?.comment || ""}
+                                        onChange={(e) =>
+                                          handleScoreChange(parameter?.id, "comment", e.target.value)
+                                        }
+                                        placeholder="Add a comment (optional)"
+                                        className="min-h-[60px] mt-1"
+                                      />
+                                    </div>
+                                    
+                                    {(scoreValue === 0 || scoreText === "no") && (
+                                      <div>
+                                        <Label className="text-sm">
+                                          Reason (Required for {isYesNo ? "no" : "zero"} score)
+                                        </Label>
+                                        <Textarea
+                                          value={currentScore?.noReason || ""}
+                                          onChange={(e) =>
+                                            handleScoreChange(parameter?.id, "noReason", e.target.value)
+                                          }
+                                          placeholder={"Explain why this score is " + (isYesNo ? "no" : "zero")}
+                                          className="min-h-[60px] mt-1"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Parameters without pillar */}
+                    {evaluationDetails.evaluation.template.parameters.filter(
+                      (p: any) => !p.pillarId
+                    ).length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Other Parameters</h3>
+                        <div className="space-y-3">
+                          {evaluationDetails.evaluation.template.parameters
+                            .filter((p: any) => !p.pillarId)
+                            .map((parameter: any) => {
+                              const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
+                              const scoreValue = currentScore?.score || 0;
+                              const isYesNo = parameter?.scoreType === "yesno";
+                              const scoreText = isYesNo ? 
+                                (scoreValue === 1 ? "yes" : "no") : 
+                                scoreValue.toString();
+                              
+                              return (
+                                <div key={parameter.id} className="bg-muted/20 rounded-md p-4 border">
+                                  <div className="grid grid-cols-1 md:grid-cols-[1fr_150px] gap-4">
+                                    <div>
+                                      <p className="font-medium mb-1">{parameter.name}</p>
+                                      {parameter.description && (
+                                        <p className="text-sm text-muted-foreground mb-2">{parameter.description}</p>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex flex-col items-end justify-start space-y-2">
+                                      <Badge variant="outline" className="px-3 py-1">
+                                        Weight: {parameter.weight}%
+                                      </Badge>
+                                      
+                                      <div className="w-full">
+                                        {isYesNo ? (
+                                          <Select
+                                            value={scoreValue === 1 ? "yes" : "no"}
+                                            onValueChange={(value) =>
+                                              handleScoreChange(parameter?.id, "score", value === "yes" ? 1 : 0)
+                                            }
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="yes">Yes</SelectItem>
+                                              <SelectItem value="no">No</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        ) : (
+                                          <Select
+                                            value={(scoreValue).toString()}
+                                            onValueChange={(value) =>
+                                              handleScoreChange(parameter?.id, "score", parseInt(value))
+                                            }
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
+                                                <SelectItem key={i} value={i.toString()}>
+                                                  {i}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Comment and No Reason fields */}
+                                  <div className="mt-3 space-y-3">
+                                    <div>
+                                      <Label className="text-sm">Comment</Label>
+                                      <Textarea
+                                        value={currentScore?.comment || ""}
+                                        onChange={(e) =>
+                                          handleScoreChange(parameter?.id, "comment", e.target.value)
+                                        }
+                                        placeholder="Add a comment (optional)"
+                                        className="min-h-[60px] mt-1"
+                                      />
+                                    </div>
+                                    
+                                    {(scoreValue === 0 || scoreText === "no") && (
+                                      <div>
+                                        <Label className="text-sm">
+                                          Reason (Required for {isYesNo ? "no" : "zero"} score)
+                                        </Label>
+                                        <Textarea
+                                          value={currentScore?.noReason || ""}
+                                          onChange={(e) =>
+                                            handleScoreChange(parameter?.id, "noReason", e.target.value)
+                                          }
+                                          placeholder={"Explain why this score is " + (isYesNo ? "no" : "zero")}
+                                          className="min-h-[60px] mt-1"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Fallback for templates without pillars
                   <div className="space-y-4">
+                    <h3 className="text-lg font-semibold mb-2">Parameters</h3>
                     {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
                       const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
                       const scoreValue = currentScore?.score || 0;
-                      const scoreText = parameter?.options ? 
-                        (parameter.options[scoreValue] || scoreValue.toString()) : 
+                      const isYesNo = parameter?.scoreType === "yesno";
+                      const scoreText = isYesNo ? 
+                        (scoreValue === 1 ? "yes" : "no") : 
                         scoreValue.toString();
                       
                       return (
-                        <div key={parameter?.id} className="border rounded-md overflow-hidden">
-                          {/* Parameter header */}
-                          <div className="bg-muted/20 p-4 border-b">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-medium">{parameter?.name || "Parameter"}</h4>
-                                <p className="text-sm text-muted-foreground">{parameter?.description || ""}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant="outline" 
-                                  className={
-                                    scoreValue >= 4 || scoreText === "yes" ? 'bg-green-50 text-green-700 border-green-200' : 
-                                    scoreValue <= 1 || scoreText === "no" ? 'bg-red-50 text-red-700 border-red-200' :
-                                    'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                  }
-                                >
-                                  Score: {scoreText}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  Weight: {parameter?.weight || 0}%
-                                </span>
+                        <div key={parameter.id} className="bg-muted/20 rounded-md p-4 border">
+                          <div className="grid grid-cols-1 md:grid-cols-[1fr_150px] gap-4">
+                            <div>
+                              <p className="font-medium mb-1">{parameter.name}</p>
+                              {parameter.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{parameter.description}</p>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-col items-end justify-start space-y-2">
+                              <Badge variant="outline" className="px-3 py-1">
+                                Weight: {parameter.weight}%
+                              </Badge>
+                              
+                              <div className="w-full">
+                                {isYesNo ? (
+                                  <Select
+                                    value={scoreValue === 1 ? "yes" : "no"}
+                                    onValueChange={(value) =>
+                                      handleScoreChange(parameter?.id, "score", value === "yes" ? 1 : 0)
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="yes">Yes</SelectItem>
+                                      <SelectItem value="no">No</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Select
+                                    value={(scoreValue).toString()}
+                                    onValueChange={(value) =>
+                                      handleScoreChange(parameter?.id, "score", parseInt(value))
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
+                                        <SelectItem key={i} value={i.toString()}>
+                                          {i}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
                               </div>
                             </div>
                           </div>
                           
-                          {/* Editing controls */}
-                          <div className="p-4 space-y-4">
+                          {/* Comment and No Reason fields */}
+                          <div className="mt-3 space-y-3">
                             <div>
-                              <Label className="mb-1.5 block text-sm">Score</Label>
-                              {parameter?.scoreType === "yesno" ? (
-                                <Select
-                                  value={scoreValue === 1 ? "yes" : "no"}
-                                  onValueChange={(value) =>
-                                    handleScoreChange(parameter?.id, "score", value === "yes" ? 1 : 0)
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="yes">Yes</SelectItem>
-                                    <SelectItem value="no">No</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Select
-                                  value={(currentScore?.score || 0).toString()}
-                                  onValueChange={(value) =>
-                                    handleScoreChange(parameter?.id, "score", parseInt(value))
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
-                                      <SelectItem key={i} value={i.toString()}>
-                                        {i}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
-                            
-                            <div>
-                              <Label className="mb-1.5 block text-sm">Comment</Label>
+                              <Label className="text-sm">Comment</Label>
                               <Textarea
                                 value={currentScore?.comment || ""}
                                 onChange={(e) =>
                                   handleScoreChange(parameter?.id, "comment", e.target.value)
                                 }
                                 placeholder="Add a comment (optional)"
-                                className="min-h-[80px]"
+                                className="min-h-[60px] mt-1"
                               />
                             </div>
                             
-                            {(currentScore?.score === 0 || scoreText === "no") && (
+                            {(scoreValue === 0 || scoreText === "no") && (
                               <div>
-                                <Label className="mb-1.5 block text-sm">
-                                  Reason (Required for zero/no score)
+                                <Label className="text-sm">
+                                  Reason (Required for {isYesNo ? "no" : "zero"} score)
                                 </Label>
                                 <Textarea
                                   value={currentScore?.noReason || ""}
                                   onChange={(e) =>
                                     handleScoreChange(parameter?.id, "noReason", e.target.value)
                                   }
-                                  placeholder="Explain why this score is zero/no"
-                                  className="min-h-[80px]"
+                                  placeholder={"Explain why this score is " + (isYesNo ? "no" : "zero")}
+                                  className="min-h-[60px] mt-1"
                                 />
                               </div>
                             )}
@@ -3389,7 +3610,8 @@ function ConductEvaluation() {
                       );
                     })}
                   </div>
-                </div>
+                )}
+                
               </div>
             </ScrollArea>
           )}
