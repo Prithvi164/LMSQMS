@@ -460,10 +460,19 @@ function ConductEvaluation() {
             scoresByPillar[pillarId] = [];
           }
           
+          // Create a custom parameter object with the enhanced details
+          const parameterWithName = {
+            id: score.parameterId,
+            name: score.parameterName || enhancedParameter.name || `Parameter ${score.parameterId}`,
+            description: score.parameterDescription || enhancedParameter.description,
+            weight: enhancedParameter.weight,
+            pillarId: enhancedParameter.pillarId || 0
+          };
+          
           // Add the enhanced parameter object to the score
           scoresByPillar[pillarId].push({
             ...score,
-            parameter: enhancedParameter 
+            parameter: parameterWithName
           });
         });
         
