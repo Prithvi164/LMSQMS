@@ -649,7 +649,22 @@ function CompletedEvaluations() {
                       <div className="flex justify-between">
                         <span className="text-sm">Result:</span>
                         <span className={`text-sm font-medium ${evaluationDetails?.evaluation?.isPassed ? "text-green-600" : "text-red-600"}`}>
-                          {evaluationDetails?.evaluation?.isPassed ? "Passed" : "Failed"}
+                          {(() => {
+                            // Get the score value, regardless of property name
+                            const finalScore = evaluationDetails?.evaluation?.finalScore !== null && evaluationDetails?.evaluation?.finalScore !== undefined
+                              ? Number(evaluationDetails?.evaluation?.finalScore)
+                              : evaluationDetails?.evaluation?.final_score !== null && evaluationDetails?.evaluation?.final_score !== undefined
+                                ? Number(evaluationDetails?.evaluation?.final_score)
+                                : 0;
+                            
+                            // Get passing threshold 
+                            const passingThreshold = evaluationDetails?.evaluation?.template?.passingScore || 70;
+                            
+                            // Determine if passed based on score and threshold
+                            const passed = finalScore >= passingThreshold;
+                            
+                            return passed ? "Passed" : "Failed";
+                          })()}
                         </span>
                       </div>
                     </div>
