@@ -113,6 +113,7 @@ function ConductEvaluation() {
   // States for completed evaluations view
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvaluation, setSelectedEvaluation] = useState<number | null>(null);
+  const [submittedEvaluationId, setSubmittedEvaluationId] = useState<number | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedScores, setEditedScores] = useState<Record<number, any>>({});
@@ -141,15 +142,34 @@ function ConductEvaluation() {
   // Function to fetch a recent evaluation ID
   const fetchRecentEvaluationId = async () => {
     try {
-      // Fetch the most recent evaluation from the API
-      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations?limit=1`);
+      // Fetch the most recent evaluation from the API - try different endpoint patterns
+      let response;
+      
+      // First try the organization-specific endpoint
+      response = await fetch(`/api/organizations/${user?.organizationId}/evaluations?limit=1`);
+      
+      // If that fails, try the simpler endpoint
+      if (!response.ok) {
+        console.log("Trying alternate endpoint for evaluations");
+        response = await fetch(`/api/evaluations?limit=1`);
+      }
+      
       if (!response.ok) {
         throw new Error('Failed to fetch recent evaluations');
       }
+      
       const data = await response.json();
-      if (data && data.length > 0) {
-        return data[0].id;
+      console.log("Recent evaluations data:", data);
+      
+      if (data && (data.length > 0 || data.evaluations?.length > 0)) {
+        // Handle different response formats
+        const firstEval = data.length > 0 ? data[0] : (data.evaluations?.length > 0 ? data.evaluations[0] : null);
+        if (firstEval) {
+          console.log("Found evaluation with ID:", firstEval.id);
+          return firstEval.id;
+        }
       }
+      
       return null;
     } catch (error) {
       console.error('Error fetching recent evaluation:', error);
@@ -161,12 +181,62 @@ function ConductEvaluation() {
   const fetchEvaluationDetails = async (evaluationId: number) => {
     setLoadingDetails(true);
     try {
-      const response = await fetch(`/api/evaluations/${evaluationId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch evaluation details');
+      console.log(`Attempting to fetch evaluation details for ID: ${evaluationId}`);
+      
+      // Try multiple API endpoint patterns
+      let response;
+      let data;
+      
+      // Try the first endpoint pattern
+      try {
+        console.log(`Trying endpoint: /api/evaluations/${evaluationId}`);
+        response = await fetch(`/api/evaluations/${evaluationId}`);
+        if (response.ok) {
+          data = await response.json();
+          console.log("Retrieved evaluation data (first endpoint):", data);
+        }
+      } catch (err) {
+        console.warn(`First endpoint attempt failed: ${err}`);
       }
-      const data = await response.json();
-      setEvaluationDetails(data);
+      
+      // If the first endpoint failed, try organization-specific endpoint
+      if (!response?.ok) {
+        try {
+          console.log(`Trying org endpoint: /api/organizations/${user?.organizationId}/evaluations/${evaluationId}`);
+          response = await fetch(`/api/organizations/${user?.organizationId}/evaluations/${evaluationId}`);
+          if (response.ok) {
+            data = await response.json();
+            console.log("Retrieved evaluation data (org endpoint):", data);
+          }
+        } catch (err) {
+          console.warn(`Organization endpoint attempt failed: ${err}`);
+        }
+      }
+      
+      // If still no success, try a third pattern
+      if (!response?.ok) {
+        try {
+          console.log(`Trying details endpoint: /api/evaluation-details/${evaluationId}`);
+          response = await fetch(`/api/evaluation-details/${evaluationId}`);
+          if (response.ok) {
+            data = await response.json();
+            console.log("Retrieved evaluation data (details endpoint):", data);
+          }
+        } catch (err) {
+          console.warn(`Details endpoint attempt failed: ${err}`);
+        }
+      }
+      
+      // If none of the endpoints worked
+      if (!response?.ok || !data) {
+        throw new Error('Failed to fetch evaluation details from any endpoint');
+      }
+      
+      // Process the data and create a compatible structure if needed
+      const normalizedData = processEvaluationData(data);
+      
+      // Update state with the fetched data
+      setEvaluationDetails(normalizedData);
       setIsViewDialogOpen(true);
     } catch (error) {
       console.error('Error fetching evaluation details:', error);
@@ -179,11 +249,127 @@ function ConductEvaluation() {
       setLoadingDetails(false);
     }
   };
+  
+  // Helper function to process and normalize evaluation data from different formats
+  const processEvaluationData = (data: any) => {
+    // If data is already in the expected format, return as is
+    if (data.evaluation && data.groupedScores) {
+      return data;
+    }
+    
+    console.log("Processing evaluation data to compatible format");
+    
+    // Check if we have minimal requirements to build an evaluation object
+    if (!data.id && !data.evaluationId) {
+      console.error("Insufficient data to create evaluation object");
+      return null;
+    }
+    
+    // Create a normalized evaluation object structure
+    const normalized = {
+      evaluation: {
+        id: data.id || data.evaluationId,
+        templateId: data.templateId,
+        evaluationType: data.evaluationType || "standard",
+        traineeId: data.traineeId,
+        evaluatorId: data.evaluatorId,
+        finalScore: data.finalScore || 0,
+        createdAt: data.createdAt || new Date().toISOString(),
+        audioFileId: data.audioFileId
+      },
+      groupedScores: []
+    };
+    
+    // If the response has scores, process them
+    if (data.scores || data.evaluationScores) {
+      const scores = data.scores || data.evaluationScores || [];
+      
+      // Group scores by pillar if available
+      const groupedScores = [];
+      
+      if (scores.length > 0) {
+        // Check if scores has pillar info
+        const scoresByPillar = {};
+        
+        scores.forEach(score => {
+          const pillarId = score.pillarId || (score.parameter?.pillarId) || 0;
+          if (!scoresByPillar[pillarId]) {
+            scoresByPillar[pillarId] = {
+              pillar: score.pillar || { 
+                id: pillarId,
+                name: `Section ${pillarId || 1}`,
+                weight: 100 / Object.keys(scoresByPillar).length + 1
+              },
+              scores: []
+            };
+          }
+          scoresByPillar[pillarId].scores.push(score);
+        });
+        
+        // Convert the object to an array
+        Object.values(scoresByPillar).forEach(group => {
+          groupedScores.push(group);
+        });
+      }
+      
+      // If we couldn't group by pillar, put all scores in a single group
+      if (groupedScores.length === 0 && scores.length > 0) {
+        groupedScores.push({
+          pillar: {
+            id: 1,
+            name: "All Parameters",
+            weight: 100
+          },
+          scores: scores
+        });
+      }
+      
+      normalized.groupedScores = groupedScores;
+    }
+    
+    console.log("Normalized evaluation data:", normalized);
+    return normalized;
+  };
 
   // Handle viewing evaluation details
   const handleViewEvaluation = (evaluationId: number) => {
     setSelectedEvaluation(evaluationId);
     fetchEvaluationDetails(evaluationId);
+  };
+  
+  // Function to view the most recent evaluation OR the currently submitted evaluation
+  const handleViewRecentEvaluation = async () => {
+    try {
+      // If we have an evaluation ID from a recent submission, use that
+      if (submittedEvaluationId) {
+        console.log(`Using recently submitted evaluation ID: ${submittedEvaluationId}`);
+        handleViewEvaluation(submittedEvaluationId);
+        return;
+      }
+      
+      // Otherwise try to fetch the most recent evaluation
+      console.log("Attempting to fetch the most recent evaluation...");
+      const recentEvaluationId = await fetchRecentEvaluationId();
+      
+      if (recentEvaluationId) {
+        console.log(`Found recent evaluation with ID: ${recentEvaluationId}`);
+        handleViewEvaluation(recentEvaluationId);
+      } else {
+        console.log("No recent evaluations found");
+        toast({
+          title: 'No evaluations found',
+          description: 'Complete an evaluation first.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error viewing recent evaluation:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load recent evaluation. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Parse URL parameters
@@ -563,6 +749,17 @@ function ConductEvaluation() {
       return response.json();
     },
     onSuccess: (data) => {
+      console.log("Evaluation submitted successfully:", data);
+      
+      // Store the submitted evaluation ID to use later
+      if (data && data.id) {
+        console.log(`Setting submitted evaluation ID: ${data.id}`);
+        setSubmittedEvaluationId(data.id);
+      } else if (data && data.evaluation && data.evaluation.id) {
+        console.log(`Setting submitted evaluation ID from nested data: ${data.evaluation.id}`);
+        setSubmittedEvaluationId(data.evaluation.id);
+      }
+      
       if (evaluationType === "audio") {
         // For audio evaluations, immediately update the local cache to remove the submitted file
         // This prevents the need to wait for a server roundtrip to see the update
@@ -1242,32 +1439,11 @@ function ConductEvaluation() {
         </TabsList>
         
         {/* Evaluation Details View Button */}
-        <div className="mt-4 mb-2">
+        <div className="mt-4 mb-6">
           <Button 
             variant="outline" 
-            size="sm" 
-            onClick={async () => {
-              // First check if there's a selected evaluation
-              if (selectedEvaluation) {
-                handleViewEvaluation(selectedEvaluation);
-              } else {
-                // If no evaluation is selected, find a recent one
-                const recentEvaluationId = await fetchRecentEvaluationId();
-                
-                if (recentEvaluationId) {
-                  handleViewEvaluation(recentEvaluationId);
-                  toast({
-                    description: "Showing the most recent evaluation details.",
-                  });
-                } else {
-                  toast({
-                    description: "No evaluations found. Complete an evaluation first.",
-                    variant: "destructive"
-                  });
-                }
-              }
-            }}
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-2 bg-muted/20 hover:bg-muted/30"
+            onClick={handleViewRecentEvaluation}
           >
             <Eye className="h-4 w-4" />
             View Evaluation Details
@@ -2284,6 +2460,14 @@ function ConductEvaluation() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Evaluation Details Dialog */}
+      <EvaluationDetailsDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        evaluationDetails={evaluationDetails}
+        loading={loadingDetails}
+      />
     </div>
   );
 }
