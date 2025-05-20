@@ -337,34 +337,30 @@ function ConductEvaluation() {
     
     try {
       console.log("Fetching details for evaluation ID:", evaluationId);
-      const response = await queryClient.fetchQuery({
-        queryKey: ["/api/evaluations", evaluationId],
-      });
       
-      console.log("Evaluation details response:", response);
+      // Use direct fetch instead of queryClient to ensure we get fresh data
+      const response = await fetch(`/api/evaluations/${evaluationId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch evaluation details: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Evaluation details raw response:", data);
       
       // Check if we have the expected data structure with evaluation data
-      if (!response || !response.evaluation) {
+      if (!data || !data.evaluation) {
         console.error("Invalid response structure - missing evaluation data");
         throw new Error("Failed to load evaluation data");
       }
       
-      // Check if we already have grouped scores from the server
-      if (response.groupedScores && Array.isArray(response.groupedScores)) {
-        console.log("Using pre-grouped scores from server:", response.groupedScores.length, "groups");
-        setEvaluationDetailsData({
-          evaluation: response.evaluation,
-          groupedScores: response.groupedScores
-        });
-      }
-      // Process the evaluation details to group scores by pillar if needed
-      else if (response.evaluation && response.evaluation.scores && response.evaluation.scores.length > 0) {
-        console.log("Processing scores for grouping, found", response.evaluation.scores.length, "scores");
+      // Process the evaluation details to group scores by pillar
+      if (data.evaluation.scores && data.evaluation.scores.length > 0) {
+        console.log("Processing scores for grouping, found", data.evaluation.scores.length, "scores");
         const groupedScores: any[] = [];
         const scoresByPillar: Record<string, any[]> = {};
         
         // Group scores by pillar ID
-        response.evaluation.scores.forEach((score: any) => {
+        data.evaluation.scores.forEach((score: any) => {
           const pillarId = score.parameter?.pillarId;
           const key = pillarId ? pillarId.toString() : 'unassigned';
           
@@ -383,7 +379,7 @@ function ConductEvaluation() {
           
           if (pillarIdStr !== 'unassigned') {
             const pillarId = parseInt(pillarIdStr);
-            const pillar = response.evaluation.template?.pillars?.find(
+            const pillar = data.evaluation.template?.pillars?.find(
               (p: any) => p.id === pillarId
             );
             
@@ -402,15 +398,20 @@ function ConductEvaluation() {
         
         console.log("Created grouped scores structure with", groupedScores.length, "groups");
         setEvaluationDetailsData({
-          evaluation: response.evaluation,
+          evaluation: data.evaluation,
           groupedScores
         });
       } else {
         console.log("No scores found in evaluation data, using empty groupedScores");
         setEvaluationDetailsData({ 
-          evaluation: response.evaluation, 
+          evaluation: data.evaluation, 
           groupedScores: [] 
         });
+      }
+      
+      // If this was called when opening the View Dialog, make sure it's open
+      if (selectedEvaluationId === evaluationId) {
+        setDetailsDialogOpen(true);
       }
     } catch (error) {
       console.error("Error fetching evaluation details:", error);
