@@ -846,9 +846,6 @@ function CompletedEvaluations() {
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
                   
                   <GroupedEvaluationScores evaluationDetails={evaluationDetails} />
-                  
-                  {/* Original Accordion kept as a backup in case above component fails */}
-                  {/* Original Accordion removed in favor of the GroupedEvaluationScores component */}
                     {evaluationDetails?.evaluation?.template?.parameters?.map((parameter) => {
                       const score = evaluationDetails?.evaluation?.scores?.find(
                         (s) => s.parameterId === parameter?.id
