@@ -330,7 +330,7 @@ function ConductEvaluation() {
   
   // State variables for evaluation details are already declared above
   
-  // Function to fetch evaluation details - enhanced with debug and better data handling
+  // Function to fetch evaluation details - enhanced with proper authentication
   const fetchEvaluationDetails = async (evaluationId: number) => {
     setLoadingDetails(true);
     setEvaluationDetailsData(null);
@@ -338,13 +338,11 @@ function ConductEvaluation() {
     try {
       console.log("Fetching details for evaluation ID:", evaluationId);
       
-      // Use direct fetch instead of queryClient to ensure we get fresh data
-      const response = await fetch(`/api/evaluations/${evaluationId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch evaluation details: ${response.statusText}`);
-      }
+      // Use queryClient instead of direct fetch to ensure proper auth headers
+      const data = await queryClient.fetchQuery({
+        queryKey: ['/api/evaluations', evaluationId],
+      });
       
-      const data = await response.json();
       console.log("Evaluation details raw response:", data);
       
       // Check if we have the expected data structure with evaluation data
