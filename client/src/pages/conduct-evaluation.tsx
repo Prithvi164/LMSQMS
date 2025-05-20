@@ -2853,13 +2853,13 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Type:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails.evaluation.evaluationType === "audio" ? "Audio" : "Standard"}
+                          {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio" : "Standard"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Template:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails.evaluation.template?.name || "Unknown"}
+                          {evaluationDetails?.evaluation?.template?.name || "Unknown"}
                         </span>
                       </div>
                       <div className="flex justify-between">
