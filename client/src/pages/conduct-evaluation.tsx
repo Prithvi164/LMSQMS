@@ -2840,7 +2840,7 @@ function ConductEvaluation() {
                 </div>
                 <div className="text-right">
                   <h4 className="text-sm font-medium">Final Score</h4>
-                  <p className="text-2xl font-bold">{evaluationDetailsData.evaluation?.finalScore?.toFixed(1) || 0}%</p>
+                  <p className="text-2xl font-bold">{evaluationDetailsData.evaluation?.final_score ? Number(evaluationDetailsData.evaluation.final_score).toFixed(1) : "0"}%</p>
                 </div>
               </div>
 
@@ -3000,7 +3000,7 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails?.evaluation?.finalScore).toFixed(1) : "0"}%
+                          {evaluationDetails?.evaluation?.final_score ? Number(evaluationDetails?.evaluation?.final_score).toFixed(1) : "0"}%
                         </span>
                       </div>
                       <div className="flex justify-between">
