@@ -174,18 +174,18 @@ function CompletedEvaluations() {
   
   // Filter evaluations based on current filters and search query
   const filteredEvaluations = evaluations
-    .filter((evaluation) => {
+    .filter((eval) => {
       // Filter by evaluation type
-      if (evaluationType !== "all" && evaluation.evaluationType !== evaluationType) {
+      if (evaluationType !== "all" && eval.evaluationType !== evaluationType) {
         return false;
       }
       
       // Filter by search query
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
-        const matchesName = evaluation.trainee?.fullName?.toLowerCase().includes(searchLower);
-        const matchesTemplate = evaluation.templateName?.toLowerCase().includes(searchLower);
-        const matchesId = evaluation.id.toString().includes(searchLower);
+        const matchesName = eval.trainee?.fullName?.toLowerCase().includes(searchLower);
+        const matchesTemplate = eval.templateName?.toLowerCase().includes(searchLower);
+        const matchesId = eval.id.toString().includes(searchLower);
         
         if (!matchesName && !matchesTemplate && !matchesId) {
           return false;
@@ -193,19 +193,19 @@ function CompletedEvaluations() {
       }
       
       // Apply other filters
-      if (evaluationFilters.templateId && evaluation.templateId !== parseInt(evaluationFilters.templateId)) {
+      if (evaluationFilters.templateId && eval.templateId !== parseInt(evaluationFilters.templateId)) {
         return false;
       }
       
-      if (evaluationFilters.traineeId && evaluation.traineeId !== parseInt(evaluationFilters.traineeId)) {
+      if (evaluationFilters.traineeId && eval.traineeId !== parseInt(evaluationFilters.traineeId)) {
         return false;
       }
       
-      if (evaluationFilters.batchId && evaluation.batchId !== parseInt(evaluationFilters.batchId)) {
+      if (evaluationFilters.batchId && eval.batchId !== parseInt(evaluationFilters.batchId)) {
         return false;
       }
       
-      if (evaluationFilters.status !== "all" && evaluation.status !== evaluationFilters.status) {
+      if (evaluationFilters.status !== "all" && eval.status !== evaluationFilters.status) {
         return false;
       }
       
@@ -231,7 +231,7 @@ function CompletedEvaluations() {
     }).then((details) => {
       // Initialize edited scores based on existing ones
       const initialScores = {};
-      details?.evaluation?.scores?.forEach((score) => {
+      details.evaluation.scores.forEach((score) => {
         initialScores[score.parameterId] = {
           score: score.score,
           comment: score.comment || "",
@@ -306,15 +306,7 @@ function CompletedEvaluations() {
     if (status === "pending") {
       return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
     } else if (status === "completed") {
-      // Make sure to correctly get the score value, regardless of property name
-      const finalScore = typeof score === 'number' ? score : 
-                         (typeof score === 'string' ? parseFloat(score) : 0);
-      
-      // Default passing score is 70 if none provided
-      const passingThreshold = typeof passingScore === 'number' ? passingScore : 70;
-      
-      const passed = finalScore >= passingThreshold;
-      
+      const passed = score >= (passingScore || 70);
       return passed 
         ? <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Passed</Badge>
         : <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>;
@@ -420,9 +412,9 @@ function CompletedEvaluations() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">All Batches</SelectItem>
-                      {batches?.map((batch) => (
-                        <SelectItem key={batch?.id} value={batch?.id?.toString()}>
-                          {batch?.name}
+                      {batches.map((batch) => (
+                        <SelectItem key={batch.id} value={batch.id.toString()}>
+                          {batch.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -511,11 +503,11 @@ function CompletedEvaluations() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEvaluations?.map((evaluation) => (
-                    <TableRow key={evaluation?.id}>
-                      <TableCell className="font-medium">#{evaluation?.id}</TableCell>
+                  {filteredEvaluations.map((evaluation) => (
+                    <TableRow key={evaluation.id}>
+                      <TableCell className="font-medium">#{evaluation.id}</TableCell>
                       <TableCell>
-                        {evaluation?.evaluationType === "audio" ? (
+                        {evaluation.evaluationType === "audio" ? (
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                             <FileAudio className="h-3 w-3 mr-1" />
                             Audio
@@ -527,33 +519,27 @@ function CompletedEvaluations() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>{evaluation?.templateName || "Unknown"}</TableCell>
+                      <TableCell>{evaluation.templateName || "Unknown"}</TableCell>
                       <TableCell>
-                        {evaluation?.evaluationType === "audio" ? (
+                        {evaluation.evaluationType === "audio" ? (
                           <span className="flex items-center">
                             <FileAudio className="h-3 w-3 mr-1" />
-                            Audio #{evaluation?.audioFileId || "N/A"}
+                            Audio #{evaluation.audioFileId}
                           </span>
                         ) : (
                           <span className="flex items-center">
                             <User className="h-3 w-3 mr-1" />
-                            {evaluation?.trainee?.fullName || "Unknown"}
+                            {evaluation.trainee?.fullName || "Unknown"}
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {(evaluation?.finalScore !== null && evaluation?.finalScore !== undefined) 
-                          ? `${evaluation.finalScore.toFixed(1)}%` 
-                          : (evaluation?.final_score !== null && evaluation?.final_score !== undefined)
-                            ? `${evaluation.final_score.toFixed(1)}%`
-                            : "0.0%"}
-                      </TableCell>
-                      <TableCell>{formatDate(evaluation?.createdAt)}</TableCell>
+                      <TableCell>{evaluation.finalScore.toFixed(1)}%</TableCell>
+                      <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
                       <TableCell>
                         {renderStatusBadge(
-                          evaluation?.status, 
-                          evaluation?.finalScore, 
-                          evaluation?.template?.passingScore
+                          evaluation.status, 
+                          evaluation.finalScore, 
+                          evaluation.template?.passingScore
                         )}
                       </TableCell>
                       <TableCell className="text-right">
@@ -561,14 +547,14 @@ function CompletedEvaluations() {
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => evaluation?.id && handleViewEvaluation(evaluation.id)}
+                            onClick={() => handleViewEvaluation(evaluation.id)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => evaluation?.id && handleEditEvaluation(evaluation.id)}
+                            onClick={() => handleEditEvaluation(evaluation.id)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -615,56 +601,37 @@ function CompletedEvaluations() {
                       <div className="flex justify-between">
                         <span className="text-sm">Type:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio" : "Standard"}
+                          {evaluationDetails.evaluation.evaluationType === "audio" ? "Audio" : "Standard"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Template:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.template?.name || "Unknown"}
+                          {evaluationDetails.evaluation.template?.name || "Unknown"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Date:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails?.evaluation?.createdAt) : "N/A"}
+                          {formatDate(evaluationDetails.evaluation.createdAt)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Status:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.status === "completed" ? "Completed" : "Pending"}
+                          {evaluationDetails.evaluation.status === "completed" ? "Completed" : "Pending"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {(evaluationDetails?.evaluation?.finalScore !== null && evaluationDetails?.evaluation?.finalScore !== undefined) 
-                            ? `${Number(evaluationDetails?.evaluation?.finalScore).toFixed(1)}%`
-                            : (evaluationDetails?.evaluation?.final_score !== null && evaluationDetails?.evaluation?.final_score !== undefined)
-                              ? `${Number(evaluationDetails?.evaluation?.final_score).toFixed(1)}%`
-                              : "0.0%"}
+                          {evaluationDetails.evaluation.finalScore.toFixed(1)}%
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Result:</span>
-                        <span className={`text-sm font-medium ${evaluationDetails?.evaluation?.isPassed ? "text-green-600" : "text-red-600"}`}>
-                          {(() => {
-                            // Get the score value, regardless of property name
-                            const finalScore = evaluationDetails?.evaluation?.finalScore !== null && evaluationDetails?.evaluation?.finalScore !== undefined
-                              ? Number(evaluationDetails?.evaluation?.finalScore)
-                              : evaluationDetails?.evaluation?.final_score !== null && evaluationDetails?.evaluation?.final_score !== undefined
-                                ? Number(evaluationDetails?.evaluation?.final_score)
-                                : 0;
-                            
-                            // Get passing threshold 
-                            const passingThreshold = evaluationDetails?.evaluation?.template?.passingScore || 70;
-                            
-                            // Determine if passed based on score and threshold
-                            const passed = finalScore >= passingThreshold;
-                            
-                            return passed ? "Passed" : "Failed";
-                          })()}
+                        <span className={`text-sm font-medium ${evaluationDetails.evaluation.isPassed ? "text-green-600" : "text-red-600"}`}>
+                          {evaluationDetails.evaluation.isPassed ? "Passed" : "Failed"}
                         </span>
                       </div>
                     </div>
@@ -672,30 +639,30 @@ function CompletedEvaluations() {
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                      {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                      {evaluationDetails.evaluation.evaluationType === "audio" 
                         ? "Audio Information" 
                         : "Trainee Information"}
                     </h3>
                     <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? (
+                      {evaluationDetails.evaluation.evaluationType === "audio" ? (
                         <>
                           <div className="flex justify-between">
                             <span className="text-sm">Audio ID:</span>
-                            <span className="text-sm font-medium">#{evaluationDetails?.evaluation?.audioFileId || "N/A"}</span>
+                            <span className="text-sm font-medium">#{evaluationDetails.evaluation.audioFileId}</span>
                           </div>
-                          {evaluationDetails?.evaluation?.audioFile && (
+                          {evaluationDetails.evaluation.audioFile && (
                             <>
                               <div className="flex justify-between">
                                 <span className="text-sm">File Name:</span>
                                 <span className="text-sm font-medium">
-                                  {evaluationDetails?.evaluation?.audioFile?.fileName || "Not available"}
+                                  {evaluationDetails.evaluation.audioFile.fileName || "Not available"}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-sm">Duration:</span>
                                 <span className="text-sm font-medium">
-                                  {evaluationDetails?.evaluation?.audioFile?.duration 
-                                    ? `${Math.floor(evaluationDetails?.evaluation?.audioFile?.duration / 60)}:${(evaluationDetails?.evaluation?.audioFile?.duration % 60).toString().padStart(2, '0')}` 
+                                  {evaluationDetails.evaluation.audioFile.duration 
+                                    ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
                                     : "Unknown"}
                                 </span>
                               </div>
@@ -707,19 +674,19 @@ function CompletedEvaluations() {
                           <div className="flex justify-between">
                             <span className="text-sm">Trainee:</span>
                             <span className="text-sm font-medium">
-                              {evaluationDetails?.evaluation?.trainee?.fullName || "Unknown"}
+                              {evaluationDetails.evaluation.trainee?.fullName || "Unknown"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm">Employee ID:</span>
                             <span className="text-sm font-medium">
-                              {evaluationDetails?.evaluation?.trainee?.employeeId || "N/A"}
+                              {evaluationDetails.evaluation.trainee?.employeeId || "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm">Batch:</span>
                             <span className="text-sm font-medium">
-                              {evaluationDetails?.evaluation?.batch?.name || "N/A"}
+                              {evaluationDetails.evaluation.batch?.name || "N/A"}
                             </span>
                           </div>
                         </>
@@ -727,7 +694,7 @@ function CompletedEvaluations() {
                       <div className="flex justify-between">
                         <span className="text-sm">Evaluator:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.evaluator?.fullName || "Unknown"}
+                          {evaluationDetails.evaluation.evaluator?.fullName || "Unknown"}
                         </span>
                       </div>
                     </div>
@@ -738,19 +705,19 @@ function CompletedEvaluations() {
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
                   
                   <Accordion type="multiple" className="w-full">
-                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter) => {
-                      const score = evaluationDetails?.evaluation?.scores?.find(
-                        (s) => s.parameterId === parameter?.id
+                    {evaluationDetails.evaluation.template?.parameters.map((parameter) => {
+                      const score = evaluationDetails.evaluation.scores.find(
+                        (s) => s.parameterId === parameter.id
                       );
                       
                       return (
-                        <AccordionItem key={parameter?.id} value={parameter?.id?.toString()}>
+                        <AccordionItem key={parameter.id} value={parameter.id.toString()}>
                           <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
                             <div className="flex justify-between w-full mr-4 items-center">
-                              <span>{parameter?.name}</span>
+                              <span>{parameter.name}</span>
                               <div className="flex items-center gap-2">
                                 <Badge variant={score?.score >= 3 ? "outline" : "destructive"} className="font-normal">
-                                  {score?.score || 0}/{parameter?.maxScore || 5}
+                                  {score?.score || 0}/{parameter.maxScore}
                                 </Badge>
                               </div>
                             </div>
@@ -758,14 +725,14 @@ function CompletedEvaluations() {
                           <AccordionContent className="px-4 pb-3">
                             <div className="space-y-3">
                               <div>
-                                <p className="text-sm text-muted-foreground">{parameter?.description}</p>
+                                <p className="text-sm text-muted-foreground">{parameter.description}</p>
                               </div>
                               
                               {score?.comment && (
                                 <div>
                                   <h5 className="text-xs font-medium mb-1">Comment:</h5>
                                   <p className="text-sm border-l-2 border-primary pl-2 py-1">
-                                    {score?.comment}
+                                    {score.comment}
                                   </p>
                                 </div>
                               )}
@@ -774,7 +741,7 @@ function CompletedEvaluations() {
                                 <div>
                                   <h5 className="text-xs font-medium mb-1">No Reason:</h5>
                                   <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
-                                    {score?.noReason}
+                                    {score.noReason}
                                   </p>
                                 </div>
                               )}

@@ -28,7 +28,6 @@ import AudioAssignmentDashboard from "@/pages/audio-assignment-dashboard";
 import PermissionGuardedConductEvaluation from "@/pages/conduct-evaluation";
 import PermissionGuardedEvaluationFeedback from "@/pages/evaluation-feedback";
 import AzureStorageBrowser from "@/pages/azure-storage-browser";
-import CompletedEvaluations from "@/pages/completed-evaluations";
 import AzureStorageManagement from "@/pages/azure-storage-management";
 import Reports from "@/pages/reports";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -83,7 +82,6 @@ function Router() {
             <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
             <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
             <ProtectedRoute path="/conduct-evaluation" component={PermissionGuardedConductEvaluation} /> 
-            <ProtectedRoute path="/completed-evaluations" component={CompletedEvaluations} />
             <ProtectedRoute path="/evaluation-feedback" component={PermissionGuardedEvaluationFeedback} />
             <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
             <ProtectedRoute path="/audio-assignment-dashboard" component={AudioAssignmentDashboard} />
