@@ -3,15 +3,6 @@ import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
-} from "@/components/ui/accordion";
-import { GroupedEvaluationScores } from "@/components/evaluation/grouped-evaluation-scores";
 
 import {
   Card,
@@ -44,7 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -133,15 +131,6 @@ function CompletedEvaluations() {
     error: detailsError,
   } = useQuery({
     queryKey: ["/api/evaluations", selectedEvaluation],
-    queryFn: async () => {
-      const response = await fetch(`/api/evaluations/${selectedEvaluation}?includeTemplate=true&includeParameters=true`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch evaluation details");
-      }
-      const data = await response.json();
-      console.log("Retrieved evaluation details:", data);
-      return data;
-    },
     enabled: !!selectedEvaluation,
   });
   
@@ -227,225 +216,32 @@ function CompletedEvaluations() {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   
   // Handle opening view dialog
-  const handleViewEvaluation = async (evalId) => {
-    try {
-      setSelectedEvaluation(evalId);
-      setLoadingDetails(true);
-      
-      // Fetch evaluation with template and parameters
-      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true&includePillars=true`);
-      if (!response.ok) {
-        throw new Error('Failed to load evaluation details');
-      }
-      
-      const details = await response.json();
-      console.log("View evaluation details:", details);
-      
-      // Debug info for better diagnostics
-      if (!details?.evaluation?.template?.parameters?.length) {
-        console.warn("No parameters found in template:", details?.evaluation?.templateId);
-      }
-      if (!details?.evaluation?.scores?.length) {
-        console.warn("No scores found for evaluation:", evalId);
-      }
-      
-      // Group scores by pillars for accordion display
-      const scores = details.evaluation?.scores || [];
-      const parameters = details.evaluation?.template?.parameters || [];
-      const pillars = details.pillars || [];
-      
-      console.log("SCORES DATA:", scores);
-      console.log("PARAMETERS DATA:", parameters);
-      console.log("PILLARS DATA:", pillars);
-      
-      // Create a map of parameter IDs to their details
-      const parameterMap = {};
-      parameters.forEach(param => {
-        if (param && param.id) {
-          parameterMap[param.id] = param;
-        }
-      });
-      
-      // Group scores by pillar
-      const groupedScores = [];
-      
-      // First, group parameters by pillar
-      const parametersByPillar = {};
-      parameters.forEach(param => {
-        const pillarId = param.pillarId || 'uncategorized';
-        if (!parametersByPillar[pillarId]) {
-          parametersByPillar[pillarId] = [];
-        }
-        parametersByPillar[pillarId].push(param);
-      });
-      
-      console.log("PARAMETERS BY PILLAR:", parametersByPillar);
-      
-      // Then create grouped scores structure
-      Object.entries(parametersByPillar).forEach(([pillarId, pillarParams]) => {
-        const pillar = pillarId !== 'uncategorized' 
-          ? pillars.find(p => p.id === parseInt(pillarId)) 
-          : null;
-        
-        const pillarScores = [];
-        pillarParams.forEach(param => {
-          const score = scores.find(s => s.parameterId === param.id);
-          if (score) {
-            pillarScores.push({
-              ...score,
-              parameter: param
-            });
-          }
-        });
-        
-        if (pillarScores.length > 0) {
-          groupedScores.push({
-            pillar,
-            scores: pillarScores
-          });
-        }
-      });
-      
-      console.log("GROUPED SCORES CREATED:", groupedScores);
-      
-      details.groupedScores = groupedScores;
-      
-      // Update the cache with the detailed data
-      queryClient.setQueryData(["/api/evaluations", evalId], details);
-      
-      setEvaluationDetails(details);
-      setIsViewDialogOpen(true);
-    } catch (error) {
-      console.error("Error fetching evaluation details:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load evaluation details",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingDetails(false);
-    }
+  const handleViewEvaluation = (evalId) => {
+    setSelectedEvaluation(evalId);
+    setIsViewDialogOpen(true);
   };
   
-  // Handle opening edit dialog with direct state setting
-  const handleEditEvaluation = async (evalId) => {
-    try {
-      setSelectedEvaluation(evalId);
-      setLoadingDetails(true);
-      
-      // Fetch evaluation with template and parameters - use expanded API call to ensure we get all needed data
-      console.log("Fetching evaluation details for editing:", evalId);
-      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true&includePillars=true`);
-      if (!response.ok) {
-        throw new Error('Failed to load evaluation details for editing');
-      }
-      
-      let details = await response.json();
-      console.log("Edit evaluation details:", details);
-
-      // Ensure evaluation object exists to prevent errors
-      if (!details.evaluation) {
-        details.evaluation = {};
-      }
-      
-      // If parameters aren't available in the template, try fetching them directly
-      if (!details?.evaluation?.template?.parameters?.length) {
-        try {
-          console.log("Parameters not found in template, fetching template details directly");
-          // Safely access templateId
-          const templateId = details?.evaluation?.templateId;
-          if (templateId) {
-            const templateResponse = await fetch(`/api/evaluation-templates/${templateId}?includeParameters=true`);
-            if (templateResponse.ok) {
-              const templateDetails = await templateResponse.json();
-              console.log("Template details:", templateDetails);
-              
-              // Make sure template object exists
-              if (!details.evaluation.template) {
-                details.evaluation.template = {};
-              }
-              
-              // Merge the template parameters into the evaluation details
-              if (templateDetails?.template?.parameters?.length) {
-                details.evaluation.template = {
-                  ...details.evaluation.template,
-                  parameters: templateDetails.template.parameters,
-                  name: templateDetails.template.name || "Unnamed Template",
-                  description: templateDetails.template.description || ""
-                };
-              }
-            }
-          }
-        } catch (templateError) {
-          console.error("Error fetching template details:", templateError);
-        }
-      }
-
-      // Ensure required objects and arrays exist to prevent errors
-      if (!details.evaluation.template) {
-        details.evaluation.template = {
-          name: "Unknown Template",
-          description: "No description available",
-          parameters: []
-        };
-      }
-      
-      if (!details.evaluation.template.parameters) {
-        details.evaluation.template.parameters = [];
-      }
-      
-      if (!details.evaluation.scores) {
-        details.evaluation.scores = [];
-      }
-      
-      // Initialize edited scores first with defaults for all parameters
+  // Handle opening edit dialog
+  const handleEditEvaluation = (evalId) => {
+    setSelectedEvaluation(evalId);
+    
+    // Load details first
+    queryClient.fetchQuery({
+      queryKey: ["/api/evaluations", evalId],
+    }).then((details) => {
+      // Initialize edited scores based on existing ones
       const initialScores = {};
-      
-      // First, create entries for all parameters with default values
-      if (details.evaluation.template.parameters.length > 0) {
-        details.evaluation.template.parameters.forEach((parameter) => {
-          if (parameter && parameter.id) {
-            initialScores[parameter.id] = {
-              score: 0, // Default to "No"
-              comment: "",
-              noReason: "",
-            };
-          }
-        });
-      }
-      
-      // Then update with actual scores where available
-      if (details.evaluation.scores.length > 0) {
-        details.evaluation.scores.forEach((score) => {
-          if (score && score.parameterId) {
-            initialScores[score.parameterId] = {
-              score: typeof score.score === 'number' ? score.score : 0,
-              comment: score.comment || "",
-              noReason: score.noReason || "",
-            };
-          }
-        });
-      }
-      
-      console.log("Initialized scores:", initialScores);
-      
-      // Update the cache with the detailed data
-      queryClient.setQueryData(["/api/evaluations", evalId], details);
-      
-      // Important: Set both states before opening dialog
-      setEditedScores(initialScores);
-      setEvaluationDetails(details);
-      setIsEditDialogOpen(true);
-    } catch (error) {
-      console.error("Error fetching evaluation details:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load evaluation details for editing",
-        variant: "destructive",
+      details?.evaluation?.scores?.forEach((score) => {
+        initialScores[score.parameterId] = {
+          score: score.score,
+          comment: score.comment || "",
+          noReason: score.noReason || "",
+        };
       });
-    } finally {
-      setLoadingDetails(false);
-    };
+      
+      setEditedScores(initialScores);
+      setIsEditDialogOpen(true);
+    });
   };
   
   // Handle score changes in edit form
@@ -773,54 +569,191 @@ function CompletedEvaluations() {
         </TabsContent>
       </Tabs>
       
-      {/* View Evaluation Dialog - Matches layout from evaluation-feedback page */}
+      {/* View Evaluation Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Evaluation Details</DialogTitle>
             <DialogDescription>
-              Detailed breakdown of the evaluation scores and feedback
+              {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                ? "Audio evaluation details" 
+                : "Standard evaluation details"}
             </DialogDescription>
           </DialogHeader>
           
           {loadingDetails ? (
-            <div className="flex items-center justify-center py-8">
-              <Spinner className="h-8 w-8 animate-spin" />
+            <div className="flex justify-center items-center py-10">
+              <Spinner className="h-6 w-6" />
+              <span className="ml-2">Loading details...</span>
             </div>
-          ) : evaluationDetails ? (
-            <div className="py-4">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    Evaluation #{evaluationDetails?.evaluation?.id}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Date: {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails.evaluation.createdAt) : "Unknown"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Type: {evaluationDetails?.evaluation?.evaluationType || "Unknown"}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <h4 className="text-sm font-medium">Final Score</h4>
-                  <p className="text-2xl font-bold">{evaluationDetails?.evaluation?.finalScore || 0}%</p>
-                </div>
-              </div>
-
-              <Separator className="my-4" />
-              
-              <ScrollArea className="h-[400px] pr-4">
-                {!evaluationDetails?.groupedScores || evaluationDetails.groupedScores.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No detailed scores available</p>
-                ) : (
-                  <GroupedEvaluationScores evaluationDetails={evaluationDetails} />
-                )}
-              </ScrollArea>
+          ) : !evaluationDetails ? (
+            <div className="text-center py-6">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p>Failed to load evaluation details</p>
             </div>
           ) : (
-            <p className="text-center py-4 text-muted-foreground">
-              Failed to load evaluation details
-            </p>
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Type:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio" : "Standard"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Template:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.template?.name || "Unknown"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Date:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails?.evaluation?.createdAt) : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Status:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.status === "completed" ? "Completed" : "Pending"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Final Score:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails?.evaluation?.finalScore).toFixed(1) : "0"}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Result:</span>
+                        <span className={`text-sm font-medium ${evaluationDetails?.evaluation?.isPassed ? "text-green-600" : "text-red-600"}`}>
+                          {evaluationDetails?.evaluation?.isPassed ? "Passed" : "Failed"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                        ? "Audio Information" 
+                        : "Trainee Information"}
+                    </h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Audio ID:</span>
+                            <span className="text-sm font-medium">#{evaluationDetails?.evaluation?.audioFileId || "N/A"}</span>
+                          </div>
+                          {evaluationDetails?.evaluation?.audioFile && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-sm">File Name:</span>
+                                <span className="text-sm font-medium">
+                                  {evaluationDetails?.evaluation?.audioFile?.fileName || "Not available"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm">Duration:</span>
+                                <span className="text-sm font-medium">
+                                  {evaluationDetails?.evaluation?.audioFile?.duration 
+                                    ? `${Math.floor(evaluationDetails?.evaluation?.audioFile?.duration / 60)}:${(evaluationDetails?.evaluation?.audioFile?.duration % 60).toString().padStart(2, '0')}` 
+                                    : "Unknown"}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Trainee:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.trainee?.fullName || "Unknown"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Employee ID:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.trainee?.employeeId || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Batch:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.batch?.name || "N/A"}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-sm">Evaluator:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.evaluator?.fullName || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
+                  
+                  <Accordion type="multiple" className="w-full">
+                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter) => {
+                      const score = evaluationDetails?.evaluation?.scores?.find(
+                        (s) => s.parameterId === parameter?.id
+                      );
+                      
+                      return (
+                        <AccordionItem key={parameter?.id} value={parameter?.id?.toString()}>
+                          <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
+                            <div className="flex justify-between w-full mr-4 items-center">
+                              <span>{parameter?.name}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={score?.score >= 3 ? "outline" : "destructive"} className="font-normal">
+                                  {score?.score || 0}/{parameter?.maxScore || 5}
+                                </Badge>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm text-muted-foreground">{parameter?.description}</p>
+                              </div>
+                              
+                              {score?.comment && (
+                                <div>
+                                  <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                  <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                    {score?.comment}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {score?.noReason && (
+                                <div>
+                                  <h5 className="text-xs font-medium mb-1">No Reason:</h5>
+                                  <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                    {score?.noReason}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </div>
+              </div>
+            </ScrollArea>
           )}
           
           <DialogFooter>
@@ -866,93 +799,66 @@ function CompletedEvaluations() {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
                   
-                  {/* Template information */}
-                  <div className="mb-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">
-                          {evaluationDetails?.evaluation?.template?.name || 'Unknown template'}
-                        </CardTitle>
-                        <CardDescription>
-                          {evaluationDetails?.evaluation?.template?.description || 'No description available'}
-                        </CardDescription>
-                      </CardHeader>
-                    </Card>
-                  </div>
-                  
                   <div className="space-y-6">
-                    {Array.isArray(evaluationDetails?.evaluation?.template?.parameters) && evaluationDetails.evaluation.template.parameters.length > 0 ? (
-                      evaluationDetails.evaluation.template.parameters.map((parameter) => {
-                        const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
-                        
-                        return (
-                          <Card key={parameter.id} className="border-primary/10">
-                            <CardHeader className="pb-2">
-                              <div className="flex justify-between">
-                                <CardTitle className="text-base">{parameter?.name || "Unnamed Parameter"}</CardTitle>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-muted-foreground">
-                                    Weight: {parameter?.weight || 1}
-                                  </span>
-                                </div>
+                    {evaluationDetails.evaluation.template?.parameters.map((parameter) => {
+                      const currentScore = editedScores[parameter.id] || { score: 0, comment: "", noReason: "" };
+                      
+                      return (
+                        <Card key={parameter.id} className="border-primary/10">
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between">
+                              <CardTitle className="text-base">{parameter.name}</CardTitle>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Weight: {parameter.weight}
+                                </span>
                               </div>
-                              <CardDescription>{parameter?.description || ""}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div>
-                                <Label className="mb-1.5 block text-sm">Parameter Score</Label>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={currentScore?.score === 1 ? "default" : "outline"}
-                                    className={currentScore?.score === 1 ? "bg-green-600 hover:bg-green-700" : ""}
-                                    onClick={() => handleScoreChange(parameter?.id, "score", 1)}
-                                  >
-                                    Yes
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={currentScore?.score === 0 ? "default" : "outline"}
-                                    className={currentScore?.score === 0 ? "bg-red-600 hover:bg-red-700" : ""}
-                                    onClick={() => handleScoreChange(parameter?.id, "score", 0)}
-                                  >
-                                    No
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={currentScore?.score === 2 ? "default" : "outline"}
-                                    className={currentScore?.score === 2 ? "bg-gray-500 hover:bg-gray-600" : ""}
-                                    onClick={() => handleScoreChange(parameter?.id, "score", 2)}
-                                  >
-                                    N/A
-                                  </Button>
-                                </div>
-                              </div>
+                            </div>
+                            <CardDescription>{parameter.description}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label className="mb-1.5 block text-sm">Score (0-{parameter.maxScore})</Label>
+                              <Select
+                                value={currentScore.score.toString()}
+                                onValueChange={(value) =>
+                                  handleScoreChange(parameter.id, "score", parseInt(value))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: parameter.maxScore + 1 }, (_, i) => (
+                                    <SelectItem key={i} value={i.toString()}>
+                                      {i}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             
                             <div>
                               <Label className="mb-1.5 block text-sm">Comment</Label>
                               <Textarea
-                                value={currentScore?.comment || ""}
+                                value={currentScore.comment}
                                 onChange={(e) =>
-                                  handleScoreChange(parameter?.id, "comment", e.target.value)
+                                  handleScoreChange(parameter.id, "comment", e.target.value)
                                 }
                                 placeholder="Add a comment (optional)"
                                 className="min-h-[80px]"
                               />
                             </div>
                             
-                            {(parseInt(currentScore?.score) === 0) && (
+                            {currentScore.score === 0 && (
                               <div>
                                 <Label className="mb-1.5 block text-sm">
                                   No Reason (Required for zero score)
                                 </Label>
                                 <Textarea
-                                  value={currentScore?.noReason || ""}
+                                  value={currentScore.noReason}
                                   onChange={(e) =>
-                                    handleScoreChange(parameter?.id, "noReason", e.target.value)
+                                    handleScoreChange(parameter.id, "noReason", e.target.value)
                                   }
                                   placeholder="Explain why this score is zero"
                                   className="min-h-[80px]"

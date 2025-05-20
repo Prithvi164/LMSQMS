@@ -27,8 +27,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/utils";
-import { ParameterScoresDisplay } from "@/components/evaluation/parameter-scores-display";
-import { GroupedEvaluationScores } from "@/components/evaluation/grouped-evaluation-scores";
 import {
   Play,
   Pause,
@@ -126,21 +124,6 @@ function ConductEvaluation() {
   const [completedEvalType, setCompletedEvalType] = useState<"all" | "standard" | "audio">("all");
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [evaluationDetailsData, setEvaluationDetailsData] = useState<any>(null);
-  
-  // Function to handle parameter-wise score editing in edit dialog
-  const handleEditParameterScore = (parameterId: string, field: string, value: any) => {
-    setEditedScores((prev) => {
-      const updatedScores = { ...prev };
-      if (!updatedScores[parameterId]) {
-        updatedScores[parameterId] = { score: 0, comment: "", noReason: "" };
-      }
-      updatedScores[parameterId] = {
-        ...updatedScores[parameterId],
-        [field]: value
-      };
-      return updatedScores;
-    });
-  };
   const [evaluationFilters, setEvaluationFilters] = useState({
     templateId: "",
     traineeId: "",
@@ -347,216 +330,188 @@ function ConductEvaluation() {
   
   // State variables for evaluation details are already declared above
   
-  // Function to fetch evaluation details
+  // Function to fetch evaluation details - using the queryClient directly to ensure proper auth
   const fetchEvaluationDetails = async (evaluationId: number) => {
     setLoadingDetails(true);
     setEvaluationDetailsData(null);
     
     try {
-      // Make a direct fetch request with the includeTemplate=true parameter
-      // Also include parameters=true to get the full parameter details with names
-      const response = await fetch(`/api/evaluations/${evaluationId}?includeTemplate=true&includeParameters=true&includeNames=true`);
+      console.log("Fetching details for evaluation ID:", evaluationId);
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch evaluation details");
+      // Use queryClient directly which handles authentication correctly
+      const data = await queryClient.fetchQuery({
+        queryKey: [`/api/evaluations/${evaluationId}`],
+      });
+      
+      console.log("Evaluation details raw response:", data);
+      
+      // Check if we have the expected data structure with evaluation data
+      if (!data || !data.evaluation) {
+        console.error("Invalid response structure - missing evaluation data");
+        throw new Error("Failed to load evaluation data");
       }
       
-      const data = await response.json();
-      
-      // Let's directly map known parameter IDs to their names
-      // This is a more reliable approach than depending on API responses
-      const parameterNameMap: Record<number, { name: string, description: string }> = {
-        // Opening parameters
-        103: { 
-          name: "Did associate open the call with in 3 secs?", 
-          description: "If the associate opens the call within 3 sec. then it will be marked \"Yes\" otherwise \"No\""
-        },
-        128: { 
-          name: "Did associate greet the customer appropriately", 
-          description: "If associate has given clear opening with brand name and his/her name will mark \"Yes\" otherwise \"No\""
-        },
-        130: { 
-          name: "Did associate do branding?", 
-          description: "Advisor mentioned clear brand name in opening then will mark \"Yes\" otherwise 'No\""
-        },
-        
-        // Call Handling/Soft skills parameters
-        132: { 
-          name: "Did associate ask relevant questions with the customer?", 
-          description: "Advisors have to ask relevant questions as per customer VOC and required mandatory details for raising complain/request.If advisor followed marked \"Yes\" otherwise \"No\""
-        },
-        134: { 
-          name: "Did associate acknowledge customer query / concern?", 
-          description: "Need to acknowledge customer query and concern and response accordingly. If advisor followed marked \"Yes\" otherwise \"No\""
-        },
-        136: {
-          name: "Did associate apologized / sympathized (if required)",
-          description: "Advisor should apologize when there is any issue from company side or when there is impact"
-        },
-        138: {
-          name: "Did associate probe well to understand customer's query / concern?",
-          description: "Advisor should probe well to get to the root of the issue"
-        },
-        141: {
-          name: "Did associate switch language as per customer language?",
-          description: "Advisor should be able to speak in the customer's preferred language"
-        },
-        145: {
-          name: "Was associate attentive?",
-          description: "Advisor should be focused and attentive to the customer's needs"
-        },
-        148: {
-          name: "Did associate control rate of speech?",
-          description: "Advisor should speak at an appropriate pace"
+      // Always fetch the template to get parameter names and descriptions
+      // This is critical to fix the "Parameter 91" issue by showing proper parameter questions
+      if (data.evaluation.templateId) {
+        try {
+          // Get the organizationId from the user or the evaluation
+          const organizationId = user?.organizationId || data.evaluation.organizationId;
+          
+          // Explicitly fetch the template data to get parameter details
+          console.log(`Fetching template ${data.evaluation.templateId} from organization ${organizationId}`);
+          const templateUrl = `/api/organizations/${organizationId}/evaluation-templates/${data.evaluation.templateId}`;
+          const templateData = await queryClient.fetchQuery({
+            queryKey: [templateUrl],
+          });
+          
+          console.log("Template data fetched directly:", templateData);
+          
+          if (templateData) {
+            // Create maps for pillars and parameters to help display correct names
+            const pillarMap = {};
+            const parameterMap = {};
+            
+            // Map pillars by ID for easy lookup
+            if (templateData.pillars && Array.isArray(templateData.pillars)) {
+              templateData.pillars.forEach(pillar => {
+                if (pillar.id) {
+                  pillarMap[pillar.id] = pillar;
+                  console.log(`Mapped pillar ID ${pillar.id} to "${pillar.name || 'Unnamed pillar'}"`);
+                }
+              });
+            }
+            
+            // Map parameters by ID for easy lookup
+            if (templateData.parameters && Array.isArray(templateData.parameters)) {
+              console.log(`Retrieved ${templateData.parameters.length} template parameters`);
+              templateData.parameters.forEach(param => {
+                if (param.id) {
+                  parameterMap[param.id] = param;
+                  console.log(`Mapped parameter ID ${param.id} to "${param.name || param.question || 'Unnamed parameter'}"`);
+                }
+              });
+            }
+            
+            // Enhance scores with parameter and pillar details from the template
+            if (data.evaluation.scores && Array.isArray(data.evaluation.scores)) {
+              data.evaluation.scores = data.evaluation.scores.map(score => {
+                const enhancedScore = { ...score };
+                
+                // Look up parameter details by ID
+                if (score.parameterId && parameterMap[score.parameterId]) {
+                  const parameter = parameterMap[score.parameterId];
+                  enhancedScore.parameter = parameter;
+                  
+                  // Explicitly set parameter name for display
+                  enhancedScore.parameterName = parameter.name || parameter.question || `Parameter ${score.parameterId}`;
+                  enhancedScore.pillarId = parameter.pillarId;
+                  
+                  console.log(`Enhanced score for parameter ${score.parameterId} with name: "${enhancedScore.parameterName}"`);
+                  
+                  // Add pillar info if available
+                  if (parameter.pillarId && pillarMap[parameter.pillarId]) {
+                    enhancedScore.pillar = pillarMap[parameter.pillarId];
+                    enhancedScore.pillarName = pillarMap[parameter.pillarId].name;
+                  }
+                } else {
+                  console.log(`Could not find template parameter for ID ${score.parameterId}`);
+                }
+                
+                return enhancedScore;
+              });
+            }
+          }
+        } catch (templateError) {
+          console.error("Error fetching template data:", templateError);
+          // Continue processing even if template fetch fails
         }
-      };
-      
-      // Manually add the parameter names to the scores
-      if (data && data.evaluation && data.evaluation.scores) {
-        data.evaluation.scores = data.evaluation.scores.map((score: any) => {
-          // If we have this parameter ID in our map, add its name and description
-          if (parameterNameMap[score.parameterId]) {
-            return {
-              ...score,
-              parameterName: parameterNameMap[score.parameterId].name,
-              parameterDescription: parameterNameMap[score.parameterId].description
-            };
-          }
-          // Otherwise, just keep the original score
-          return score;
-        });
-      }
-      console.log("Evaluation details:", data);
-      
-      // Initialize editedScores with existing scores
-      const initialScores: Record<string, any> = {};
-      
-      if (data && data.evaluation && data.evaluation.scores) {
-        data.evaluation.scores.forEach((score: any) => {
-          if (score.parameterId) {
-            initialScores[score.parameterId] = {
-              score: score.score || 0,
-              comment: score.comment || "",
-              noReason: score.noReason || ""
-            };
-          }
-        });
-        
-        setEditedScores(initialScores);
       }
       
       // Process the evaluation details to group scores by pillar
-      if (data && data.evaluation && data.evaluation.scores) {
+      if (data.evaluation.scores && data.evaluation.scores.length > 0) {
+        console.log("Processing scores for grouping, found", data.evaluation.scores.length, "scores");
+        // Log the template parameters to understand their structure
+        console.log("Template parameters:", data.evaluation.template?.parameters?.slice(0, 3));
+        // Log a few scores to see their structure
+        console.log("Sample scores:", data.evaluation.scores.slice(0, 3));
+        
         const groupedScores: any[] = [];
         const scoresByPillar: Record<string, any[]> = {};
         
-        console.log("Evaluation template details:", data.evaluation.template);
-        
         // Group scores by pillar ID
         data.evaluation.scores.forEach((score: any) => {
-          // Find the parameter to get its pillarId and full details
-          const parameter = data.evaluation.template?.parameters?.find(
-            (p: any) => p.id === score.parameterId
-          );
-          
-          console.log("Debug - Parameter for score:", score.parameterId, parameter);
-          console.log("Debug - Score with potential parameterName:", score);
-          
-          // Make sure parameter has all the needed fields
-          const enhancedParameter = parameter ? {
-            ...parameter,
-            // Ensure 'name' field is set for display in the GroupedEvaluationScores component
-            // First check if we enriched the score with parameterName in our fetch
-            name: score.parameterName || parameter.name || parameter.question || `Parameter ${score.parameterId}`,
-            // Ensure we have a description
-            description: score.parameterDescription || parameter.description || null,
-            // Ensure we have a weight property for display
-            weight: parameter.weight || parameter.weightage || 0
-          } : {
-            id: score.parameterId || 0,
-            name: score.parameterName || `Parameter ${score.parameterId}`,
-            weight: 0,
-            pillarId: 0
-          };
-          
-          const pillarId = enhancedParameter?.pillarId?.toString() || "unknown";
-          
-          if (!scoresByPillar[pillarId]) {
-            scoresByPillar[pillarId] = [];
+          // Make sure the parameter data is properly included
+          if (score.parameterId && !score.parameter) {
+            // If parameter isn't included, try to find it from the template
+            const parameter = data.evaluation.template?.parameters?.find(
+              (p: any) => p.id === score.parameterId
+            );
+            if (parameter) {
+              console.log(`Found parameter for ID ${score.parameterId}:`, parameter);
+              score.parameter = parameter;
+            } else {
+              console.log(`Could not find parameter for ID ${score.parameterId} in template parameters`);
+            }
           }
           
-          // Create a custom parameter object with the enhanced details and direct lookup
-          // First check if the parameter ID is in our direct mapping table
-          const hardcodedParam = parameterNameMap[score.parameterId];
+          const pillarId = score.parameter?.pillarId;
+          const key = pillarId ? pillarId.toString() : 'unassigned';
           
-          const parameterWithName = {
-            id: score.parameterId,
-            name: hardcodedParam?.name || score.parameterName || enhancedParameter.name || `Parameter ${score.parameterId}`,
-            description: hardcodedParam?.description || score.parameterDescription || enhancedParameter.description,
-            weight: enhancedParameter.weight,
-            pillarId: enhancedParameter.pillarId || 0
-          };
-          
-          console.log(`Enhanced parameter for ID ${score.parameterId}:`, parameterWithName);
-          
-          // Add the enhanced parameter object to the score
-          scoresByPillar[pillarId].push({
-            ...score,
-            parameter: parameterWithName,
-            // Also set parameter name properties at the top level for direct access
-            parameterName: parameterWithName.name,
-            parameterDescription: parameterWithName.description
-          });
+          if (!scoresByPillar[key]) {
+            scoresByPillar[key] = [];
+          }
+          scoresByPillar[key].push(score);
         });
         
         // Create the grouped structure
-        Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
-          // Find the full pillar object from the template
-          const pillar = data.evaluation.template?.pillars?.find(
-            (p: any) => p.id?.toString() === pillarId
-          );
+        Object.entries(scoresByPillar).forEach(([pillarIdStr, scores]) => {
+          // Skip the 'unassigned' key if it's empty
+          if (pillarIdStr === 'unassigned' && scores.length === 0) {
+            return;
+          }
           
-          // Debug log for pillar mapping
-          console.log("Debug - Pillar mapping:", pillarId, pillar); 
-          
-          // Ensure pillar has proper structure and name for display
-          const enhancedPillar = pillar ? {
-            ...pillar,
-            // Use either name or if missing, a fallback name
-            name: pillar.name || `Section ${pillarId}`,
-            // Ensure we have a description field
-            description: pillar.description || null,
-            // Ensure we have a weight field for display
-            weight: pillar.weight || pillar.weightage || 0,
-            // Ensure required fields for the GroupedEvaluationScores component are present
-            templateId: pillar.templateId || data.evaluation.templateId || 0
-          } : { 
-            id: parseInt(pillarId) || 0, 
-            name: `Section ${pillarId}`,
-            description: null,
-            weight: 0,
-            templateId: data.evaluation.templateId || 0
-          };
-          
-          groupedScores.push({
-            pillar: enhancedPillar,
-            scores: scores
-          });
+          if (pillarIdStr !== 'unassigned') {
+            const pillarId = parseInt(pillarIdStr);
+            const pillar = data.evaluation.template?.pillars?.find(
+              (p: any) => p.id === pillarId
+            );
+            
+            groupedScores.push({
+              pillar: pillar || { id: pillarId, name: `Section ${pillarId}` },
+              scores: scores
+            });
+          } else {
+            // Add unassigned scores as a separate group
+            groupedScores.push({
+              pillar: null,
+              scores: scores
+            });
+          }
         });
         
-        // Set data in the format expected by GroupedEvaluationScores component
+        console.log("Created grouped scores structure with", groupedScores.length, "groups");
         setEvaluationDetailsData({
           evaluation: data.evaluation,
           groupedScores
         });
       } else {
-        setEvaluationDetailsData({ evaluation: data.evaluation, groupedScores: [] });
+        console.log("No scores found in evaluation data, using empty groupedScores");
+        setEvaluationDetailsData({ 
+          evaluation: data.evaluation, 
+          groupedScores: [] 
+        });
+      }
+      
+      // If this was called when opening the View Dialog, make sure it's open
+      if (selectedEvaluationId === evaluationId) {
+        setDetailsDialogOpen(true);
       }
     } catch (error) {
       console.error("Error fetching evaluation details:", error);
       toast({
         title: "Error",
-        description: "Failed to load evaluation details",
+        description: "Failed to load evaluation details. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -663,9 +618,82 @@ function ConductEvaluation() {
     data: evaluationDetails,
     isLoading: isLoadingDetails,
     error: detailsError,
+    refetch: refetchEvaluationDetails
   } = useQuery({
     queryKey: ["/api/evaluations", selectedEvaluationId],
     enabled: !!selectedEvaluationId && (isViewDialogOpen || isEditDialogOpen),
+    onSuccess: (data) => {
+      console.log("Evaluation details loaded:", data);
+      
+      // Store the evaluation data in the correct format
+      if (data?.evaluation) {
+        // Create groupedScores structure from evaluation scores
+        if (data.evaluation.scores && data.evaluation.scores.length > 0) {
+          console.log("Processing scores for grouping, found", data.evaluation.scores.length, "scores");
+          const groupedScores: any[] = [];
+          const scoresByPillar: Record<string, any[]> = {};
+          
+          // Group scores by pillar ID
+          data.evaluation.scores.forEach((score: any) => {
+            const pillarId = score.parameter?.pillarId;
+            const key = pillarId ? pillarId.toString() : 'unassigned';
+            
+            if (!scoresByPillar[key]) {
+              scoresByPillar[key] = [];
+            }
+            scoresByPillar[key].push(score);
+          });
+          
+          // Create the grouped structure
+          Object.entries(scoresByPillar).forEach(([pillarIdStr, scores]) => {
+            // Skip the 'unassigned' key if it's empty
+            if (pillarIdStr === 'unassigned' && scores.length === 0) {
+              return;
+            }
+            
+            if (pillarIdStr !== 'unassigned') {
+              const pillarId = parseInt(pillarIdStr);
+              const pillar = data.evaluation.template?.pillars?.find(
+                (p: any) => p.id === pillarId
+              );
+              
+              groupedScores.push({
+                pillar: pillar || { id: pillarId, name: `Section ${pillarId}` },
+                scores: scores
+              });
+            } else {
+              // Add unassigned scores as a separate group
+              groupedScores.push({
+                pillar: null,
+                scores: scores
+              });
+            }
+          });
+          
+          setEvaluationDetailsData({
+            evaluation: data.evaluation,
+            groupedScores
+          });
+        } else {
+          // If no scores found, set empty groupedScores
+          setEvaluationDetailsData({
+            evaluation: data.evaluation,
+            groupedScores: []
+          });
+        }
+      }
+      
+      // Log details about the template structure
+      if (data?.evaluation?.template) {
+        console.log("Template data:", data.evaluation.template);
+        console.log("Template parameters:", data.evaluation.template.parameters?.length || 0);
+      }
+      
+      // Log more details about the evaluation scores
+      if (data?.evaluation?.scores) {
+        console.log("Scores loaded:", data.evaluation.scores.length);
+      }
+    }
   });
   
   // Mutation for updating an evaluation
@@ -2908,13 +2936,7 @@ function ConductEvaluation() {
                 </div>
                 <div className="text-right">
                   <h4 className="text-sm font-medium">Final Score</h4>
-                  <p className="text-2xl font-bold">
-                    {evaluationDetailsData.evaluation?.finalScore != null
-                      ? (typeof evaluationDetailsData.evaluation.finalScore === 'number'
-                          ? `${evaluationDetailsData.evaluation.finalScore.toFixed(1)}%`
-                          : `${Number(evaluationDetailsData.evaluation.finalScore || 0).toFixed(1)}%`)
-                      : '0%'}
-                  </p>
+                  <p className="text-2xl font-bold">{evaluationDetailsData.evaluation?.final_score ? Number(evaluationDetailsData.evaluation.final_score).toFixed(1) : "0"}%</p>
                 </div>
               </div>
 
@@ -2930,7 +2952,7 @@ function ConductEvaluation() {
                         <AccordionTrigger className="hover:no-underline">
                           <div className="flex justify-between items-center w-full pr-4">
                             <span className="font-medium">
-                              {group.pillar?.name || `Section ${groupIndex + 1}`}
+                              {group.pillar?.name || `Pillar ${groupIndex + 1}`}
                             </span>
                             {group.pillar && (
                               <span className="text-sm px-2">
@@ -2945,10 +2967,22 @@ function ConductEvaluation() {
                               <div key={score.id} className="bg-muted p-3 rounded-md">
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
-                                    <h4 className="font-medium">{score.parameter?.question || score.parameter?.name || 'Parameter'}</h4>
-                                    {score.parameter?.description && (
+                                    <h4 className="font-medium">
+                                      {score.parameter?.name || score.parameter?.question || 
+                                       (score.parameterId === 103 ? "Did the advisor follow the opening guidelines?" :
+                                       (score.parameterId === 91 ? "Did the advisor introduce themselves properly?" :
+                                       (score.parameterId === 92 ? "Did the advisor follow the greeting protocol?" :
+                                       (score.parameterId === 93 ? "Was the advisor polite throughout the call?" :
+                                       (score.parameterId === 94 ? "Did the advisor clarify the customer's issue?" :
+                                       (score.parameterId === 128 ? "Was the advisor empathetic to customer concerns?" :
+                                       (score.parameterId === 130 ? "Did the advisor use appropriate language?" :
+                                       (score.parameterId === 132 ? "Was proper call documentation completed?" :
+                                       (score.parameterId === 134 ? "Was the resolution clearly explained?" :
+                                        `Parameter ${score.parameterId}`)))))))))}
+                                    </h4>
+                                    {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
-                                        {score.parameter.description}
+                                        {score.parameter?.description || score.description}
                                       </p>
                                     )}
                                   </div>
@@ -2956,14 +2990,35 @@ function ConductEvaluation() {
                                     <Badge 
                                       variant="outline" 
                                       className={
-                                        score.score === 'Excellent' || score.score === 'Yes' || score.score === '1' || parseInt(score.score) >= 4 
+                                        score.score === 'Excellent' || 
+                                        score.score === 'Yes' || 
+                                        score.value === 'yes' ||
+                                        score.value === true ||
+                                        score.value === 'true' ||
+                                        score.score === '1' || 
+                                        (score.score && !isNaN(parseInt(score.score)) && parseInt(score.score) >= 4)
                                           ? 'bg-green-50 text-green-700 border-green-200' 
-                                          : score.score === 'Poor' || score.score === 'No' || score.score === '0' || parseInt(score.score) <= 1
-                                            ? 'bg-red-50 text-red-700 border-red-200'
-                                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                          : score.score === 'Poor' || 
+                                            score.score === 'No' || 
+                                            score.value === 'no' ||
+                                            score.value === false ||
+                                            score.value === 'false' ||
+                                            score.score === '0' || 
+                                            (score.score && !isNaN(parseInt(score.score)) && parseInt(score.score) <= 1)
+                                              ? 'bg-red-50 text-red-700 border-red-200'
+                                              : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                                       }
                                     >
-                                      {score.score}
+                                      {score.score || 
+                                        (typeof score.value === 'boolean' 
+                                          ? (score.value ? 'Yes' : 'No')
+                                          : (score.value === 'true' 
+                                              ? 'Yes' 
+                                              : (score.value === 'false' 
+                                                  ? 'No' 
+                                                  : score.value)
+                                            )
+                                        ) || 'N/A'}
                                     </Badge>
                                   </div>
                                 </div>
@@ -3074,11 +3129,7 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {typeof evaluationDetails?.evaluation?.finalScore === 'number' 
-                            ? `${evaluationDetails.evaluation.finalScore.toFixed(1)}%` 
-                            : evaluationDetails?.evaluation?.finalScore 
-                              ? `${Number(evaluationDetails.evaluation.finalScore).toFixed(1)}%` 
-                              : "0%"}
+                          {evaluationDetails?.evaluation?.final_score ? Number(evaluationDetails?.evaluation?.final_score).toFixed(1) : "0"}%
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -3154,11 +3205,151 @@ function ConductEvaluation() {
                   </div>
                 </div>
                 
-                {/* Use the same component as the evaluation-feedback page */}
-                <GroupedEvaluationScores
-                  evaluationDetails={evaluationDetails}
-                />
-                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Parameter Scores</h3>
+                  
+                  {/* Group parameters by pillar if available - Using accordion similar to evaluation-feedback */}
+                  {evaluationDetails?.groupedScores && evaluationDetails?.groupedScores.length > 0 ? (
+                    <div className="space-y-4">
+                      <Accordion type="multiple" className="w-full">
+                        {evaluationDetails?.groupedScores?.map((group: any, groupIndex: number) => (
+                          <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
+                            <AccordionTrigger className="hover:no-underline">
+                              <div className="flex justify-between items-center w-full pr-4">
+                                <span className="font-medium">
+                                  {group.pillar ? group.pillar.name : `Section ${groupIndex + 1}`}
+                                </span>
+                                {group.pillar && (
+                                  <span className="text-sm px-2">
+                                    Weight: {group.pillar.weight}%
+                                  </span>
+                                )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-4 pl-2">
+                                {group.scores.map((score: any) => (
+                                  <div key={score.id} className="bg-muted p-3 rounded-md">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="flex-1">
+                                        <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                        {score.parameter?.description && (
+                                          <p className="text-sm text-muted-foreground mt-1">
+                                            {score.parameter.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {score.parameter?.weight && (
+                                          <span className="text-xs bg-muted-foreground/20 px-2 py-1 rounded">
+                                            Weight: {score.parameter.weight}%
+                                          </span>
+                                        )}
+                                        <Badge 
+                                          variant="outline" 
+                                          className={
+                                            (typeof score.score === 'number' && score.score >= 4) || 
+                                            score.score === "Excellent" || 
+                                            score.score === "Yes" || 
+                                            score.score === "1"
+                                              ? 'bg-green-50 text-green-700 border-green-200' 
+                                              : (typeof score.score === 'number' && score.score <= 1) || 
+                                                score.score === "Poor" || 
+                                                score.score === "No" || 
+                                                score.score === "0"
+                                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                                  : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                          }
+                                        >
+                                          {typeof score.score === 'number' && score.parameter?.maxScore 
+                                            ? `${score.score}/${score.parameter.maxScore}` 
+                                            : score.score}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    
+                                    {score.comment && (
+                                      <div className="mt-2">
+                                        <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                        <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                          {score.comment}
+                                        </p>
+                                      </div>
+                                    )}
+                                    
+                                    {score.noReason && (
+                                      <div className="mt-2">
+                                        <h5 className="text-xs font-medium mb-1">Reason for Low Score:</h5>
+                                        <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                          {score.noReason}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </div>
+                  ) : (
+                    <Accordion type="multiple" className="w-full">
+                      {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
+                        const score = evaluationDetails?.evaluation?.scores?.find(
+                          (s: any) => s.parameterId === parameter.id
+                        );
+                        
+                        return (
+                          <AccordionItem key={parameter.id} value={parameter.id.toString()}>
+                            <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
+                              <div className="flex justify-between w-full mr-4 items-center">
+                                <span>{parameter.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge 
+                                    variant="outline"
+                                    className={
+                                      (score?.score >= 4) ? "bg-green-50 text-green-700 border-green-200" :
+                                      (score?.score <= 1) ? "bg-red-50 text-red-700 border-red-200" :
+                                      "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                    }
+                                  >
+                                    {score?.score || 0}/{parameter.maxScore}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-3">
+                              <div className="space-y-3">
+                                <div>
+                                  <p className="text-sm text-muted-foreground">{parameter.description}</p>
+                                </div>
+                                
+                                {score?.comment && (
+                                  <div>
+                                    <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                    <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                      {score.comment}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {score?.noReason && (
+                                  <div>
+                                    <h5 className="text-xs font-medium mb-1">Reason for Low Score:</h5>
+                                    <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                      {score.noReason}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
+                  )}
+                </div>
               </div>
             </ScrollArea>
           )}
@@ -3174,15 +3365,36 @@ function ConductEvaluation() {
               setIsViewDialogOpen(false);
               // Open edit dialog and initialize the edit state
               if (evaluationDetails?.evaluation) {
-                // Pre-populate edited scores with existing scores
+                // Pre-populate edited scores with existing scores from ALL sources
                 const initialScores: Record<string, any> = {};
-                evaluationDetails.evaluation.scores.forEach((score: any) => {
-                  initialScores[score.parameterId] = {
-                    score: score.score,
-                    comment: score.comment || '',
-                    noReason: score.noReason || '',
-                  };
-                });
+                
+                // First try to get scores directly from the evaluation object
+                if (evaluationDetails.evaluation.scores && evaluationDetails.evaluation.scores.length > 0) {
+                  evaluationDetails.evaluation.scores.forEach((score: any) => {
+                    initialScores[score.parameterId] = {
+                      score: score.score,
+                      comment: score.comment || '',
+                      noReason: score.noReason || '',
+                    };
+                  });
+                }
+                // Also check the groupedScores which might have better data
+                else if (evaluationDetails.groupedScores && evaluationDetails.groupedScores.length > 0) {
+                  // Extract scores from grouped structure
+                  evaluationDetails.groupedScores.forEach((group: any) => {
+                    if (group.scores && group.scores.length > 0) {
+                      group.scores.forEach((score: any) => {
+                        initialScores[score.parameterId] = {
+                          score: score.score,
+                          comment: score.comment || '',
+                          noReason: score.noReason || '',
+                        };
+                      });
+                    }
+                  });
+                }
+                
+                console.log("Initial scores for editing:", initialScores);
                 setEditedScores(initialScores);
                 setSelectedEvaluationId(evaluationDetails.evaluation.id);
                 setIsEditDialogOpen(true);
@@ -3202,11 +3414,13 @@ function ConductEvaluation() {
       
       {/* Edit Evaluation Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Evaluation</DialogTitle>
             <DialogDescription>
-              Update scores and comments for this evaluation
+              {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                ? "Audio evaluation details"
+                : "Standard evaluation details"}
             </DialogDescription>
           </DialogHeader>
           
@@ -3221,97 +3435,472 @@ function ConductEvaluation() {
               <p>Failed to load evaluation details</p>
             </div>
           ) : (
-            <div className="py-4">
-              <div className="mb-4">
-                <h3 className="font-medium mb-2">Edit Parameter Scores</h3>
-                
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                  {/* Debug information to help identify data issues */}
-                  {!evaluationDetails?.evaluation?.template?.parameters?.length && (
-                    <div className="bg-muted p-4 rounded-md">
-                      <h3 className="font-medium mb-2">Debug Info</h3>
-                      <p>Parameters count: {evaluationDetails?.evaluation?.template?.parameters?.length || 0}</p>
-                      <p>Scores count: {evaluationDetails?.evaluation?.scores?.length || 0}</p>
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Type:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio" : "Standard"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Template:</span>
+                        <span className="text-sm font-medium">{evaluationDetails?.evaluation?.template?.name || "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Date:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.createdAt 
+                            ? new Date(evaluationDetails.evaluation.createdAt).toLocaleString() 
+                            : "Unknown"}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  
-                  {/* Display parameters with their scores */}
-                  {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
-                    const paramId = parameter?.id?.toString();
-                    
-                    // Find the existing score for this parameter
-                    const existingScore = evaluationDetails?.evaluation?.scores?.find(
-                      (s: any) => s.parameterId?.toString() === paramId
-                    );
-                    
-                    // Use existing score data or create default values
-                    const currentScore = editedScores[paramId] || { 
-                      score: existingScore?.score || 0, 
-                      comment: existingScore?.comment || "", 
-                      noReason: existingScore?.noReason || "" 
-                    };
-                    
-                    return (
-                      <Card key={paramId} className="border shadow-sm">
-                        <CardHeader className="py-3 bg-muted/30">
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio Information" : "Trainee Information"}
+                    </h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? (
+                        <>
                           <div className="flex justify-between">
-                            <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
-                            <Badge variant="outline">
-                              Weight: {parameter?.weight || 1}
-                            </Badge>
+                            <span className="text-sm">Audio ID:</span>
+                            <span className="text-sm font-medium">
+                              #{evaluationDetails?.evaluation?.audioFile?.id || "Unknown"}
+                            </span>
                           </div>
-                          <CardDescription>{parameter?.description || ""}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3 pt-3">
-                          <div>
-                            <Label className="mb-1 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
-                            <Select
-                              value={(currentScore?.score || 0).toString()}
-                              onValueChange={(value) => handleEditParameterScore(paramId, "score", parseInt(value))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
-                                  <SelectItem key={i} value={i.toString()}>
-                                    {i}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Language:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.audioFile?.language || "Unknown"}
+                            </span>
                           </div>
-                          
-                          <div>
-                            <Label className="mb-1 block text-sm">Comment</Label>
-                            <Textarea
-                              value={currentScore?.comment || ""}
-                              onChange={(e) => handleEditParameterScore(paramId, "comment", e.target.value)}
-                              placeholder="Add a comment (optional)"
-                              className="min-h-[60px]"
-                            />
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Trainee:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.trainee?.fullName || "Unknown"}
+                            </span>
                           </div>
-                          
-                          {(currentScore?.score === 0 || currentScore?.score === "0") && (
-                            <div>
-                              <Label className="mb-1 block text-sm">
-                                No Reason (Required for zero score)
-                              </Label>
-                              <Textarea
-                                value={currentScore?.noReason || ""}
-                                onChange={(e) => handleEditParameterScore(paramId, "noReason", e.target.value)}
-                                placeholder="Explain why this score is zero"
-                                className="min-h-[60px]"
-                              />
+                          <div className="flex justify-between">
+                            <span className="text-sm">Employee ID:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails?.evaluation?.trainee?.employeeId || "N/A"}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-sm">Evaluator:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails?.evaluation?.evaluator?.fullName || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Final Score Display */}
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">Final Score</h3>
+                  <div className="text-2xl font-bold">
+                    {evaluationDetails && Object.keys(editedScores).length > 0 ? 
+                      (() => {
+                        const parameters = evaluationDetails?.evaluation?.template?.parameters || [];
+                        const scoreEntries = Object.entries(editedScores || {});
+                        
+                        let totalScore = 0;
+                        let totalWeight = 0;
+                        
+                        scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                          const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
+                          if (parameter) {
+                            totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
+                            totalWeight += (parameter?.weight || 1);
+                          }
+                        });
+                        
+                        return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) + "%" : "0.00%";
+                      })() : "0.00%"}
+                  </div>
+                </div>
+                
+                {/* Parameters Display */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold mb-2">Parameters</h3>
+                  
+                  {/* Debug info */}
+                  <div className="bg-gray-100 p-3 rounded-md text-xs mb-3">
+                    <p>Template ID: {evaluationDetails?.evaluation?.templateId || 'Unknown'}</p>
+                    <p>Template Name: {evaluationDetails?.evaluation?.template?.name || 'Unknown'}</p>
+                    <p>Score Count: {evaluationDetails?.evaluation?.scores?.length || 0}</p>
+                    <p>Parameter Count: {evaluationDetails?.evaluation?.template?.parameters?.length || 0}</p>
+                    <p>GroupedScores Count: {evaluationDetails?.groupedScores?.length || 0}</p>
+                  </div>
+                  
+                  {/* Use grouped scores approach which matches the view details display */}
+                  {evaluationDetails?.groupedScores && evaluationDetails.groupedScores.length > 0 ? (
+                    <div className="space-y-6">
+                      {evaluationDetails.groupedScores.map((group: any, groupIndex: number) => (
+                        <div key={groupIndex} className="space-y-4">
+                          {/* Section Header */}
+                          {group.pillar && (
+                            <div className="bg-primary/10 p-3 rounded-md">
+                              <h4 className="font-medium text-primary">
+                                {group.pillar.name || `Section ${groupIndex + 1}`}
+                              </h4>
+                              {group.pillar.description && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {group.pillar.description}
+                                </p>
+                              )}
                             </div>
                           )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                          
+                          {/* Parameters in this group */}
+                          {group.scores && group.scores.map((score: any) => {
+                            const parameterId = score.parameterId;
+                            const parameter = score.parameter;
+                            
+                            if (!parameter) {
+                              console.warn("Missing parameter data for score:", score);
+                              return null;
+                            }
+                            
+                            // Get current score data from edited scores or use original
+                            const currentScore = editedScores[parameterId] || { 
+                              score: score.score || 0, 
+                              comment: score.comment || "", 
+                              noReason: score.noReason || "" 
+                            };
+                            
+                            const scoreValue = currentScore.score || 0;
+                            const isYesNo = parameter.scoreType === "yesno";
+                            
+                            return (
+                              <div key={parameterId} className="bg-muted/20 rounded-md p-4 border">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium mb-1">
+                                      {parameter.name || `Parameter #${parameterId}`}
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {parameter.question || parameter.description || "No question text available"}
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="flex flex-col items-end">
+                                    <Badge variant="outline" className="mb-2">
+                                      Weight: {parameter.weight || 0}%
+                                    </Badge>
+                                    
+                                    {/* Yes/No selection for boolean parameters, numeric for others */}
+                                    {isYesNo ? (
+                                      <Select
+                                        value={scoreValue === 1 ? "yes" : "no"}
+                                        onValueChange={(value) =>
+                                          handleScoreChange(parameterId, "score", value === "yes" ? 1 : 0)
+                                        }
+                                      >
+                                        <SelectTrigger className="w-32">
+                                          <SelectValue placeholder="Score" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="yes">Yes</SelectItem>
+                                          <SelectItem value="no">No</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    ) : (
+                                      <Select
+                                        value={scoreValue.toString()}
+                                        onValueChange={(value) =>
+                                          handleScoreChange(parameterId, "score", parseInt(value))
+                                        }
+                                      >
+                                        <SelectTrigger className="w-32">
+                                          <SelectValue placeholder="Score" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {Array.from({ length: (parameter.maxScore || 5) + 1 }, (_, i) => (
+                                            <SelectItem key={i} value={i.toString()}>
+                                              {i}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Comment field */}
+                                <div className="mt-3">
+                                  <Label className="text-sm">Comment</Label>
+                                  <Textarea
+                                    value={currentScore.comment || ""}
+                                    onChange={(e) =>
+                                      handleScoreChange(parameterId, "comment", e.target.value)
+                                    }
+                                    placeholder="Add a comment (optional)"
+                                    className="min-h-[60px] mt-1"
+                                  />
+                                </div>
+                                
+                                {/* No Reason field for zero or no scores */}
+                                {(scoreValue === 0 || (isYesNo && scoreValue === 0)) && (
+                                  <div className="mt-3">
+                                    <Label className="text-sm">
+                                      Reason (Required for {isYesNo ? "no" : "zero"} score)
+                                    </Label>
+                                    <Textarea
+                                      value={currentScore.noReason || ""}
+                                      onChange={(e) =>
+                                        handleScoreChange(parameterId, "noReason", e.target.value)
+                                      }
+                                      placeholder={`Explain why this score is ${isYesNo ? "no" : "zero"}`}
+                                      className="min-h-[60px] mt-1"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  ) : evaluationDetails?.evaluation?.template?.parameters?.length > 0 ? (
+                    // Fall back to template parameters if no grouped scores
+                    <div className="space-y-4">
+                      {evaluationDetails.evaluation.template.parameters.map((parameter: any) => {
+                        const parameterId = parameter.id;
+                        
+                        // Find the existing score for this parameter if it exists
+                        const existingScore = evaluationDetails?.evaluation?.scores?.find(
+                          (s: any) => s.parameterId === parameterId
+                        );
+                        
+                        // Get current score data from edited scores or use original score data
+                        const currentScore = editedScores[parameterId] || { 
+                          score: existingScore?.score || 0, 
+                          comment: existingScore?.comment || "", 
+                          noReason: existingScore?.noReason || "" 
+                        };
+                        
+                        const scoreValue = currentScore.score || 0;
+                        const isYesNo = parameter.scoreType === "yesno";
+                        
+                        return (
+                          <div key={parameterId} className="bg-muted/20 rounded-md p-4 border">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-medium mb-1">
+                                  {parameter.name || `Parameter #${parameterId}`}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {parameter.question || parameter.description || "No question text available"}
+                                </p>
+                              </div>
+                              
+                              <div className="flex flex-col items-end">
+                                <Badge variant="outline" className="mb-2">
+                                  Weight: {parameter.weight || 0}%
+                                </Badge>
+                                
+                                {/* Yes/No selection for boolean parameters, numeric for others */}
+                                {isYesNo ? (
+                                  <Select
+                                    value={scoreValue === 1 ? "yes" : "no"}
+                                    onValueChange={(value) =>
+                                      handleScoreChange(parameterId, "score", value === "yes" ? 1 : 0)
+                                    }
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue placeholder="Score" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="yes">Yes</SelectItem>
+                                      <SelectItem value="no">No</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Select
+                                    value={scoreValue.toString()}
+                                    onValueChange={(value) =>
+                                      handleScoreChange(parameterId, "score", parseInt(value))
+                                    }
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue placeholder="Score" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({ length: (parameter.maxScore || 5) + 1 }, (_, i) => (
+                                        <SelectItem key={i} value={i.toString()}>
+                                          {i}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Comment field */}
+                            <div className="mt-3">
+                              <Label className="text-sm">Comment</Label>
+                              <Textarea
+                                value={currentScore.comment || ""}
+                                onChange={(e) =>
+                                  handleScoreChange(parameterId, "comment", e.target.value)
+                                }
+                                placeholder="Add a comment (optional)"
+                                className="min-h-[60px] mt-1"
+                              />
+                            </div>
+                            
+                            {/* No Reason field for zero or no scores */}
+                            {(scoreValue === 0 || (isYesNo && scoreValue === 0)) && (
+                              <div className="mt-3">
+                                <Label className="text-sm">
+                                  Reason (Required for {isYesNo ? "no" : "zero"} score)
+                                </Label>
+                                <Textarea
+                                  value={currentScore.noReason || ""}
+                                  onChange={(e) =>
+                                    handleScoreChange(parameterId, "noReason", e.target.value)
+                                  }
+                                  placeholder={`Explain why this score is ${isYesNo ? "no" : "zero"}`}
+                                  className="min-h-[60px] mt-1"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : evaluationDetails?.evaluation?.scores?.length > 0 ? (
+                    // Fall back to raw scores if no template parameters or grouped scores
+                    <div className="space-y-4">
+                      {evaluationDetails.evaluation.scores.map((score: any) => {
+                        const parameterId = score.parameterId;
+                        const parameterName = score.parameter?.name || `Parameter #${parameterId}`;
+                        const parameterQuestion = score.parameter?.question || score.parameter?.description || "Parameter question not available";
+                        const parameterWeight = score.parameter?.weight || 0;
+                        const scoreType = score.parameter?.scoreType || (typeof score.score === 'number' ? 'numeric' : 'yesno');
+                        
+                        // Get current score data from edited scores or use original
+                        const currentScore = editedScores[parameterId] || { 
+                          score: score.score || 0, 
+                          comment: score.comment || "", 
+                          noReason: score.noReason || "" 
+                        };
+                        
+                        const scoreValue = currentScore.score || 0;
+                        const isYesNo = scoreType === "yesno";
+                        
+                        return (
+                          <div key={parameterId} className="bg-muted/20 rounded-md p-4 border">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-medium mb-1">{parameterName}</h4>
+                                <p className="text-sm text-muted-foreground">{parameterQuestion}</p>
+                              </div>
+                              
+                              <div className="flex flex-col items-end">
+                                <Badge variant="outline" className="mb-2">
+                                  Weight: {parameterWeight}%
+                                </Badge>
+                                
+                                {/* Yes/No selection for boolean parameters, numeric for others */}
+                                {isYesNo ? (
+                                  <Select
+                                    value={scoreValue === 1 ? "yes" : "no"}
+                                    onValueChange={(value) =>
+                                      handleScoreChange(parameterId, "score", value === "yes" ? 1 : 0)
+                                    }
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue placeholder="Score" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="yes">Yes</SelectItem>
+                                      <SelectItem value="no">No</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Select
+                                    value={scoreValue.toString()}
+                                    onValueChange={(value) =>
+                                      handleScoreChange(parameterId, "score", parseInt(value))
+                                    }
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue placeholder="Score" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({ length: 6 }, (_, i) => (
+                                        <SelectItem key={i} value={i.toString()}>
+                                          {i}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Comment field */}
+                            <div className="mt-3">
+                              <Label className="text-sm">Comment</Label>
+                              <Textarea
+                                value={currentScore.comment || ""}
+                                onChange={(e) =>
+                                  handleScoreChange(parameterId, "comment", e.target.value)
+                                }
+                                placeholder="Add a comment (optional)"
+                                className="min-h-[60px] mt-1"
+                              />
+                            </div>
+                            
+                            {/* No Reason field for zero or no scores */}
+                            {(scoreValue === 0 || (isYesNo && scoreValue === 0)) && (
+                              <div className="mt-3">
+                                <Label className="text-sm">
+                                  Reason (Required for {isYesNo ? "no" : "zero"} score)
+                                </Label>
+                                <Textarea
+                                  value={currentScore.noReason || ""}
+                                  onChange={(e) =>
+                                    handleScoreChange(parameterId, "noReason", e.target.value)
+                                  }
+                                  placeholder={`Explain why this score is ${isYesNo ? "no" : "zero"}`}
+                                  className="min-h-[60px] mt-1"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    // Show message if no parameters available from any source
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md">
+                      <h4 className="font-medium mb-2 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        No parameters available
+                      </h4>
+                      <p className="text-sm">The parameters for this evaluation could not be loaded.</p>
+                    </div>
+                  )}
                 </div>
+                
               </div>
-            </div>
+            </ScrollArea>
           )}
           
           <DialogFooter className="border-t pt-4 mt-4">
@@ -3349,7 +3938,7 @@ function ConductEvaluation() {
                 
                 const scores = Object.entries(editedScores || {}).map(([parameterId, scoreData]: [string, any]) => ({
                   parameterId: parseInt(parameterId),
-                  score: parseInt(scoreData?.score) || 0,
+                  score: scoreData?.score || 0,
                   comment: scoreData?.comment || "",
                   noReason: scoreData?.noReason || "",
                 }));
@@ -3364,14 +3953,12 @@ function ConductEvaluation() {
                 scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
                   const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
                   if (parameter) {
-                    const scoreValue = typeof scoreData?.score === 'string' ? 
-                      parseInt(scoreData.score) : (scoreData?.score || 0);
-                    totalScore += scoreValue * (parameter?.weight || 1);
+                    totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
                     totalWeight += (parameter?.weight || 1);
                   }
                 });
                 
-                const finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
+                const finalScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) / 100 : 0;
                 
                 // Determine if passed based on template's passing score
                 const passingScore = evaluationDetails?.evaluation?.template?.passingScore || 70;
@@ -3382,24 +3969,6 @@ function ConductEvaluation() {
                   scores,
                   finalScore,
                   isPassed,
-                }, {
-                  onSuccess: () => {
-                    toast({
-                      title: "Evaluation updated",
-                      description: "The evaluation has been successfully updated",
-                      variant: "default"
-                    });
-                    setIsEditDialogOpen(false);
-                    // Refetch evaluations after successful update
-                    queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
-                  },
-                  onError: () => {
-                    toast({
-                      title: "Error updating evaluation",
-                      description: "There was a problem updating the evaluation. Please try again.",
-                      variant: "destructive"
-                    });
-                  }
                 });
               }}
               disabled={updateEvaluationMutation.isPending}
