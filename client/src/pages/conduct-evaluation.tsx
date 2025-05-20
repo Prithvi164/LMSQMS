@@ -3186,21 +3186,52 @@ function ConductEvaluation() {
                   <div className="space-y-6">
                     {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
                       const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
+                      const scoreValue = currentScore?.score || 0;
                       
                       return (
                         <Card key={parameter?.id} className="border-primary/10">
-                          <CardHeader className="pb-2">
+                          <CardHeader className="pb-2 bg-primary/5">
                             <div className="flex justify-between">
                               <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
                               <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant="outline" 
+                                  className={
+                                    scoreValue >= 4 ? 'bg-green-50 text-green-700 border-green-200' : 
+                                    scoreValue <= 1 ? 'bg-red-50 text-red-700 border-red-200' :
+                                    'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                  }
+                                >
+                                  Score: {scoreValue}
+                                </Badge>
                                 <span className="text-sm text-muted-foreground">
-                                  Weight: {parameter?.weight || 0}
+                                  Weight: {parameter?.weight || 0}%
                                 </span>
                               </div>
                             </div>
                             <CardDescription>{parameter?.description || ""}</CardDescription>
                           </CardHeader>
-                          <CardContent className="space-y-4">
+                          
+                          {/* Current score summary */}
+                          <div className="px-6 py-3 bg-muted/20 border-b border-primary/10">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h4 className="text-sm font-medium">Current Evaluation</h4>
+                                {currentScore?.comment && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    <span className="font-medium">Comment:</span> {currentScore.comment}
+                                  </p>
+                                )}
+                                {currentScore?.noReason && scoreValue === 0 && (
+                                  <p className="text-sm text-red-600 mt-1">
+                                    <span className="font-medium">Reason for Zero:</span> {currentScore.noReason}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <CardContent className="space-y-4 pt-4">
                             <div>
                               <Label className="mb-1.5 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
                               <Select
