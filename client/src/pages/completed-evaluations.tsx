@@ -813,70 +813,7 @@ function CompletedEvaluations() {
                 {!evaluationDetails?.groupedScores || evaluationDetails.groupedScores.length === 0 ? (
                   <p className="text-center text-muted-foreground py-4">No detailed scores available</p>
                 ) : (
-                  <Accordion type="multiple" className="w-full">
-                    {evaluationDetails.groupedScores.map((group, groupIndex) => (
-                      <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex justify-between items-center w-full pr-4">
-                            <span className="font-medium">
-                              {group.pillar?.name || `Section ${groupIndex + 1}`}
-                            </span>
-                            {group.pillar && (
-                              <span className="text-sm px-2">
-                                Weight: {group.pillar.weight}%
-                              </span>
-                            )}
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-4 pl-2">
-                            {group.scores.map((score) => (
-                              <div key={score.id} className="bg-muted p-3 rounded-md">
-                                <div className="flex justify-between items-start mb-2">
-                                  <div className="flex-1">
-                                    <h4 className="font-medium">{score.parameter?.question || score.parameter?.name || 'Parameter'}</h4>
-                                    {score.parameter?.description && (
-                                      <p className="text-sm text-muted-foreground mt-1">
-                                        {score.parameter.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {score.parameter && (
-                                      <span className="text-xs bg-muted-foreground/20 px-2 py-1 rounded">
-                                        Weight: {score.parameter.weight}%
-                                      </span>
-                                    )}
-                                    <span className="text-sm font-semibold">
-                                      Score: {score.score}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                {score.comment && (
-                                  <div className="mt-2">
-                                    <h5 className="text-xs font-medium mb-1">Comment:</h5>
-                                    <p className="text-sm border-l-2 border-primary pl-2 py-1">
-                                      {score.comment}
-                                    </p>
-                                  </div>
-                                )}
-                                
-                                {score.noReason && (
-                                  <div className="mt-2">
-                                    <h5 className="text-xs font-medium mb-1">No Reason:</h5>
-                                    <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
-                                      {score.noReason}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                  <GroupedEvaluationScores evaluationDetails={evaluationDetails} />
                 )}
               </ScrollArea>
             </div>
