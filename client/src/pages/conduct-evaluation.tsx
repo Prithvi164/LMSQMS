@@ -354,6 +354,11 @@ function ConductEvaluation() {
       // Process the evaluation details to group scores by pillar
       if (data.evaluation.scores && data.evaluation.scores.length > 0) {
         console.log("Processing scores for grouping, found", data.evaluation.scores.length, "scores");
+        // Log the template parameters to understand their structure
+        console.log("Template parameters:", data.evaluation.template?.parameters?.slice(0, 3));
+        // Log a few scores to see their structure
+        console.log("Sample scores:", data.evaluation.scores.slice(0, 3));
+        
         const groupedScores: any[] = [];
         const scoresByPillar: Record<string, any[]> = {};
         
@@ -366,7 +371,10 @@ function ConductEvaluation() {
               (p: any) => p.id === score.parameterId
             );
             if (parameter) {
+              console.log(`Found parameter for ID ${score.parameterId}:`, parameter);
               score.parameter = parameter;
+            } else {
+              console.log(`Could not find parameter for ID ${score.parameterId} in template parameters`);
             }
           }
           
