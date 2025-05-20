@@ -385,6 +385,8 @@ function ConductEvaluation() {
         const groupedScores: any[] = [];
         const scoresByPillar: Record<string, any[]> = {};
         
+        console.log("Evaluation template details:", data.evaluation.template);
+        
         // Group scores by pillar ID
         data.evaluation.scores.forEach((score: any) => {
           // Find the parameter to get its pillarId and full details
