@@ -3027,94 +3027,90 @@ function ConductEvaluation() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Parameter Scores</h3>
                   
-                  {/* Group parameters by pillar if available */}
+                  {/* Group parameters by pillar if available - Using accordion similar to evaluation-feedback */}
                   {evaluationDetails?.groupedScores && evaluationDetails?.groupedScores.length > 0 ? (
                     <div className="space-y-4">
-                      {evaluationDetails?.groupedScores?.map((group: any, groupIndex: number) => (
-                        <Card key={groupIndex} className="border-primary/10">
-                          <CardHeader className="bg-primary/5 pb-3">
-                            <CardTitle className="text-base">
-                              {group.pillar ? group.pillar.name : "Other Parameters"}
-                            </CardTitle>
-                            {group.pillar?.description && (
-                              <CardDescription>
-                                {group.pillar.description}
-                              </CardDescription>
-                            )}
-                          </CardHeader>
-                          <CardContent className="pt-4">
-                            <div className="space-y-4">
-                              {group.scores.map((score: any) => (
-                                <div key={score.id} className="border rounded-md p-3 bg-background">
-                                  <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                      <h4 className="font-medium">{score.parameter?.name || "Parameter"}</h4>
-                                      {score.parameter?.description && (
-                                        <p className="text-sm text-muted-foreground">{score.parameter.description}</p>
-                                      )}
-                                      {score.parameter?.weight && (
-                                        <p className="text-xs text-muted-foreground">
-                                          <span className="inline-flex items-center gap-1">
-                                            <Scale className="h-3 w-3" />
-                                            Weight: {score.parameter.weight}
+                      <Accordion type="multiple" className="w-full">
+                        {evaluationDetails?.groupedScores?.map((group: any, groupIndex: number) => (
+                          <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
+                            <AccordionTrigger className="hover:no-underline">
+                              <div className="flex justify-between items-center w-full pr-4">
+                                <span className="font-medium">
+                                  {group.pillar ? group.pillar.name : `Section ${groupIndex + 1}`}
+                                </span>
+                                {group.pillar && (
+                                  <span className="text-sm px-2">
+                                    Weight: {group.pillar.weight}%
+                                  </span>
+                                )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-4 pl-2">
+                                {group.scores.map((score: any) => (
+                                  <div key={score.id} className="bg-muted p-3 rounded-md">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="flex-1">
+                                        <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                        {score.parameter?.description && (
+                                          <p className="text-sm text-muted-foreground mt-1">
+                                            {score.parameter.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {score.parameter?.weight && (
+                                          <span className="text-xs bg-muted-foreground/20 px-2 py-1 rounded">
+                                            Weight: {score.parameter.weight}%
                                           </span>
+                                        )}
+                                        <Badge 
+                                          variant="outline" 
+                                          className={
+                                            (typeof score.score === 'number' && score.score >= 4) || 
+                                            score.score === "Excellent" || 
+                                            score.score === "Yes" || 
+                                            score.score === "1"
+                                              ? 'bg-green-50 text-green-700 border-green-200' 
+                                              : (typeof score.score === 'number' && score.score <= 1) || 
+                                                score.score === "Poor" || 
+                                                score.score === "No" || 
+                                                score.score === "0"
+                                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                                  : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                          }
+                                        >
+                                          {typeof score.score === 'number' && score.parameter?.maxScore 
+                                            ? `${score.score}/${score.parameter.maxScore}` 
+                                            : score.score}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    
+                                    {score.comment && (
+                                      <div className="mt-2">
+                                        <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                        <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                          {score.comment}
                                         </p>
-                                      )}
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                      <Badge 
-                                        variant="outline" 
-                                        className={
-                                          (typeof score.score === 'number' && score.score >= 4) || 
-                                          score.score === "Excellent" || 
-                                          score.score === "Yes" || 
-                                          score.score === "1"
-                                            ? 'bg-green-50 text-green-700 border-green-200' 
-                                            : (typeof score.score === 'number' && score.score <= 1) || 
-                                              score.score === "Poor" || 
-                                              score.score === "No" || 
-                                              score.score === "0"
-                                                ? 'bg-red-50 text-red-700 border-red-200'
-                                                : 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                        }
-                                      >
-                                        {typeof score.score === 'number' && score.parameter?.maxScore 
-                                          ? `${score.score}/${score.parameter.maxScore}` 
-                                          : score.score}
-                                      </Badge>
-                                      {score.parameter?.maxScore && (
-                                        <span className="text-xs text-muted-foreground mt-1">
-                                          Max: {score.parameter.maxScore}
-                                        </span>
-                                      )}
-                                    </div>
+                                      </div>
+                                    )}
+                                    
+                                    {score.noReason && (
+                                      <div className="mt-2">
+                                        <h5 className="text-xs font-medium mb-1">Reason for Low Score:</h5>
+                                        <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                          {score.noReason}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
-                                  
-                                  {score.comment && (
-                                    <div className="mt-3 pt-3 border-t">
-                                      <h5 className="text-xs font-medium mb-1 flex items-center gap-1">
-                                        <MessageSquare className="h-3 w-3" />
-                                        <span>Comment:</span>
-                                      </h5>
-                                      <p className="text-sm p-2 bg-muted/30 rounded">{score.comment}</p>
-                                    </div>
-                                  )}
-                                  
-                                  {score.noReason && (
-                                    <div className="mt-3 pt-3 border-t">
-                                      <h5 className="text-xs font-medium mb-1 flex items-center gap-1">
-                                        <AlertTriangle className="h-3 w-3 text-red-500" />
-                                        <span>Reason for Low Score:</span>
-                                      </h5>
-                                      <p className="text-sm p-2 bg-red-50 rounded">{score.noReason}</p>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                                ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
                     </div>
                   ) : (
                     <Accordion type="multiple" className="w-full">
