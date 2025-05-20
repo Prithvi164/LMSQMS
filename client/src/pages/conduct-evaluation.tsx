@@ -3281,6 +3281,11 @@ function ConductEvaluation() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold mb-2">Parameters</h3>
                   
+                  {/* Debug: Display the parameter data structure */}
+                  <div className="bg-black/5 p-3 rounded text-xs mb-4 whitespace-pre-wrap">
+                    <strong>Template Parameters Available:</strong> {evaluationDetails?.evaluation?.template?.parameters?.length || 0}
+                  </div>
+                  
                   {/* Display parameters directly, similar to evaluation feedback view */}
                   {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
                     // Get current score or initialize with defaults
@@ -3292,8 +3297,8 @@ function ConductEvaluation() {
                       <div key={parameter.id} className="bg-muted/20 rounded-md p-4 border">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h4 className="font-medium">{parameter.name}</h4>
-                            <p className="text-sm text-muted-foreground">{parameter.description || ""}</p>
+                            <h4 className="font-medium mb-1">Parameter: {parameter.name || "Unnamed"}</h4>
+                            <p className="text-sm text-muted-foreground">Question: {parameter.question || parameter.description || "No question text available"}</p>
                           </div>
                           
                           <div className="flex flex-col items-end">
