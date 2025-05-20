@@ -399,23 +399,76 @@ function ConductEvaluation() {
       if (evaluationsResponse) {
         // Handle potential data structure differences
         if (Array.isArray(evaluationsResponse)) {
-          if (evaluationsResponse.length > 0) {
-            return evaluationsResponse.map(transformEvaluationData);
-          }
+          console.log("Processing array of evaluations, length:", evaluationsResponse.length);
+          return evaluationsResponse.map(eval => {
+            console.log("Processing evaluation item:", eval);
+            return {
+              id: eval.id,
+              evaluationType: eval.evaluation_type || "standard",
+              templateId: eval.template_id,
+              templateName: eval.template_name,
+              traineeId: eval.trainee_id,
+              trainee: eval.trainee_name ? { 
+                fullName: eval.trainee_name,
+                id: eval.trainee_id
+              } : undefined,
+              audioFileId: eval.audio_file_id,
+              finalScore: eval.final_score || 0,
+              createdAt: eval.created_at,
+              status: eval.status || "completed",
+              isPassed: (eval.final_score || 0) >= (eval.feedback_threshold || 0)
+            };
+          });
         }
         
         if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
-          if (evaluationsResponse.evaluations.length > 0) {
-            return evaluationsResponse.evaluations.map(transformEvaluationData);
-          }
+          console.log("Processing evaluations from object with 'evaluations' property");
+          return evaluationsResponse.evaluations.map(eval => ({
+            id: eval.id,
+            evaluationType: eval.evaluation_type || "standard",
+            templateId: eval.template_id,
+            templateName: eval.template_name,
+            traineeId: eval.trainee_id,
+            trainee: eval.trainee_name ? { 
+              fullName: eval.trainee_name,
+              id: eval.trainee_id
+            } : undefined,
+            audioFileId: eval.audio_file_id,
+            finalScore: eval.final_score || 0,
+            createdAt: eval.created_at,
+            status: eval.status || "completed",
+            isPassed: (eval.final_score || 0) >= (eval.feedback_threshold || 0)
+          }));
         }
         
-        // Try to process the response differently if it has a different structure
+        // Add additional debug info
+        console.log("Evaluations response type:", typeof evaluationsResponse);
+        console.log("Response keys:", Object.keys(evaluationsResponse));
+        
+        // If it's an object with evaluations inside
         if (typeof evaluationsResponse === 'object') {
-          // If it's an object with numerical keys (like { '1': {...}, '2': {...} })
           const values = Object.values(evaluationsResponse);
-          if (values.length > 0 && typeof values[0] === 'object') {
-            return values.map(transformEvaluationData);
+          console.log("Object values length:", values.length);
+          if (values.length > 0) {
+            console.log("First value type:", typeof values[0], "Sample:", values[0]);
+            if (typeof values[0] === 'object') {
+              return values.map(eval => ({
+                id: eval.id,
+                evaluationType: eval.evaluation_type || "standard",
+                templateId: eval.template_id,
+                templateName: eval.template_name,
+                traineeId: eval.trainee_id,
+                trainee: eval.trainee_name ? { 
+                  fullName: eval.trainee_name,
+                  id: eval.trainee_id
+                } : undefined,
+                audioFileId: eval.audio_file_id,
+                finalScore: eval.final_score || 0,
+                createdAt: eval.created_at,
+                status: eval.status || "completed",
+                isPassed: (eval.final_score || 0) >= (eval.feedback_threshold || 0)
+              }));
+            }
           }
         }
       }
@@ -424,6 +477,7 @@ function ConductEvaluation() {
     }
     
     // Return empty array if we couldn't extract data
+    console.log("No valid evaluations data found, returning empty array");
     return [];
   }, [evaluationsResponse]);
   
