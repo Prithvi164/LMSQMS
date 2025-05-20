@@ -330,7 +330,7 @@ function ConductEvaluation() {
   
   // State variables for evaluation details are already declared above
   
-  // Function to fetch evaluation details - enhanced with proper authentication
+  // Function to fetch evaluation details - using the queryClient directly to ensure proper auth
   const fetchEvaluationDetails = async (evaluationId: number) => {
     setLoadingDetails(true);
     setEvaluationDetailsData(null);
@@ -338,9 +338,9 @@ function ConductEvaluation() {
     try {
       console.log("Fetching details for evaluation ID:", evaluationId);
       
-      // Use queryClient instead of direct fetch to ensure proper auth headers
+      // Use queryClient directly which handles authentication correctly
       const data = await queryClient.fetchQuery({
-        queryKey: ['/api/evaluations', evaluationId],
+        queryKey: [`/api/evaluations/${evaluationId}`],
       });
       
       console.log("Evaluation details raw response:", data);
