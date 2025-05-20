@@ -2879,7 +2879,7 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Date:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails.evaluation.createdAt) : "N/A"}
+                          {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails?.evaluation?.createdAt) : "N/A"}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -2891,7 +2891,7 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Final Score:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails.evaluation.finalScore).toFixed(1) : "0"}%
+                          {evaluationDetails?.evaluation?.finalScore ? Number(evaluationDetails?.evaluation?.finalScore).toFixed(1) : "0"}%
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -2940,19 +2940,19 @@ function ConductEvaluation() {
                           <div className="flex justify-between">
                             <span className="text-sm">Trainee:</span>
                             <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.trainee?.fullName || "Unknown"}
+                              {evaluationDetails?.evaluation?.trainee?.fullName || "Unknown"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm">Employee ID:</span>
                             <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.trainee?.employeeId || "N/A"}
+                              {evaluationDetails?.evaluation?.trainee?.employeeId || "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm">Batch:</span>
                             <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.batch?.name || "N/A"}
+                              {evaluationDetails?.evaluation?.batch?.name || "N/A"}
                             </span>
                           </div>
                         </>
@@ -2960,7 +2960,7 @@ function ConductEvaluation() {
                       <div className="flex justify-between">
                         <span className="text-sm">Evaluator:</span>
                         <span className="text-sm font-medium">
-                          {evaluationDetails.evaluation.evaluator?.fullName || "Unknown"}
+                          {evaluationDetails?.evaluation?.evaluator?.fullName || "Unknown"}
                         </span>
                       </div>
                     </div>
@@ -2971,9 +2971,9 @@ function ConductEvaluation() {
                   <h3 className="text-lg font-semibold mb-2">Parameter Scores</h3>
                   
                   {/* Group parameters by pillar if available */}
-                  {evaluationDetails.groupedScores && evaluationDetails.groupedScores.length > 0 ? (
+                  {evaluationDetails?.groupedScores && evaluationDetails?.groupedScores.length > 0 ? (
                     <div className="space-y-4">
-                      {evaluationDetails.groupedScores.map((group: any, groupIndex: number) => (
+                      {evaluationDetails?.groupedScores?.map((group: any, groupIndex: number) => (
                         <Card key={groupIndex} className="border-primary/10">
                           <CardHeader className="bg-primary/5 pb-3">
                             <CardTitle className="text-base">
@@ -3061,8 +3061,8 @@ function ConductEvaluation() {
                     </div>
                   ) : (
                     <Accordion type="multiple" className="w-full">
-                      {evaluationDetails.evaluation.template?.parameters?.map((parameter: any) => {
-                        const score = evaluationDetails.evaluation.scores?.find(
+                      {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
+                        const score = evaluationDetails?.evaluation?.scores?.find(
                           (s: any) => s.parameterId === parameter.id
                         );
                         
@@ -3317,7 +3317,7 @@ function ConductEvaluation() {
                 const finalScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) / 100 : 0;
                 
                 // Determine if passed based on template's passing score
-                const passingScore = evaluationDetails.evaluation.template.passingScore || 70;
+                const passingScore = evaluationDetails?.evaluation?.template?.passingScore || 70;
                 const isPassed = finalScore >= passingScore;
                 
                 updateEvaluationMutation.mutate({
