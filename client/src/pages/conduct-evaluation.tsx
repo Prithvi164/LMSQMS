@@ -387,27 +387,33 @@ function ConductEvaluation() {
         
         // Group scores by pillar ID
         data.evaluation.scores.forEach((score: any) => {
-          // Find the parameter to get its pillarId and question
+          // Find the parameter to get its pillarId and full details
           const parameter = data.evaluation.template?.parameters?.find(
             (p: any) => p.id === score.parameterId
           );
           
-          // Make sure parameter has all the needed fields, including question
+          // Make sure parameter has all the needed fields
           const enhancedParameter = parameter ? {
             ...parameter,
-            // Make sure question is set - use name as a fallback if question isn't available
-            question: parameter.question || parameter.name
-          } : null;
+            // Ensure 'name' field is set for display in the GroupedEvaluationScores component
+            name: parameter.name || parameter.question || `Parameter ${score.parameterId}`
+          } : {
+            id: score.parameterId || 0,
+            name: `Parameter ${score.parameterId}`,
+            weight: 0,
+            pillarId: 0
+          };
           
-          const pillarId = enhancedParameter?.pillarId || "unknown";
+          const pillarId = enhancedParameter?.pillarId?.toString() || "unknown";
           
           if (!scoresByPillar[pillarId]) {
             scoresByPillar[pillarId] = [];
           }
           
+          // Add the enhanced parameter object to the score
           scoresByPillar[pillarId].push({
             ...score,
-            parameter: enhancedParameter // Add enhanced parameter info to the score object
+            parameter: enhancedParameter 
           });
         });
         
@@ -415,17 +421,20 @@ function ConductEvaluation() {
         Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
           // Find the full pillar object from the template
           const pillar = data.evaluation.template?.pillars?.find(
-            (p: any) => p.id.toString() === pillarId
+            (p: any) => p.id?.toString() === pillarId
           );
           
-          // Ensure pillar has a proper name to display
+          // Ensure pillar has proper structure and name for display
           const enhancedPillar = pillar ? {
             ...pillar,
-            // Make sure name is set - use a fallback if name isn't available
-            name: pillar.name || `Section ${pillarId}`
+            name: pillar.name || `Section ${pillarId}`,
+            // Ensure required fields for the GroupedEvaluationScores component are present
+            templateId: pillar.templateId || data.evaluation.templateId || 0
           } : { 
             id: parseInt(pillarId) || 0, 
-            name: `Section ${pillarId}` 
+            name: `Section ${pillarId}`,
+            weight: 0,
+            templateId: data.evaluation.templateId || 0
           };
           
           groupedScores.push({
@@ -434,6 +443,7 @@ function ConductEvaluation() {
           });
         });
         
+        // Set data in the format expected by GroupedEvaluationScores component
         setEvaluationDetailsData({
           evaluation: data.evaluation,
           groupedScores
