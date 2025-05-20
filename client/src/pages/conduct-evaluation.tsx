@@ -430,15 +430,24 @@ function ConductEvaluation() {
             (p: any) => p.id?.toString() === pillarId
           );
           
+          // Debug log for pillar mapping
+          console.log("Debug - Pillar mapping:", pillarId, pillar); 
+          
           // Ensure pillar has proper structure and name for display
           const enhancedPillar = pillar ? {
             ...pillar,
+            // Use either name or if missing, a fallback name
             name: pillar.name || `Section ${pillarId}`,
+            // Ensure we have a description field
+            description: pillar.description || null,
+            // Ensure we have a weight field for display
+            weight: pillar.weight || pillar.weightage || 0,
             // Ensure required fields for the GroupedEvaluationScores component are present
             templateId: pillar.templateId || data.evaluation.templateId || 0
           } : { 
             id: parseInt(pillarId) || 0, 
             name: `Section ${pillarId}`,
+            description: null,
             weight: 0,
             templateId: data.evaluation.templateId || 0
           };
