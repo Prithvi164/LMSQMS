@@ -710,9 +710,9 @@ function CompletedEvaluations() {
         </TabsContent>
       </Tabs>
       
-      {/* View Evaluation Dialog */}
+      {/* View Evaluation Dialog - Matches layout from evaluation-feedback page */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Evaluation Details</DialogTitle>
             <DialogDescription>
@@ -721,29 +721,22 @@ function CompletedEvaluations() {
           </DialogHeader>
           
           {loadingDetails ? (
-            <div className="flex justify-center items-center py-10">
-              <Spinner className="h-6 w-6" />
-              <span className="ml-2">Loading details...</span>
+            <div className="flex items-center justify-center py-8">
+              <Spinner className="h-8 w-8 animate-spin" />
             </div>
-          ) : !evaluationDetails ? (
-            <div className="text-center py-6">
-              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-              <p>Failed to load evaluation details</p>
-            </div>
-          ) : (
-            <ScrollArea className="flex-1 pr-4">
-              <div className="py-4">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      Evaluation #{evaluationDetails?.evaluation?.id}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Date: {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails.evaluation.createdAt) : "Unknown"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Type: {evaluationDetails?.evaluation?.evaluationType || "Unknown"}
-                    </p>
+          ) : evaluationDetails ? (
+            <div className="py-4">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Evaluation #{evaluationDetails?.evaluation?.id}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Date: {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails.evaluation.createdAt) : "Unknown"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Type: {evaluationDetails?.evaluation?.evaluationType || "Unknown"}
+                  </p>
                       <div className="flex justify-between">
                         <span className="text-sm">Template:</span>
                         <span className="text-sm font-medium">
