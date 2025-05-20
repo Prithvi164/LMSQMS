@@ -254,6 +254,10 @@ function CompletedEvaluations() {
       const parameters = details.evaluation?.template?.parameters || [];
       const pillars = details.pillars || [];
       
+      console.log("SCORES DATA:", scores);
+      console.log("PARAMETERS DATA:", parameters);
+      console.log("PILLARS DATA:", pillars);
+      
       // Create a map of parameter IDs to their details
       const parameterMap = {};
       parameters.forEach(param => {
@@ -274,6 +278,8 @@ function CompletedEvaluations() {
         }
         parametersByPillar[pillarId].push(param);
       });
+      
+      console.log("PARAMETERS BY PILLAR:", parametersByPillar);
       
       // Then create grouped scores structure
       Object.entries(parametersByPillar).forEach(([pillarId, pillarParams]) => {
@@ -299,6 +305,8 @@ function CompletedEvaluations() {
           });
         }
       });
+      
+      console.log("GROUPED SCORES CREATED:", groupedScores);
       
       details.groupedScores = groupedScores;
       
