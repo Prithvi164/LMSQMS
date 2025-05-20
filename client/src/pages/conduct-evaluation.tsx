@@ -2905,29 +2905,29 @@ function ConductEvaluation() {
                   
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                      {evaluationDetails.evaluation.evaluationType === "audio" 
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" 
                         ? "Audio Information" 
                         : "Trainee Information"}
                     </h3>
                     <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                      {evaluationDetails.evaluation.evaluationType === "audio" ? (
+                      {evaluationDetails?.evaluation?.evaluationType === "audio" ? (
                         <>
                           <div className="flex justify-between">
                             <span className="text-sm">Audio ID:</span>
-                            <span className="text-sm font-medium">#{evaluationDetails.evaluation.audioFileId}</span>
+                            <span className="text-sm font-medium">#{evaluationDetails?.evaluation?.audioFileId || 'N/A'}</span>
                           </div>
-                          {evaluationDetails.evaluation.audioFile && (
+                          {evaluationDetails?.evaluation?.audioFile && (
                             <>
                               <div className="flex justify-between">
                                 <span className="text-sm">File Name:</span>
                                 <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.audioFile.fileName || "Not available"}
+                                  {evaluationDetails?.evaluation?.audioFile?.fileName || "Not available"}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-sm">Duration:</span>
                                 <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.audioFile.duration 
+                                  {evaluationDetails?.evaluation?.audioFile?.duration 
                                     ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
                                     : "Unknown"}
                                 </span>
