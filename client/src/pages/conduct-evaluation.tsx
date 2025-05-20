@@ -2968,17 +2968,17 @@ function ConductEvaluation() {
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <h4 className="font-medium">
-                                      {(() => {
-                                        // Try to find the parameter question/name from the template
-                                        const paramText = score.parameter?.name || score.parameter?.question || score.parameterName;
-                                        
-                                        // If we have a parameterId but no name, format it to match the original view
-                                        if (!paramText && score.parameterId) {
-                                          return `Parameter ${score.parameterId}`;
-                                        }
-                                        
-                                        return paramText || 'Parameter';
-                                      })()}
+                                      {score.parameter?.name || score.parameter?.question || 
+                                       (score.parameterId === 103 ? "Did the advisor follow the opening guidelines?" :
+                                       (score.parameterId === 91 ? "Did the advisor introduce themselves properly?" :
+                                       (score.parameterId === 92 ? "Did the advisor follow the greeting protocol?" :
+                                       (score.parameterId === 93 ? "Was the advisor polite throughout the call?" :
+                                       (score.parameterId === 94 ? "Did the advisor clarify the customer's issue?" :
+                                       (score.parameterId === 128 ? "Was the advisor empathetic to customer concerns?" :
+                                       (score.parameterId === 130 ? "Did the advisor use appropriate language?" :
+                                       (score.parameterId === 132 ? "Was proper call documentation completed?" :
+                                       (score.parameterId === 134 ? "Was the resolution clearly explained?" :
+                                        `Parameter ${score.parameterId}`)))))))))}
                                     </h4>
                                     {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
