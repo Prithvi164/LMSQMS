@@ -11,6 +11,7 @@ type ScoreParameter = {
   weight?: number;
   maxScore?: number;
   pillarId?: number;
+  question?: string;
 };
 
 type Score = {
