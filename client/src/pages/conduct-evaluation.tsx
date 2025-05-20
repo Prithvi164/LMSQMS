@@ -364,12 +364,14 @@ function ConductEvaluation() {
           
           if (templateData && templateData.parameters && Array.isArray(templateData.parameters)) {
             console.log("Retrieved template parameters:", templateData.parameters.length);
+            console.log("Sample template parameters:", templateData.parameters.slice(0, 3));
             
             // Create a map of parameter IDs to their details
             const parameterMap = {};
             templateData.parameters.forEach(param => {
               if (param.id) {
                 parameterMap[param.id] = param;
+                console.log(`Parameter ${param.id} mapped:`, param);
               }
             });
             
