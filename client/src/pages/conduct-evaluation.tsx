@@ -2956,12 +2956,12 @@ function ConductEvaluation() {
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <h4 className="font-medium">
-                                      {/* Use question for primary display, with fallbacks */}
+                                      {/* Use parameter question/name for proper display */}
                                       {score.parameter?.question || 
-                                        score.parameterName || 
-                                        score.parameter?.name || 
-                                        score.question || 
-                                        (score.parameterId ? `Question ${score.parameterId}` : 'Unknown Parameter')}
+                                       score.parameter?.name || 
+                                       score.parameterName || 
+                                       score.question || 
+                                       (score.parameterId ? `Parameter ${score.parameterId}` : 'Unknown Parameter')}
                                     </h4>
                                     {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
