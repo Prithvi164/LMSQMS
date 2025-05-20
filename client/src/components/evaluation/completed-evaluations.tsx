@@ -12,6 +12,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { FileAudio, Eye, Edit, CheckCircle, XCircle, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
+// Helper function for formatting dates
+function formatEvaluationDate(dateString: string): string {
+  if (!dateString) return "N/A";
+  return format(new Date(dateString), 'MMM dd, yyyy');
+}
+
 // Define the format for evaluation data
 interface EvaluationData {
   id: number;
@@ -163,7 +169,7 @@ export function CompletedEvaluations() {
                               {evaluation.finalScore.toFixed(1)}%
                             </Badge>
                           </TableCell>
-                          <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
+                          <TableCell>{formatEvaluationDate(evaluation.createdAt)}</TableCell>
                           <TableCell>
                             {evaluation.isPassed 
                               ? <CheckCircle className="h-4 w-4 text-green-500" /> 
@@ -258,7 +264,7 @@ export function CompletedEvaluations() {
                               {evaluation.finalScore.toFixed(1)}%
                             </Badge>
                           </TableCell>
-                          <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
+                          <TableCell>{formatEvaluationDate(evaluation.createdAt)}</TableCell>
                           <TableCell>
                             {evaluation.isPassed 
                               ? <CheckCircle className="h-4 w-4 text-green-500" /> 
@@ -317,7 +323,7 @@ export function CompletedEvaluations() {
                   </Badge>
                 </div>
                 <DialogDescription>
-                  Conducted on {formatDate(evaluationDetails.createdAt)}
+                  Conducted on {formatEvaluationDate(evaluationDetails.createdAt)}
                 </DialogDescription>
               </DialogHeader>
               
