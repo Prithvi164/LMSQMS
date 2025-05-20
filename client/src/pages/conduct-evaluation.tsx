@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -10,7 +10,6 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { CompletedEvaluations } from "@/components/evaluation/completed-evaluations";
 import {
   Select,
   SelectContent,
@@ -26,6 +25,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/lib/utils";
 import {
   Play,
   Pause,
@@ -50,6 +51,9 @@ import {
   AlertCircle,
   User,
   Users,
+  Scale,
+  MessageSquare,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Table,
@@ -92,19 +96,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// Helper function to format dates
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
 function ConductEvaluation() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -125,12 +116,14 @@ function ConductEvaluation() {
   
   // States for completed evaluations view
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEvaluation, setSelectedEvaluation] = useState<number | null>(null);
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedScores, setEditedScores] = useState<Record<number, any>>({});
   const [completedEvalType, setCompletedEvalType] = useState<"all" | "standard" | "audio">("all");
-  const [feedbackTabType, setFeedbackTabType] = useState<"standard" | "audio">("standard");
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [evaluationDetailsData, setEvaluationDetailsData] = useState<any>(null);
   const [evaluationFilters, setEvaluationFilters] = useState({
     templateId: "",
     traineeId: "",
@@ -139,83 +132,7 @@ function ConductEvaluation() {
     dateRange: "all",
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
-  // State for evaluation details view
-  const [evaluationDetails, setEvaluationDetails] = useState<any>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  
-  // Function to fetch evaluation details with feedback
-  const fetchEvaluationDetails = async (evaluationId: number) => {
-    setLoadingDetails(true);
-    try {
-      const response = await fetch(`/api/evaluations/${evaluationId}/details`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch evaluation details');
-      }
-      const data = await response.json();
-      
-      // Group scores by pillar for easier display
-      const scoresByPillar = new Map();
-      
-      // Process scores to group by pillar
-      if (data.scores && Array.isArray(data.scores)) {
-        data.scores.forEach((score: any) => {
-          const pillarId = score.parameter?.pillarId;
-          if (!scoresByPillar.has(pillarId)) {
-            scoresByPillar.set(pillarId, {
-              pillar: data.pillars?.find((p: any) => p.id === pillarId),
-              scores: []
-            });
-          }
-          scoresByPillar.get(pillarId).scores.push(score);
-        });
-      }
-      
-      // Convert to array for rendering
-      const groupedScores = Array.from(scoresByPillar.values());
-      
-      setEvaluationDetails({
-        evaluation: data.evaluation || data,
-        groupedScores,
-        template: data.template
-      });
-    } catch (error) {
-      console.error('Error fetching evaluation details:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load evaluation details. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingDetails(false);
-    }
-  };
 
-  // Query to fetch evaluation feedback data
-  const { data: feedbackList = [], isLoading: loadingFeedback } = useQuery({
-    queryKey: ['/api/evaluation-feedback', 'all'],
-    queryFn: async () => {
-      return fetch('/api/evaluation-feedback?all=true')
-        .then(res => res.json());
-    },
-    enabled: !!user && evaluationType === "completed",
-  });
-  
-  // Query to fetch all evaluations for the View Completed tab
-  const { data: evaluations = [], isLoading: loadingEvaluations } = useQuery({
-    queryKey: ['/api/evaluations', 'all'],
-    queryFn: async () => {
-      return fetch('/api/evaluations?includeAll=true')
-        .then(res => {
-          if (!res.ok) {
-            throw new Error('Failed to fetch evaluations');
-          }
-          return res.json();
-        });
-    },
-    enabled: !!user && evaluationType === "completed",
-  });
-  
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -359,6 +276,204 @@ function ConductEvaluation() {
 
   // Log the assigned audio files to help with debugging
   console.log("Assigned audio files:", assignedAudioFiles);
+  
+  // Query to load completed evaluations with fallback strategy
+  const {
+    data: evaluationsResponse,
+    isLoading: loadingEvaluations,
+    error: evaluationsError,
+    refetch: refetchEvaluations
+  } = useQuery({
+    queryKey: ["/api/evaluations"],
+    enabled: !!user && evaluationType === "completed",
+    retry: 2,
+    staleTime: 1000 * 60, // 1 minute
+    refetchOnWindowFocus: false,
+    // Add proper error handling
+    onError: (error: any) => {
+      console.error("Error loading evaluations:", error);
+      toast({
+        title: "Error loading evaluations",
+        description: error.message || "Failed to load evaluations. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Creating a function to transform evaluation data into the format we need
+  const transformEvaluationData = (evaluation: any) => {
+    // Calculate if evaluation passed based on final_score and feedback_threshold
+    const isPassed = evaluation.final_score >= (evaluation.feedback_threshold || 0);
+    
+    return {
+      id: evaluation.id,
+      templateId: evaluation.template_id, 
+      traineeId: evaluation.trainee_id,
+      batchId: evaluation.batch_id,
+      createdAt: evaluation.created_at,
+      finalScore: evaluation.final_score,
+      evaluationType: evaluation.evaluation_type,
+      isPassed: isPassed,
+      audioFileId: evaluation.audio_file_id,
+      // Include related entities if they exist in the evaluation object
+      template: evaluation.template_name ? 
+        { id: evaluation.template_id, name: evaluation.template_name } : 
+        undefined,
+      trainee: evaluation.trainee_name ?
+        { id: evaluation.trainee_id, fullName: evaluation.trainee_name } :
+        undefined,
+      audioFile: evaluation.filename ? 
+        { id: evaluation.audio_file_id, name: evaluation.filename } :
+        undefined,
+    };
+  };
+  
+  // State variables for evaluation details are already declared above
+  
+  // Function to fetch evaluation details
+  const fetchEvaluationDetails = async (evaluationId: number) => {
+    setLoadingDetails(true);
+    setEvaluationDetailsData(null);
+    
+    try {
+      const response = await queryClient.fetchQuery({
+        queryKey: ["/api/evaluations", evaluationId],
+      });
+      
+      console.log("Evaluation details:", response);
+      
+      // Process the evaluation details to group scores by pillar
+      if (response && response.evaluation && response.evaluation.scores) {
+        const groupedScores: any[] = [];
+        const scoresByPillar: Record<number, any[]> = {};
+        
+        // Group scores by pillar ID
+        response.evaluation.scores.forEach((score: any) => {
+          const pillarId = score.parameter?.pillarId;
+          if (!scoresByPillar[pillarId]) {
+            scoresByPillar[pillarId] = [];
+          }
+          scoresByPillar[pillarId].push(score);
+        });
+        
+        // Create the grouped structure
+        Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
+          const pillar = response.evaluation.template?.pillars?.find(
+            (p: any) => p.id === parseInt(pillarId)
+          );
+          
+          groupedScores.push({
+            pillar: pillar || { id: parseInt(pillarId), name: `Section ${pillarId}` },
+            scores: scores
+          });
+        });
+        
+        setEvaluationDetailsData({
+          evaluation: response.evaluation,
+          groupedScores
+        });
+      } else {
+        setEvaluationDetailsData({ evaluation: response.evaluation, groupedScores: [] });
+      }
+    } catch (error) {
+      console.error("Error fetching evaluation details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load evaluation details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+  
+  // We're using direct onClick handlers in the button, so this function is not needed
+
+  // Process evaluations data to ensure we have a valid array
+  const evaluations = useMemo(() => {
+    // Log the response to diagnose the issue
+    console.log("Evaluations API response:", evaluationsResponse);
+    
+    try {
+      // First try to use the real API data
+      if (evaluationsResponse) {
+        // Handle potential data structure differences
+        if (Array.isArray(evaluationsResponse)) {
+          if (evaluationsResponse.length > 0) {
+            return evaluationsResponse.map(transformEvaluationData);
+          }
+        }
+        
+        if (evaluationsResponse.evaluations && Array.isArray(evaluationsResponse.evaluations)) {
+          if (evaluationsResponse.evaluations.length > 0) {
+            return evaluationsResponse.evaluations.map(transformEvaluationData);
+          }
+        }
+        
+        // Try to process the response differently if it has a different structure
+        if (typeof evaluationsResponse === 'object') {
+          // If it's an object with numerical keys (like { '1': {...}, '2': {...} })
+          const values = Object.values(evaluationsResponse);
+          if (values.length > 0 && typeof values[0] === 'object') {
+            return values.map(transformEvaluationData);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error processing evaluations data:", error);
+    }
+    
+    // Return empty array if we couldn't extract data
+    return [];
+  }, [evaluationsResponse]);
+  
+  // Query for selected evaluation details
+  const {
+    data: evaluationDetails,
+    isLoading: isLoadingDetails,
+    error: detailsError,
+  } = useQuery({
+    queryKey: ["/api/evaluations", selectedEvaluationId],
+    enabled: !!selectedEvaluationId && (isViewDialogOpen || isEditDialogOpen),
+  });
+  
+  // Mutation for updating an evaluation
+  const updateEvaluationMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await fetch(`/api/evaluations/${data.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update evaluation");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/evaluations"] });
+      
+      toast({
+        title: "Evaluation updated",
+        description: "The evaluation has been updated successfully.",
+      });
+      
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating evaluation",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Get audio file details when selected
   // Fetch audio file details
@@ -745,6 +860,8 @@ function ConductEvaluation() {
       },
     }));
   };
+  
+  // Function is already declared above, removing duplicate
 
   const calculateScore = () => {
     if (!selectedTemplateDetails) return 0;
@@ -1269,7 +1386,7 @@ function ConductEvaluation() {
         <TabsList className="mb-4">
           <TabsTrigger value="standard">Standard Evaluation</TabsTrigger>
           <TabsTrigger value="audio">Audio Evaluation</TabsTrigger>
-          <TabsTrigger value="completed">View Completed</TabsTrigger>
+          <TabsTrigger value="completed">Completed Evaluations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="standard" className="space-y-6">
@@ -2243,11 +2360,15 @@ function ConductEvaluation() {
           </div>
         </TabsContent>
 
-        {/* View Completed Evaluations Tab Content */}
+        {/* Completed Evaluations Tab Content */}
         <TabsContent value="completed" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">View Completed Evaluations</h1>
-            <div className="flex gap-2 items-center">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ClipboardCheck className="h-6 w-6 text-primary" />
+              <span>Completed Evaluations</span>
+            </h1>
+            
+            <div className="flex items-center gap-2">
               <div className="relative w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -2257,820 +2378,881 @@ function ConductEvaluation() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              
+              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-1">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Filter Options</h4>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="template-filter">Template</Label>
+                      <Select
+                        value={evaluationFilters.templateId}
+                        onValueChange={(value) =>
+                          setEvaluationFilters((prev) => ({ ...prev, templateId: value }))
+                        }
+                      >
+                        <SelectTrigger id="template-filter">
+                          <SelectValue placeholder="Select template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Templates</SelectItem>
+                          {templates?.map((template: any) => (
+                            <SelectItem key={template.id} value={template.id.toString()}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="batch-filter">Batch</Label>
+                      <Select
+                        value={evaluationFilters.batchId}
+                        onValueChange={(value) =>
+                          setEvaluationFilters((prev) => ({ ...prev, batchId: value }))
+                        }
+                      >
+                        <SelectTrigger id="batch-filter">
+                          <SelectValue placeholder="Select batch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Batches</SelectItem>
+                          {batches?.map((batch: any) => (
+                            <SelectItem key={batch.id} value={batch.id.toString()}>
+                              {batch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="status-filter">Status</Label>
+                      <Select
+                        value={evaluationFilters.status}
+                        onValueChange={(value) =>
+                          setEvaluationFilters((prev) => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger id="status-filter">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="pt-2 flex justify-between">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setEvaluationFilters({
+                            templateId: "",
+                            traineeId: "",
+                            batchId: "",
+                            status: "all",
+                            dateRange: "all",
+                          });
+                          setSearchQuery("");
+                          setCompletedEvalType("all");
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                      <Button size="sm" onClick={() => setIsFilterOpen(false)}>
+                        Apply Filters
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
-
-          <Tabs defaultValue="standard" onValueChange={(value) => setFeedbackTabType(value as "standard" | "audio")}>
-            <TabsList>
+          
+          <Tabs defaultValue="all" value={completedEvalType} onValueChange={(value) => setCompletedEvalType(value as "all" | "standard" | "audio")}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="all">All Evaluations</TabsTrigger>
               <TabsTrigger value="standard">Standard Evaluations</TabsTrigger>
               <TabsTrigger value="audio">Audio Evaluations</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="standard" className="pt-4">
+            
+            <TabsContent value={completedEvalType}>
               {loadingEvaluations ? (
-                <div className="flex justify-center py-10">
-                  <Spinner className="h-6 w-6 mr-2" />
-                  <span>Loading evaluations...</span>
+                <div className="flex justify-center items-center py-10">
+                  <Spinner className="h-6 w-6" />
+                  <span className="ml-2">Loading evaluations...</span>
                 </div>
-              ) : (
+              ) : evaluationsError ? (
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle>Standard Evaluation Feedback</CardTitle>
-                    <CardDescription>
-                      View detailed feedback for all standard evaluations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Trainee</TableHead>
-                          <TableHead>Template</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {evaluations
-                          .filter((evaluation: any) => 
-                            evaluation.evaluationType === "standard" &&
-                            (searchQuery 
-                              ? evaluation.trainee?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                evaluation.id.toString().includes(searchQuery) ||
-                                evaluation.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
-                              : true)
-                          )
-                          .map((evaluation: any) => (
-                            <TableRow key={evaluation.id}>
-                              <TableCell className="font-medium">#{evaluation.id}</TableCell>
-                              <TableCell>{evaluation.trainee?.fullName || "Unknown"}</TableCell>
-                              <TableCell>{evaluation.templateName || "Unknown Template"}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={evaluation.isPassed ? "outline" : "destructive"}
-                                  className={evaluation.isPassed 
-                                    ? "bg-green-50 text-green-600 border-green-200" 
-                                    : "bg-red-50 text-red-600 border-red-200"
-                                  }
-                                >
-                                  {evaluation.finalScore.toFixed(1)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
-                              <TableCell>
-                                {evaluation.isPassed 
-                                  ? <CheckCircle className="h-4 w-4 text-green-500" /> 
-                                  : <XCircle className="h-4 w-4 text-red-500" />
-                                }
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedEvaluation(evaluation.id);
-                                    fetchEvaluationDetails(evaluation.id);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                    
-                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "standard").length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No standard evaluations found
-                      </div>
-                    )}
+                  <CardContent className="py-10 text-center">
+                    <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Failed to load evaluations</h3>
+                    <p className="text-muted-foreground mb-4">There was an error loading your evaluations</p>
+                    <Button onClick={() => refetchEvaluations()}>
+                      Try Again
+                    </Button>
                   </CardContent>
                 </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="audio" className="pt-4">
-              {loadingEvaluations ? (
-                <div className="flex justify-center py-10">
-                  <Spinner className="h-6 w-6 mr-2" />
-                  <span>Loading evaluations...</span>
-                </div>
+              ) : (!evaluations || evaluations.length === 0) ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <ClipboardCheck className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No evaluations found</h3>
+                    <p className="text-muted-foreground">
+                      {searchQuery || Object.values(evaluationFilters).some(v => v && v !== "all")
+                        ? "Try adjusting your filters or search query"
+                        : "No completed evaluations are available"}
+                    </p>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle>Audio Evaluation Feedback</CardTitle>
-                    <CardDescription>
-                      View detailed feedback for all audio evaluations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Audio</TableHead>
-                          <TableHead>Template</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Template</TableHead>
+                        <TableHead>Trainee/Audio</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {evaluations && evaluations.map((evaluation: any) => (
+                        <TableRow key={evaluation.id}>
+                          <TableCell className="font-medium">#{evaluation.id}</TableCell>
+                          <TableCell>
+                            {evaluation.evaluationType === "audio" ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                <FileAudio className="h-3 w-3 mr-1" />
+                                Audio
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                <ClipboardCheck className="h-3 w-3 mr-1" />
+                                Standard
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{evaluation.templateName || evaluation.template?.name || "Unknown"}</TableCell>
+                          <TableCell>
+                            {evaluation.evaluationType === "audio" ? (
+                              <span className="flex items-center">
+                                <FileAudio className="h-3 w-3 mr-1" />
+                                Audio #{evaluation.audioFileId}
+                              </span>
+                            ) : (
+                              <span className="flex items-center">
+                                <User className="h-3 w-3 mr-1" />
+                                {evaluation.trainee?.fullName || "Unknown"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>{evaluation.finalScore?.toFixed(1)}%</TableCell>
+                          <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
+                          <TableCell>
+                            {evaluation.status === "pending" ? (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>
+                            ) : evaluation.status === "completed" ? (
+                              evaluation.isPassed ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Passed</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>
+                              )
+                            ) : (
+                              <Badge variant="outline">{evaluation.status}</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedEvaluationId(evaluation.id);
+                                  setDetailsDialogOpen(true);
+                                  
+                                  // Fetch evaluation details
+                                  fetchEvaluationDetails(evaluation.id);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedEvaluationId(evaluation.id);
+                                  
+                                  // Fetch evaluation details first
+                                  queryClient.fetchQuery({
+                                    queryKey: ["/api/evaluations", evaluation.id],
+                                  }).then((details: any) => {
+                                    // Initialize edited scores based on existing ones
+                                    const initialScores: Record<number, any> = {};
+                                    details.evaluation.scores.forEach((score: any) => {
+                                      initialScores[score.parameterId] = {
+                                        score: score.score,
+                                        comment: score.comment || "",
+                                        noReason: score.noReason || "",
+                                      };
+                                    });
+                                    
+                                    setEditedScores(initialScores);
+                                    setIsEditDialogOpen(true);
+                                  });
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {evaluations
-                          .filter((evaluation: any) => 
-                            evaluation.evaluationType === "audio" &&
-                            (searchQuery 
-                              ? evaluation.id.toString().includes(searchQuery) ||
-                                evaluation.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
-                              : true)
-                          )
-                          .map((evaluation: any) => (
-                            <TableRow key={evaluation.id}>
-                              <TableCell className="font-medium">#{evaluation.id}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <FileAudio className="h-4 w-4 mr-1.5 text-primary" />
-                                  Audio #{evaluation.audioFileId}
-                                </div>
-                              </TableCell>
-                              <TableCell>{evaluation.templateName || "Unknown Template"}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={evaluation.isPassed ? "outline" : "destructive"}
-                                  className={evaluation.isPassed 
-                                    ? "bg-green-50 text-green-600 border-green-200" 
-                                    : "bg-red-50 text-red-600 border-red-200"
-                                  }
-                                >
-                                  {evaluation.finalScore.toFixed(1)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
-                              <TableCell>
-                                {evaluation.isPassed 
-                                  ? <CheckCircle className="h-4 w-4 text-green-500" /> 
-                                  : <XCircle className="h-4 w-4 text-red-500" />
-                                }
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedEvaluation(evaluation.id);
-                                    fetchEvaluationDetails(evaluation.id);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                    
-                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "audio").length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No audio evaluations found
-                      </div>
-                    )}
-                  </CardContent>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </Card>
               )}
             </TabsContent>
           </Tabs>
-          
-          {/* Evaluation Details Dialog */}
-          <Dialog open={loadingDetails || !!evaluationDetails} onOpenChange={(open) => {
-            if (!open) {
-              setEvaluationDetails(null);
-              setLoadingDetails(false);
-            }
-          }}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Evaluation Feedback Details</DialogTitle>
-                <DialogDescription>
-                  Detailed breakdown of the evaluation scores and feedback
-                </DialogDescription>
-              </DialogHeader>
-              
-              {loadingDetails ? (
-                <div className="flex justify-center items-center py-8">
-                  <Spinner className="h-8 w-8 mr-2" />
-                  <span>Loading details...</span>
-                </div>
-              ) : evaluationDetails ? (
-                <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
-                        <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm">Type:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.evaluationType === "audio" ? "Audio" : "Standard"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Template:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.template?.name || "Unknown"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Date:</span>
-                            <span className="text-sm font-medium">
-                              {formatDate(evaluationDetails.evaluation.createdAt)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Final Score:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.finalScore.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Result:</span>
-                            <span className={`text-sm font-medium ${evaluationDetails.evaluation.isPassed ? "text-green-600" : "text-red-600"}`}>
-                              {evaluationDetails.evaluation.isPassed ? "Passed" : "Failed"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          {evaluationDetails.evaluation.evaluationType === "audio" 
-                            ? "Audio Information" 
-                            : "Trainee Information"}
-                        </h3>
-                        <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                          {evaluationDetails.evaluation.evaluationType === "audio" ? (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Audio ID:</span>
-                                <span className="text-sm font-medium">#{evaluationDetails.evaluation.audioFileId}</span>
-                              </div>
-                              {evaluationDetails.evaluation.audioFile && (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm">File Name:</span>
-                                    <span className="text-sm font-medium">
-                                      {evaluationDetails.evaluation.audioFile.fileName || "Not available"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm">Duration:</span>
-                                    <span className="text-sm font-medium">
-                                      {evaluationDetails.evaluation.audioFile.duration 
-                                        ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
-                                        : "Unknown"}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Trainee:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.trainee?.fullName || "Unknown"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Employee ID:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.trainee?.employeeId || "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Batch:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.batch?.name || "N/A"}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-sm">Evaluator:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.evaluator?.fullName || "Unknown"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
-                      
-                      <Accordion type="multiple" className="w-full">
-                        {evaluationDetails.groupedScores?.map((group: any, groupIndex: number) => (
-                          <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
-                            <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
-                              <div className="flex justify-between w-full mr-4 items-center">
-                                <span>{group.pillar?.name || `Section ${groupIndex + 1}`}</span>
-                                {group.pillar && (
-                                  <span className="text-sm px-2">
-                                    Weight: {group.pillar.weight}%
-                                  </span>
-                                )}
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-3">
-                              <div className="space-y-4">
-                                {group.scores.map((score: any) => (
-                                  <div key={score.id} className="border-l-2 pl-4 py-2">
-                                    <div className="flex justify-between">
-                                      <div>
-                                        <h4 className="text-sm font-medium">{score.parameter?.name}</h4>
-                                        {score.parameter?.description && (
-                                          <p className="text-xs text-muted-foreground mt-0.5">
-                                            {score.parameter.description}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant={parseFloat(score.score) >= 3 ? "outline" : "destructive"} className="font-normal">
-                                          {score.score}/{score.parameter?.maxScore || 5}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                    
-                                    {score.comment && (
-                                      <div className="mt-2">
-                                        <h5 className="text-xs font-medium mb-1">Comment:</h5>
-                                        <p className="text-sm border-l-2 border-primary pl-2 py-1">
-                                          {score.comment}
-                                        </p>
-                                      </div>
-                                    )}
-                                    
-                                    {score.noReason && (
-                                      <div className="mt-2">
-                                        <h5 className="text-xs font-medium mb-1">No Reason:</h5>
-                                        <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
-                                          {score.noReason}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
-                    </div>
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-6">
-                  <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-                  <p>Failed to load evaluation details</p>
-                </div>
-              )}
-              
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEvaluationDetails(null);
-                    setLoadingDetails(false);
-                  }}
-                >
-                  Close
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </TabsContent>
-
-        {/* View Completed Evaluations Tab Content */}
-        <TabsContent value="completed" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">View Completed Evaluations</h1>
-            <div className="flex gap-2 items-center">
-              <div className="relative w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search evaluations..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Tabs defaultValue="standard" onValueChange={(value) => setFeedbackTabType(value as "standard" | "audio")}>
-            <TabsList>
-              <TabsTrigger value="standard">Standard Evaluations</TabsTrigger>
-              <TabsTrigger value="audio">Audio Evaluations</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="standard" className="pt-4">
-              {loadingEvaluations ? (
-                <div className="flex justify-center py-10">
-                  <Spinner className="h-6 w-6 mr-2" />
-                  <span>Loading evaluations...</span>
-                </div>
-              ) : (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle>Standard Evaluation Feedback</CardTitle>
-                    <CardDescription>
-                      View detailed feedback for all standard evaluations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Trainee</TableHead>
-                          <TableHead>Template</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {evaluations
-                          .filter((evaluation: any) => 
-                            evaluation.evaluationType === "standard" &&
-                            (searchQuery 
-                              ? evaluation.trainee?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                evaluation.id.toString().includes(searchQuery) ||
-                                evaluation.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
-                              : true)
-                          )
-                          .map((evaluation: any) => (
-                            <TableRow key={evaluation.id}>
-                              <TableCell className="font-medium">#{evaluation.id}</TableCell>
-                              <TableCell>{evaluation.trainee?.fullName || "Unknown"}</TableCell>
-                              <TableCell>{evaluation.templateName || "Unknown Template"}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={evaluation.isPassed ? "outline" : "destructive"}
-                                  className={evaluation.isPassed 
-                                    ? "bg-green-50 text-green-600 border-green-200" 
-                                    : "bg-red-50 text-red-600 border-red-200"
-                                  }
-                                >
-                                  {evaluation.finalScore.toFixed(1)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
-                              <TableCell>
-                                {evaluation.isPassed 
-                                  ? <CheckCircle className="h-4 w-4 text-green-500" /> 
-                                  : <XCircle className="h-4 w-4 text-red-500" />
-                                }
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedEvaluation(evaluation.id);
-                                    fetchEvaluationDetails(evaluation.id);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                    
-                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "standard").length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No standard evaluations found
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="audio" className="pt-4">
-              {loadingEvaluations ? (
-                <div className="flex justify-center py-10">
-                  <Spinner className="h-6 w-6 mr-2" />
-                  <span>Loading evaluations...</span>
-                </div>
-              ) : (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle>Audio Evaluation Feedback</CardTitle>
-                    <CardDescription>
-                      View detailed feedback for all audio evaluations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Audio</TableHead>
-                          <TableHead>Template</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {evaluations
-                          .filter((evaluation: any) => 
-                            evaluation.evaluationType === "audio" &&
-                            (searchQuery 
-                              ? evaluation.id.toString().includes(searchQuery) ||
-                                evaluation.templateName?.toLowerCase().includes(searchQuery.toLowerCase())
-                              : true)
-                          )
-                          .map((evaluation: any) => (
-                            <TableRow key={evaluation.id}>
-                              <TableCell className="font-medium">#{evaluation.id}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <FileAudio className="h-4 w-4 mr-1.5 text-primary" />
-                                  Audio #{evaluation.audioFileId}
-                                </div>
-                              </TableCell>
-                              <TableCell>{evaluation.templateName || "Unknown Template"}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={evaluation.isPassed ? "outline" : "destructive"}
-                                  className={evaluation.isPassed 
-                                    ? "bg-green-50 text-green-600 border-green-200" 
-                                    : "bg-red-50 text-red-600 border-red-200"
-                                  }
-                                >
-                                  {evaluation.finalScore.toFixed(1)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
-                              <TableCell>
-                                {evaluation.isPassed 
-                                  ? <CheckCircle className="h-4 w-4 text-green-500" /> 
-                                  : <XCircle className="h-4 w-4 text-red-500" />
-                                }
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedEvaluation(evaluation.id);
-                                    fetchEvaluationDetails(evaluation.id);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                    
-                    {evaluations.filter((evalItem: any) => evalItem.evaluationType === "audio").length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No audio evaluations found
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-          </Tabs>
-          
-          {/* Evaluation Details Dialog */}
-          <Dialog open={loadingDetails || !!evaluationDetails} onOpenChange={(open) => {
-            if (!open) {
-              setEvaluationDetails(null);
-              setLoadingDetails(false);
-            }
-          }}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Evaluation Feedback Details</DialogTitle>
-                <DialogDescription>
-                  Detailed breakdown of the evaluation scores and feedback
-                </DialogDescription>
-              </DialogHeader>
-              
-              {loadingDetails ? (
-                <div className="flex justify-center items-center py-8">
-                  <Spinner className="h-8 w-8 mr-2" />
-                  <span>Loading details...</span>
-                </div>
-              ) : evaluationDetails ? (
-                <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
-                        <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm">Type:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.evaluationType === "audio" ? "Audio" : "Standard"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Template:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.template?.name || "Unknown"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Date:</span>
-                            <span className="text-sm font-medium">
-                              {formatDate(evaluationDetails.evaluation.createdAt)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Final Score:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.finalScore.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm">Result:</span>
-                            <span className={`text-sm font-medium ${evaluationDetails.evaluation.isPassed ? "text-green-600" : "text-red-600"}`}>
-                              {evaluationDetails.evaluation.isPassed ? "Passed" : "Failed"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          {evaluationDetails.evaluation.evaluationType === "audio" 
-                            ? "Audio Information" 
-                            : "Trainee Information"}
-                        </h3>
-                        <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                          {evaluationDetails.evaluation.evaluationType === "audio" ? (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Audio ID:</span>
-                                <span className="text-sm font-medium">#{evaluationDetails.evaluation.audioFileId}</span>
-                              </div>
-                              {evaluationDetails.evaluation.audioFile && (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm">File Name:</span>
-                                    <span className="text-sm font-medium">
-                                      {evaluationDetails.evaluation.audioFile.fileName || "Not available"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm">Duration:</span>
-                                    <span className="text-sm font-medium">
-                                      {evaluationDetails.evaluation.audioFile.duration 
-                                        ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
-                                        : "Unknown"}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Trainee:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.trainee?.fullName || "Unknown"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Employee ID:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.trainee?.employeeId || "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm">Batch:</span>
-                                <span className="text-sm font-medium">
-                                  {evaluationDetails.evaluation.batch?.name || "N/A"}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-sm">Evaluator:</span>
-                            <span className="text-sm font-medium">
-                              {evaluationDetails.evaluation.evaluator?.fullName || "Unknown"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Scores</h3>
-                      
-                      <Accordion type="multiple" className="w-full">
-                        {evaluationDetails.groupedScores?.map((group: any, groupIndex: number) => (
-                          <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
-                            <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
-                              <div className="flex justify-between w-full mr-4 items-center">
-                                <span>{group.pillar?.name || `Section ${groupIndex + 1}`}</span>
-                                {group.pillar && (
-                                  <span className="text-sm px-2">
-                                    Weight: {group.pillar.weight}%
-                                  </span>
-                                )}
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-3">
-                              <div className="space-y-4">
-                                {group.scores.map((score: any) => (
-                                  <div key={score.id} className="border-l-2 pl-4 py-2">
-                                    <div className="flex justify-between">
-                                      <div>
-                                        <h4 className="text-sm font-medium">{score.parameter?.name}</h4>
-                                        {score.parameter?.description && (
-                                          <p className="text-xs text-muted-foreground mt-0.5">
-                                            {score.parameter.description}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant={parseFloat(score.score) >= 3 ? "outline" : "destructive"} className="font-normal">
-                                          {score.score}/{score.parameter?.maxScore || 5}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                    
-                                    {score.comment && (
-                                      <div className="mt-2">
-                                        <h5 className="text-xs font-medium mb-1">Comment:</h5>
-                                        <p className="text-sm border-l-2 border-primary pl-2 py-1">
-                                          {score.comment}
-                                        </p>
-                                      </div>
-                                    )}
-                                    
-                                    {score.noReason && (
-                                      <div className="mt-2">
-                                        <h5 className="text-xs font-medium mb-1">No Reason:</h5>
-                                        <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
-                                          {score.noReason}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
-                    </div>
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-6">
-                  <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-                  <p>Failed to load evaluation details</p>
-                </div>
-              )}
-              
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEvaluationDetails(null);
-                    setLoadingDetails(false);
-                  }}
-                >
-                  Close
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
       </Tabs>
 
-      {/* Removed duplicate evaluation form section that was causing UI duplication */}
+      {/* Evaluation Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Evaluation Details</DialogTitle>
+            <DialogDescription>
+              Detailed breakdown of the evaluation scores and feedback
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner className="h-8 w-8 animate-spin" />
+            </div>
+          ) : evaluationDetailsData ? (
+            <div className="py-4">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Evaluation #{evaluationDetailsData.evaluation?.id}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Date: {evaluationDetailsData.evaluation?.createdAt ? formatDate(evaluationDetailsData.evaluation.createdAt) : "Unknown"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Type: {evaluationDetailsData.evaluation?.evaluationType || "Unknown"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <h4 className="text-sm font-medium">Final Score</h4>
+                  <p className="text-2xl font-bold">{evaluationDetailsData.evaluation?.finalScore?.toFixed(1) || 0}%</p>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+              
+              <ScrollArea className="h-[400px] pr-4">
+                {evaluationDetailsData.groupedScores?.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No detailed scores available</p>
+                ) : (
+                  <Accordion type="multiple" className="w-full">
+                    {evaluationDetailsData.groupedScores?.map((group: any, groupIndex: number) => (
+                      <AccordionItem key={groupIndex} value={`pillar-${group.pillar?.id || groupIndex}`}>
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex justify-between items-center w-full pr-4">
+                            <span className="font-medium">
+                              {group.pillar?.name || `Section ${groupIndex + 1}`}
+                            </span>
+                            {group.pillar && (
+                              <span className="text-sm px-2">
+                                Weight: {group.pillar.weight}%
+                              </span>
+                            )}
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 pl-2">
+                            {group.scores.map((score: any) => (
+                              <div key={score.id} className="bg-muted p-3 rounded-md">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium">{score.parameter?.name || 'Parameter'}</h4>
+                                    {score.parameter?.description && (
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        {score.parameter.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={
+                                        score.score === 'Excellent' || score.score === 'Yes' || score.score === '1' || parseInt(score.score) >= 4 
+                                          ? 'bg-green-50 text-green-700 border-green-200' 
+                                          : score.score === 'Poor' || score.score === 'No' || score.score === '0' || parseInt(score.score) <= 1
+                                            ? 'bg-red-50 text-red-700 border-red-200'
+                                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                      }
+                                    >
+                                      {score.score}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                
+                                {score.comment && (
+                                  <div className="mt-2">
+                                    <h5 className="text-sm font-medium mb-1">Comment:</h5>
+                                    <p className="text-sm p-2 bg-background rounded border text-muted-foreground">
+                                      {score.comment}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {score.noReason && (
+                                  <div className="mt-2">
+                                    <h5 className="text-sm font-medium mb-1">Reason:</h5>
+                                    <p className="text-sm p-2 bg-background rounded border text-muted-foreground">
+                                      {score.noReason}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                )}
+              </ScrollArea>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p>No evaluation details available</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => {
+                  if (selectedEvaluationId) {
+                    fetchEvaluationDetails(selectedEvaluationId);
+                  }
+                }}
+              >
+                Try Again
+              </Button>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* View Evaluation Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Evaluation Details</DialogTitle>
+            <DialogDescription>
+              {evaluationDetails?.evaluation?.evaluationType === "audio" 
+                ? "Audio evaluation details" 
+                : "Standard evaluation details"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex justify-center items-center py-10">
+              <Spinner className="h-6 w-6" />
+              <span className="ml-2">Loading details...</span>
+            </div>
+          ) : !evaluationDetails ? (
+            <div className="text-center py-6">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p>Failed to load evaluation details</p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Type:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.evaluationType === "audio" ? "Audio" : "Standard"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Template:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.template?.name || "Unknown"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Date:</span>
+                        <span className="text-sm font-medium">
+                          {formatDate(evaluationDetails.evaluation.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Status:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.status === "completed" ? "Completed" : "Pending"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Final Score:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.finalScore.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Result:</span>
+                        <span className={`text-sm font-medium ${evaluationDetails.evaluation.isPassed ? "text-green-600" : "text-red-600"}`}>
+                          {evaluationDetails.evaluation.isPassed ? "Passed" : "Failed"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                      {evaluationDetails.evaluation.evaluationType === "audio" 
+                        ? "Audio Information" 
+                        : "Trainee Information"}
+                    </h3>
+                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
+                      {evaluationDetails.evaluation.evaluationType === "audio" ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Audio ID:</span>
+                            <span className="text-sm font-medium">#{evaluationDetails.evaluation.audioFileId}</span>
+                          </div>
+                          {evaluationDetails.evaluation.audioFile && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-sm">File Name:</span>
+                                <span className="text-sm font-medium">
+                                  {evaluationDetails.evaluation.audioFile.fileName || "Not available"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm">Duration:</span>
+                                <span className="text-sm font-medium">
+                                  {evaluationDetails.evaluation.audioFile.duration 
+                                    ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
+                                    : "Unknown"}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Trainee:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails.evaluation.trainee?.fullName || "Unknown"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Employee ID:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails.evaluation.trainee?.employeeId || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Batch:</span>
+                            <span className="text-sm font-medium">
+                              {evaluationDetails.evaluation.batch?.name || "N/A"}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-sm">Evaluator:</span>
+                        <span className="text-sm font-medium">
+                          {evaluationDetails.evaluation.evaluator?.fullName || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Parameter Scores</h3>
+                  
+                  {/* Group parameters by pillar if available */}
+                  {evaluationDetails.groupedScores && evaluationDetails.groupedScores.length > 0 ? (
+                    <div className="space-y-4">
+                      {evaluationDetails.groupedScores.map((group: any, groupIndex: number) => (
+                        <Card key={groupIndex} className="border-primary/10">
+                          <CardHeader className="bg-primary/5 pb-3">
+                            <CardTitle className="text-base">
+                              {group.pillar ? group.pillar.name : "Other Parameters"}
+                            </CardTitle>
+                            {group.pillar?.description && (
+                              <CardDescription>
+                                {group.pillar.description}
+                              </CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent className="pt-4">
+                            <div className="space-y-4">
+                              {group.scores.map((score: any) => (
+                                <div key={score.id} className="border rounded-md p-3 bg-background">
+                                  <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                      <h4 className="font-medium">{score.parameter?.name || "Parameter"}</h4>
+                                      {score.parameter?.description && (
+                                        <p className="text-sm text-muted-foreground">{score.parameter.description}</p>
+                                      )}
+                                      {score.parameter?.weight && (
+                                        <p className="text-xs text-muted-foreground">
+                                          <span className="inline-flex items-center gap-1">
+                                            <Scale className="h-3 w-3" />
+                                            Weight: {score.parameter.weight}
+                                          </span>
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                      <Badge 
+                                        variant="outline" 
+                                        className={
+                                          (typeof score.score === 'number' && score.score >= 4) || 
+                                          score.score === "Excellent" || 
+                                          score.score === "Yes" || 
+                                          score.score === "1"
+                                            ? 'bg-green-50 text-green-700 border-green-200' 
+                                            : (typeof score.score === 'number' && score.score <= 1) || 
+                                              score.score === "Poor" || 
+                                              score.score === "No" || 
+                                              score.score === "0"
+                                                ? 'bg-red-50 text-red-700 border-red-200'
+                                                : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                        }
+                                      >
+                                        {typeof score.score === 'number' && score.parameter?.maxScore 
+                                          ? `${score.score}/${score.parameter.maxScore}` 
+                                          : score.score}
+                                      </Badge>
+                                      {score.parameter?.maxScore && (
+                                        <span className="text-xs text-muted-foreground mt-1">
+                                          Max: {score.parameter.maxScore}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  {score.comment && (
+                                    <div className="mt-3 pt-3 border-t">
+                                      <h5 className="text-xs font-medium mb-1 flex items-center gap-1">
+                                        <MessageSquare className="h-3 w-3" />
+                                        <span>Comment:</span>
+                                      </h5>
+                                      <p className="text-sm p-2 bg-muted/30 rounded">{score.comment}</p>
+                                    </div>
+                                  )}
+                                  
+                                  {score.noReason && (
+                                    <div className="mt-3 pt-3 border-t">
+                                      <h5 className="text-xs font-medium mb-1 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                                        <span>Reason for Low Score:</span>
+                                      </h5>
+                                      <p className="text-sm p-2 bg-red-50 rounded">{score.noReason}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Accordion type="multiple" className="w-full">
+                      {evaluationDetails.evaluation.template?.parameters?.map((parameter: any) => {
+                        const score = evaluationDetails.evaluation.scores?.find(
+                          (s: any) => s.parameterId === parameter.id
+                        );
+                        
+                        return (
+                          <AccordionItem key={parameter.id} value={parameter.id.toString()}>
+                            <AccordionTrigger className="py-3 px-4 hover:bg-muted/30 rounded-md">
+                              <div className="flex justify-between w-full mr-4 items-center">
+                                <span>{parameter.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge 
+                                    variant="outline"
+                                    className={
+                                      (score?.score >= 4) ? "bg-green-50 text-green-700 border-green-200" :
+                                      (score?.score <= 1) ? "bg-red-50 text-red-700 border-red-200" :
+                                      "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                    }
+                                  >
+                                    {score?.score || 0}/{parameter.maxScore}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-3">
+                              <div className="space-y-3">
+                                <div>
+                                  <p className="text-sm text-muted-foreground">{parameter.description}</p>
+                                </div>
+                                
+                                {score?.comment && (
+                                  <div>
+                                    <h5 className="text-xs font-medium mb-1">Comment:</h5>
+                                    <p className="text-sm border-l-2 border-primary pl-2 py-1">
+                                      {score.comment}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {score?.noReason && (
+                                  <div>
+                                    <h5 className="text-xs font-medium mb-1">Reason for Low Score:</h5>
+                                    <p className="text-sm border-l-2 border-red-500 pl-2 py-1">
+                                      {score.noReason}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+            <Button onClick={() => {
+              setIsViewDialogOpen(false);
+              handleEditEvaluation(selectedEvaluation!);
+            }}>
+              Edit Evaluation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Evaluation Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Evaluation</DialogTitle>
+            <DialogDescription>
+              Update scores and comments for this evaluation
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex justify-center items-center py-10">
+              <Spinner className="h-6 w-6" />
+              <span className="ml-2">Loading details...</span>
+            </div>
+          ) : !evaluationDetails ? (
+            <div className="text-center py-6">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p>Failed to load evaluation details</p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
+                  
+                  <div className="space-y-6">
+                    {evaluationDetails.evaluation.template?.parameters.map((parameter: any) => {
+                      const currentScore = editedScores[parameter.id] || { score: 0, comment: "", noReason: "" };
+                      
+                      return (
+                        <Card key={parameter.id} className="border-primary/10">
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between">
+                              <CardTitle className="text-base">{parameter.name}</CardTitle>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Weight: {parameter.weight}
+                                </span>
+                              </div>
+                            </div>
+                            <CardDescription>{parameter.description}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label className="mb-1.5 block text-sm">Score (0-{parameter.maxScore})</Label>
+                              <Select
+                                value={currentScore.score.toString()}
+                                onValueChange={(value) =>
+                                  handleScoreChange(parameter.id, "score", parseInt(value))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: parameter.maxScore + 1 }, (_, i) => (
+                                    <SelectItem key={i} value={i.toString()}>
+                                      {i}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label className="mb-1.5 block text-sm">Comment</Label>
+                              <Textarea
+                                value={currentScore.comment}
+                                onChange={(e) =>
+                                  handleScoreChange(parameter.id, "comment", e.target.value)
+                                }
+                                placeholder="Add a comment (optional)"
+                                className="min-h-[80px]"
+                              />
+                            </div>
+                            
+                            {currentScore.score === 0 && (
+                              <div>
+                                <Label className="mb-1.5 block text-sm">
+                                  No Reason (Required for zero score)
+                                </Label>
+                                <Textarea
+                                  value={currentScore.noReason}
+                                  onChange={(e) =>
+                                    handleScoreChange(parameter.id, "noReason", e.target.value)
+                                  }
+                                  placeholder="Explain why this score is zero"
+                                  className="min-h-[80px]"
+                                />
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          
+          <DialogFooter className="border-t pt-4 mt-4">
+            <div className="flex-1 text-left">
+              <span className="font-medium">
+                Final Score: {evaluationDetails && Object.keys(editedScores).length > 0 ? 
+                  (() => {
+                    const parameters = evaluationDetails.evaluation.template.parameters;
+                    const scoreEntries = Object.entries(editedScores);
+                    
+                    let totalScore = 0;
+                    let totalWeight = 0;
+                    
+                    scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                      const parameter = parameters.find((p: any) => p.id === parseInt(parameterId));
+                      if (parameter) {
+                        totalScore += scoreData.score * parameter.weight;
+                        totalWeight += parameter.weight;
+                      }
+                    });
+                    
+                    return totalWeight > 0 ? (totalScore / totalWeight).toFixed(1) : "0.0";
+                  })() : "0.0"}%
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (!evaluationDetails) return;
+                
+                const scores = Object.entries(editedScores).map(([parameterId, scoreData]: [string, any]) => ({
+                  parameterId: parseInt(parameterId),
+                  score: scoreData.score,
+                  comment: scoreData.comment,
+                  noReason: scoreData.noReason,
+                }));
+                
+                // Calculate final score
+                const parameters = evaluationDetails.evaluation.template.parameters;
+                const scoreEntries = Object.entries(editedScores);
+                
+                let totalScore = 0;
+                let totalWeight = 0;
+                
+                scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
+                  const parameter = parameters.find((p: any) => p.id === parseInt(parameterId));
+                  if (parameter) {
+                    totalScore += scoreData.score * parameter.weight;
+                    totalWeight += parameter.weight;
+                  }
+                });
+                
+                const finalScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) / 100 : 0;
+                
+                // Determine if passed based on template's passing score
+                const passingScore = evaluationDetails.evaluation.template.passingScore || 70;
+                const isPassed = finalScore >= passingScore;
+                
+                updateEvaluationMutation.mutate({
+                  id: selectedEvaluation,
+                  scores,
+                  finalScore,
+                  isPassed,
+                });
+              }}
+              disabled={updateEvaluationMutation.isPending}
+            >
+              {updateEvaluationMutation.isPending ? (
+                <>
+                  <Spinner className="h-4 w-4 mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
