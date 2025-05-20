@@ -492,7 +492,19 @@ function ConductEvaluation() {
     enabled: !!selectedEvaluationId && (isViewDialogOpen || isEditDialogOpen),
     onSuccess: (data) => {
       console.log("Evaluation details loaded:", data);
-      // Log more details about the evaluation parameters
+      
+      // Store the evaluation data for easier debugging and access
+      if (data?.evaluation) {
+        setEvaluationDetailsData(data.evaluation);
+      }
+      
+      // Log details about the template structure
+      if (data?.evaluation?.template) {
+        console.log("Template data:", data.evaluation.template);
+        console.log("Template parameters:", data.evaluation.template.parameters?.length || 0);
+      }
+      
+      // Log more details about the evaluation scores
       if (data?.evaluation?.scores) {
         console.log("Scores loaded:", data.evaluation.scores.length);
       }
@@ -3289,53 +3301,47 @@ function ConductEvaluation() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold mb-2">Parameters</h3>
                   
-                  {evaluationDetails?.evaluation?.scores?.length === 0 && (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md">
-                      <h4 className="font-medium mb-2 flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-2" />
-                        No parameters available
-                      </h4>
-                      <p className="text-sm">The parameters for this evaluation could not be loaded.</p>
-                    </div>
-                  )}
+                  {/* Debug info */}
+                  <div className="bg-gray-100 p-3 rounded-md text-xs mb-3">
+                    <p>Template ID: {evaluationDetails?.evaluation?.templateId || 'Unknown'}</p>
+                    <p>Score Count: {evaluationDetails?.evaluation?.scores?.length || 0}</p>
+                    <p>Parameter Count: {evaluationDetails?.evaluation?.template?.parameters?.length || 0}</p>
+                  </div>
                   
-                  {/* Manually render the parameters from the template to prevent missing data */}
-                  {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
-                    // Get the existing score for this parameter if it exists
-                    const existingScore = evaluationDetails?.evaluation?.scores?.find((s: any) => 
-                      s.parameterId === parameter.id
-                    );
+                  {/* Directly use the score data which we know is available */}
+                  {evaluationDetails?.evaluation?.scores?.map((score: any) => {
+                    const parameterId = score.parameterId;
+                    const parameterName = score.parameter?.name || `Parameter #${parameterId}`;
+                    const parameterQuestion = score.parameter?.question || score.parameter?.description || "Parameter question not available";
+                    const parameterWeight = score.parameter?.weight || 0;
+                    const scoreType = score.parameter?.scoreType || (typeof score.score === 'number' ? 'numeric' : 'yesno');
                     
-                    // Get or initialize the edited score
-                    const currentScore = editedScores[parameter.id] || { 
-                      score: existingScore?.score || 0, 
-                      comment: existingScore?.comment || "", 
-                      noReason: existingScore?.noReason || "" 
+                    // Get current score data from edited scores or use original
+                    const currentScore = editedScores[parameterId] || { 
+                      score: score.score || 0, 
+                      comment: score.comment || "", 
+                      noReason: score.noReason || "" 
                     };
                     
                     const scoreValue = currentScore.score || 0;
-                    const isYesNo = parameter.scoreType === "yesno";
-
-                    // Get the pillar if it exists
-                    const pillar = parameter.pillarId ? 
-                      evaluationDetails?.evaluation?.template?.pillars?.find((p: any) => p.id === parameter.pillarId) : null;
+                    const isYesNo = scoreType === "yesno";
                     
                     return (
-                      <div key={parameter.id} className="bg-muted/20 rounded-md p-4 border">
+                      <div key={parameterId} className="bg-muted/20 rounded-md p-4 border">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h4 className="font-medium mb-1">
-                              {parameter.name || "Unnamed Parameter"}
-                              {pillar && <span className="ml-2 text-sm text-muted-foreground">({pillar.name})</span>}
+                              {parameterName}
+                              {score.pillar && <span className="ml-2 text-sm text-muted-foreground">({score.pillar.name})</span>}
                             </h4>
                             <p className="text-sm text-muted-foreground">
-                              {parameter.question || parameter.description || "No question text available"}
+                              {parameterQuestion}
                             </p>
                           </div>
                           
                           <div className="flex flex-col items-end">
                             <Badge variant="outline" className="mb-2">
-                              Weight: {parameter.weight || 0}%
+                              Weight: {parameterWeight}%
                             </Badge>
                             
                             {/* Yes/No selection for boolean parameters, numeric for others */}
@@ -3343,7 +3349,7 @@ function ConductEvaluation() {
                               <Select
                                 value={scoreValue === 1 ? "yes" : "no"}
                                 onValueChange={(value) =>
-                                  handleScoreChange(parameter.id, "score", value === "yes" ? 1 : 0)
+                                  handleScoreChange(parameterId, "score", value === "yes" ? 1 : 0)
                                 }
                               >
                                 <SelectTrigger className="w-32">
@@ -3358,14 +3364,14 @@ function ConductEvaluation() {
                               <Select
                                 value={scoreValue.toString()}
                                 onValueChange={(value) =>
-                                  handleScoreChange(parameter.id, "score", parseInt(value))
+                                  handleScoreChange(parameterId, "score", parseInt(value))
                                 }
                               >
                                 <SelectTrigger className="w-32">
                                   <SelectValue placeholder="Score" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: (parameter.maxScore || 5) + 1 }, (_, i) => (
+                                  {Array.from({ length: 6 }, (_, i) => (
                                     <SelectItem key={i} value={i.toString()}>
                                       {i}
                                     </SelectItem>
@@ -3382,7 +3388,7 @@ function ConductEvaluation() {
                           <Textarea
                             value={currentScore.comment || ""}
                             onChange={(e) =>
-                              handleScoreChange(parameter.id, "comment", e.target.value)
+                              handleScoreChange(parameterId, "comment", e.target.value)
                             }
                             placeholder="Add a comment (optional)"
                             className="min-h-[60px] mt-1"
@@ -3398,7 +3404,7 @@ function ConductEvaluation() {
                             <Textarea
                               value={currentScore.noReason || ""}
                               onChange={(e) =>
-                                handleScoreChange(parameter.id, "noReason", e.target.value)
+                                handleScoreChange(parameterId, "noReason", e.target.value)
                               }
                               placeholder={`Explain why this score is ${isYesNo ? "no" : "zero"}`}
                               className="min-h-[60px] mt-1"
@@ -3408,6 +3414,17 @@ function ConductEvaluation() {
                       </div>
                     );
                   })}
+                  
+                  {/* Show message if no parameters available */}
+                  {(!evaluationDetails?.evaluation?.scores || evaluationDetails.evaluation.scores.length === 0) && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md">
+                      <h4 className="font-medium mb-2 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        No parameters available
+                      </h4>
+                      <p className="text-sm">The parameters for this evaluation could not be loaded.</p>
+                    </div>
+                  )}
                 </div>
                 
               </div>
