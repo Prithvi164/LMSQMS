@@ -2656,19 +2656,33 @@ function ConductEvaluation() {
                                   // Fetch evaluation details first
                                   queryClient.fetchQuery({
                                     queryKey: ["/api/evaluations", evaluation.id],
-                                  }).then((details: any) => {
+                                  })
+                                  .then((details: any) => {
                                     // Initialize edited scores based on existing ones
                                     const initialScores: Record<number, any> = {};
-                                    details.evaluation.scores.forEach((score: any) => {
-                                      initialScores[score.parameterId] = {
-                                        score: score.score,
-                                        comment: score.comment || "",
-                                        noReason: score.noReason || "",
-                                      };
-                                    });
+                                    
+                                    // Check if proper evaluation data is available
+                                    if (details && details.evaluation && Array.isArray(details.evaluation.scores)) {
+                                      details.evaluation.scores.forEach((score: any) => {
+                                        initialScores[score.parameterId] = {
+                                          score: score.score,
+                                          comment: score.comment || "",
+                                          noReason: score.noReason || "",
+                                        };
+                                      });
+                                    }
                                     
                                     setEditedScores(initialScores);
                                     setIsEditDialogOpen(true);
+                                  })
+                                  .catch((error) => {
+                                    console.error("Error fetching evaluation details:", error);
+                                    // Show error toast
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to load evaluation details. Please try again.",
+                                      variant: "destructive"
+                                    });
                                   });
                                 }}
                               >
