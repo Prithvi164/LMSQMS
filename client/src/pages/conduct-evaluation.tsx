@@ -2956,11 +2956,17 @@ function ConductEvaluation() {
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <h4 className="font-medium">
-                                      {/* Display the actual parameter question from template data */}
-                                      {score.parameter?.name || 
-                                       score.parameter?.question || 
-                                       score.parameterName || 
-                                       (score.parameterId ? `Parameter ${score.parameterId}` : 'Parameter')}
+                                      {(() => {
+                                        // Try to find the parameter question/name from the template
+                                        const paramText = score.parameter?.name || score.parameter?.question || score.parameterName;
+                                        
+                                        // If we have a parameterId but no name, format it to match the original view
+                                        if (!paramText && score.parameterId) {
+                                          return `Parameter ${score.parameterId}`;
+                                        }
+                                        
+                                        return paramText || 'Parameter';
+                                      })()}
                                     </h4>
                                     {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
