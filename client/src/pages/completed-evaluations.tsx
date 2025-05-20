@@ -715,9 +715,7 @@ function CompletedEvaluations() {
           <DialogHeader>
             <DialogTitle>Evaluation Details</DialogTitle>
             <DialogDescription>
-              {evaluationDetails?.evaluation?.evaluationType === "audio" 
-                ? "Audio evaluation details" 
-                : "Standard evaluation details"}
+              Detailed breakdown of the evaluation scores and feedback
             </DialogDescription>
           </DialogHeader>
           
@@ -733,17 +731,18 @@ function CompletedEvaluations() {
             </div>
           ) : (
             <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="py-4">
+                <div className="flex justify-between items-start mb-6">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Evaluation Information</h3>
-                    <div className="bg-muted/30 p-3 rounded-md space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Type:</span>
-                        <span className="text-sm font-medium">
-                          {evaluationDetails?.evaluation?.evaluationType === "audio" ? "Audio" : "Standard"}
-                        </span>
-                      </div>
+                    <h3 className="text-lg font-semibold">
+                      Evaluation #{evaluationDetails?.evaluation?.id}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Date: {evaluationDetails?.evaluation?.createdAt ? formatDate(evaluationDetails.evaluation.createdAt) : "Unknown"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Type: {evaluationDetails?.evaluation?.evaluationType || "Unknown"}
+                    </p>
                       <div className="flex justify-between">
                         <span className="text-sm">Template:</span>
                         <span className="text-sm font-medium">
