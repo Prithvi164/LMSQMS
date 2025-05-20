@@ -3184,36 +3184,36 @@ function ConductEvaluation() {
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Scores</h3>
                   
                   <div className="space-y-6">
-                    {evaluationDetails.evaluation.template?.parameters.map((parameter: any) => {
-                      const currentScore = editedScores[parameter.id] || { score: 0, comment: "", noReason: "" };
+                    {evaluationDetails?.evaluation?.template?.parameters?.map((parameter: any) => {
+                      const currentScore = editedScores[parameter?.id] || { score: 0, comment: "", noReason: "" };
                       
                       return (
-                        <Card key={parameter.id} className="border-primary/10">
+                        <Card key={parameter?.id} className="border-primary/10">
                           <CardHeader className="pb-2">
                             <div className="flex justify-between">
-                              <CardTitle className="text-base">{parameter.name}</CardTitle>
+                              <CardTitle className="text-base">{parameter?.name || "Parameter"}</CardTitle>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-muted-foreground">
-                                  Weight: {parameter.weight}
+                                  Weight: {parameter?.weight || 0}
                                 </span>
                               </div>
                             </div>
-                            <CardDescription>{parameter.description}</CardDescription>
+                            <CardDescription>{parameter?.description || ""}</CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-4">
                             <div>
-                              <Label className="mb-1.5 block text-sm">Score (0-{parameter.maxScore})</Label>
+                              <Label className="mb-1.5 block text-sm">Score (0-{parameter?.maxScore || 5})</Label>
                               <Select
-                                value={currentScore.score.toString()}
+                                value={(currentScore?.score || 0).toString()}
                                 onValueChange={(value) =>
-                                  handleScoreChange(parameter.id, "score", parseInt(value))
+                                  handleScoreChange(parameter?.id, "score", parseInt(value))
                                 }
                               >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: parameter.maxScore + 1 }, (_, i) => (
+                                  {Array.from({ length: (parameter?.maxScore || 5) + 1 }, (_, i) => (
                                     <SelectItem key={i} value={i.toString()}>
                                       {i}
                                     </SelectItem>
@@ -3225,24 +3225,24 @@ function ConductEvaluation() {
                             <div>
                               <Label className="mb-1.5 block text-sm">Comment</Label>
                               <Textarea
-                                value={currentScore.comment}
+                                value={currentScore?.comment || ""}
                                 onChange={(e) =>
-                                  handleScoreChange(parameter.id, "comment", e.target.value)
+                                  handleScoreChange(parameter?.id, "comment", e.target.value)
                                 }
                                 placeholder="Add a comment (optional)"
                                 className="min-h-[80px]"
                               />
                             </div>
                             
-                            {currentScore.score === 0 && (
+                            {currentScore?.score === 0 && (
                               <div>
                                 <Label className="mb-1.5 block text-sm">
                                   No Reason (Required for zero score)
                                 </Label>
                                 <Textarea
-                                  value={currentScore.noReason}
+                                  value={currentScore?.noReason || ""}
                                   onChange={(e) =>
-                                    handleScoreChange(parameter.id, "noReason", e.target.value)
+                                    handleScoreChange(parameter?.id, "noReason", e.target.value)
                                   }
                                   placeholder="Explain why this score is zero"
                                   className="min-h-[80px]"
@@ -3264,17 +3264,17 @@ function ConductEvaluation() {
               <span className="font-medium">
                 Final Score: {evaluationDetails && Object.keys(editedScores).length > 0 ? 
                   (() => {
-                    const parameters = evaluationDetails.evaluation.template.parameters;
-                    const scoreEntries = Object.entries(editedScores);
+                    const parameters = evaluationDetails?.evaluation?.template?.parameters || [];
+                    const scoreEntries = Object.entries(editedScores || {});
                     
                     let totalScore = 0;
                     let totalWeight = 0;
                     
                     scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
-                      const parameter = parameters.find((p: any) => p.id === parseInt(parameterId));
+                      const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
                       if (parameter) {
-                        totalScore += scoreData.score * parameter.weight;
-                        totalWeight += parameter.weight;
+                        totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
+                        totalWeight += (parameter?.weight || 1);
                       }
                     });
                     
@@ -3292,25 +3292,25 @@ function ConductEvaluation() {
               onClick={() => {
                 if (!evaluationDetails) return;
                 
-                const scores = Object.entries(editedScores).map(([parameterId, scoreData]: [string, any]) => ({
+                const scores = Object.entries(editedScores || {}).map(([parameterId, scoreData]: [string, any]) => ({
                   parameterId: parseInt(parameterId),
-                  score: scoreData.score,
-                  comment: scoreData.comment,
-                  noReason: scoreData.noReason,
+                  score: scoreData?.score || 0,
+                  comment: scoreData?.comment || "",
+                  noReason: scoreData?.noReason || "",
                 }));
                 
                 // Calculate final score
-                const parameters = evaluationDetails.evaluation.template.parameters;
-                const scoreEntries = Object.entries(editedScores);
+                const parameters = evaluationDetails?.evaluation?.template?.parameters || [];
+                const scoreEntries = Object.entries(editedScores || {});
                 
                 let totalScore = 0;
                 let totalWeight = 0;
                 
                 scoreEntries.forEach(([parameterId, scoreData]: [string, any]) => {
-                  const parameter = parameters.find((p: any) => p.id === parseInt(parameterId));
+                  const parameter = parameters.find((p: any) => p?.id === parseInt(parameterId));
                   if (parameter) {
-                    totalScore += scoreData.score * parameter.weight;
-                    totalWeight += parameter.weight;
+                    totalScore += (scoreData?.score || 0) * (parameter?.weight || 1);
+                    totalWeight += (parameter?.weight || 1);
                   }
                 });
                 
