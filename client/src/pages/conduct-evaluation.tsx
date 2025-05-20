@@ -351,21 +351,24 @@ function ConductEvaluation() {
         throw new Error("Failed to load evaluation data");
       }
       
-      // Fetch the template to get the parameter names and descriptions
-      // This will help us show proper information instead of "Parameter 91"
+      // Always fetch the template to get parameter names and descriptions
+      // This is critical to fix the "Parameter 91" issue by showing proper parameter questions
       if (data.evaluation.templateId) {
         try {
           // Get the organizationId from the user or the evaluation
           const organizationId = user?.organizationId || data.evaluation.organizationId;
           
+          // Explicitly fetch the template data to get parameter details
+          console.log(`Fetching template ${data.evaluation.templateId} from organization ${organizationId}`);
+          const templateUrl = `/api/organizations/${organizationId}/evaluation-templates/${data.evaluation.templateId}`;
           const templateData = await queryClient.fetchQuery({
-            queryKey: [`/api/organizations/${organizationId}/evaluation-templates/${data.evaluation.templateId}`],
+            queryKey: [templateUrl],
           });
           
-          console.log("Template data:", templateData);
+          console.log("Template data fetched directly:", templateData);
           
           if (templateData) {
-            // Create maps for pillars and parameters
+            // Create maps for pillars and parameters to help display correct names
             const pillarMap = {};
             const parameterMap = {};
             
@@ -374,36 +377,45 @@ function ConductEvaluation() {
               templateData.pillars.forEach(pillar => {
                 if (pillar.id) {
                   pillarMap[pillar.id] = pillar;
+                  console.log(`Mapped pillar ID ${pillar.id} to "${pillar.name || 'Unnamed pillar'}"`);
                 }
               });
             }
             
             // Map parameters by ID for easy lookup
             if (templateData.parameters && Array.isArray(templateData.parameters)) {
-              console.log("Retrieved template parameters:", templateData.parameters.length);
+              console.log(`Retrieved ${templateData.parameters.length} template parameters`);
               templateData.parameters.forEach(param => {
                 if (param.id) {
                   parameterMap[param.id] = param;
-                  console.log(`Parameter ${param.id}:`, param.name || param.question || 'No name found');
+                  console.log(`Mapped parameter ID ${param.id} to "${param.name || param.question || 'Unnamed parameter'}"`);
                 }
               });
             }
             
-            // Add parameter and pillar details to each score
+            // Enhance scores with parameter and pillar details from the template
             if (data.evaluation.scores && Array.isArray(data.evaluation.scores)) {
               data.evaluation.scores = data.evaluation.scores.map(score => {
                 const enhancedScore = { ...score };
                 
+                // Look up parameter details by ID
                 if (score.parameterId && parameterMap[score.parameterId]) {
                   const parameter = parameterMap[score.parameterId];
                   enhancedScore.parameter = parameter;
-                  enhancedScore.parameterName = parameter.question || parameter.name;
+                  
+                  // Explicitly set parameter name for display
+                  enhancedScore.parameterName = parameter.name || parameter.question || `Parameter ${score.parameterId}`;
                   enhancedScore.pillarId = parameter.pillarId;
+                  
+                  console.log(`Enhanced score for parameter ${score.parameterId} with name: "${enhancedScore.parameterName}"`);
                   
                   // Add pillar info if available
                   if (parameter.pillarId && pillarMap[parameter.pillarId]) {
                     enhancedScore.pillar = pillarMap[parameter.pillarId];
+                    enhancedScore.pillarName = pillarMap[parameter.pillarId].name;
                   }
+                } else {
+                  console.log(`Could not find template parameter for ID ${score.parameterId}`);
                 }
                 
                 return enhancedScore;
