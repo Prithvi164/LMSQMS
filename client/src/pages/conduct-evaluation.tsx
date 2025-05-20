@@ -351,6 +351,50 @@ function ConductEvaluation() {
         throw new Error("Failed to load evaluation data");
       }
       
+      // Fetch the template to get the parameter names and descriptions
+      // This will help us show proper information instead of "Parameter 91"
+      if (data.evaluation.templateId) {
+        try {
+          // Get the organizationId from the user or the evaluation
+          const organizationId = user?.organizationId || data.evaluation.organizationId;
+          
+          const templateData = await queryClient.fetchQuery({
+            queryKey: [`/api/organizations/${organizationId}/evaluation-templates/${data.evaluation.templateId}`],
+          });
+          
+          if (templateData && templateData.parameters && Array.isArray(templateData.parameters)) {
+            console.log("Retrieved template parameters:", templateData.parameters.length);
+            
+            // Create a map of parameter IDs to their details
+            const parameterMap = {};
+            templateData.parameters.forEach(param => {
+              if (param.id) {
+                parameterMap[param.id] = param;
+              }
+            });
+            
+            // Add parameter details to each score
+            if (data.evaluation.scores && Array.isArray(data.evaluation.scores)) {
+              data.evaluation.scores = data.evaluation.scores.map(score => {
+                if (score.parameterId && parameterMap[score.parameterId]) {
+                  // Clone the score to avoid modifying cached data
+                  return {
+                    ...score,
+                    parameter: parameterMap[score.parameterId],
+                    parameterName: parameterMap[score.parameterId].name || parameterMap[score.parameterId].question,
+                    parameterQuestion: parameterMap[score.parameterId].question
+                  };
+                }
+                return score;
+              });
+            }
+          }
+        } catch (templateError) {
+          console.error("Error fetching template data:", templateError);
+          // Continue processing even if template fetch fails
+        }
+      }
+      
       // Process the evaluation details to group scores by pillar
       if (data.evaluation.scores && data.evaluation.scores.length > 0) {
         console.log("Processing scores for grouping, found", data.evaluation.scores.length, "scores");
@@ -2891,11 +2935,11 @@ function ConductEvaluation() {
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <h4 className="font-medium">
-                                      {score.parameter?.question || score.parameter?.name || `Parameter ${score.parameterId || ''}`}
+                                      {score.parameterName || score.parameterQuestion || score.parameter?.question || score.question || score.parameter?.name || `Parameter ${score.parameterId || ''}`}
                                     </h4>
-                                    {score.parameter?.description && (
+                                    {(score.parameter?.description || score.description) && (
                                       <p className="text-sm text-muted-foreground mt-1">
-                                        {score.parameter.description}
+                                        {score.parameter?.description || score.description}
                                       </p>
                                     )}
                                   </div>
