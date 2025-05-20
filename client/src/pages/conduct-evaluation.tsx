@@ -2617,7 +2617,7 @@ function ConductEvaluation() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell>{evaluation.finalScore?.toFixed(1)}%</TableCell>
+                          <TableCell>{typeof evaluation.final_score === 'number' ? evaluation.final_score.toFixed(1) : (evaluation.final_score || 0)}%</TableCell>
                           <TableCell>{formatDate(evaluation.createdAt)}</TableCell>
                           <TableCell>
                             {evaluation.status === "pending" ? (

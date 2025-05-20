@@ -1329,7 +1329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trainee_id: evaluations.traineeId,
           trainee_name: users.fullName,
           audio_file_id: evaluations.audioFileId,
-          final_score: evaluations.finalScore,
+          final_score: sql`CAST(${evaluations.finalScore} AS FLOAT)`, // Convert to number
           evaluation_type: evaluations.evaluationType,
           status: evaluations.status,
           feedback_threshold: evaluations.feedbackThreshold,
