@@ -412,12 +412,23 @@ function ConductEvaluation() {
         
         // Create the grouped structure
         Object.entries(scoresByPillar).forEach(([pillarId, scores]) => {
+          // Find the full pillar object from the template
           const pillar = data.evaluation.template?.pillars?.find(
             (p: any) => p.id.toString() === pillarId
           );
           
+          // Ensure pillar has a proper name to display
+          const enhancedPillar = pillar ? {
+            ...pillar,
+            // Make sure name is set - use a fallback if name isn't available
+            name: pillar.name || `Section ${pillarId}`
+          } : { 
+            id: parseInt(pillarId) || 0, 
+            name: `Section ${pillarId}` 
+          };
+          
           groupedScores.push({
-            pillar: pillar || { id: pillarId, name: `Section ${pillarId}` },
+            pillar: enhancedPillar,
             scores: scores
           });
         });
