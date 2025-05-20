@@ -233,7 +233,7 @@ function CompletedEvaluations() {
       setLoadingDetails(true);
       
       // Fetch evaluation with template and parameters
-      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true`);
+      const response = await fetch(`/api/evaluations/${evalId}?includeTemplate=true&includeParameters=true&includeScores=true&includePillars=true`);
       if (!response.ok) {
         throw new Error('Failed to load evaluation details');
       }
@@ -249,9 +249,63 @@ function CompletedEvaluations() {
         console.warn("No scores found for evaluation:", evalId);
       }
       
+      // Group scores by pillars for accordion display
+      const scores = details.evaluation?.scores || [];
+      const parameters = details.evaluation?.template?.parameters || [];
+      const pillars = details.pillars || [];
+      
+      // Create a map of parameter IDs to their details
+      const parameterMap = {};
+      parameters.forEach(param => {
+        if (param && param.id) {
+          parameterMap[param.id] = param;
+        }
+      });
+      
+      // Group scores by pillar
+      const groupedScores = [];
+      
+      // First, group parameters by pillar
+      const parametersByPillar = {};
+      parameters.forEach(param => {
+        const pillarId = param.pillarId || 'uncategorized';
+        if (!parametersByPillar[pillarId]) {
+          parametersByPillar[pillarId] = [];
+        }
+        parametersByPillar[pillarId].push(param);
+      });
+      
+      // Then create grouped scores structure
+      Object.entries(parametersByPillar).forEach(([pillarId, pillarParams]) => {
+        const pillar = pillarId !== 'uncategorized' 
+          ? pillars.find(p => p.id === parseInt(pillarId)) 
+          : null;
+        
+        const pillarScores = [];
+        pillarParams.forEach(param => {
+          const score = scores.find(s => s.parameterId === param.id);
+          if (score) {
+            pillarScores.push({
+              ...score,
+              parameter: param
+            });
+          }
+        });
+        
+        if (pillarScores.length > 0) {
+          groupedScores.push({
+            pillar,
+            scores: pillarScores
+          });
+        }
+      });
+      
+      details.groupedScores = groupedScores;
+      
       // Update the cache with the detailed data
       queryClient.setQueryData(["/api/evaluations", evalId], details);
       
+      setEvaluationDetails(details);
       setIsViewDialogOpen(true);
     } catch (error) {
       console.error("Error fetching evaluation details:", error);
