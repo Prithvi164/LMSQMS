@@ -2928,7 +2928,7 @@ function ConductEvaluation() {
                                 <span className="text-sm">Duration:</span>
                                 <span className="text-sm font-medium">
                                   {evaluationDetails?.evaluation?.audioFile?.duration 
-                                    ? `${Math.floor(evaluationDetails.evaluation.audioFile.duration / 60)}:${(evaluationDetails.evaluation.audioFile.duration % 60).toString().padStart(2, '0')}` 
+                                    ? `${Math.floor(evaluationDetails?.evaluation?.audioFile?.duration / 60)}:${(evaluationDetails?.evaluation?.audioFile?.duration % 60).toString().padStart(2, '0')}` 
                                     : "Unknown"}
                                 </span>
                               </div>
@@ -3129,7 +3129,27 @@ function ConductEvaluation() {
             </Button>
             <Button onClick={() => {
               setIsViewDialogOpen(false);
-              handleEditEvaluation(selectedEvaluation!);
+              // Open edit dialog and initialize the edit state
+              if (evaluationDetails?.evaluation) {
+                // Pre-populate edited scores with existing scores
+                const initialScores: Record<string, any> = {};
+                evaluationDetails.evaluation.scores.forEach((score: any) => {
+                  initialScores[score.parameterId] = {
+                    score: score.score,
+                    comment: score.comment || '',
+                    noReason: score.noReason || '',
+                  };
+                });
+                setEditedScores(initialScores);
+                setSelectedEvaluationId(evaluationDetails.evaluation.id);
+                setIsEditDialogOpen(true);
+              } else {
+                toast({
+                  title: "Cannot edit evaluation",
+                  description: "Evaluation details are not available",
+                  variant: "destructive",
+                });
+              }
             }}>
               Edit Evaluation
             </Button>
@@ -3301,7 +3321,7 @@ function ConductEvaluation() {
                 const isPassed = finalScore >= passingScore;
                 
                 updateEvaluationMutation.mutate({
-                  id: selectedEvaluation,
+                  id: selectedEvaluationId,
                   scores,
                   finalScore,
                   isPassed,
