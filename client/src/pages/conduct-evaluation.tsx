@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import { CompletedEvaluations } from "@/components/evaluation/completed-evaluations";
 import {
   Select,
   SelectContent,
