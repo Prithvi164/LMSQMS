@@ -5683,9 +5683,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
         id: trainee.userId,
-        status: trainee.attendance?.status || null,
+        status: trainee.attendance?.status || (trainee.traineeStatus === 'left_job' ? 'left_job' : null),
         lastUpdated: trainee.attendance?.lastUpdated?.toISOString(),
-        user: trainee.user
+        user: trainee.user,
+        traineeStatus: trainee.traineeStatus,
+        isManualStatus: trainee.isManualStatus
       }));
 
       console.log('Trainees with attendance details:', traineesWithDetails);
