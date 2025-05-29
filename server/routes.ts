@@ -3909,6 +3909,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         !!isManualStatus
       );
 
+      // If trainee status is set to "left_job", automatically update all future attendance records
+      if (traineeStatus === 'left_job') {
+        console.log(`Updating future attendance records for trainee with left_job status`);
+        
+        // Get the user batch process to get trainee and batch info
+        const userBatchProcess = await db.query.userBatchProcesses.findFirst({
+          where: eq(userBatchProcesses.id, userBatchProcessId),
+          columns: {
+            userId: true,
+            batchId: true
+          }
+        });
+
+        if (userBatchProcess) {
+          const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+          
+          // Update all future attendance records (including today and beyond) to "left_job"
+          await db
+            .update(attendance)
+            .set({
+              status: 'left_job',
+              updatedAt: new Date()
+            })
+            .where(
+              and(
+                eq(attendance.traineeId, userBatchProcess.userId),
+                eq(attendance.batchId, userBatchProcess.batchId),
+                gte(attendance.date, today) // Update today and future dates
+              )
+            );
+
+          console.log(`Updated future attendance records for trainee ${userBatchProcess.userId} in batch ${userBatchProcess.batchId}`);
+        }
+      }
+
       // Return updated user batch process record
       res.json(updatedUserBatchProcess);
     } catch (error) {

@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award, Trash2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -61,10 +61,11 @@ const statusColors = {
   leave: 'text-blue-500',
   half_day: 'text-orange-500',
   public_holiday: 'text-purple-500',
-  weekly_off: 'text-gray-500'
+  weekly_off: 'text-gray-500',
+  left_job: 'text-red-700'
 } as const;
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'half_day' | 'public_holiday' | 'weekly_off';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'half_day' | 'public_holiday' | 'weekly_off' | 'left_job';
 
 type Trainee = {
   id: number;
@@ -98,6 +99,8 @@ const getStatusIcon = (status: AttendanceStatus | null) => {
       return <AlertCircle className={`h-4 w-4 ${statusColors.public_holiday}`} />;
     case 'weekly_off':
       return <AlertCircle className={`h-4 w-4 ${statusColors.weekly_off}`} />;
+    case 'left_job':
+      return <XCircle className={`h-4 w-4 ${statusColors.left_job}`} />;
     default:
       return null;
   }
@@ -785,6 +788,7 @@ export function BatchDetailsPage() {
                                 <SelectItem value="half_day" className={statusColors.half_day}>Half Day</SelectItem>
                                 <SelectItem value="public_holiday" className={statusColors.public_holiday}>Public Holiday</SelectItem>
                                 <SelectItem value="weekly_off" className={statusColors.weekly_off}>Weekly Off</SelectItem>
+                                <SelectItem value="left_job" className={statusColors.left_job}>Left Job</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>

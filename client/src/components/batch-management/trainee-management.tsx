@@ -669,7 +669,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                   <SelectItem value="refresher">Refresher</SelectItem>
                   <SelectItem value="refer_to_hr">Refer to HR</SelectItem>
                   <SelectItem value="left_job">Left Job</SelectItem>
-                  <SelectItem value="refer_to_hr">Refer to HR</SelectItem>
                 </SelectContent>
               </Select>
             </div>
