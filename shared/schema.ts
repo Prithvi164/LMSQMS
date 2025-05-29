@@ -1381,6 +1381,7 @@ export const traineePhaseStatusEnum = pgEnum("trainee_phase_status", [
   "completed",
   "refresher", // Special status: Trainee needs additional training
   "refer_to_hr", // Special status: Trainee has HR-related issues
+  "left_job", // Special status: Trainee has left the job
 ]);
 
 export const userBatchProcesses = pgTable(
@@ -1755,6 +1756,7 @@ export const attendanceStatusEnum = pgEnum("attendance_status", [
   "half_day",
   "public_holiday",
   "weekly_off",
+  "left_job",
 ]);
 
 export const attendance = pgTable(
@@ -1830,6 +1832,7 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
       "half_day",
       "public_holiday",
       "weekly_off",
+      "left_job",
     ]),
     date: z.string().min(1, "Date is required"),
     markedById: z.number().int().positive("Marker ID is required"),

@@ -77,7 +77,7 @@ type Trainee = {
   phoneNumber: string;
   dateOfJoining: string;
   // New fields for trainee status tracking
-  traineeStatus?: 'planned' | 'induction' | 'training' | 'certification' | 'ojt' | 'ojt_certification' | 'completed' | 'refresher' | 'refer_to_hr' | null;
+  traineeStatus?: 'planned' | 'induction' | 'training' | 'certification' | 'ojt' | 'ojt_certification' | 'completed' | 'refresher' | 'refer_to_hr' | 'left_job' | null;
   isManualStatus?: boolean;
 };
 
@@ -667,6 +667,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                   <SelectItem value="ojt_certification">OJT Certification</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="refresher">Refresher</SelectItem>
+                  <SelectItem value="refer_to_hr">Refer to HR</SelectItem>
+                  <SelectItem value="left_job">Left Job</SelectItem>
                   <SelectItem value="refer_to_hr">Refer to HR</SelectItem>
                 </SelectContent>
               </Select>
